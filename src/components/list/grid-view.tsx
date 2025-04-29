@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { 
   ChevronDown, 
@@ -11,14 +10,14 @@ import {
   Edit,
   Check,
   X,
-  Calendar,
   Trash2,
   Copy,
   ArrowLeft,
   ArrowRight,
   SortDesc,
   SortAsc,
-  PencilLine
+  PencilLine,
+  CalendarIcon
 } from "lucide-react";
 import { CustomButton } from "@/components/ui/custom-button";
 import { 
@@ -286,10 +285,12 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
     setColumns(prev => [...prev, newColumnDef]);
     
     // Add default values for new column to all rows
-    setData(prev => prev.map(row => ({
-      ...row,
-      [key]: newColumn.type === 'checkbox' ? false : ''
-    })));
+    setData(prevData => prevData.map(row => {
+      return {
+        ...row,
+        [key]: newColumn.type === 'checkbox' ? false : ''
+      };
+    }));
     
     // Reset new column state
     setNewColumn({ header: '', type: 'text' });
@@ -308,7 +309,7 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
     // Remove column data from all rows
     setData(prev => prev.map(row => {
       const { [key]: _, ...rest } = row;
-      return rest;
+      return rest as RowData; // Explicitly cast to RowData to ensure id property exists
     }));
     
     toast.success("Column deleted");
