@@ -1,0 +1,86 @@
+
+.grid-header {
+  display: grid;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
+}
+
+.grid-header-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  height: 40px;
+  user-select: none;
+  position: relative;
+}
+
+.grid-header-cell:hover {
+  background-color: rgba(140, 158, 165, 0.05);
+}
+
+.grid-row {
+  display: grid;
+  border-bottom: 1px solid rgba(198, 206, 210, 0.2);
+}
+
+.grid-row:hover {
+  background-color: rgba(198, 206, 210, 0.1);
+}
+
+.grid-cell {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.grid-cell[tabindex="0"]:hover {
+  background-color: rgba(140, 158, 165, 0.05);
+}
+
+.grid-cell[tabindex="0"]:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(103, 187, 170, 0.5);
+}
+
+.grid-drag-indicator {
+  position: absolute;
+  height: 100%;
+  width: 2px;
+  background-color: #67BBAA;
+}
+
+@keyframes check-mark-appear {
+  0% { 
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.save-indicator {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  color: #67BBAA;
+  animation: check-mark-appear 0.3s forwards;
+}

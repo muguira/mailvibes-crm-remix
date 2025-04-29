@@ -2,20 +2,22 @@
 import { useState } from "react";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
-import { GridView } from "@/components/list/grid-view";
+import { GridView, ColumnDef } from "@/components/list/grid-view";
 import { StreamView } from "@/components/list/stream-view";
 import { List, Grid, Menu } from "lucide-react";
+import "@/components/list/grid-view.css";
 
 // Define column types to match the ColumnDef interface
-const columns = [
-  { key: "opportunity", header: "Opportunity", type: "text" as const, editable: true },
-  { key: "status", header: "Status", type: "status" as const, editable: true },
-  { key: "revenue", header: "Revenue", type: "number" as const, editable: true },
-  { key: "closeDate", header: "Close Date", type: "date" as const, editable: true },
-  { key: "owner", header: "Owner", type: "text" as const, editable: true },
-  { key: "employees", header: "Employees", type: "number" as const, editable: true },
+const columns: ColumnDef[] = [
+  { key: "opportunity", header: "Opportunity", type: "text", editable: true },
+  { key: "status", header: "Status", type: "status", editable: true },
+  { key: "revenue", header: "Revenue", type: "currency", editable: true },
+  { key: "closeDate", header: "Close Date", type: "date", editable: true },
+  { key: "owner", header: "Owner", type: "text", editable: true },
+  { key: "employees", header: "Employees", type: "number", editable: true },
 ];
 
+// Sample data
 const data = [
   { id: "1", opportunity: "Avocado Inc", status: "Deal Won", revenue: "$5,000", closeDate: "Sep 24, 2023", owner: "Ryan DeForest", employees: 0 },
   { id: "2", opportunity: "Lulu - Product A", status: "Qualified", revenue: "$6,645", closeDate: "Aug 13, 2023", owner: "Kelly Singsank", employees: 0 },
