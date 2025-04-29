@@ -6,14 +6,14 @@ import { GridView } from "@/components/list/grid-view";
 import { StreamView } from "@/components/list/stream-view";
 import { List, Grid, Menu } from "lucide-react";
 
-// Sample data
+// Define column types to match the ColumnDef interface
 const columns = [
-  { key: "opportunity", header: "Opportunity", type: "text", editable: true },
-  { key: "status", header: "Status", type: "status", editable: true },
-  { key: "revenue", header: "Revenue", type: "number", editable: true },
-  { key: "closeDate", header: "Close Date", type: "date", editable: true },
-  { key: "owner", header: "Owner", type: "text", editable: true },
-  { key: "employees", header: "Employees", type: "number", editable: true },
+  { key: "opportunity", header: "Opportunity", type: "text" as const, editable: true },
+  { key: "status", header: "Status", type: "status" as const, editable: true },
+  { key: "revenue", header: "Revenue", type: "number" as const, editable: true },
+  { key: "closeDate", header: "Close Date", type: "date" as const, editable: true },
+  { key: "owner", header: "Owner", type: "text" as const, editable: true },
+  { key: "employees", header: "Employees", type: "number" as const, editable: true },
 ];
 
 const data = [
@@ -29,7 +29,7 @@ const data = [
   { id: "10", opportunity: "Tequila", status: "Deal Won", revenue: "$9,000", closeDate: "Jul 3, 2023", owner: "Rudy S.", employees: 0 },
 ];
 
-// Sample contact data for stream view
+// Update ActivityItem type properties to use the correct literal types
 const contacts = [
   {
     id: "1",
@@ -38,7 +38,7 @@ const contacts = [
     activities: [
       {
         id: "1",
-        type: "update",
+        type: "update" as const,
         timestamp: "4h",
         content: "",
         user: { name: "Rudy's Admin", initials: "RA" },
@@ -46,14 +46,14 @@ const contacts = [
       },
       {
         id: "2",
-        type: "note",
+        type: "note" as const,
         timestamp: "4h",
         content: "Deal Won!",
         user: { name: "Rudy Admin", initials: "RA" }
       },
       {
         id: "3",
-        type: "update",
+        type: "update" as const,
         timestamp: "4h",
         content: "",
         user: { name: "Rudy's Admin", initials: "RA" },
@@ -61,7 +61,7 @@ const contacts = [
       },
       {
         id: "4",
-        type: "update",
+        type: "update" as const,
         timestamp: "4h",
         content: "",
         user: { name: "Rudy's Admin", initials: "RA" },
@@ -69,14 +69,14 @@ const contacts = [
       },
       {
         id: "5",
-        type: "task-complete",
+        type: "task-complete" as const,
         timestamp: "1mo 15d",
         content: "Jennifer Raffard marked a follow up task with Jill Trades complete",
         user: { name: "Jennifer Raffard", initials: "JR" }
       },
       {
         id: "6",
-        type: "call",
+        type: "call" as const,
         timestamp: "1mo 24d",
         content: "Deal going well!",
         user: { name: "Jennifer Raffard", initials: "JR" }
@@ -98,7 +98,7 @@ const contacts = [
     activities: [
       {
         id: "1",
-        type: "update",
+        type: "update" as const,
         timestamp: "4h",
         content: "",
         user: { name: "Kelly Singsank", initials: "KS" },
@@ -120,7 +120,7 @@ const contacts = [
     activities: [
       {
         id: "1",
-        type: "note",
+        type: "note" as const,
         timestamp: "4h",
         content: "Client wants additional features in the package",
         user: { name: "Rosie Roca", initials: "RR" }
@@ -140,7 +140,7 @@ const contacts = [
     activities: [
       {
         id: "1",
-        type: "update",
+        type: "update" as const,
         timestamp: "5h",
         content: "",
         user: { name: "Kelly Singsank", initials: "KS" },
