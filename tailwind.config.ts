@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,12 +62,38 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				// RelateIQ color palette
+				teal: {
+					primary: '#67BBAA',
+					light: '#7FCBBC',
+					dark: '#55998D',
+				},
+				navy: {
+					deep: '#133340',
+					dark: '#1F4D5D',
+					light: '#2D7289',
+				},
+				coral: '#F16B50',
+				'sunset-orange': '#F79849',
+				slate: {
+					light: '#C6CED2',
+					medium: '#8C9EA5',
+					dark: '#4A5357',
+				},
+				'grey-light': '#DDDDDC',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
+			},
+			fontFamily: {
+				sans: ['Proxima Nova', 'Inter', 'sans-serif'],
+				proxima: ['Proxima Nova', 'Inter', 'sans-serif'],
+			},
+			boxShadow: {
+				'relate': '0 2px 10px rgba(0, 0, 0, 0.1)',
 			},
 			keyframes: {
 				'accordion-down': {
@@ -84,11 +111,22 @@ export default {
 					to: {
 						height: '0'
 					}
-				}
+				},
+				'fade-in': {
+					'0%': {
+						opacity: '0',
+						transform: 'translateY(10px)'
+					},
+					'100%': {
+						opacity: '1',
+						transform: 'translateY(0)'
+					}
+				},
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'fade-in': 'fade-in 0.3s ease-out',
 			}
 		}
 	},
