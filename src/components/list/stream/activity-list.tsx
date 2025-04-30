@@ -20,13 +20,19 @@ interface ActivityListProps {
 }
 
 export function ActivityList({ activities }: ActivityListProps) {
-  return (
-    <div className="overflow-y-auto flex-1 bg-slate-light/5">
-      <div className="p-4 space-y-4">
-        {activities.map((activity) => (
-          <ActivityItem key={activity.id} activity={activity} />
-        ))}
+  if (activities.length === 0) {
+    return (
+      <div className="text-center text-slate-medium p-4">
+        No activities yet. Add a comment or update information to see activity.
       </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-4">
+      {activities.map((activity) => (
+        <ActivityItem key={activity.id} activity={activity} />
+      ))}
     </div>
   );
 }

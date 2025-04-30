@@ -52,6 +52,7 @@ export function ListContent({
       data={gridData} 
       listName={listName} 
       listType="Opportunity"
+      listId={currentListId}
       onCellChange={onCellChange}
       onAddItem={onAddItem}
     />

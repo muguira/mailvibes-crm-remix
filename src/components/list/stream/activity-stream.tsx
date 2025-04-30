@@ -20,13 +20,14 @@ interface ActivityStreamProps {
       value: string;
     };
   }[];
+  listId?: string;
   onAddComment?: (content: string) => void;
 }
 
-export function ActivityStream({ selectedContact, activities = [], onAddComment }: ActivityStreamProps) {
+export function ActivityStream({ selectedContact, activities = [], listId, onAddComment }: ActivityStreamProps) {
   return (
     <div className="flex-1 border-r border-slate-light/30 overflow-hidden flex flex-col">
-      <ActivityHeader selectedContact={selectedContact} />
+      <ActivityHeader selectedContact={selectedContact} listId={listId} />
       
       <div className="flex-1 overflow-y-auto bg-slate-light/5">
         <div className="p-4 space-y-4">
