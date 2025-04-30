@@ -10,6 +10,7 @@ export interface ColumnDef {
   options?: string[];
   colors?: Record<string, string>;
   frozen?: boolean; // For keeping columns like "Opportunity" fixed
+  filter?: boolean; // Added filter property for filtering functionality
 }
 
 export interface GridViewProps {
