@@ -1,3 +1,4 @@
+
 import { ContactData } from "../types";
 import { EmptyState } from "@/components/ui/empty-state";
 
