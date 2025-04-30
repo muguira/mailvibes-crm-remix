@@ -89,8 +89,7 @@ export function GridViewContent({
         console.log("Forcing header visibility");
         
         // Add !important styles
-        headerRef.current.style.setProperty('visibility', 'visible', 'important');
-        headerRef.current.style.setProperty('opacity', '1', 'important');
+        headerRef.current.setAttribute('style', 'visibility: visible !important; opacity: 1 !important; display: flex !important');
         
         // Force reflow by temporarily hiding and showing
         headerRef.current.style.display = 'none';
@@ -100,22 +99,19 @@ export function GridViewContent({
         // Apply to all header cells
         const headerCells = headerRef.current.querySelectorAll('.grid-header-cell');
         headerCells.forEach((cell) => {
-          (cell as HTMLElement).style.setProperty('visibility', 'visible', 'important');
-          (cell as HTMLElement).style.setProperty('opacity', '1', 'important');
+          (cell as HTMLElement).setAttribute('style', 'visibility: visible !important; opacity: 1 !important');
           
           // Also make sure spans are visible
           const spans = cell.querySelectorAll('span');
           spans.forEach((span) => {
-            (span as HTMLElement).style.setProperty('visibility', 'visible', 'important');
-            (span as HTMLElement).style.setProperty('opacity', '1', 'important');
+            (span as HTMLElement).setAttribute('style', 'visibility: visible !important; opacity: 1 !important');
           });
         });
         
         // Ensure all header container is visible
         const headersContainer = document.querySelector('.grid-headers-container');
         if (headersContainer) {
-          (headersContainer as HTMLElement).style.setProperty('visibility', 'visible', 'important');
-          (headersContainer as HTMLElement).style.setProperty('opacity', '1', 'important');
+          (headersContainer as HTMLElement).setAttribute('style', 'visibility: visible !important; opacity: 1 !important');
         }
         
         setHeaderVisible(true);

@@ -1,6 +1,5 @@
 
 import { SaveIndicatorProvider } from "./contexts/save-indicator-context";
-import { ZoomProvider } from "./contexts/zoom-context";
 import { GridContainer, GridViewContent } from "./components";
 import { GridViewProps } from "./types";
 import "./grid-view.css";
@@ -13,11 +12,9 @@ export function GridView(props: GridViewProps & {
 }) {
   return (
     <SaveIndicatorProvider>
-      <ZoomProvider>
-        <GridContainer>
-          <GridViewContent {...props} />
-        </GridContainer>
-      </ZoomProvider>
+      <GridContainer>
+        <GridViewContent {...props} />
+      </GridContainer>
     </SaveIndicatorProvider>
   );
 }

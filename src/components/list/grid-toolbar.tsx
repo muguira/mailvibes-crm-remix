@@ -1,28 +1,19 @@
 
 import { Button } from "@/components/ui/button";
-import { Search, Filter, Download, Plus } from "lucide-react";
+import { Search, Filter, Plus } from "lucide-react";
 import { ColumnDef } from "./grid/types";
-import { ZoomControl } from "./zoom-control";
-import { useZoom } from "./grid/contexts/zoom-context";
 
 interface GridToolbarProps {
   listType?: string;
   columns: ColumnDef[];
   onAddItem?: () => void;
-  onZoomChange?: (zoom: string) => void;
-  currentZoom?: string;
 }
 
 export function GridToolbar({ 
   listType, 
   columns, 
-  onAddItem,
-  onZoomChange,
-  currentZoom
+  onAddItem
 }: GridToolbarProps) {
-  // Get zoom functionality from context
-  const { zoomLevel, setZoomLevel } = useZoom();
-
   // Count columns with filter property if it exists, otherwise assume 0
   const filterCount = columns.filter(col => col.filter !== undefined).length;
 
@@ -44,22 +35,6 @@ export function GridToolbar({
           <Filter size={14} className="mr-1" />
           Filters ({filterCount})
         </Button>
-        
-        {/* Download Button - Moved to the left of zoom control */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex items-center text-xs font-normal px-2 text-slate-dark hover:text-slate-darker"
-        >
-          <Download size={14} className="mr-1" />
-          Export
-        </Button>
-        
-        {/* Zoom Control - Now using the context */}
-        <ZoomControl 
-          onZoomChange={onZoomChange || setZoomLevel} 
-          currentZoom={currentZoom || zoomLevel}
-        />
       </div>
       
       <div className="flex items-center space-x-2">
