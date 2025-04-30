@@ -20,6 +20,9 @@ export interface ContactData {
   id: string;
   name: string;
   company?: string;
+  email?: string;
+  phone?: string;
+  status?: string;
   lastActivity: string;
   activities: ActivityItem[];
   fields: Record<string, any>;

@@ -1,15 +1,41 @@
 
 import { useState } from "react";
-import { Edit, Plus } from "lucide-react";
+import { Edit, Plus, Check, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CustomButton } from "@/components/ui/custom-button";
 import { ContactData } from "../types";
 
 interface DetailsPanelProps {
   selectedContact: ContactData;
+  onUpdateField?: (field: string, value: any) => void;
 }
 
-export function DetailsPanel({ selectedContact }: DetailsPanelProps) {
+export function DetailsPanel({ selectedContact, onUpdateField }: DetailsPanelProps) {
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [fieldValue, setFieldValue] = useState("");
+  const [newField, setNewField] = useState({ name: "", value: "" });
+  const [isAddingField, setIsAddingField] = useState(false);
+  
+  const handleEditField = (field: string, value: any) => {
+    setEditingField(field);
+    setFieldValue(value);
+  };
+  
+  const handleSaveField = () => {
+    if (!editingField || !onUpdateField) return;
+    
+    onUpdateField(editingField, fieldValue);
+    setEditingField(null);
+  };
+  
+  const handleAddField = () => {
+    if (!newField.name.trim() || !onUpdateField) return;
+    
+    onUpdateField(newField.name, newField.value);
+    setNewField({ name: "", value: "" });
+    setIsAddingField(false);
+  };
+
   return (
     <div className="w-72 bg-white">
       <Tabs defaultValue="fields">
@@ -28,29 +54,94 @@ export function DetailsPanel({ selectedContact }: DetailsPanelProps) {
             />
             
             <div className="space-y-4">
-              {Object.entries(selectedContact.fields).map(([key, value]) => (
+              {selectedContact.fields && Object.entries(selectedContact.fields).map(([key, value]) => (
                 <div key={key} className="space-y-1">
                   <div className="text-xs text-slate-medium">{key}</div>
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium">{value}</div>
-                    <button className="text-slate-medium hover:text-teal-primary">
-                      <Edit size={14} />
-                    </button>
-                  </div>
+                  {editingField === key ? (
+                    <div className="flex items-center justify-between">
+                      <input 
+                        type="text"
+                        value={fieldValue}
+                        onChange={(e) => setFieldValue(e.target.value)}
+                        className="w-full p-1 border border-slate-light/30 rounded text-sm focus:outline-none focus:ring-1 focus:ring-teal-primary"
+                        autoFocus
+                      />
+                      <div className="flex ml-2">
+                        <button 
+                          className="p-1 text-green-500 hover:bg-slate-light/20 rounded"
+                          onClick={handleSaveField}
+                        >
+                          <Check size={14} />
+                        </button>
+                        <button 
+                          className="p-1 text-red-500 hover:bg-slate-light/20 rounded"
+                          onClick={() => setEditingField(null)}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium">{value}</div>
+                      <button 
+                        className="text-slate-medium hover:text-teal-primary"
+                        onClick={() => handleEditField(key, value)}
+                      >
+                        <Edit size={14} />
+                      </button>
+                    </div>
+                  )}
                   <div className="border-b border-slate-light/30 pt-2"></div>
                 </div>
               ))}
               
-              <div className="pt-2">
-                <CustomButton 
-                  variant="outline" 
-                  className="w-full flex items-center justify-center gap-2"
-                  size="sm"
-                >
-                  <Plus size={14} />
-                  <span>Add a Field</span>
-                </CustomButton>
-              </div>
+              {isAddingField ? (
+                <div className="space-y-2 pt-2">
+                  <input 
+                    type="text"
+                    placeholder="Field name"
+                    value={newField.name}
+                    onChange={(e) => setNewField({...newField, name: e.target.value})}
+                    className="w-full p-1 border border-slate-light/30 rounded text-sm focus:outline-none focus:ring-1 focus:ring-teal-primary"
+                    autoFocus
+                  />
+                  <input 
+                    type="text"
+                    placeholder="Field value"
+                    value={newField.value}
+                    onChange={(e) => setNewField({...newField, value: e.target.value})}
+                    className="w-full p-1 border border-slate-light/30 rounded text-sm focus:outline-none focus:ring-1 focus:ring-teal-primary"
+                  />
+                  <div className="flex justify-end space-x-2 mt-2">
+                    <button 
+                      className="px-2 py-1 text-xs border border-slate-light/30 rounded hover:bg-slate-light/20"
+                      onClick={() => setIsAddingField(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      className="px-2 py-1 text-xs bg-teal-primary text-white rounded hover:bg-teal-dark"
+                      onClick={handleAddField}
+                      disabled={!newField.name.trim()}
+                    >
+                      Add Field
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-2">
+                  <CustomButton 
+                    variant="outline" 
+                    className="w-full flex items-center justify-center gap-2"
+                    size="sm"
+                    onClick={() => setIsAddingField(true)}
+                  >
+                    <Plus size={14} />
+                    <span>Add a Field</span>
+                  </CustomButton>
+                </div>
+              )}
             </div>
           </div>
         </TabsContent>

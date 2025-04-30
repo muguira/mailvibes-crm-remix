@@ -7,7 +7,15 @@ import { useGridSetup } from "./use-grid-setup";
 import { GridViewProps } from "./types";
 import { ViewModeSelector } from "../view-mode-selector";
 
-export function GridView({ columns: initialColumns, data: initialData, listName, listType }: GridViewProps) {
+export function GridView({ 
+  columns: initialColumns, 
+  data: initialData, 
+  listName, 
+  listType,
+  onCellChange // New prop for saving changes
+}: GridViewProps & { 
+  onCellChange?: (rowId: string, colKey: string, value: any) => void 
+}) {
   // Container references for sync scrolling
   const headerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -57,6 +65,17 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
     headerRef,
     bodyRef
   });
+
+  // Wrap the cell change handler to save to Supabase
+  const handleCellChangeAndSave = (rowId: string, colKey: string, value: any, type: string) => {
+    // First handle the local change
+    handleCellChange(rowId, colKey, value, type);
+    
+    // Then save to Supabase if callback is provided
+    if (onCellChange) {
+      onCellChange(rowId, colKey, value);
+    }
+  };
   
   return (
     <div 
@@ -105,7 +124,7 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
         showSaveIndicator={showSaveIndicator}
         bodyRef={bodyRef}
         onCellClick={handleCellClick}
-        onCellChange={handleCellChange}
+        onCellChange={handleCellChangeAndSave}
       />
     </div>
   );
