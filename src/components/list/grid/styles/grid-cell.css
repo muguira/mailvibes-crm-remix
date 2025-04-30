@@ -35,14 +35,30 @@
   z-index: 2;
 }
 
-/* Empty cell styling */
+/* Empty cell styling - making it exactly like regular cells for consistency */
 .empty-grid-cell {
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
   border-right: 1px solid #e0e5eb;
   border-bottom: 1px solid #e0e5eb;
   background-color: inherit;
   cursor: cell;
   height: 100%;
   min-width: var(--cell-min-width, 150px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty-grid-cell:hover {
+  background-color: rgba(237, 243, 248, 0.5);
+}
+
+.empty-grid-cell:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px #1376c8;
+  z-index: 2;
 }
 
 /* Special cell types */

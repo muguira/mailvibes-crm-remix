@@ -33,6 +33,17 @@ export function GridBody({
   // Use the provided data directly as we've already ensured sufficient rows in ListContent
   const displayData = data;
 
+  // Create an empty row data object with the same structure as normal rows
+  const emptyRowId = `empty-row-${displayData.length + 1}`;
+  const emptyRowData = {
+    id: emptyRowId
+  };
+
+  // Add all columns to the empty row with empty values
+  [...frozenColumns, ...scrollableColumns].forEach(col => {
+    emptyRowData[col.key] = "";
+  });
+
   return (
     <div className="overflow-auto flex-1 bg-white" ref={bodyRef}>
       {displayData.map((row, index) => (
@@ -52,20 +63,21 @@ export function GridBody({
         />
       ))}
 
-      {/* Add one additional empty row at the end for new data entry */}
-      <div className="grid-row empty-row h-[var(--row-height,24px)] bg-white">
-        <div className="row-number-cell text-slate-300">{displayData.length + 1}</div>
-        <div className="edit-column-cell"></div>
-        <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${frozenColumns.length + scrollableColumns.length}, minmax(var(--cell-min-width, 150px), 1fr))` }}>
-          {Array.from({ length: frozenColumns.length + scrollableColumns.length }, (_, colIndex) => (
-            <div 
-              key={`empty-cell-${colIndex}`} 
-              className="empty-grid-cell"
-              tabIndex={0}
-            ></div>
-          ))}
-        </div>
-      </div>
+      {/* Add one additional empty row as a proper GridRow for new data entry */}
+      <GridRow
+        key={emptyRowId}
+        rowData={emptyRowData}
+        rowNumber={displayData.length + 1}
+        frozenColumns={frozenColumns}
+        scrollableColumns={scrollableColumns}
+        frozenColsTemplate={frozenColsTemplate}
+        scrollableColsTemplate={scrollableColsTemplate}
+        activeCell={activeCell}
+        showSaveIndicator={showSaveIndicator}
+        onCellClick={onCellClick}
+        onCellChange={onCellChange}
+        renderRowActions={renderRowActions}
+      />
     </div>
   );
 }
