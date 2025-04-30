@@ -47,7 +47,7 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     initialData
   });
   
-  // Initialize grid actions
+  // Initialize grid actions with all required props
   const {
     handleCellClick,
     handleHeaderDoubleClick,
@@ -69,8 +69,19 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     setData,
     activeCell,
     setActiveCell,
+    editingHeader,
+    setEditingHeader,
+    dragOverColumn,
+    newColumn,
+    setNewColumn,
+    isAddingColumn,
+    setIsAddingColumn,
     showSaveIndicator,
     setShowSaveIndicator,
+    undoStack,
+    setUndoStack,
+    redoStack,
+    setRedoStack,
     saveStateToHistory,
     setDraggedColumn,
     setDragOverColumn,
