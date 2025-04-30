@@ -65,6 +65,13 @@ export function GridHeadersSection({
       headerCells.forEach((cell) => {
         (cell as HTMLElement).style.setProperty('visibility', 'visible', 'important');
         (cell as HTMLElement).style.setProperty('opacity', '1', 'important');
+        
+        // Make sure the header text is visible too
+        const headerText = cell.querySelector('span');
+        if (headerText) {
+          (headerText as HTMLElement).style.setProperty('visibility', 'visible', 'important');
+          (headerText as HTMLElement).style.setProperty('opacity', '1', 'important');
+        }
       });
     }
   }, [columns, headerRef, isFrozen]);

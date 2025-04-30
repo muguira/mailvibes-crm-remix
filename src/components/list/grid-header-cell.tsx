@@ -81,6 +81,9 @@ export function GridHeaderCell({
     if (onDragStart) onDragStart(column.key);
   };
 
+  // Ensure we always have a display name for the header
+  const displayHeader = column.header || column.key || "Unnamed Column";
+
   return (
     <div 
       ref={headerRef}
@@ -100,7 +103,7 @@ export function GridHeaderCell({
         <input 
           type="text"
           className="w-full bg-transparent outline-none border-b border-teal-primary"
-          defaultValue={column.header}
+          defaultValue={displayHeader}
           autoFocus
           onBlur={(e) => handleHeaderEditComplete(column.key, e.target.value)}
           onKeyDown={(e) => {
@@ -116,7 +119,7 @@ export function GridHeaderCell({
           className="font-medium text-navy-deep uppercase text-xs"
           style={{ visibility: 'visible', opacity: 1 }}
         >
-          {column.header || "Unnamed Column"}
+          {displayHeader}
         </span>
       )}
       
@@ -128,7 +131,7 @@ export function GridHeaderCell({
           <DropdownMenuContent>
             {column.key !== "opportunity" && (
               <DropdownMenuItem onClick={() => {
-                const newName = prompt("Rename column:", column.header);
+                const newName = prompt("Rename column:", displayHeader);
                 if (newName) onRenameColumn(column.key, newName);
               }}>
                 <PencilLine size={14} className="mr-2" />

@@ -1,7 +1,8 @@
 
 import { RefObject, useRef, useEffect } from "react";
 import { ColumnDef, ColumnType } from "./grid/types";
-import { GridHeadersSection, AddColumnButton } from "./grid/components/index-headers";
+import { GridHeadersSection } from "./grid/components/grid-headers-section";
+import { AddColumnButton } from "./grid/components/add-column-button";
 
 interface GridHeadersProps {
   frozenColumns: ColumnDef[];
@@ -81,6 +82,13 @@ export function GridHeaders({
         headerCells.forEach(cell => {
           (cell as HTMLElement).style.visibility = 'visible';
           (cell as HTMLElement).style.opacity = '1';
+          
+          // Make sure the header text is visible too
+          const headerText = cell.querySelector('span');
+          if (headerText) {
+            (headerText as HTMLElement).style.visibility = 'visible';
+            (headerText as HTMLElement).style.opacity = '1';
+          }
         });
       }
       
@@ -96,7 +104,7 @@ export function GridHeaders({
     // Execute multiple times to ensure it catches
     setTimeout(ensureHeadersVisible, 100);
     setTimeout(ensureHeadersVisible, 300);
-  }, [frozenColumns, scrollableColumns]);
+  }, [frozenColumns, scrollableColumns, headerRef]);
 
   return (
     <div 
@@ -136,7 +144,7 @@ export function GridHeaders({
         )}
 
         {/* Scrollable header columns */}
-        <div className="flex flex-1 overflow-visible" style={{ 
+        <div className="flex flex-1 overflow-visible relative" style={{ 
           marginLeft: frozenColumns && frozenColumns.length > 0 ? 0 : "72px" // Adjust margin if no frozen columns
         }}>
           <GridHeadersSection
