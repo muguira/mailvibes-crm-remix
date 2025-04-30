@@ -145,7 +145,13 @@ export function GridHeaders({
                   <input
                     id="column-name"
                     value={newColumn.header}
-                    onChange={(e) => setNewColumn(prev => ({ ...prev, header: e.target.value }))}
+                    onChange={(e) => {
+                      // Fix #1: Create a new object with updated header
+                      setNewColumn({
+                        ...newColumn,
+                        header: e.target.value
+                      });
+                    }}
                     className="w-full p-2 border border-slate-light/50 rounded"
                   />
                 </div>
@@ -156,9 +162,13 @@ export function GridHeaders({
                   </label>
                   <Select
                     value={newColumn.type}
-                    onValueChange={(value: ColumnType) =>
-                      setNewColumn(prev => ({ ...prev, type: value }))
-                    }
+                    onValueChange={(value: ColumnType) => {
+                      // Fix #2: Create a new object with updated type
+                      setNewColumn({
+                        ...newColumn,
+                        type: value
+                      });
+                    }}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select type" />
@@ -184,10 +194,13 @@ export function GridHeaders({
                     <textarea
                       id="column-options"
                       className="w-full p-2 border border-slate-light/50 rounded h-24"
-                      onChange={(e) => setNewColumn(prev => ({
-                        ...prev,
-                        options: e.target.value.split('\n').filter(opt => opt.trim() !== '')
-                      }))}
+                      onChange={(e) => {
+                        // Fix #3: Create a new object with updated options
+                        setNewColumn({
+                          ...newColumn,
+                          options: e.target.value.split('\n').filter(opt => opt.trim() !== '')
+                        });
+                      }}
                     />
                   </div>
                 )}
