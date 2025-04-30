@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -190,49 +189,12 @@ const Lists = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
         
-        {/* Page Header - Salesforce style */}
-        <div className="page-header">
-          Lists – Opportunities
-        </div>
-        
-        {/* Toolbar */}
-        <div className="toolbar">
-          <div className="flex items-center space-x-4">
-            {/* Search Bar */}
-            <div className="search-field">
-              <Search size={16} className="text-slate-medium" />
-              <input 
-                type="text" 
-                placeholder="Search Field Values" 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-40 lg:w-56"
-              />
-              <ChevronDown size={16} className="text-slate-medium" />
-            </div>
-            
-            {/* View Toggle */}
-            <div className="view-toggle">
-              <button 
-                className={`flex items-center ${viewMode === "grid" ? "active" : ""}`}
-                onClick={() => setViewMode("grid")}
-              >
-                <Grid size={16} className={viewMode === "grid" ? "text-teal-primary" : "text-slate-medium"} />
-              </button>
-              <button 
-                className={`flex items-center ${viewMode === "stream" ? "active" : ""}`}
-                onClick={() => setViewMode("stream")}
-              >
-                <List size={16} className={viewMode === "stream" ? "text-teal-primary" : "text-slate-medium"} />
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex items-center">
-            <span className="text-sm text-slate-medium mr-2">28 Opportunities • DEMO</span>
-            <button className="bg-teal-primary text-white rounded px-4 py-2 text-sm font-medium flex items-center gap-1 hover:bg-teal-primary/90">
-              <span>Add Opportunity • DEMO</span>
-            </button>
+        {/* Page title - now part of the toolbar */}
+        <div className="bg-white border-b border-slate-light/30 p-2 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-medium text-slate-dark">
+              Lists – Opportunities
+            </h1>
           </div>
         </div>
         

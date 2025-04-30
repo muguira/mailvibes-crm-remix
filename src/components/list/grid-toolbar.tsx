@@ -1,5 +1,5 @@
 
-import { Filter, FileDown, Plus } from "lucide-react";
+import { Filter, FileDown, Plus, Search, ChevronDown, Grid, List } from "lucide-react";
 import { CustomButton } from "@/components/ui/custom-button";
 import { useState } from "react";
 import { ColumnDef } from "./grid-view";
@@ -7,23 +7,69 @@ import { ColumnDef } from "./grid-view";
 interface GridToolbarProps {
   listType: string;
   columns: ColumnDef[];
+  viewMode?: "grid" | "stream";
+  onViewModeChange?: (mode: "grid" | "stream") => void;
 }
 
-export function GridToolbar({ listType, columns }: GridToolbarProps) {
+export function GridToolbar({ 
+  listType, 
+  columns, 
+  viewMode = "grid", 
+  onViewModeChange 
+}: GridToolbarProps) {
   const [filterOpen, setFilterOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   return (
     <div className="bg-white border-b border-slate-light/30 p-2 flex items-center justify-between">
-      <div className="flex items-center">
+      <div className="flex items-center space-x-4">
+        {/* Checkbox */}
         <button className="p-1 rounded hover:bg-slate-light/20 text-slate-medium">
           <input type="checkbox" className="mr-2" />
         </button>
-        <button className="ml-2 w-8 h-8 flex items-center justify-center rounded hover:bg-slate-light/20 text-slate-medium">
+        
+        {/* Download Button */}
+        <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-light/20 text-slate-medium">
           <FileDown size={18} />
         </button>
+        
+        {/* Search Field */}
+        <div className="flex items-center bg-white border border-slate-light/50 rounded px-2 py-1">
+          <Search size={16} className="text-slate-medium" />
+          <input 
+            type="text" 
+            placeholder="Search Field Values" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-40 lg:w-56 border-none outline-none text-sm px-2"
+          />
+          <ChevronDown size={16} className="text-slate-medium" />
+        </div>
+        
+        {/* View Toggle */}
+        {onViewModeChange && (
+          <div className="flex bg-slate-light/20 rounded overflow-hidden">
+            <button 
+              className={`flex items-center justify-center p-1 w-8 h-8 ${viewMode === "grid" ? "bg-white shadow-sm" : ""}`}
+              onClick={() => onViewModeChange("grid")}
+            >
+              <Grid size={16} className={viewMode === "grid" ? "text-teal-primary" : "text-slate-medium"} />
+            </button>
+            <button 
+              className={`flex items-center justify-center p-1 w-8 h-8 ${viewMode === "stream" ? "bg-white shadow-sm" : ""}`}
+              onClick={() => onViewModeChange("stream")}
+            >
+              <List size={16} className={viewMode === "stream" ? "text-teal-primary" : "text-slate-medium"} />
+            </button>
+          </div>
+        )}
       </div>
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
+        {/* List Info */}
+        <span className="text-sm text-slate-medium">28 Opportunities • DEMO</span>
+        
+        {/* Filter Button */}
         <div className="relative">
           <CustomButton 
             variant="outline" 
@@ -65,6 +111,7 @@ export function GridToolbar({ listType, columns }: GridToolbarProps) {
           )}
         </div>
         
+        {/* Add Button */}
         <CustomButton 
           variant="default" 
           size="sm"
