@@ -106,11 +106,9 @@ const generateRow = (i: number): GridRow => ({
   lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
 });
 
-// Generate a large dataset for performance testing
-const generateLargeDataset = (count: number): GridRow[] => {
+// Generate datasets of different sizes
+const generateDataset = (count: number): GridRow[] => {
   console.log(`Generating ${count} rows of data...`);
-  
-  // Use Array.from for better performance with large datasets
   return Array.from({ length: count }, (_, i) => generateRow(i));
 };
 
@@ -124,16 +122,13 @@ const NewGrid: React.FC = () => {
     const searchParams = new URLSearchParams(location.search);
     const demo = searchParams.get('demo');
     
-    // Generate full 10k rows when demo=10k is in URL
     if (demo === '10k') {
       console.log("Generating 10,000 rows for performance testing");
       // Generate 10k rows efficiently
-      const largeDataset = Array.from({ length: 10000 }, (_, i) => generateRow(i));
-      console.log(`Generated ${largeDataset.length} rows`);
-      setData(largeDataset);
+      setData(generateDataset(10000));
     } else {
       // Default to 100 rows for normal use
-      setData(generateLargeDataset(100));
+      setData(generateDataset(100));
     }
   }, [location.search]);
   
@@ -148,9 +143,6 @@ const NewGrid: React.FC = () => {
             : row
         )
       );
-      
-      // In a real API implementation, you would handle 409 errors here
-      // and retry with a new UUID if needed
     } catch (error) {
       console.error("Error updating cell:", error);
       // If there's a 409 error, generate a new ID and retry
@@ -189,30 +181,16 @@ const NewGrid: React.FC = () => {
     setColumns(reorderedColumns);
   };
   
-  // Handle column deletion
+  // Handle column deletion - disabled for now
   const handleDeleteColumn = (columnId: string) => {
-    if (columnId === 'opportunity') return; // Protect the opportunity column
-    setColumns(prev => prev.filter(col => col.id !== columnId));
+    // This is disabled in the context menu but kept for future use
+    console.log("Column deletion disabled for stability");
   };
   
-  // Handle adding a new column
+  // Handle adding a new column - disabled for now
   const handleAddColumn = (afterColumnId: string) => {
-    const newColumnId = `column-${uuidv4()}`;
-    const newColumn: Column = {
-      id: newColumnId,
-      title: 'New Column',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    };
-    
-    const afterColumnIndex = columns.findIndex(col => col.id === afterColumnId);
-    
-    setColumns(prev => [
-      ...prev.slice(0, afterColumnIndex + 1),
-      newColumn,
-      ...prev.slice(afterColumnIndex + 1)
-    ]);
+    // This is disabled in the context menu but kept for future use
+    console.log("Column insertion disabled for stability");
   };
   
   return (

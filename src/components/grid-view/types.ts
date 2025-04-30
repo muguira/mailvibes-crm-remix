@@ -10,7 +10,6 @@ export interface Column {
   frozen?: boolean;
   options?: string[];
   colors?: Record<string, string>;
-  resizable?: boolean;
 }
 
 export interface GridRow {

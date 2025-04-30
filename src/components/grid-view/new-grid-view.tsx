@@ -7,13 +7,14 @@ import { GridToolbar } from './grid-toolbar';
 import { GridHeader } from './grid-header';
 import { OuterElementWrapper } from './outer-element-wrapper';
 import { FilterPopover } from './filter-popover';
-import { Check, Clipboard, Copy, Scissors, Filter, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Check, Clipboard, Scissors, Filter, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
 import './styles.css';
 import { v4 as uuidv4 } from 'uuid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 
 // Constants for minimum column width
 const MIN_COL_WIDTH = 100;
+const ROWS_PER_PAGE = 100;
 
 export function NewGridView({
   columns,
@@ -41,6 +42,10 @@ export function NewGridView({
   const [visibleData, setVisibleData] = useState<GridRow[]>([]);
   const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState<{x: number, y: number} | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Load saved column widths from localStorage based on listId
   const localStorageKey = `grid-column-widths-${listId || 'default'}`;
@@ -61,22 +66,6 @@ export function NewGridView({
     return [INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)];
   });
 
-  // Mark the index column as non-resizable
-  useEffect(() => {
-    if (columns.length > 0 && columns[0].id === 'opportunity') {
-      onColumnChange?.('opportunity', { resizable: false });
-    }
-  }, [columns, onColumnChange]);
-
-  // Save column widths to localStorage when they change
-  useEffect(() => {
-    try {
-      localStorage.setItem(localStorageKey, JSON.stringify(columnWidths));
-    } catch (e) {
-      console.error('Failed to save column widths to localStorage', e);
-    }
-  }, [columnWidths, localStorageKey]);
-
   // Update column widths when columns change
   useEffect(() => {
     // Only update if columns length is different to avoid resetting widths
@@ -86,24 +75,15 @@ export function NewGridView({
     }
   }, [columns.length]);
 
-  // Set visible data on initial load
-  useEffect(() => {
-    setVisibleData(data);
-  }, [data]);
-
-  // Calculate total width of columns
-  const totalWidth = useMemo(() => {
-    return columnWidths.reduce((acc, width) => acc + width, 0);
-  }, [columnWidths]);
-
-  // Filter data based on search term and active filters
-  const applyFilters = useCallback(() => {
-    let result = data;
+  // Calculate paginated data
+  const paginatedData = useMemo(() => {
+    // Apply filters and search first
+    let filteredData = data;
     
     // Apply search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      result = result.filter(row => {
+      filteredData = filteredData.filter(row => {
         return columns.some(column => {
           const value = row[column.id];
           if (value === null || value === undefined) return false;
@@ -112,9 +92,9 @@ export function NewGridView({
       });
     }
     
-    // Apply column filters with improved logic
+    // Apply column filters
     if (activeFilters.columns.length > 0) {
-      result = result.filter(row => {
+      filteredData = filteredData.filter(row => {
         return activeFilters.columns.every(columnId => {
           const value = row[columnId];
           const filterValue = activeFilters.values[columnId];
@@ -155,14 +135,24 @@ export function NewGridView({
       });
     }
     
-    return result;
-  }, [data, columns, searchTerm, activeFilters]);
+    // Update total pages based on filtered data
+    const pages = Math.ceil(filteredData.length / ROWS_PER_PAGE);
+    setTotalPages(Math.max(1, pages));
+    
+    // Ensure current page is valid
+    if (currentPage > pages && pages > 0) {
+      setCurrentPage(pages);
+    }
+    
+    // Return paginated result
+    const start = (currentPage - 1) * ROWS_PER_PAGE;
+    return filteredData.slice(start, start + ROWS_PER_PAGE);
+  }, [data, columns, searchTerm, activeFilters, currentPage]);
 
-  // Apply filters whenever filter conditions change
+  // Update visible data when pagination or filters change
   useEffect(() => {
-    const filteredData = applyFilters();
-    setVisibleData(filteredData);
-  }, [applyFilters]);
+    setVisibleData(paginatedData);
+  }, [paginatedData]);
 
   // Resize observer for container
   useEffect(() => {
@@ -181,33 +171,10 @@ export function NewGridView({
     };
   }, []);
 
-  // Fix for column resize with proper persistence
-  const handleColumnResize = useCallback((columnIndex: number, newWidth: number) => {
-    // Don't allow resizing of index column (0)
-    if (columnIndex === 0) return;
-    
-    console.log(`Resizing column ${columnIndex} to ${newWidth}px`);
-    
-    // Update column widths array with the new width
-    setColumnWidths(prevWidths => {
-      const newWidths = [...prevWidths];
-      newWidths[columnIndex] = Math.max(MIN_COL_WIDTH, newWidth);
-      return newWidths;
-    });
-    
-    // Critical fix: Reset grid after column index with remeasure=true
-    // This ensures that both header and body cells are updated
-    if (gridRef.current) {
-      gridRef.current.resetAfterColumnIndex(columnIndex, true);
-    }
-    
-    // If it's not the index column, update the column in the columns array
-    if (columnIndex > 0 && onColumnChange) {
-      const actualColumnIndex = columnIndex - 1; // Adjust for index column offset
-      const columnId = columns[actualColumnIndex].id;
-      onColumnChange(columnId, { width: newWidth });
-    }
-  }, [columns, onColumnChange]);
+  // Calculate total width of columns
+  const totalWidth = useMemo(() => {
+    return columnWidths.reduce((acc, width) => acc + width, 0);
+  }, [columnWidths]);
 
   // Handle cell click for editing
   const handleCellClick = (rowId: string, columnId: string) => {
@@ -452,95 +419,12 @@ export function NewGridView({
     );
   };
 
-  // Handle adding a column after another column
-  const handleAddColumn = (afterColumnId: string) => {
-    if (onAddColumn) {
-      onAddColumn(afterColumnId);
-    }
-  };
-
-  // Handle deleting a column
-  const handleDeleteColumn = (columnId: string) => {
-    if (onDeleteColumn && columnId !== 'opportunity') {
-      onDeleteColumn(columnId);
-    }
-  };
-
   // Context menu handlers with position
   const handleContextMenu = (columnId: string | null, position?: { x: number, y: number }) => {
     setContextMenuColumn(columnId);
     if (position) {
       setContextMenuPosition(position);
     }
-  };
-
-  // Context menu actions
-  const handleCutColumn = (columnId: string) => {
-    console.log(`Cut column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleCopyColumn = (columnId: string) => {
-    console.log(`Copy column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handlePasteColumn = (columnId: string) => {
-    console.log(`Paste into column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handlePasteSpecial = (columnId: string, type: string) => {
-    console.log(`Paste special (${type}) into column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleInsertColumnLeft = (columnId: string) => {
-    console.log(`Insert column left of: ${columnId}`);
-    const columnIndex = columns.findIndex(col => col.id === columnId);
-    if (columnIndex > 0) {
-      const prevColumnId = columns[columnIndex - 1].id;
-      handleAddColumn(prevColumnId);
-    } else {
-      handleAddColumn(columnId);
-    }
-    setContextMenuColumn(null);
-  };
-
-  const handleInsertColumnRight = (columnId: string) => {
-    console.log(`Insert column right of: ${columnId}`);
-    handleAddColumn(columnId);
-    setContextMenuColumn(null);
-  };
-
-  const handleClearColumn = (columnId: string) => {
-    console.log(`Clear column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleHideColumn = (columnId: string) => {
-    console.log(`Hide column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleResizeColumn = (columnId: string) => {
-    console.log(`Resize column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleCreateFilter = (columnId: string) => {
-    console.log(`Create filter for column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleSortAZ = (columnId: string) => {
-    console.log(`Sort sheet A-Z by column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleSortZA = (columnId: string) => {
-    console.log(`Sort sheet Z-A by column: ${columnId}`);
-    setContextMenuColumn(null);
   };
 
   // Render edit input based on column type with enhanced UX
@@ -683,7 +567,7 @@ export function NewGridView({
           className="index-column"
           style={cellStyle}
         >
-          {dataRowIndex + 1}
+          {dataRowIndex + 1 + ((currentPage - 1) * ROWS_PER_PAGE)}
         </div>
       );
     }
@@ -798,93 +682,75 @@ export function NewGridView({
           <div style={{ display: 'none' }} />
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56" style={menuStyle}>
-          <DropdownMenuItem onClick={() => handleCutColumn(column.id)}>
+          <DropdownMenuItem onClick={() => { setContextMenuColumn(null); }}>
             <Scissors className="mr-2 h-4 w-4" />
             <span>Cut</span>
             <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleCopyColumn(column.id)}>
+          <DropdownMenuItem onClick={() => { setContextMenuColumn(null); }}>
             <Copy className="mr-2 h-4 w-4" />
             <span>Copy</span>
             <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handlePasteColumn(column.id)}>
+          <DropdownMenuItem onClick={() => { setContextMenuColumn(null); }}>
             <Clipboard className="mr-2 h-4 w-4" />
             <span>Paste</span>
             <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
           </DropdownMenuItem>
           
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <Clipboard className="mr-2 h-4 w-4" />
-              <span>Paste special</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuSubContent>
-                <DropdownMenuItem onClick={() => handlePasteSpecial(column.id, 'values')}>
-                  Values only
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePasteSpecial(column.id, 'format')}>
-                  Format only
-                </DropdownMenuItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuPortal>
-          </DropdownMenuSub>
-          
           <DropdownMenuSeparator />
           
-          <DropdownMenuItem onClick={() => handleInsertColumnLeft(column.id)}>
-            <span className="mr-2">+</span>
-            <span>Insert column left</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleInsertColumnRight(column.id)}>
-            <span className="mr-2">+</span>
-            <span>Insert column right</span>
-          </DropdownMenuItem>
-          
-          {column.id !== 'opportunity' && (
-            <DropdownMenuItem onClick={() => handleDeleteColumn(column.id)}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete column</span>
-            </DropdownMenuItem>
-          )}
-          
-          <DropdownMenuItem onClick={() => handleClearColumn(column.id)}>
-            <span className="mr-2">×</span>
-            <span>Clear column</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleHideColumn(column.id)}>
-            <EyeOff className="mr-2 h-4 w-4" />
-            <span>Hide column</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleResizeColumn(column.id)}>
-            <StretchHorizontal className="mr-2 h-4 w-4" />
-            <span>Resize column</span>
+          <DropdownMenuItem disabled onClick={() => {}}>
+            <StretchHorizontal className="mr-2 h-4 w-4 text-gray-400" />
+            <span className="text-gray-400">Resize column</span>
           </DropdownMenuItem>
           
           <DropdownMenuSeparator />
           
-          <DropdownMenuItem onClick={() => handleCreateFilter(column.id)}>
+          <DropdownMenuItem onClick={() => { setContextMenuColumn(null); }}>
             <Filter className="mr-2 h-4 w-4" />
             <span>Create a filter</span>
           </DropdownMenuItem>
           
           <DropdownMenuSeparator />
           
-          <DropdownMenuItem onClick={() => handleSortAZ(column.id)}>
+          <DropdownMenuItem onClick={() => { setContextMenuColumn(null); }}>
             <span className="mr-2">A→Z</span>
             <span>Sort sheet A to Z</span>
           </DropdownMenuItem>
           
-          <DropdownMenuItem onClick={() => handleSortZA(column.id)}>
+          <DropdownMenuItem onClick={() => { setContextMenuColumn(null); }}>
             <span className="mr-2">Z→A</span>
             <span>Sort sheet Z to A</span>
           </DropdownMenuItem>
+          
+          <DropdownMenuItem disabled={column.id === 'opportunity'} onClick={() => { setContextMenuColumn(null); }}>
+            <EyeOff className="mr-2 h-4 w-4" />
+            <span>Hide column</span>
+          </DropdownMenuItem>
+          
+          {column.id !== 'opportunity' && (
+            <DropdownMenuItem disabled onClick={() => {}}>
+              <Trash2 className="mr-2 h-4 w-4 text-gray-400" />
+              <span className="text-gray-400">Delete column</span>
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     );
+  };
+
+  // Pagination controls
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+    }
   };
 
   return (
@@ -917,11 +783,8 @@ export function NewGridView({
           columns={columns}
           onColumnChange={onColumnChange}
           onColumnsReorder={onColumnsReorder}
-          onColumnResize={handleColumnResize}
-          onAddColumn={handleAddColumn}
-          onDeleteColumn={handleDeleteColumn}
-          onContextMenu={handleContextMenu}
           activeContextMenu={contextMenuColumn}
+          onContextMenu={handleContextMenu}
         />
       </div>
       
@@ -932,7 +795,7 @@ export function NewGridView({
               ref={gridRef}
               columnCount={columns.length + 1} // +1 for index column
               columnWidth={getColumnWidth}
-              height={containerHeight - HEADER_HEIGHT}
+              height={containerHeight - HEADER_HEIGHT - 40} // Leave space for pagination
               rowCount={visibleData.length + 1} // +1 for header placeholder
               rowHeight={getRowHeight}
               width={containerWidth}
@@ -963,6 +826,30 @@ export function NewGridView({
               {Cell}
             </Grid>
           )}
+        </div>
+        
+        {/* Pagination controls */}
+        <div className="grid-pagination">
+          <div className="pagination-controls">
+            <span>Page {currentPage} of {totalPages}</span>
+            <div className="pagination-buttons">
+              <button 
+                onClick={handlePrevPage} 
+                disabled={currentPage <= 1}
+                className={`pagination-button ${currentPage <= 1 ? 'disabled' : ''}`}
+              >
+                ‹ Prev
+              </button>
+              <span className="pagination-separator">|</span>
+              <button 
+                onClick={handleNextPage} 
+                disabled={currentPage >= totalPages}
+                className={`pagination-button ${currentPage >= totalPages ? 'disabled' : ''}`}
+              >
+                Next ›
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       
