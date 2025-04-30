@@ -5,7 +5,6 @@ import { GridHeaders } from "../grid-headers";
 import { GridBody } from "./grid-body";
 import { useGridSetup } from "./use-grid-setup";
 import { GridViewProps } from "./types";
-import { ViewModeSelector } from "../view-mode-selector";
 
 export function GridView({ 
   columns: initialColumns, 

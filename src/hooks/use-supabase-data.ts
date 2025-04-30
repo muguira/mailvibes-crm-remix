@@ -180,7 +180,8 @@ export function useContacts(listId?: string) {
       phone: item.phone,
       status: item.status,
       last_activity: item.last_activity,
-      data: item.data as Record<string, any>
+      // Ensure data is an object, not a string
+      data: typeof item.data === 'string' ? JSON.parse(item.data) : (item.data as Record<string, any>) || {}
     }));
   };
 
@@ -305,7 +306,7 @@ export function useGridData(listId?: string) {
     // Convert to the format expected by the grid component
     return data.map(row => ({
       id: row.row_id,
-      ...(row.data as Record<string, any>)
+      ...((typeof row.data === 'string' ? JSON.parse(row.data) : row.data) as Record<string, any>)
     })) || [];
   };
 
@@ -332,8 +333,12 @@ export function useGridData(listId?: string) {
 
       if (existingData) {
         // Update existing row
+        const currentData = typeof existingData.data === 'string' 
+          ? JSON.parse(existingData.data) 
+          : (existingData.data as Record<string, any>) || {};
+          
         const updatedData = {
-          ...(existingData.data as Record<string, any>),
+          ...currentData,
           [colKey]: value
         };
 
