@@ -22,3 +22,13 @@ export const formatUrl = (url: string): string => {
   
   return url;
 };
+
+// Generate a slug from a string
+export const generateSlug = (text: string): string => {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')  // Remove special characters
+    .replace(/[\s_-]+/g, '_')   // Replace spaces and underscores with a single underscore
+    .replace(/^-+|-+$/g, '');   // Remove leading/trailing hyphens
+};

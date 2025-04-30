@@ -59,6 +59,7 @@ export function GridRow({
               isEditable={!!column.editable}
               showSaveIndicator={!!(showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key)}
               options={column.options}
+              colors={column.colors}
               onCellClick={onCellClick}
               onCellChange={onCellChange}
             />
@@ -91,6 +92,7 @@ export function GridRow({
             isEditable={!!column.editable}
             showSaveIndicator={!!(showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key)}
             options={column.options}
+            colors={column.colors}
             onCellClick={onCellClick}
             onCellChange={onCellChange}
           />

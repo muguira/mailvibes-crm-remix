@@ -47,9 +47,11 @@ export function GridBody({
             {data.map((row) => (
               <GridRow
                 key={row.id}
-                rowId={row.id}
-                columns={frozenColumns}
                 rowData={row}
+                frozenColumns={frozenColumns}
+                scrollableColumns={[]}
+                frozenColsTemplate={frozenColsTemplate}
+                scrollableColsTemplate=""
                 activeCell={activeCell}
                 showSaveIndicator={showSaveIndicator}
                 onCellClick={onCellClick}
@@ -68,14 +70,15 @@ export function GridBody({
           {data.map((row) => (
             <GridRow
               key={row.id}
-              rowId={row.id}
-              columns={scrollableColumns}
               rowData={row}
+              frozenColumns={[]}
+              scrollableColumns={scrollableColumns}
+              frozenColsTemplate=""
+              scrollableColsTemplate={scrollableColsTemplate}
               activeCell={activeCell}
               showSaveIndicator={showSaveIndicator}
               onCellClick={onCellClick}
               onCellChange={onCellChange}
-              showRowNumber={frozenColumns.length === 0}
             />
           ))}
         </div>

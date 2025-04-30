@@ -1,5 +1,4 @@
-
-import { Plus, ColorPicker } from "lucide-react";
+import { Plus, Palette } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CustomButton } from "@/components/ui/custom-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
