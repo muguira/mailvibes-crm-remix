@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "./use-toast";
+import { Json } from "@/integrations/supabase/types";
 
 // Types for our data
 export interface UserList {
@@ -16,11 +17,11 @@ export interface UserList {
 export interface Contact {
   id: string;
   name: string;
-  company?: string;
-  email?: string;
-  phone?: string;
-  status?: string;
-  last_activity: string;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  status?: string | null;
+  last_activity: string | null;
   data: Record<string, any>;
 }
 
@@ -35,7 +36,7 @@ export interface Activity {
   id: string;
   contact_id: string;
   type: string;
-  content?: string;
+  content?: string | null;
   timestamp: string;
 }
 
@@ -170,7 +171,17 @@ export function useContacts(listId?: string) {
       return [];
     }
 
-    return data || [];
+    // Convert Json data to proper Contact type
+    return (data || []).map(item => ({
+      id: item.id,
+      name: item.name,
+      company: item.company,
+      email: item.email,
+      phone: item.phone,
+      status: item.status,
+      last_activity: item.last_activity,
+      data: item.data as Record<string, any>
+    }));
   };
 
   // Query to fetch contacts
@@ -221,18 +232,22 @@ export function useContacts(listId?: string) {
 
   // Mutation to update a contact
   const updateContactMutation = useMutation({
-    mutationFn: async (updatedContact: Partial<Contact> & { id: string }) => {
+    mutationFn: async (updatedContact: { id: string; [key: string]: any }) => {
+      const updateData: Record<string, any> = {};
+      
+      // Only include fields that are provided
+      if (updatedContact.name !== undefined) updateData.name = updatedContact.name;
+      if (updatedContact.company !== undefined) updateData.company = updatedContact.company;
+      if (updatedContact.email !== undefined) updateData.email = updatedContact.email;
+      if (updatedContact.phone !== undefined) updateData.phone = updatedContact.phone;
+      if (updatedContact.status !== undefined) updateData.status = updatedContact.status;
+      if (updatedContact.data !== undefined) updateData.data = updatedContact.data;
+      
+      updateData.updated_at = new Date().toISOString();
+
       const { data, error } = await supabase
         .from('contacts')
-        .update({
-          name: updatedContact.name,
-          company: updatedContact.company,
-          email: updatedContact.email,
-          phone: updatedContact.phone,
-          status: updatedContact.status,
-          data: updatedContact.data,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', updatedContact.id)
         .select();
 
@@ -269,7 +284,7 @@ export function useGridData(listId?: string) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const fetchGridData = async (): Promise<Record<string, any>[]> => {
+  const fetchGridData = async (): Promise<{ id: string; [key: string]: any }[]> => {
     if (!user || !listId) return [];
 
     const { data, error } = await supabase
@@ -290,7 +305,7 @@ export function useGridData(listId?: string) {
     // Convert to the format expected by the grid component
     return data.map(row => ({
       id: row.row_id,
-      ...row.data
+      ...(row.data as Record<string, any>)
     })) || [];
   };
 
@@ -318,7 +333,7 @@ export function useGridData(listId?: string) {
       if (existingData) {
         // Update existing row
         const updatedData = {
-          ...existingData.data,
+          ...(existingData.data as Record<string, any>),
           [colKey]: value
         };
 

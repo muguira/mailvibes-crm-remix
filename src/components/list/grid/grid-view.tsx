@@ -67,9 +67,9 @@ export function GridView({
   });
 
   // Wrap the cell change handler to save to Supabase
-  const handleCellChangeAndSave = (rowId: string, colKey: string, value: any, type: string) => {
+  const handleCellChangeAndSave = (rowId: string, colKey: string, value: any) => {
     // First handle the local change
-    handleCellChange(rowId, colKey, value, type);
+    handleCellChange(rowId, colKey, value);
     
     // Then save to Supabase if callback is provided
     if (onCellChange) {

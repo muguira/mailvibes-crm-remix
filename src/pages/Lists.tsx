@@ -109,7 +109,7 @@ const Lists = () => {
             viewMode === "grid" ? (
               <GridView 
                 columns={opportunityColumns} 
-                data={gridData} 
+                data={gridData as { id: string; [key: string]: any }[]} 
                 listName={lists.find(l => l.id === currentListId)?.name || "Opportunities"} 
                 listType="Opportunity"
                 onCellChange={handleCellChange}
