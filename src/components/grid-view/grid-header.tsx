@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Column } from './types';
 import { Check } from 'lucide-react';
 
@@ -26,7 +26,7 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
   const handleHeaderSave = (columnId: string, newTitle: string) => {
     setEditingHeader(null);
     
-    if (onColumnChange) {
+    if (onColumnChange && newTitle.trim()) {
       onColumnChange(columnId, { title: newTitle });
     }
   };
@@ -78,7 +78,7 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
   };
   
   // Handle column resize start
-  const handleResizeStart = (e: React.MouseEvent, columnId: string, initialWidth: number) => {
+  const handleResizeStart = useCallback((e: React.MouseEvent, columnId: string, initialWidth: number) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -89,10 +89,10 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
     // Add event listeners for mousemove and mouseup
     document.addEventListener('mousemove', handleResizeMove);
     document.addEventListener('mouseup', handleResizeEnd);
-  };
+  }, []);
   
   // Handle column resize move
-  const handleResizeMove = (e: MouseEvent) => {
+  const handleResizeMove = useCallback((e: MouseEvent) => {
     e.preventDefault();
     
     if (!resizingColumn) return;
@@ -107,10 +107,10 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
       // Add 1 for the index column
       onColumnResize(columnIndex + 1, newWidth);
     }
-  };
+  }, [resizingColumn, initialX, initialWidth, columns, onColumnResize]);
   
   // Handle column resize end
-  const handleResizeEnd = (e: MouseEvent) => {
+  const handleResizeEnd = useCallback((e: MouseEvent) => {
     e.preventDefault();
     
     setResizingColumn(null);
@@ -118,7 +118,7 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
     // Remove event listeners
     document.removeEventListener('mousemove', handleResizeMove);
     document.removeEventListener('mouseup', handleResizeEnd);
-  };
+  }, [handleResizeMove]);
 
   return (
     <div className="grid-header">

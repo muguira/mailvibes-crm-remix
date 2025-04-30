@@ -42,19 +42,35 @@ export function NewGridView({
     return columnWidths.reduce((acc, width) => acc + width, 0);
   }, [columnWidths]);
 
-  // Filter data based on search term
+  // Filter data based on search term and active filters
   const filteredData = useMemo(() => {
-    if (!searchTerm) return data;
+    let result = data;
     
-    const term = searchTerm.toLowerCase();
-    return data.filter(row => {
-      return columns.some(column => {
-        const value = row[column.id];
-        if (value === null || value === undefined) return false;
-        return String(value).toLowerCase().includes(term);
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(row => {
+        return columns.some(column => {
+          const value = row[column.id];
+          if (value === null || value === undefined) return false;
+          return String(value).toLowerCase().includes(term);
+        });
       });
-    });
-  }, [data, columns, searchTerm]);
+    }
+    
+    // Apply column filters
+    if (activeFilters.length > 0) {
+      // Only show rows that have data in all the filtered columns
+      result = result.filter(row => {
+        return activeFilters.every(columnId => {
+          const value = row[columnId];
+          return value !== null && value !== undefined && value !== '';
+        });
+      });
+    }
+    
+    return result;
+  }, [data, columns, searchTerm, activeFilters]);
 
   // Resize observer for container
   useEffect(() => {
@@ -73,8 +89,10 @@ export function NewGridView({
     };
   }, []);
 
-  // Handle column resize
-  const handleColumnResize = (columnIndex: number, newWidth: number) => {
+  // Handle column resize with proper updates
+  const handleColumnResize = useCallback((columnIndex: number, newWidth: number) => {
+    console.log(`Resizing column ${columnIndex} to ${newWidth}px`);
+    
     // Update column widths array
     const newWidths = [...columnWidths];
     newWidths[columnIndex] = newWidth;
@@ -90,7 +108,7 @@ export function NewGridView({
       const columnId = columns[columnIndex - 1].id;
       onColumnChange(columnId, { width: newWidth });
     }
-  };
+  }, [columnWidths, columns, onColumnChange]);
 
   // Handle cell click for editing
   const handleCellClick = (rowId: string, columnId: string) => {
@@ -201,13 +219,19 @@ export function NewGridView({
     handleCellChange(rowId, columnId, value);
   };
 
-  // Column width getter for grid
+  // Column width getter for grid - using callback to ensure it's stable
   const getColumnWidth = useCallback((index: number) => {
     return columnWidths[index] || 150;
   }, [columnWidths]);
 
-  // Row height callback for VariableSizeGrid
+  // Row height callback for VariableSizeGrid - must be a function
   const getRowHeight = useCallback(() => ROW_HEIGHT, []);
+
+  // Handle filter changes
+  const handleApplyFilters = (filters: string[]) => {
+    console.log("Applying filters:", filters);
+    setActiveFilters(filters);
+  };
 
   // Close status dropdown when clicking outside
   useEffect(() => {
@@ -223,11 +247,6 @@ export function NewGridView({
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [statusDropdownPosition]);
-
-  // Handle filter changes
-  const handleApplyFilters = (filters: string[]) => {
-    setActiveFilters(filters);
-  };
 
   // Highlight search term in text
   const highlightSearchTerm = (text: string) => {
@@ -457,7 +476,15 @@ export function NewGridView({
             rowHeight={getRowHeight} // Using callback function
             width={containerWidth}
             className="react-window-grid" // Added class for targeting with CSS
-            style={{ overflowX: 'auto', overflowY: 'auto', margin: 0, borderTop: 0 }} // Remove any top border/margin
+            style={{ 
+              overflowX: 'auto', 
+              overflowY: 'auto', 
+              margin: 0, 
+              padding: 0,
+              borderTop: 0,
+              borderCollapse: 'collapse',
+              borderSpacing: 0
+            }}
           >
             {Cell}
           </Grid>
@@ -490,7 +517,6 @@ export function NewGridView({
               >
                 <div className="status-option-label">
                   {renderStatusPill(option, column.colors || {})}
-                  <span>{option}</span>
                 </div>
                 {currentValue === option && <Check size={16} />}
               </div>

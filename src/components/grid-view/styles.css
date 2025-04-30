@@ -213,10 +213,18 @@
   font-size: 0.875rem;
 }
 
-/* Fix the white strip issue - ensure no extra padding or margins between header and grid */
+/* Fix the white strip issue between header and grid */
 .react-window-grid {
-  border-top: none !important; /* Remove any automatic top border */
-  margin-top: 0 !important; /* Ensure no margin */
+  border-top: none !important;
+  margin-top: 0 !important;
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+}
+
+/* Fix for the gap between frozen column and regular columns */
+.react-window-grid-inner {
+  border-spacing: 0 !important;
+  border-collapse: collapse !important;
 }
 
 /* Status Dropdown Styling */
@@ -235,7 +243,6 @@
 .status-option {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 8px 12px;
   cursor: pointer;
 }
@@ -252,6 +259,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
 }
 
 /* Filter Popover */
