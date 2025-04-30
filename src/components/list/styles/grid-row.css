@@ -5,6 +5,7 @@
   border-bottom: 1px solid rgba(198, 206, 210, 0.2);
   height: 40px;
   position: relative;
+  box-sizing: border-box; /* Ensure border is included in height calculation */
 }
 
 .grid-row:hover {
@@ -17,4 +18,10 @@
 
 .grid-row:nth-child(even):hover {
   background-color: rgba(198, 206, 210, 0.1);
+}
+
+/* Ensure consistent cell heights */
+.grid-row > div {
+  height: 40px;
+  box-sizing: border-box;
 }

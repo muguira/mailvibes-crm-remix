@@ -21,8 +21,16 @@
   user-select: none;
   position: relative;
   color: #133340;
+  box-sizing: border-box; /* Ensure padding is included in element size */
 }
 
 .grid-header-cell:hover {
   background-color: rgba(140, 158, 165, 0.05);
+}
+
+/* Ensure header cells match the exact dimensions of body cells */
+.grid-header-cell input {
+  box-sizing: border-box;
+  height: 100%;
+  width: 100%;
 }

@@ -124,8 +124,7 @@ export function GridCell({
     }
   };
 
-  // Create the appropriate cell class name - using data-active for the pseudo-element selector
-  // Remove the bg-blue-50 class that was causing visual duplication of borders
+  // Create the appropriate cell class name - maintain consistent sizing regardless of active state
   const cellClassName = `grid-cell ${
     type === 'currency' ? 'text-right' : ''
   } ${colKey === "opportunity" ? "opportunity-cell" : ""} relative ${type === 'url' && value ? 'text-teal-primary hover:underline cursor-pointer' : ''}`;

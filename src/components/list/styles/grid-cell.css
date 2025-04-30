@@ -11,6 +11,7 @@
   white-space: nowrap;
   cursor: default;
   position: relative;
+  box-sizing: border-box; /* Ensure padding is included in element size */
 }
 
 .grid-cell[tabindex="0"]:hover {
@@ -49,4 +50,13 @@
 
 .opportunity-cell:hover {
   text-decoration: underline;
+}
+
+/* Ensure input fields maintain the same dimensions as the cell content */
+.grid-cell input {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  background: transparent;
 }

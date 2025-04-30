@@ -69,7 +69,10 @@ export function GridRow({
       {/* Scrollable cells */}
       <div
         className="grid grid-row"
-        style={{ gridTemplateColumns: scrollableColsTemplate }}
+        style={{ 
+          gridTemplateColumns: scrollableColsTemplate,
+          minWidth: "fit-content" // Ensure columns don't shrink below minimum width
+        }}
       >
         {frozenColumns.length === 0 && (
           <div className="grid-cell flex items-center">

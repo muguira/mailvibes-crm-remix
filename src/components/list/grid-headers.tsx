@@ -100,7 +100,10 @@ export function GridHeaders({
       {/* Scrollable header columns */}
       <div
         className="grid-header grid overflow-hidden"
-        style={{ gridTemplateColumns: scrollableColsTemplate }}
+        style={{ 
+          gridTemplateColumns: scrollableColsTemplate,
+          minWidth: "fit-content" // Ensure columns don't shrink below minimum width
+        }}
         ref={headerRef}
       >
         {frozenColumns.length === 0 && <div className="grid-header-cell"></div>}
