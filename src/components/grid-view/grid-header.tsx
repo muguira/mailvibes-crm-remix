@@ -8,6 +8,7 @@ import {
   Plus, 
   Trash2,
   Clipboard,
+  ClipboardCopy,
   Scissors,
   StretchHorizontal,
   Filter
@@ -368,7 +369,7 @@ export function GridHeader({
                 </DropdownMenuItem>
                 
                 <DropdownMenuItem onClick={() => handleCopyColumn(columnId)}>
-                  <Copy size={14} className="mr-2" />
+                  <ClipboardCopy size={14} className="mr-2" />
                   Copy
                   <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
                 </DropdownMenuItem>

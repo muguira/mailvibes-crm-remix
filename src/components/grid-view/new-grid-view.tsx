@@ -6,7 +6,7 @@ import { GridToolbar } from './grid-toolbar';
 import { GridHeader } from './grid-header';
 import { OuterElementWrapper } from './outer-element-wrapper';
 import { FilterPopover } from './filter-popover';
-import { Check, Clipboard, Scissors, Filter, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Check, Clipboard, ClipboardCopy, Scissors, Filter, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
 import './styles.css';
 import { v4 as uuidv4 } from 'uuid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
@@ -689,7 +689,7 @@ export function NewGridView({
             <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => { setContextMenuColumn(null); }}>
-            <Copy className="mr-2 h-4 w-4" />
+            <ClipboardCopy className="mr-2 h-4 w-4" />
             <span>Copy</span>
             <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
           </DropdownMenuItem>
