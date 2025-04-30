@@ -6,7 +6,7 @@ interface EditCellProps {
   value: any;
   type: ColumnType;
   onBlur: (value: string) => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void; // Changed type to be more specific
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 export function EditCell({ value, type, onBlur, onKeyDown }: EditCellProps) {
@@ -15,11 +15,12 @@ export function EditCell({ value, type, onBlur, onKeyDown }: EditCellProps) {
   return (
     <input
       type={type === 'number' || type === 'currency' ? 'number' : 'text'}
-      className="w-full bg-transparent outline-none"
+      className="w-full h-full bg-transparent outline-none border-none m-0 p-0"
       defaultValue={inputValue}
       autoFocus
       onBlur={(e) => onBlur(e.target.value)}
       onKeyDown={onKeyDown}
+      style={{ lineHeight: '40px' }} // Match the height of the cell
     />
   );
 }

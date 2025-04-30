@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { ColumnType } from "./grid-view";
 import { usePopover } from "@/hooks/use-popover";
@@ -90,7 +91,14 @@ export function GridCell({
         year: 'numeric' 
       });
       onCellChange(rowId, colKey, formattedDate, type);
-      // The closePopover is now handled inside the DatePicker component
+    }
+  };
+
+  // Prevent default behavior to avoid layout shifts
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Only prevent default if we're not clicking on a checkbox or URL
+    if (type !== 'checkbox' && type !== 'url') {
+      e.preventDefault();
     }
   };
 
@@ -132,6 +140,7 @@ export function GridCell({
     <div
       className={cellClassName}
       onClick={handleClick}
+      onMouseDown={handleMouseDown}
       tabIndex={isEditable ? 0 : undefined}
       data-cell={`${rowId}-${colKey}`}
       data-active={isActive ? "true" : "false"}
