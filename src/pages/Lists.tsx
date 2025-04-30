@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -7,7 +6,7 @@ import { StreamView } from "@/components/list/stream-view";
 import { ViewModeSelector } from "@/components/list/view-mode-selector";
 import { opportunityColumns, opportunityData } from "@/data/opportunities-data";
 import { contacts } from "@/data/contacts-data";
-import "@/components/list/grid-view.css";
+import "@/components/list/styles/index.css";
 
 const Lists = () => {
   const [viewMode, setViewMode] = useState<"grid" | "stream">("grid");
