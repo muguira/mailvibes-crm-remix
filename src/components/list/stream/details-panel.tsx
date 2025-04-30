@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Edit, Plus, Check, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -83,7 +82,7 @@ export function DetailsPanel({ selectedContact, onUpdateField }: DetailsPanelPro
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
-                      <div className="font-medium">{value}</div>
+                      <div className="font-medium">{String(value)}</div>
                       <button 
                         className="text-slate-medium hover:text-teal-primary"
                         onClick={() => handleEditField(key, value)}
