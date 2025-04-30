@@ -41,9 +41,9 @@ export default function Auth() {
       <div className="w-full max-w-md m-auto p-8">
         <div className="mb-8 text-center">
           <div className="w-12 h-12 rounded-full border-2 border-teal-primary mx-auto flex items-center justify-center text-teal-primary text-lg font-bold mb-4">
-            Q
+            S
           </div>
-          <h1 className="text-2xl font-bold text-navy-deep">RelateIQ</h1>
+          <h1 className="text-2xl font-bold text-navy-deep">SalesIQ</h1>
           <p className="text-slate-medium mt-2">Sign in to access your account</p>
         </div>
         
