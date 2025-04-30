@@ -46,14 +46,16 @@ export function GridRow({
       {/* Edit action column */}
       <div 
         className="edit-column-cell"
-        onClick={() => renderRowActions && renderRowActions(rowData.id)}
       >
-        <button 
-          className="w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:text-teal-primary transition-all"
-          title="Edit"
-        >
-          <Pencil size={16} />
-        </button>
+        {renderRowActions && !rowData.id.startsWith('empty-row-') && (
+          <button 
+            className="w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:text-teal-primary transition-all"
+            title="Edit"
+            onClick={() => renderRowActions && renderRowActions(rowData.id)}
+          >
+            <Pencil size={14} />
+          </button>
+        )}
       </div>
 
       {/* Frozen columns */}

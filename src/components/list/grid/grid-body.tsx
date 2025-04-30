@@ -30,8 +30,8 @@ export function GridBody({
   onCellChange,
   renderRowActions
 }: GridBodyProps) {
-  // Ensure we always render empty rows even when there's no data
-  const displayData = data.length > 0 ? data : [];
+  // Use the provided data directly as we've already ensured sufficient rows in ListContent
+  const displayData = data;
 
   return (
     <div className="overflow-auto flex-1" ref={bodyRef}>
@@ -52,26 +52,15 @@ export function GridBody({
         />
       ))}
 
-      {/* Additional empty rows to ensure grid shows at least 20 rows */}
-      {displayData.length > 0 && displayData.length < 20 && 
-        Array.from({ length: 20 - displayData.length }, (_, i) => (
-          <div key={`extra-row-${i}`} className="grid-row h-8 bg-white border-0 hover:bg-slate-light/5">
-            <div className="row-number-cell text-slate-300">{displayData.length + i + 1}</div>
-            <div className="edit-column-cell"></div>
-            <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${frozenColumns.length + scrollableColumns.length}, minmax(150px, 1fr))` }}>
-              {Array.from({ length: frozenColumns.length + scrollableColumns.length }, (_, colIndex) => (
-                <div key={`empty-cell-${colIndex}`} className="grid-cell"></div>
-              ))}
-            </div>
-          </div>
-        ))
-      }
-
-      {/* Always include one more empty row for new data entry */}
-      <div className="grid-row h-8 bg-white border-0 hover:bg-slate-light/5">
-        <div className="row-number-cell text-slate-300">{Math.max(displayData.length, 20) + 1}</div>
+      {/* Add one additional empty row at the end for new data entry */}
+      <div className="grid-row h-24px bg-white border-0 hover:bg-slate-light/5">
+        <div className="row-number-cell text-slate-300">{displayData.length + 1}</div>
         <div className="edit-column-cell"></div>
-        <div className="flex-1"></div>
+        <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${frozenColumns.length + scrollableColumns.length}, minmax(150px, 1fr))` }}>
+          {Array.from({ length: frozenColumns.length + scrollableColumns.length }, (_, colIndex) => (
+            <div key={`empty-cell-${colIndex}`} className="grid-cell"></div>
+          ))}
+        </div>
       </div>
     </div>
   );

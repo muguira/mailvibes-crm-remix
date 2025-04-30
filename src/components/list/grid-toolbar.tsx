@@ -3,6 +3,7 @@ import { Filter, FileDown, Plus, Search, ChevronDown } from "lucide-react";
 import { CustomButton } from "@/components/ui/custom-button";
 import { useState } from "react";
 import { ColumnDef } from "./grid/types";
+import { ZoomControl } from "./zoom-control";
 
 interface GridToolbarProps {
   listType: string;
@@ -22,11 +23,6 @@ export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) 
           <input type="checkbox" className="mr-2" title="Select all" />
         </button>
         
-        {/* Export Button */}
-        <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-light/20 text-slate-medium" title="Download">
-          <FileDown size={18} />
-        </button>
-        
         {/* Search Field - Updated with softer colors */}
         <div className="flex items-center bg-white border border-slate-light/50 rounded px-2 py-1">
           <Search size={16} className="text-slate-medium" />
@@ -39,6 +35,14 @@ export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) 
           />
           <ChevronDown size={16} className="text-slate-medium" />
         </div>
+        
+        {/* Download Button - Moved to the left of zoom controls */}
+        <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-light/20 text-slate-medium" title="Download">
+          <FileDown size={18} />
+        </button>
+        
+        {/* Zoom Controls - New component */}
+        <ZoomControl />
       </div>
       
       <div className="flex items-center gap-4">
