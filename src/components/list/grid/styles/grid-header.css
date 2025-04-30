@@ -78,3 +78,22 @@
 .grid-container {
   position: relative;
 }
+
+/* Ensure the header content is always visible */
+.grid-header-cell span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 80%;
+}
+
+/* Fix for header arrangement */
+.grid-headers-container {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  width: 100%;
+  overflow: visible;
+}

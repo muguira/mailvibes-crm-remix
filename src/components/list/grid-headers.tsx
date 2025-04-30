@@ -1,11 +1,10 @@
-
 import { Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CustomButton } from "@/components/ui/custom-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GridHeaderCell } from "./grid-header-cell";
 import { ColumnDef, ColumnType } from "./grid/types";
-import { RefObject, useState } from "react";
+import { RefObject, useState, useEffect } from "react";
 
 interface GridHeadersProps {
   frozenColumns: ColumnDef[];
@@ -78,12 +77,17 @@ export function GridHeaders({
     "Not Now": "#ef4444", // red
     "New": "#a855f7", // purple
   };
-
-  console.log("Rendering GridHeaders with frozenColumns:", frozenColumns);
-  console.log("Rendering GridHeaders with scrollableColumns:", scrollableColumns);
+  
+  // Debug log to verify columns are being passed correctly
+  useEffect(() => {
+    console.log("GridHeaders rendering with columns:", { 
+      frozen: frozenColumns, 
+      scrollable: scrollableColumns 
+    });
+  }, [frozenColumns, scrollableColumns]);
 
   return (
-    <div className="flex grid-container sticky top-0 z-10 bg-white">
+    <div className="grid-headers-container sticky top-0 z-10 bg-white">
       {/* Row number header */}
       <div className="row-number-header"></div>
       
@@ -91,9 +95,9 @@ export function GridHeaders({
       <div className="edit-column-header"></div>
       
       {/* Headers container */}
-      <div className="flex flex-1 sticky top-0 z-10">
+      <div className="flex flex-1 overflow-visible">
         {/* Frozen header columns */}
-        {frozenColumns.length > 0 && (
+        {frozenColumns && frozenColumns.length > 0 && (
           <div
             className="grid-header"
             style={{
@@ -124,11 +128,11 @@ export function GridHeaders({
         <div
           className="grid-header flex"
           style={{ 
-            marginLeft: frozenColumns.length > 0 ? 0 : "72px" // Adjust margin if no frozen columns
+            marginLeft: frozenColumns && frozenColumns.length > 0 ? 0 : "72px" // Adjust margin if no frozen columns
           }}
           ref={headerRef}
         >
-          {scrollableColumns.map((column) => (
+          {scrollableColumns && scrollableColumns.map((column) => (
             <GridHeaderCell
               key={column.key}
               column={column}

@@ -1,5 +1,5 @@
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { GridToolbar } from "../grid-toolbar";
 import { GridHeaders } from "../grid-headers";
 import { GridBody } from "../grid-body";
@@ -76,8 +76,28 @@ function GridViewContent({
     bodyRef
   });
 
-  console.log("GridViewContent: frozenColumns", frozenColumns);
-  console.log("GridViewContent: scrollableColumns", scrollableColumns);
+  // Debug log to verify columns data
+  useEffect(() => {
+    console.log("GridViewContent: Columns data", {
+      frozen: frozenColumns,
+      scrollable: scrollableColumns,
+      all: columns
+    });
+  }, [frozenColumns, scrollableColumns, columns]);
+
+  // Ensure headers are visible on first render and after data changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (headerRef.current) {
+        console.log("Forcing header reflow");
+        headerRef.current.style.display = 'none';
+        headerRef.current.offsetHeight; // Force reflow
+        headerRef.current.style.display = 'flex';
+      }
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [initialColumns, initialData]);
 
   // Wrap the cell change handler to save to Supabase
   const handleCellChangeAndSave = (rowId: string, colKey: string, value: any, type: string) => {

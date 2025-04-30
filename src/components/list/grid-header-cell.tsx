@@ -2,7 +2,7 @@
 import { ChevronDown, PencilLine, Copy, ArrowLeft, ArrowRight, SortAsc, SortDesc, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ColumnDef } from "./grid/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface GridHeaderCellProps {
   column: ColumnDef;
@@ -38,6 +38,11 @@ export function GridHeaderCell({
   draggable = false
 }: GridHeaderCellProps) {
   
+  useEffect(() => {
+    // Debug log to verify column header rendering
+    console.log("Rendering header cell:", column.header, column.key);
+  }, [column]);
+  
   const handleHeaderEditComplete = (key: string, newName: string) => {
     if (!newName.trim() || newName.trim() === column.header) {
       setEditingHeader(null);
@@ -58,8 +63,6 @@ export function GridHeaderCell({
   const handleDragStartEvent = () => {
     if (onDragStart) onDragStart(column.key);
   };
-
-  console.log("Rendering header cell for column:", column.header, column.key);
 
   return (
     <div 
@@ -88,7 +91,7 @@ export function GridHeaderCell({
         />
       ) : (
         <span className="font-medium text-navy-deep uppercase text-xs">
-          {column.header}
+          {column.header || "Unnamed Column"}
         </span>
       )}
       
