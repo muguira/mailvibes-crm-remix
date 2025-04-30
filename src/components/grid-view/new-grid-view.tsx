@@ -286,7 +286,7 @@ export function NewGridView({
             columnWidth={getColumnWidth}
             height={containerHeight - HEADER_HEIGHT}
             rowCount={filteredData.length + 1} // +1 for header placeholder
-            rowHeight={ROW_HEIGHT} // Fixed row height instead of a function
+            rowHeight={ROW_HEIGHT} // Using ROW_HEIGHT as a direct number value, not a function
             width={containerWidth}
           >
             {Cell}
