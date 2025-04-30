@@ -48,7 +48,7 @@ const Reports = () => {
       <Sidebar />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title="Reports" />
+        <Header title="SalesIQ Reports" />
         
         <div className="flex-1 overflow-auto p-6">
           <div className="bg-white rounded-lg shadow-relate overflow-hidden">
@@ -243,6 +243,6 @@ const Reports = () => {
       </div>
     </div>
   );
-};
+}
 
 export default Reports;

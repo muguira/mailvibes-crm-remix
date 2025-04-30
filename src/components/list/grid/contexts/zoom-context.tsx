@@ -1,47 +1,51 @@
 
-import React, { createContext, useState, useContext, useMemo } from "react";
+import { createContext, useContext, useState, ReactNode } from "react";
+
+type ZoomLevel = "75%" | "100%" | "125%" | "150%" | "175%" | "200%";
 
 interface ZoomContextType {
-  zoomLevel: string;
-  setZoomLevel: (zoom: string) => void;
+  zoomLevel: ZoomLevel;
+  setZoomLevel: (level: ZoomLevel) => void;
   gridStyle: React.CSSProperties;
 }
 
-const ZoomContext = createContext<ZoomContextType | null>(null);
+const ZoomContext = createContext<ZoomContextType>({
+  zoomLevel: "100%",
+  setZoomLevel: () => {},
+  gridStyle: {}
+});
 
-export function ZoomProvider({ children }: { children: React.ReactNode }) {
-  const [zoomLevel, setZoomLevel] = useState('100%');
+export const useZoom = () => useContext(ZoomContext);
+
+export const ZoomProvider = ({ children }: { children: ReactNode }) => {
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("100%");
   
-  const gridStyle = useMemo(() => {
-    // Remove the % sign and convert to a number
-    const zoomPercentage = parseFloat(zoomLevel.replace('%', '')) / 100;
-    
-    return {
-      // Scale font size to adjust content size
-      fontSize: `${13 * zoomPercentage}px`,
-      // Adjust row height based on zoom
-      '--row-height': `${24 * zoomPercentage}px`,
-      '--cell-min-width': `${150 * zoomPercentage}px`,
-    } as React.CSSProperties;
-  }, [zoomLevel]);
+  // Calculate zoom factor and variables for the grid
+  const getZoomFactor = (): number => {
+    switch(zoomLevel) {
+      case "75%": return 0.75;
+      case "125%": return 1.25;
+      case "150%": return 1.50;
+      case "175%": return 1.75;
+      case "200%": return 2.0;
+      default: return 1.0; // 100%
+    }
+  };
+  
+  const zoomFactor = getZoomFactor();
+  const baseRowHeight = 24; // Base row height in pixels
+  const baseCellMinWidth = 150; // Base minimum cell width
+  
+  const gridStyle: React.CSSProperties = {
+    // Using CSS variables for easier scaling
+    "--row-height": `${baseRowHeight * zoomFactor}px`,
+    "--cell-min-width": `${baseCellMinWidth * zoomFactor}px`,
+    fontSize: `${14 * zoomFactor}px`,
+  };
   
   return (
-    <ZoomContext.Provider 
-      value={{ 
-        zoomLevel, 
-        setZoomLevel,
-        gridStyle 
-      }}
-    >
+    <ZoomContext.Provider value={{ zoomLevel, setZoomLevel, gridStyle }}>
       {children}
     </ZoomContext.Provider>
   );
-}
-
-export function useZoom() {
-  const context = useContext(ZoomContext);
-  if (!context) {
-    throw new Error("useZoom must be used within a ZoomProvider");
-  }
-  return context;
-}
+};
