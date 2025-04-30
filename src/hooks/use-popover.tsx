@@ -42,7 +42,7 @@ export function usePopover({ onClose }: UsePopoverOptions = {}) {
     };
   }, [isOpen]);
 
-  // Enhanced position calculation to ensure popover is always properly positioned
+  // Enhanced position calculation to ensure popover aligns perfectly with the clicked element
   const calculatePosition = useCallback((element: HTMLElement) => {
     const rect = element.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
@@ -62,30 +62,29 @@ export function usePopover({ onClose }: UsePopoverOptions = {}) {
     // Calculate vertical position
     let top;
     if (placeBelow) {
-      // Position below with 2px gap
-      top = rect.bottom + 2;
+      // Position below with no gap
+      top = rect.bottom;
     } else {
-      // Position above with 2px gap (if there's space)
-      top = rect.top - popoverHeight - 2;
+      // Position above with no gap
+      top = rect.top - popoverHeight;
       
-      // If positioning above would go off-screen, force to top of screen with padding
-      if (top < 5) {
-        // As a last resort, align to top of viewport with minimal padding
-        top = 5;
+      // If positioning above would go off-screen, force to top of screen with minimal padding
+      if (top < 2) {
+        top = 2;
       }
     }
     
-    // Calculate horizontal position (centered on the element)
-    let left = rect.left + (rect.width / 2) - (popoverWidth / 2);
+    // Align left edge of popover with left edge of the element
+    let left = rect.left;
     
     // Prevent horizontal overflow
     if (left + popoverWidth > viewportWidth - 5) {
       left = viewportWidth - popoverWidth - 5; // 5px from right edge
     }
     
-    // Prevent left overflow
-    if (left < 5) {
-      left = 5; // 5px from left edge
+    // Ensure minimum left padding
+    if (left < 2) {
+      left = 2;
     }
     
     return { top, left };
