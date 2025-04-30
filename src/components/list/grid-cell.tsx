@@ -64,7 +64,15 @@ export function GridCell({
     options,
     onCellChange: onChange,
     onCellClick: onClick,
-    openPopover
+    openPopover: (element, type) => {
+      // Calculate position relative to the cell
+      const rect = element.getBoundingClientRect();
+      const cellPosition = {
+        top: rect.top,
+        left: rect.left
+      };
+      openPopover(element, type);
+    }
   });
 
   // Initialize key handler

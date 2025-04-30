@@ -15,7 +15,7 @@
   grid-template-columns: 40px 32px 1fr; /* Row numbers, edit column, and content */
   min-width: 100%;
   position: relative;
-  height: var(--row-height, 24px);
+  height: var(--row-height, 32px);
   border-bottom: 1px solid #e0e5eb;
 }
 
@@ -34,7 +34,7 @@
 
 /* Empty row styling */
 .empty-row {
-  height: var(--row-height, 24px);
+  height: var(--row-height, 32px);
 }
 
 /* Grid drag indicator */

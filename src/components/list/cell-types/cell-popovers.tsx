@@ -26,12 +26,18 @@ export function CellPopovers({
   onDateSelect,
   onOptionSelect
 }: CellPopoversProps) {
+  // Adjust position to align with grid
+  const adjustedPosition = {
+    top: position.top + 32, // Align with bottom of the cell
+    left: position.left
+  };
+
   return (
     <>
       {/* Date picker popover */}
       <GridDatePicker
         isOpen={isOpen && popoverType === 'date'}
-        position={position}
+        position={adjustedPosition}
         selectedDate={selectedDate}
         onClose={onClose}
         onSelect={onDateSelect}
@@ -42,7 +48,7 @@ export function CellPopovers({
       {options && (
         <GridSelectDropdown
           isOpen={isOpen && popoverType === 'select'}
-          position={position}
+          position={adjustedPosition}
           options={options}
           onSelect={onOptionSelect}
           onClose={onClose}

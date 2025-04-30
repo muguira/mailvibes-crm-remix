@@ -1,3 +1,4 @@
+
 import { GridView } from "./grid-view";
 import { StreamView } from "./stream-view";
 import { CustomButton } from "@/components/ui/custom-button";
@@ -45,23 +46,21 @@ export function ListContent({
     );
   }
 
-  // Always ensure we have at least 20 empty rows to show, regardless of whether there's data or not
-  const displayData = Array.from({ length: 20 }, (_, i) => {
-    // If we have real data for this row index, use it
-    if (gridData.length > i) {
-      return gridData[i];
-    }
-    // Otherwise return an empty row
-    return { 
-      id: `empty-row-${i+1}`,
+  // Create a more compact display data without extra spacing
+  const displayData = gridData.length > 0 ? 
+    gridData.map((item, index) => ({
+      ...item,
+      id: item.id || `row-${index+1}`
+    })) : 
+    Array(10).fill(null).map((_, index) => ({
+      id: `empty-row-${index+1}`,
       opportunity: "",
       status: "",
       revenue: "",
       close_date: "",
       owner: "",
       company: ""
-    };
-  });
+    }));
 
   return viewMode === "grid" ? (
     <GridView 

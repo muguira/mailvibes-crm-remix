@@ -7,7 +7,7 @@
   z-index: 10;
   background-color: #ffffff;
   border-bottom: 1px solid #e0e5eb;
-  height: var(--row-height, 24px);
+  height: var(--row-height, 32px);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
@@ -18,7 +18,7 @@
   padding: 0 0.75rem;
   font-weight: 500;
   font-size: 0.75rem;
-  height: var(--row-height, 24px);
+  height: var(--row-height, 32px);
   user-select: none;
   position: relative;
   color: #555555;
@@ -38,7 +38,7 @@
   border-bottom: 1px solid #e0e5eb;
   width: 40px;
   min-width: 40px;
-  height: var(--row-height, 24px);
+  height: var(--row-height, 32px);
   position: sticky;
   left: 0;
   z-index: 15;
@@ -52,7 +52,7 @@
   border-bottom: 1px solid #e0e5eb;
   width: 32px;
   min-width: 32px;
-  height: var(--row-height, 24px);
+  height: var(--row-height, 32px);
   position: sticky;
   left: 40px;
   z-index: 15;
