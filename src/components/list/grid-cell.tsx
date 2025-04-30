@@ -124,11 +124,20 @@ export function GridCell({
     }
   };
 
+  // Create more specific class names to control z-index
+  const cellClasses = [
+    'grid-cell',
+    isActive ? 'bg-blue-50' : '',
+    type === 'currency' ? 'text-right' : '',
+    colKey === "opportunity" ? "opportunity-cell" : "",
+    isActive && colKey === "opportunity" ? "active-opportunity-cell" : "",
+    type === 'url' && value ? 'text-teal-primary hover:underline cursor-pointer' : '',
+    'relative' // Ensure relative positioning
+  ].filter(Boolean).join(' ');
+
   return (
     <div
-      className={`grid-cell ${isActive ? 'bg-blue-50' : ''} ${
-        type === 'currency' ? 'text-right' : ''
-      } ${colKey === "opportunity" ? "opportunity-cell" : ""} relative ${type === 'url' && value ? 'text-teal-primary hover:underline cursor-pointer' : ''}`}
+      className={cellClasses}
       onClick={handleClick}
       tabIndex={isEditable ? 0 : undefined}
       data-cell={`${rowId}-${colKey}`}
