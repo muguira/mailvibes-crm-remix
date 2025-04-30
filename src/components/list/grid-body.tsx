@@ -12,7 +12,7 @@ interface GridBodyProps {
   activeCell: { row: string; col: string } | null;
   showSaveIndicator: { row: string; col: string } | null;
   bodyRef: RefObject<HTMLDivElement>;
-  onCellClick: (rowId: string, colKey: string, colType: string, options?: string[]) => void;
+  onCellClick: (rowId: string, colKey: string) => void;
   onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
   renderRowActions?: (rowId: string) => React.ReactNode;
 }
@@ -60,7 +60,7 @@ export function GridBody({
             scrollableColsTemplate={scrollableColsTemplate}
             activeCell={activeCell}
             showSaveIndicator={showSaveIndicator}
-            onCellClick={onCellClick}
+            onCellClick={(rowId, colKey, colType) => onCellClick(rowId, colKey)}
             onCellChange={onCellChange}
             renderRowActions={renderRowActions}
           />
@@ -76,7 +76,7 @@ export function GridBody({
           scrollableColsTemplate={scrollableColsTemplate}
           activeCell={activeCell}
           showSaveIndicator={showSaveIndicator}
-          onCellClick={onCellClick}
+          onCellClick={(rowId, colKey, colType) => onCellClick(rowId, colKey)}
           onCellChange={onCellChange}
           renderRowActions={renderRowActions}
         />

@@ -1,3 +1,4 @@
+
 import { Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CustomButton } from "@/components/ui/custom-button";
@@ -147,7 +148,7 @@ export function GridHeaders({
                   </label>
                   <input
                     id="column-name"
-                    value={newColumn.header}
+                    value={newColumn?.header || ""}
                     onChange={(e) => {
                       setNewColumn({
                         ...newColumn,
@@ -163,7 +164,7 @@ export function GridHeaders({
                     Column Type
                   </label>
                   <Select
-                    value={newColumn.type}
+                    value={newColumn?.type || "text"}
                     onValueChange={(value: ColumnType) => {
                       setNewColumn({
                         ...newColumn,
@@ -187,7 +188,7 @@ export function GridHeaders({
                   </Select>
                 </div>
 
-                {(newColumn.type === 'select' || newColumn.type === 'status') && (
+                {(newColumn?.type === 'select' || newColumn?.type === 'status') && (
                   <div className="space-y-2">
                     <label htmlFor="column-options" className="text-sm font-medium">
                       Options (one per line)
@@ -217,7 +218,7 @@ export function GridHeaders({
                   variant="default"
                   size="sm"
                   onClick={addColumn}
-                  disabled={!newColumn.header}
+                  disabled={!newColumn?.header}
                 >
                   Add Column
                 </CustomButton>
