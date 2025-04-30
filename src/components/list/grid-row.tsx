@@ -1,31 +1,40 @@
 
 import { Edit } from "lucide-react";
 import { GridCell } from "./grid-cell";
-import { ColumnDef, ColumnType } from "./grid-view";
+import { ColumnDef } from "./grid-view";
 
 interface GridRowProps {
   rowData: { id: string; [key: string]: any };
-  frozenColumns: ColumnDef[];
-  scrollableColumns: ColumnDef[];
-  frozenColsTemplate: string;
-  scrollableColsTemplate: string;
+  columns?: ColumnDef[];
+  frozenColumns?: ColumnDef[];
+  scrollableColumns?: ColumnDef[];
+  frozenColsTemplate?: string;
+  scrollableColsTemplate?: string;
   activeCell: { row: string; col: string } | null;
   showSaveIndicator: { row: string; col: string } | null;
-  onCellClick: (rowId: string, colKey: string, colType: ColumnType, options?: string[]) => void;
-  onCellChange: (rowId: string, colKey: string, value: any, type: ColumnType) => void;
+  onCellClick: (rowId: string, colKey: string, type: string, options?: string[]) => void;
+  onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
+  showRowNumber?: boolean;
+  rowId?: string;
 }
 
 export function GridRow({
+  rowId,
   rowData,
-  frozenColumns,
-  scrollableColumns,
+  columns,
+  frozenColumns = [],
+  scrollableColumns = [],
   frozenColsTemplate,
   scrollableColsTemplate,
   activeCell,
   showSaveIndicator,
   onCellClick,
-  onCellChange
+  onCellChange,
+  showRowNumber
 }: GridRowProps) {
+  // Use rowId if provided, otherwise use rowData.id
+  const id = rowId || rowData.id;
+  
   return (
     <div className="flex">
       {/* Frozen cells */}
@@ -50,14 +59,14 @@ export function GridRow({
 
           {frozenColumns.map(column => (
             <GridCell
-              key={`${rowData.id}-${column.key}`}
-              rowId={rowData.id}
+              key={`${id}-${column.key}`}
+              rowId={id}
               colKey={column.key}
               value={rowData[column.key]}
               type={column.type}
-              isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
+              isActive={activeCell?.row === id && activeCell?.col === column.key}
               isEditable={!!column.editable}
-              showSaveIndicator={!!(showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key)}
+              showSaveIndicator={!!(showSaveIndicator?.row === id && showSaveIndicator?.col === column.key)}
               options={column.options}
               onCellClick={onCellClick}
               onCellChange={onCellChange}
@@ -66,12 +75,13 @@ export function GridRow({
         </div>
       )}
 
-      {/* Scrollable cells */}
+      {/* Scrollable cells or all cells if columns prop is provided */}
       <div
         className="grid grid-row"
         style={{ gridTemplateColumns: scrollableColsTemplate }}
       >
-        {frozenColumns.length === 0 && (
+        {/* Show checkbox column if frozenColumns is empty or if showRowNumber is true */}
+        {(frozenColumns.length === 0 || showRowNumber) && (
           <div className="grid-cell flex items-center">
             <input type="checkbox" className="ml-2" />
             <button className="ml-2 text-slate-medium">
@@ -80,16 +90,31 @@ export function GridRow({
           </div>
         )}
 
-        {scrollableColumns.map((column) => (
+        {/* Render from columns prop if provided, otherwise use scrollableColumns */}
+        {columns ? columns.map((column) => (
           <GridCell
-            key={`${rowData.id}-${column.key}`}
-            rowId={rowData.id}
+            key={`${id}-${column.key}`}
+            rowId={id}
             colKey={column.key}
             value={rowData[column.key]}
             type={column.type}
-            isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
+            isActive={activeCell?.row === id && activeCell?.col === column.key}
             isEditable={!!column.editable}
-            showSaveIndicator={!!(showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key)}
+            showSaveIndicator={!!(showSaveIndicator?.row === id && showSaveIndicator?.col === column.key)}
+            options={column.options}
+            onCellClick={onCellClick}
+            onCellChange={onCellChange}
+          />
+        )) : scrollableColumns.map((column) => (
+          <GridCell
+            key={`${id}-${column.key}`}
+            rowId={id}
+            colKey={column.key}
+            value={rowData[column.key]}
+            type={column.type}
+            isActive={activeCell?.row === id && activeCell?.col === column.key}
+            isEditable={!!column.editable}
+            showSaveIndicator={!!(showSaveIndicator?.row === id && showSaveIndicator?.col === column.key)}
             options={column.options}
             onCellClick={onCellClick}
             onCellChange={onCellChange}

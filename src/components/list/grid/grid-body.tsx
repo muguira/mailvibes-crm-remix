@@ -48,8 +48,9 @@ export function GridBody({
               <GridRow
                 key={row.id}
                 rowId={row.id}
-                columns={frozenColumns}
                 rowData={row}
+                frozenColumns={frozenColumns}
+                frozenColsTemplate={frozenColsTemplate}
                 activeCell={activeCell}
                 showSaveIndicator={showSaveIndicator}
                 onCellClick={onCellClick}
@@ -69,8 +70,9 @@ export function GridBody({
             <GridRow
               key={row.id}
               rowId={row.id}
-              columns={scrollableColumns}
               rowData={row}
+              scrollableColumns={scrollableColumns}
+              scrollableColsTemplate={scrollableColsTemplate}
               activeCell={activeCell}
               showSaveIndicator={showSaveIndicator}
               onCellClick={onCellClick}
