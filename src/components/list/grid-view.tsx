@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { 
   ChevronDown, 
@@ -908,4 +909,305 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
               <DialogTrigger asChild>
                 <button className="w-6 h-6 flex items-center justify-center rounded-full bg-teal-primary/10 hover:bg-teal-primary/20 text-teal-primary">
                   <Plus size={14} />
-                </button
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Column</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label htmlFor="column-name" className="text-sm font-medium">
+                      Column Name
+                    </label>
+                    <input
+                      id="column-name"
+                      value={newColumn.header}
+                      onChange={(e) => setNewColumn(prev => ({ ...prev, header: e.target.value }))}
+                      className="w-full p-2 border border-slate-light/50 rounded"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label htmlFor="column-type" className="text-sm font-medium">
+                      Column Type
+                    </label>
+                    <Select 
+                      value={newColumn.type} 
+                      onValueChange={(value: ColumnType) => 
+                        setNewColumn(prev => ({ ...prev, type: value }))
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="text">Text</SelectItem>
+                        <SelectItem value="number">Number</SelectItem>
+                        <SelectItem value="currency">Currency</SelectItem>
+                        <SelectItem value="date">Date</SelectItem>
+                        <SelectItem value="status">Status</SelectItem>
+                        <SelectItem value="select">Select</SelectItem>
+                        <SelectItem value="checkbox">Checkbox</SelectItem>
+                        <SelectItem value="url">URL</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {(newColumn.type === 'select' || newColumn.type === 'status') && (
+                    <div className="space-y-2">
+                      <label htmlFor="column-options" className="text-sm font-medium">
+                        Options (one per line)
+                      </label>
+                      <textarea
+                        id="column-options"
+                        className="w-full p-2 border border-slate-light/50 rounded h-24"
+                        onChange={(e) => setNewColumn(prev => ({ 
+                          ...prev, 
+                          options: e.target.value.split('\n').filter(opt => opt.trim() !== '')
+                        }))}
+                      />
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <CustomButton
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAddingColumn(false)}
+                  >
+                    Cancel
+                  </CustomButton>
+                  <CustomButton
+                    variant="default"
+                    size="sm"
+                    onClick={addColumn}
+                    disabled={!newColumn.header}
+                  >
+                    Add Column
+                  </CustomButton>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+      </div>
+      
+      {/* Grid Content */}
+      <div className="overflow-auto flex-1" ref={bodyRef}>
+        {data.map((row, rowIndex) => (
+          <div 
+            key={row.id}
+            className="flex"
+          >
+            {/* Frozen cells */}
+            {frozenColumns.length > 0 && (
+              <div 
+                className="grid grid-row" 
+                style={{
+                  gridTemplateColumns: frozenColsTemplate,
+                  position: "sticky",
+                  left: 0,
+                  zIndex: 5,
+                  backgroundColor: "white",
+                  boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)"
+                }}
+              >
+                <div className="grid-cell flex items-center">
+                  <input type="checkbox" className="ml-2" />
+                  <button className="ml-2 text-slate-medium">
+                    <Edit size={14} />
+                  </button>
+                </div>
+                
+                {frozenColumns.map(column => (
+                  <div 
+                    key={`${row.id}-${column.key}`}
+                    className={`grid-cell relative ${column.key === "opportunity" ? "text-teal-primary hover:underline cursor-pointer" : ""}`}
+                    onClick={() => column.editable && handleCellClick(row.id, column.key, column.type)}
+                    tabIndex={0}
+                    data-cell={`${row.id}-${column.key}`}
+                  >
+                    {activeCell?.row === row.id && activeCell?.col === column.key ? (
+                      <input 
+                        type="text"
+                        className="w-full bg-transparent outline-none"
+                        defaultValue={row[column.key]}
+                        autoFocus
+                        onBlur={(e) => handleCellChange(row.id, column.key, e.target.value, column.type)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleCellChange(row.id, column.key, e.currentTarget.value, column.type);
+                          } else if (e.key === 'Escape') {
+                            setActiveCell(null);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <span>{row[column.key]}</span>
+                    )}
+                    
+                    {showSaveIndicator && showSaveIndicator.row === row.id && showSaveIndicator.col === column.key && (
+                      <div className="save-indicator">
+                        <Check size={16} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Scrollable cells */}
+            <div 
+              className="grid grid-row" 
+              style={{ gridTemplateColumns: scrollableColsTemplate }}
+            >
+              {frozenColumns.length === 0 && (
+                <div className="grid-cell flex items-center">
+                  <input type="checkbox" className="ml-2" />
+                  <button className="ml-2 text-slate-medium">
+                    <Edit size={14} />
+                  </button>
+                </div>
+              )}
+              
+              {scrollableColumns.map((column) => (
+                <div 
+                  key={`${row.id}-${column.key}`} 
+                  className={`grid-cell ${activeCell?.row === row.id && activeCell?.col === column.key ? 'bg-blue-50' : ''} ${
+                    column.type === 'currency' ? 'text-right' : ''
+                  } relative ${column.type === 'url' && row[column.key] ? 'text-teal-primary hover:underline cursor-pointer' : ''}`}
+                  onClick={() => column.editable && handleCellClick(row.id, column.key, column.type, column.options)}
+                  tabIndex={0}
+                  data-cell={`${row.id}-${column.key}`}
+                >
+                  {activeCell?.row === row.id && activeCell?.col === column.key ? (
+                    <input 
+                      type={column.type === 'number' || column.type === 'currency' ? 'number' : 'text'}
+                      className="w-full bg-transparent outline-none"
+                      defaultValue={column.type === 'currency' ? row[column.key]?.replace(/[^0-9.-]+/g, '') : row[column.key]}
+                      autoFocus
+                      onBlur={(e) => handleCellChange(row.id, column.key, e.target.value, column.type)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleCellChange(row.id, column.key, e.currentTarget.value, column.type);
+                        } else if (e.key === 'Escape') {
+                          setActiveCell(null);
+                        }
+                      }}
+                    />
+                  ) : column.type === 'status' ? (
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      row[column.key] === 'Deal Won' ? 'bg-teal-primary/20 text-teal-primary' : 
+                      row[column.key] === 'Qualified' ? 'bg-blue-100 text-blue-600' : 
+                      row[column.key] === 'In Procurement' ? 'bg-purple-100 text-purple-600' :
+                      row[column.key] === 'Contract Sent' ? 'bg-yellow-100 text-yellow-600' :
+                      row[column.key] === 'Discovered' ? 'bg-orange-100 text-orange-600' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {row[column.key]}
+                    </span>
+                  ) : column.type === 'checkbox' ? (
+                    <div className="flex justify-center">
+                      <Checkbox 
+                        checked={!!row[column.key]} 
+                        onCheckedChange={() => toggleCheckbox(row.id, column.key)}
+                      />
+                    </div>
+                  ) : column.type === 'url' && row[column.key] ? (
+                    <div className="flex items-center">
+                      <span>{row[column.key]}</span>
+                      <ExternalLink size={14} className="ml-1" />
+                    </div>
+                  ) : (
+                    <span>{row[column.key]}</span>
+                  )}
+                  
+                  {/* Save indicator */}
+                  {showSaveIndicator && showSaveIndicator.row === row.id && showSaveIndicator.col === column.key && (
+                    <div className="save-indicator">
+                      <Check size={16} />
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div className="grid-cell"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {/* Date picker popover */}
+      {datePickerOpen && activeDateCell && (
+        <div 
+          className="fixed bg-white shadow-lg rounded-md z-50 border border-slate-200"
+          style={{
+            top: calendarAnchor.top + 'px',
+            left: calendarAnchor.left + 'px',
+            width: '280px',
+            borderRadius: '12px',
+            boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
+          }}
+        >
+          <div className="flex justify-between items-center p-2 border-b">
+            <span className="text-sm font-medium">Select Date</span>
+            <button 
+              onClick={() => setDatePickerOpen(false)}
+              className="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={handleDateSelection}
+            initialFocus
+            className="p-3 pointer-events-auto"
+          />
+          <div className="flex justify-end p-2 border-t">
+            <CustomButton 
+              variant="outline" 
+              size="sm" 
+              className="mr-2"
+              onClick={() => setDatePickerOpen(false)}
+            >
+              Cancel
+            </CustomButton>
+            <CustomButton 
+              variant="default" 
+              size="sm"
+              onClick={() => handleDateSelection(selectedDate)}
+            >
+              Apply
+            </CustomButton>
+          </div>
+        </div>
+      )}
+      
+      {/* Select dropdown */}
+      {selectDropdownOpen && activeSelectCell && (
+        <div 
+          className="fixed bg-white shadow-lg rounded-md z-50 border border-slate-200"
+          style={{
+            top: calendarAnchor.top + 'px',
+            left: calendarAnchor.left + 'px',
+            width: '200px'
+          }}
+        >
+          <div className="py-1">
+            {activeSelectCell.options.map((option) => (
+              <button
+                key={option}
+                className="w-full text-left px-4 py-2 hover:bg-slate-100 text-sm"
+                onClick={() => handleSelectOption(activeSelectCell.row, activeSelectCell.col, option)}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
