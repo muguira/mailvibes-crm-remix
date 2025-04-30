@@ -7,7 +7,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: cell; /* Use cell cursor to indicate editable grid */
+  cursor: cell;
   color: #333333;
   border-right: 1px solid #e0e5eb;
   border-bottom: 1px solid #e0e5eb;

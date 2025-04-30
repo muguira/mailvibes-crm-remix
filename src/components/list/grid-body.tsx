@@ -45,7 +45,7 @@ export function GridBody({
   });
 
   return (
-    <div className="overflow-auto flex-1 bg-white" ref={bodyRef}>
+    <div className="overflow-auto flex-1" ref={bodyRef}>
       {displayData.map((row, index) => (
         <GridRow
           key={row.id}
