@@ -58,9 +58,8 @@ export function NewGridView({
       });
     }
     
-    // Apply column filters
+    // Apply column filters - only show rows that have data in all the filtered columns
     if (activeFilters.length > 0) {
-      // Only show rows that have data in all the filtered columns
       result = result.filter(row => {
         return activeFilters.every(columnId => {
           const value = row[columnId];
@@ -89,18 +88,20 @@ export function NewGridView({
     };
   }, []);
 
-  // Handle column resize with proper updates
+  // Fix for column resize - ensure proper grid refresh
   const handleColumnResize = useCallback((columnIndex: number, newWidth: number) => {
     console.log(`Resizing column ${columnIndex} to ${newWidth}px`);
     
-    // Update column widths array
-    const newWidths = [...columnWidths];
-    newWidths[columnIndex] = newWidth;
-    setColumnWidths(newWidths);
+    // Update column widths array with the new width
+    setColumnWidths(prevWidths => {
+      const newWidths = [...prevWidths];
+      newWidths[columnIndex] = newWidth;
+      return newWidths;
+    });
     
-    // Reset after column resize to re-render grid with new widths
+    // Critical fix: Reset grid after column index with remeasure=true
     if (gridRef.current) {
-      gridRef.current.resetAfterColumnIndex(0);
+      gridRef.current.resetAfterColumnIndex(columnIndex, true);
     }
     
     // If it's not the index column, update the column in the columns array
@@ -108,7 +109,7 @@ export function NewGridView({
       const columnId = columns[columnIndex - 1].id;
       onColumnChange(columnId, { width: newWidth });
     }
-  }, [columnWidths, columns, onColumnChange]);
+  }, [columns, onColumnChange]);
 
   // Handle cell click for editing
   const handleCellClick = (rowId: string, columnId: string) => {
@@ -224,7 +225,7 @@ export function NewGridView({
     return columnWidths[index] || 150;
   }, [columnWidths]);
 
-  // Row height callback for VariableSizeGrid - must be a function
+  // Row height callback for VariableSizeGrid
   const getRowHeight = useCallback(() => ROW_HEIGHT, []);
 
   // Handle filter changes
@@ -383,7 +384,7 @@ export function NewGridView({
     return brightness > 128;
   };
 
-  // Cell renderer
+  // Cell renderer with fixes for borders and gaps
   const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
     if (rowIndex === 0) {
       return null; // Header is rendered separately
@@ -398,7 +399,12 @@ export function NewGridView({
       return (
         <div 
           className="index-column grid-frozen-cell"
-          style={style}
+          style={{
+            ...style,
+            borderTop: 'none', // Fix for removing gaps
+            borderBottom: '1px solid #e5e7eb',
+            borderRight: '1px solid #e5e7eb'
+          }}
         >
           {dataRowIndex + 1}
         </div>
@@ -417,6 +423,14 @@ export function NewGridView({
       (listType === 'Opportunity' && column.id === 'opportunity')
     );
     
+    // Fix cell styles to eliminate gaps
+    const cellStyle = {
+      ...style,
+      borderTop: 'none', // Remove top border to fix gap
+      borderLeft: 'none', // Remove left border to fix gap
+      padding: isEditing ? 0 : '0.75rem', // Keep consistent padding
+    };
+    
     return (
       <div
         className={`
@@ -426,7 +440,7 @@ export function NewGridView({
           ${column.type === 'currency' ? 'text-right' : ''}
           ${isFirstColumn ? 'grid-frozen-cell opportunity-cell' : ''}
         `}
-        style={style}
+        style={cellStyle}
         data-cell={`${row.id}-${column.id}`}
         onClick={() => {
           if (shouldLinkToStream) {
@@ -446,6 +460,24 @@ export function NewGridView({
     );
   };
 
+  // Custom inner element to remove border spacing and gaps
+  const innerElementType = React.forwardRef<HTMLDivElement, React.HTMLProps<HTMLDivElement>>(
+    ({ style, ...rest }, ref) => (
+      <div
+        ref={ref}
+        style={{
+          ...style,
+          borderCollapse: 'collapse',
+          borderSpacing: 0,
+          padding: 0,
+          margin: 0,
+        }}
+        className="react-window-grid-inner"
+        {...rest}
+      />
+    )
+  );
+
   return (
     <div className={`grid-view ${className || ''}`} ref={containerRef}>
       <GridToolbar 
@@ -456,6 +488,7 @@ export function NewGridView({
         filterCount={activeFilters.length}
         columns={columns}
         onApplyFilters={handleApplyFilters}
+        activeFilters={activeFilters}
       />
       
       <GridHeader 
@@ -473,9 +506,9 @@ export function NewGridView({
             columnWidth={getColumnWidth}
             height={containerHeight - HEADER_HEIGHT}
             rowCount={filteredData.length + 1} // +1 for header placeholder
-            rowHeight={getRowHeight} // Using callback function
+            rowHeight={getRowHeight}
             width={containerWidth}
-            className="react-window-grid" // Added class for targeting with CSS
+            className="react-window-grid"
             style={{ 
               overflowX: 'auto', 
               overflowY: 'auto', 
@@ -485,6 +518,7 @@ export function NewGridView({
               borderCollapse: 'collapse',
               borderSpacing: 0
             }}
+            innerElementType={innerElementType}
           >
             {Cell}
           </Grid>

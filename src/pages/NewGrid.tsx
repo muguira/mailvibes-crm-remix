@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { NewGridView } from '@/components/grid-view/new-grid-view';
 import { Column, GridRow } from '@/components/grid-view/types';
 import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { STATUS_COLORS } from '@/components/grid-view/grid-constants';
+import { useLocation } from 'react-router-dom';
 
 // Sample column definitions for opportunities
 const opportunityColumns: Column[] = [
@@ -106,12 +107,25 @@ const generateLargeDataset = (count: number): GridRow[] => {
   }));
 };
 
-// Generate 10,000 rows for performance testing
-const opportunityData = generateLargeDataset(10000);
-
 const NewGrid: React.FC = () => {
   const [columns, setColumns] = useState<Column[]>(opportunityColumns);
-  const [data, setData] = useState<GridRow[]>(opportunityData);
+  const [data, setData] = useState<GridRow[]>([]);
+  const location = useLocation();
+  
+  // Generate dataset based on URL parameter
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const demo = params.get('demo');
+    
+    // Generate full 10k rows when demo=10k is in URL
+    if (demo === '10k') {
+      console.log("Generating 10,000 rows for performance testing");
+      setData(generateLargeDataset(10000));
+    } else {
+      // Default to 100 rows for normal use
+      setData(generateLargeDataset(100));
+    }
+  }, [location.search]);
   
   // Handle cell value changes
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
