@@ -1,6 +1,7 @@
 
-import { Bell, Search, HelpCircle, Settings, User } from "lucide-react";
+import { Bell, Search, HelpCircle, Settings } from "lucide-react";
 import { CustomButton } from "@/components/ui/custom-button";
+import { ProfileMenu } from "./profile-menu";
 
 interface HeaderProps {
   title?: string;
@@ -40,9 +41,7 @@ export function Header({ title }: HeaderProps) {
         </button>
         
         <div className="ml-2 border-l border-slate-light/50 pl-2">
-          <button className="p-2 rounded-full bg-navy-deep text-white hover:bg-navy-light">
-            <User className="h-5 w-5" />
-          </button>
+          <ProfileMenu />
         </div>
       </div>
     </header>
