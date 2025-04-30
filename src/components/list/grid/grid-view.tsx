@@ -5,7 +5,7 @@ import { GridHeaders } from "../grid-headers";
 import { GridBody } from "./grid-body";
 import { useGridSetup } from "./use-grid-setup";
 import { GridViewProps } from "./types";
-import { Pencil, FileEdit, FileText, Edit2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { PointsOfContactDialog } from "../dialogs/points-of-contact-dialog";
 import { SheetMenu } from "../sheet-menu";
 
@@ -145,7 +145,7 @@ export function GridView({
       onKeyDown={(e) => handleKeyDown(e)} 
       tabIndex={-1}
     >
-      {/* Google Sheets style top menu */}
+      {/* Simplified Sheet Menu */}
       <SheetMenu listName={listName} />
       
       {/* Grid Toolbar - Including filter options */}

@@ -27,7 +27,7 @@ export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) 
           <FileDown size={18} />
         </button>
         
-        {/* Search Field */}
+        {/* Search Field - Updated with softer colors */}
         <div className="flex items-center bg-white border border-slate-light/50 rounded px-2 py-1">
           <Search size={16} className="text-slate-medium" />
           <input 
@@ -35,7 +35,7 @@ export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) 
             placeholder="Search Field Values" 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-40 lg:w-56 border-none outline-none text-sm px-2"
+            className="w-40 lg:w-56 border-none outline-none text-sm px-2 text-slate-600"
           />
           <ChevronDown size={16} className="text-slate-medium" />
         </div>
@@ -69,14 +69,14 @@ export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) 
                   {columns.map(col => (
                     <div key={col.key} className="flex items-center">
                       <input type="checkbox" id={`filter-${col.key}`} className="mr-2" />
-                      <label htmlFor={`filter-${col.key}`} className="text-sm">{col.header}</label>
+                      <label htmlFor={`filter-${col.key}`} className="text-sm text-slate-600">{col.header}</label>
                     </div>
                   ))}
                 </div>
               </div>
               
               <div className="p-3 border-t border-slate-light/30 flex justify-end space-x-2">
-                <button className="px-3 py-1 text-sm border border-slate-light/50 rounded">
+                <button className="px-3 py-1 text-sm border border-slate-light/50 rounded text-slate-600">
                   Close
                 </button>
                 <button className="px-3 py-1 text-sm bg-teal-primary text-white rounded">

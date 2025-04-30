@@ -34,6 +34,15 @@
   position: relative;
 }
 
+/* Alternating row colors */
+.grid-row:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.grid-row:nth-child(odd) {
+  background-color: #ffffff;
+}
+
 .grid-row:hover {
   background-color: rgba(198, 206, 210, 0.1) !important;
 }
@@ -49,6 +58,7 @@
   white-space: nowrap;
   cursor: default;
   border-right: 1px solid rgba(198, 206, 210, 0.1);
+  color: #555555; /* Softer than black */
 }
 
 .grid-cell[tabindex="0"]:hover {
@@ -194,43 +204,10 @@
 .sheet-style-menu {
   background-color: #f8f9fa;
   border-bottom: 1px solid rgba(198, 206, 210, 0.3);
-  padding: 0.25rem 0.5rem;
+  padding: 0.5rem 1rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.sheet-menu-item {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.875rem;
-  color: #444;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.sheet-menu-item:hover {
-  background-color: rgba(198, 206, 210, 0.2);
-}
-
-/* Calendar styling */
-/* ... keep existing code (calendar styling) */
-
-/* Search styling */
-.search-field {
-  display: flex;
-  align-items: center;
-  background-color: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(198, 206, 210, 0.5);
-  border-radius: 4px;
-  padding: 0 8px;
-}
-
-.search-field input {
-  border: none;
-  outline: none;
-  padding: 6px;
-  font-size: 14px;
-  background: transparent;
 }
 
 /* Top navigation bar */
@@ -290,5 +267,48 @@
   border-bottom: 1px solid rgba(198, 206, 210, 0.3);
 }
 
-/* Keep other existing styles */
-/* ... keep existing code (remaining styles) */
+/* Search styling */
+.search-field {
+  display: flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(198, 206, 210, 0.5);
+  border-radius: 4px;
+  padding: 0 8px;
+}
+
+.search-field input {
+  border: none;
+  outline: none;
+  padding: 6px;
+  font-size: 14px;
+  background: transparent;
+  color: #555555; /* Softer than black */
+}
+
+/* Ensure row alternation works correctly with editing row */
+.grid-row:nth-child(even).editing-row {
+  background-color: rgba(103, 187, 170, 0.05);
+}
+
+.grid-row:nth-child(odd).editing-row {
+  background-color: rgba(103, 187, 170, 0.05);
+}
+
+/* Even rows for freezed columns need to match */
+.grid-row:nth-child(even) .row-number-cell,
+.grid-row:nth-child(even) .edit-column-cell {
+  background-color: #f9f9f9;
+}
+
+/* Odd rows for freezed columns need to match */
+.grid-row:nth-child(odd) .row-number-cell,
+.grid-row:nth-child(odd) .edit-column-cell {
+  background-color: #ffffff;
+}
+
+/* On hover, the frozen columns should match the row hover color */
+.grid-row:hover .row-number-cell,
+.grid-row:hover .edit-column-cell {
+  background-color: rgba(198, 206, 210, 0.1);
+}
