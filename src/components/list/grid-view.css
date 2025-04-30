@@ -62,12 +62,12 @@
   background-color: rgba(140, 158, 165, 0.05);
 }
 
-/* Replace outline with border for better visual appearance */
+/* Remove outline focus styling - we'll use the ::after pseudo-element only */
 .grid-cell[tabindex="0"]:focus {
   outline: none;
 }
 
-/* Active cell styling - using a pseudo element for the border to keep it above content */
+/* Active cell styling - single border with high z-index */
 .grid-cell[data-active="true"]::after {
   content: '';
   position: absolute;
@@ -77,7 +77,8 @@
   bottom: 0;
   border: 2px solid #67BBAA;
   pointer-events: none;
-  z-index: 10;
+  z-index: 20; /* Higher z-index to ensure it's above everything */
+  box-sizing: border-box; /* Ensure border is included in element size */
 }
 
 /* Special handling for opportunity cells */

@@ -102,7 +102,7 @@ export function useGridActions({
     setEditingHeader(colKey);
   };
   
-  // Add column handler
+  // Add column handler - fixed TypeScript error
   const addColumn = (newColumn: any, setNewColumn: any, setIsAddingColumn: any) => {
     const newKey = newColumn.header.toLowerCase().replace(/\s/g, "_");
     const newColumnDef = {
@@ -115,9 +115,12 @@ export function useGridActions({
     setNewColumn({ header: "", type: "text" });
     setIsAddingColumn(false);
     
-    // Add the new column to all existing data rows
+    // Add the new column to all existing data rows - fixed TypeScript error
     setData(prevData =>
-      prevData.map(row => ({ ...row, [newKey]: "" }))
+      prevData.map(row => ({
+        ...row,
+        [newKey]: ""
+      })) as RowData[] // Type assertion to fix TS error
     );
   };
   
@@ -127,7 +130,7 @@ export function useGridActions({
     setData(prevData =>
       prevData.map(row => {
         const { [colKey]: deletedKey, ...rest } = row;
-        return rest;
+        return rest as RowData; // Type assertion to fix TS error
       })
     );
   };
@@ -224,7 +227,6 @@ export function useGridActions({
     }
   };
 
-  // This function was causing TS errors because it was expecting 0 arguments but receiving 1
   // Handle keyboard shortcuts for undo/redo
   const handleKeyDown = (
     e: React.KeyboardEvent,

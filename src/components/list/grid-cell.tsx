@@ -124,7 +124,7 @@ export function GridCell({
     }
   };
 
-  // Create the appropriate cell class name - remove the active-cell class as we're using ::after for the border
+  // Create the appropriate cell class name - using data-active for the pseudo-element selector
   const cellClassName = `grid-cell ${isActive ? 'bg-blue-50' : ''} ${
     type === 'currency' ? 'text-right' : ''
   } ${colKey === "opportunity" ? "opportunity-cell" : ""} relative ${type === 'url' && value ? 'text-teal-primary hover:underline cursor-pointer' : ''}`;

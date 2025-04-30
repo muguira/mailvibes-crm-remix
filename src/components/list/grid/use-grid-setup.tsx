@@ -101,7 +101,7 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     draggedColumn,
     dragOverColumn,
     newColumn,
-    setNewColumn,
+    setNewColumn: setNewColumn as (column: Partial<ColumnDef>) => void, // Type assertion to fix TS error
     isAddingColumn,
     setIsAddingColumn,
     showSaveIndicator,
