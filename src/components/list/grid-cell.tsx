@@ -1,12 +1,12 @@
 
-import { Check, ExternalLink } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useEffect, useState } from "react";
+import { isValidUrl } from "./grid-utils";
 import { ColumnType } from "./grid-view";
-import { formatUrl, isValidUrl } from "./grid-utils";
 import { usePopover } from "@/hooks/use-popover";
 import { GridDatePicker } from "./grid-date-picker";
 import { GridSelectDropdown } from "./grid-select-dropdown";
-import { useEffect, useState } from "react";
+import { CheckboxCell, UrlCell, StatusCell, TextCell, EditCell } from "./cell-types";
+import { SaveIndicator } from "./save-indicator";
 
 interface GridCellProps {
   rowId: string;
@@ -136,6 +136,43 @@ export function GridCell({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      onCellChange(rowId, colKey, e.currentTarget.value, type);
+    } else if (e.key === 'Escape') {
+      onCellClick("", "", "text"); // Reset active cell
+    }
+  };
+
+  const renderCellContent = () => {
+    if (isActive) {
+      return (
+        <EditCell 
+          value={value} 
+          type={type} 
+          onBlur={(value) => onCellChange(rowId, colKey, value, type)}
+          onKeyDown={handleKeyDown}
+        />
+      );
+    }
+
+    switch (type) {
+      case 'status':
+        return <StatusCell value={value} />;
+      case 'checkbox':
+        return (
+          <CheckboxCell
+            value={!!value}
+            onToggle={() => handleClick({ currentTarget: null } as React.MouseEvent)}
+          />
+        );
+      case 'url':
+        return value ? <UrlCell value={value} /> : null;
+      default:
+        return <TextCell value={value} />;
+    }
+  };
+
   return (
     <div
       className={`grid-cell ${isActive ? 'bg-blue-50' : ''} ${
@@ -145,54 +182,9 @@ export function GridCell({
       tabIndex={isEditable ? 0 : undefined}
       data-cell={`${rowId}-${colKey}`}
     >
-      {isActive ? (
-        <input
-          type={type === 'number' || type === 'currency' ? 'number' : 'text'}
-          className="w-full bg-transparent outline-none"
-          defaultValue={type === 'currency' ? value?.replace(/[^0-9.-]+/g, '') : value}
-          autoFocus
-          onBlur={(e) => onCellChange(rowId, colKey, e.target.value, type)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              onCellChange(rowId, colKey, e.currentTarget.value, type);
-            } else if (e.key === 'Escape') {
-              onCellClick("", "", "text"); // Reset active cell
-            }
-          }}
-        />
-      ) : type === 'status' ? (
-        <span className={`status-pill ${
-          value === 'Deal Won' ? 'status-won' : 
-          value === 'Qualified' ? 'status-qualified' : 
-          value === 'In Procurement' ? 'status-procurement' :
-          value === 'Contract Sent' ? 'status-sent' :
-          value === 'Discovered' ? 'status-discovered' :
-          'status-other'
-        }`}>
-          {value}
-        </span>
-      ) : type === 'checkbox' ? (
-        <div className="flex justify-center">
-          <Checkbox
-            checked={!!value}
-            onCheckedChange={() => handleClick}
-          />
-        </div>
-      ) : type === 'url' && value ? (
-        <div className="flex items-center">
-          <span>{value}</span>
-          <ExternalLink size={14} className="ml-1" />
-        </div>
-      ) : (
-        <span>{value}</span>
-      )}
+      {renderCellContent()}
       
-      {/* Save indicator */}
-      {showSaveIndicator && (
-        <div className="save-indicator">
-          <Check size={16} />
-        </div>
-      )}
+      <SaveIndicator show={showSaveIndicator} />
 
       {/* Date picker popover */}
       {popoverType === 'date' && (
