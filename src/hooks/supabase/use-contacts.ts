@@ -63,13 +63,17 @@ export function useContacts(listId?: string) {
 
   // Mutation to create a contact
   const createContactMutation = useMutation({
-    mutationFn: async (newContact: Omit<Contact, 'id' | 'last_activity'>) => {
+    mutationFn: async (newContact: Omit<Contact, 'last_activity'> & { id?: string }) => {
       if (!user) throw new Error('User not authenticated');
       if (!listId) throw new Error('List ID is required');
+
+      // Use provided ID or generate a new one
+      const contactId = newContact.id || crypto.randomUUID();
 
       const { data, error } = await supabase
         .from('contacts')
         .insert({
+          id: contactId,
           user_id: user.id,
           list_id: listId,
           name: newContact.name,

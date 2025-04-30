@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -36,7 +35,7 @@ const Lists = () => {
   const { gridData, isLoading: dataLoading, saveGridChange } = useGridData(currentListId || undefined);
 
   // Fetch/create contacts for the current list
-  const { contacts, createContact } = useContacts(currentListId || undefined);
+  const { contacts, isLoading: contactsLoading, createContact } = useContacts(currentListId || undefined);
   
   // Get change history
   const { changes, recordChange } = useChangeHistory(currentListId || undefined);
@@ -50,6 +49,39 @@ const Lists = () => {
       setCurrentListId(lists[0].id);
     }
   }, [lists, currentListId]);
+
+  // Sync contacts to grid data whenever contacts change
+  useEffect(() => {
+    if (contacts.length > 0 && currentListId) {
+      contacts.forEach(contact => {
+        // Check if this contact already exists in grid data
+        const exists = gridData.some(row => row.id === contact.id);
+        
+        if (!exists) {
+          // Create a new grid data row for this contact
+          const opportunityData = {
+            opportunity: contact.name || 'New Opportunity',
+            company: contact.company || '',
+            status: contact.status || 'New',
+            revenue: contact.data?.opportunity_value || '',
+            close_date: contact.data?.close_date || '',
+            owner: '',
+            employees: '',
+            // Add any other fields from your grid columns
+          };
+          
+          // Save each field to grid data
+          Object.entries(opportunityData).forEach(([key, value]) => {
+            saveGridChange({
+              rowId: contact.id,
+              colKey: key,
+              value
+            });
+          });
+        }
+      });
+    }
+  }, [contacts, gridData, currentListId, saveGridChange]);
 
   // Handle cell changes in grid view
   const handleCellChange = (rowId: string, colKey: string, value: any) => {
@@ -124,6 +156,7 @@ const Lists = () => {
     
     // Create a new contact for the opportunity
     createContact({
+      id: rowId, // Use the same ID for both contact and grid data
       name: data.name,
       company: data.company,
       email: "",

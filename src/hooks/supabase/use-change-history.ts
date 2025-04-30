@@ -27,14 +27,7 @@ export function useChangeHistory(listId?: string) {
     // Fetch change history records for this list
     const { data, error } = await supabase
       .from('grid_change_history')
-      .select(`
-        *,
-        profiles(
-          first_name,
-          last_name,
-          avatar_url
-        )
-      `)
+      .select('*')
       .eq('list_id', listId)
       .order('changed_at', { ascending: false })
       .limit(100);
@@ -49,17 +42,29 @@ export function useChangeHistory(listId?: string) {
       return [];
     }
 
+    // Now fetch user profiles separately to avoid the join error
+    const userIds = [...new Set((data || []).map(item => item.user_id))];
+    let profiles: Record<string, { first_name?: string; last_name?: string; avatar_url?: string }> = {};
+    
+    if (userIds.length > 0) {
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, avatar_url')
+        .in('id', userIds);
+        
+      if (!profilesError && profilesData) {
+        profiles = profilesData.reduce((acc, profile) => {
+          acc[profile.id] = profile;
+          return acc;
+        }, {} as Record<string, any>);
+      }
+    }
+
     // Transform the data to include user information
     return (data || []).map(record => {
-      // Handle the profiles data safely with proper type checking
-      const profiles = record.profiles as { 
-        first_name?: string; 
-        last_name?: string;
-        avatar_url?: string;
-      } | null;
-      
-      const userName = profiles 
-        ? `${profiles.first_name || ''} ${profiles.last_name || ''}`.trim() || 'Unknown User' 
+      const profile = profiles[record.user_id];
+      const userName = profile 
+        ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User' 
         : 'Unknown User';
       
       return {
