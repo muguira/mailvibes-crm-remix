@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Column } from './types';
 import { 
@@ -32,7 +33,7 @@ interface GridHeaderProps {
   onColumnResize?: (columnIndex: number, newWidth: number) => void;
   onAddColumn?: (afterColumnId: string) => void;
   onDeleteColumn?: (columnId: string) => void;
-  onContextMenu?: (columnId: string | null) => void;
+  onContextMenu?: (columnId: string | null, position?: { x: number, y: number }) => void;
   activeContextMenu?: string | null;
 }
 
@@ -51,6 +52,7 @@ export function GridHeader({
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [initialX, setInitialX] = useState(0);
   const [initialWidth, setInitialWidth] = useState(0);
+  const [dragPreview, setDragPreview] = useState<HTMLDivElement | null>(null);
   
   // Handle column header edit (double click)
   const handleHeaderDoubleClick = (columnId: string) => {
@@ -76,23 +78,58 @@ export function GridHeader({
     }
   };
   
-  // Handle column drag start
+  // Handle column drag start - improved with better drag preview
   const handleDragStart = (e: React.DragEvent, columnId: string) => {
     if (columnId === 'opportunity') return; // Don't allow dragging the opportunity column
+    
     setDraggedColumn(columnId);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', columnId);
     
-    // Create a drag preview
+    // Create a more visible drag preview
+    const column = columns.find(col => col.id === columnId);
+    if (!column) return;
+    
     const dragPreview = document.createElement('div');
-    dragPreview.className = 'drop-placeholder';
-    dragPreview.style.width = '100px';
-    dragPreview.style.height = '30px';
+    dragPreview.className = 'drag-preview-column';
+    dragPreview.textContent = column.title;
     dragPreview.style.position = 'absolute';
-    dragPreview.style.left = '-1000px';
+    dragPreview.style.top = '-1000px';
+    dragPreview.style.backgroundColor = '#d4e6ff';
+    dragPreview.style.border = '2px dashed #2684ff';
+    dragPreview.style.padding = '8px 12px';
+    dragPreview.style.borderRadius = '4px';
+    dragPreview.style.width = `${column.width}px`;
+    dragPreview.style.zIndex = '1000';
+    dragPreview.style.opacity = '0.8';
+    
     document.body.appendChild(dragPreview);
+    setDragPreview(dragPreview);
     e.dataTransfer.setDragImage(dragPreview, 50, 15);
   };
+  
+  // Clean up drag preview when dragging ends
+  useEffect(() => {
+    const handleDragEnd = () => {
+      if (dragPreview) {
+        document.body.removeChild(dragPreview);
+        setDragPreview(null);
+      }
+      setDraggedColumn(null);
+    };
+    
+    window.addEventListener('dragend', handleDragEnd);
+    return () => {
+      window.removeEventListener('dragend', handleDragEnd);
+      if (dragPreview) {
+        try {
+          document.body.removeChild(dragPreview);
+        } catch (e) {
+          // Preview may have been removed already
+        }
+      }
+    };
+  }, [dragPreview]);
   
   // Handle column drag over
   const handleDragOver = (e: React.DragEvent) => {
@@ -100,7 +137,7 @@ export function GridHeader({
     e.dataTransfer.dropEffect = 'move';
   };
   
-  // Handle column drop for reordering
+  // Handle column drop for reordering - with improved visual feedback
   const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
     
@@ -109,8 +146,8 @@ export function GridHeader({
       return;
     }
     
-    // Don't allow dropping onto the opportunity column
-    if (targetColumnId === 'opportunity') {
+    // Don't allow dropping onto the opportunity column if it's first
+    if (targetColumnId === 'opportunity' && columns[0].id === 'opportunity') {
       setDraggedColumn(null);
       return;
     }
@@ -132,7 +169,7 @@ export function GridHeader({
     setDraggedColumn(null);
   };
   
-  // Handle column resize start with improved logic
+  // Handle column resize start with improved live update
   const handleResizeStart = useCallback((e: React.MouseEvent, columnId: string, initialWidth: number) => {
     e.preventDefault();
     e.stopPropagation();
@@ -153,7 +190,7 @@ export function GridHeader({
       const columnIndex = columns.findIndex(col => col.id === columnId);
       
       if (columnIndex >= 0 && onColumnResize) {
-        onColumnResize(columnIndex + 1, newWidth);
+        onColumnResize(columnIndex, newWidth);
       }
     };
     
@@ -166,7 +203,7 @@ export function GridHeader({
         if (columnIndex >= 0) {
           const diffX = upEvent.clientX - initialX;
           const newWidth = Math.max(100, initialWidth + diffX);
-          onColumnResize(columnIndex + 1, newWidth);
+          onColumnResize(columnIndex, newWidth);
         }
       }
       
@@ -180,10 +217,16 @@ export function GridHeader({
     document.addEventListener('mouseup', handleResizeEnd);
   }, [columns, onColumnResize, initialX, initialWidth, resizingColumn]);
 
-  // Handler for the context menu
+  // Handler for the context menu - now with position
   const handleHeaderContextMenu = (e: React.MouseEvent, columnId: string) => {
     e.preventDefault();
-    if (onContextMenu) onContextMenu(columnId);
+    
+    // Get the position for the context menu
+    const position = { x: e.clientX, y: e.clientY };
+    
+    if (onContextMenu) {
+      onContextMenu(columnId, position);
+    }
   };
   
   // Clipboard operations stubs
