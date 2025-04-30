@@ -1,4 +1,3 @@
-
 .grid-header {
   display: grid;
   position: sticky;
@@ -79,6 +78,11 @@
   pointer-events: none;
   z-index: 20; /* Higher z-index to ensure it's above everything */
   box-sizing: border-box; /* Ensure border is included in element size */
+}
+
+/* Explicitly remove the ::after element for inactive cells */
+.grid-cell[data-active="false"]::after {
+  display: none;
 }
 
 /* Special handling for opportunity cells */
