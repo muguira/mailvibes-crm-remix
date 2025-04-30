@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { isValidUrl } from "./grid-utils";
 import { ColumnType } from "./grid-view";
@@ -136,7 +135,8 @@ export function GridCell({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  // Fix: Properly type the input element
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       onCellChange(rowId, colKey, e.currentTarget.value, type);
     } else if (e.key === 'Escape') {

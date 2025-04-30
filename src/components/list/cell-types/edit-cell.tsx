@@ -6,7 +6,7 @@ interface EditCellProps {
   value: any;
   type: ColumnType;
   onBlur: (value: string) => void;
-  onKeyDown: (e: React.KeyboardEvent) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void; // Changed type to be more specific
 }
 
 export function EditCell({ value, type, onBlur, onKeyDown }: EditCellProps) {
