@@ -41,7 +41,7 @@ const AbsolutePopoverContent = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "fixed bg-white rounded-md border border-slate-200 shadow-lg z-[1200] popover-element",
+      "fixed bg-white rounded-md border border-slate-200 shadow-lg z-[9999] popover-element",
       className
     )}
     style={{

@@ -10,7 +10,7 @@ const Index = () => {
       <Sidebar />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title="SalesIQ Dashboard" />
+        <Header />
         
         <div className="flex-1 overflow-auto p-6">
           <div className="flex flex-col md:flex-row gap-6 h-full">

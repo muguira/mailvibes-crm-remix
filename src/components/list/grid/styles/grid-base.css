@@ -46,6 +46,7 @@
   z-index: 5;
   background-color: inherit;
   border-right: 1px solid #e0e5eb;
+  user-select: none;
 }
 
 /* Edit column cell styling */
@@ -68,4 +69,9 @@
   height: 100%;
   width: 2px;
   background-color: #0070d2;
+}
+
+/* Fix the dropdown positioning */
+.popover-element {
+  z-index: 1000 !important;
 }

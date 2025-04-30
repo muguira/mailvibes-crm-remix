@@ -11,7 +11,7 @@ export function Header({ title }: HeaderProps) {
   return (
     <header className="bg-white border-b border-slate-light/30 h-16 flex items-center px-4 justify-between shadow-sm">
       <div className="flex items-center">
-        {title && (
+        {title && title !== "SalesIQ Dashboard" && title !== "SalesIQ Report" && (
           <h1 className="text-xl font-semibold text-navy-deep">
             {title}
           </h1>

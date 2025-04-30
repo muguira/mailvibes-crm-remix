@@ -32,7 +32,6 @@ export function GridRow({
   renderRowActions
 }: GridRowProps) {
   const isActive = activeCell?.row === rowData.id;
-  const isEven = rowNumber % 2 === 0;
 
   return (
     <div 
@@ -66,7 +65,7 @@ export function GridRow({
             position: "sticky",
             left: "72px", /* Account for row number + edit column */
             zIndex: 4,
-            backgroundColor: isEven ? "rgba(255, 255, 255, 0.95)" : "rgba(249, 250, 251, 0.95)",
+            backgroundColor: "inherit",
             boxShadow: "2px 0 5px -2px rgba(0,0,0,0.05)",
           }}
         >

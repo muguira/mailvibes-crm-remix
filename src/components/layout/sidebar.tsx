@@ -59,15 +59,15 @@ export function Sidebar() {
         {collapsed ? (
           <div className="mx-auto text-teal-primary">
             <div className="w-8 h-8 rounded-full border-2 border-current flex items-center justify-center text-lg font-bold">
-              Q
+              S
             </div>
           </div>
         ) : (
           <div className="flex items-center">
             <div className="w-8 h-8 rounded-full border-2 border-teal-primary flex items-center justify-center text-teal-primary text-lg font-bold">
-              Q
+              S
             </div>
-            <span className="ml-2 font-semibold text-lg">RelateIQ</span>
+            <span className="ml-2 font-semibold text-lg">SalesIQ</span>
           </div>
         )}
       </div>
