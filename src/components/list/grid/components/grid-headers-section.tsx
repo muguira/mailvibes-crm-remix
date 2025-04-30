@@ -52,25 +52,20 @@ export function GridHeadersSection({
     // Apply direct styles to ensure headers are visible
     const forceVisible = () => {
       if (ref.current) {
-        // Apply to header container
-        ref.current.style.setProperty('visibility', 'visible', 'important');
-        ref.current.style.setProperty('opacity', '1', 'important');
-        ref.current.style.setProperty('z-index', '10', 'important');
+        // Use setAttribute for !important styles
+        ref.current.setAttribute('style', 'visibility: visible !important; opacity: 1 !important; z-index: 10 !important;');
         
         // Apply to each header cell
         const headerCells = ref.current.querySelectorAll('.grid-header-cell');
         headerCells.forEach(cell => {
-          (cell as HTMLElement).style.setProperty('visibility', 'visible', 'important');
-          (cell as HTMLElement).style.setProperty('opacity', '1', 'important');
-          (cell as HTMLElement).style.setProperty('z-index', '20', 'important');
+          (cell as HTMLElement).setAttribute('style',
+            'visibility: visible !important; opacity: 1 !important; z-index: 20 !important;');
           
           // Apply to the header text
           const headerText = cell.querySelector('span');
           if (headerText) {
-            (headerText as HTMLElement).style.setProperty('visibility', 'visible', 'important');
-            (headerText as HTMLElement).style.setProperty('opacity', '1', 'important');
-            (headerText as HTMLElement).style.setProperty('display', 'inline-block', 'important');
-            (headerText as HTMLElement).style.setProperty('z-index', '25', 'important');
+            (headerText as HTMLElement).setAttribute('style',
+              'visibility: visible !important; opacity: 1 !important; display: inline-block !important; z-index: 25 !important;');
           }
         });
       }
@@ -95,7 +90,7 @@ export function GridHeadersSection({
     <div 
       className="grid-header flex"
       style={{ 
-        visibility: 'visible !important',
+        visibility: 'visible',
         opacity: 1,
         zIndex: 10,
         ...style 

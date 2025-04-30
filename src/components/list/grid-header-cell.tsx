@@ -50,13 +50,13 @@ export function GridHeaderCell({
     // Force visibility of the header cell 
     if (headerRef.current) {
       const element = headerRef.current;
-      element.style.setProperty('visibility', 'visible', 'important');
-      element.style.setProperty('opacity', '1', 'important');
+      // Use setAttribute to apply !important through inline style
+      element.setAttribute('style', 'visibility: visible !important; opacity: 1 !important; z-index: 20;');
       
       const headerSpan = element.querySelector('span');
       if (headerSpan) {
-        headerSpan.style.setProperty('visibility', 'visible', 'important');
-        headerSpan.style.setProperty('opacity', '1', 'important');
+        (headerSpan as HTMLElement).setAttribute('style', 
+          'visibility: visible !important; opacity: 1 !important; display: inline-block !important; position: relative; z-index: 25;');
       }
     }
   }, [column, displayHeader]);
@@ -93,8 +93,8 @@ export function GridHeaderCell({
       onDrop={draggable ? handleDropEvent : undefined}
       data-header-key={column.key}
       style={{
-        visibility: 'visible !important',
-        opacity: '1 !important',
+        visibility: 'visible',
+        opacity: 1,
         position: 'relative',
         zIndex: 20
       }}
@@ -118,8 +118,8 @@ export function GridHeaderCell({
         <span 
           className="font-medium text-navy-deep uppercase text-xs"
           style={{ 
-            visibility: 'visible !important', 
-            opacity: '1 !important',
+            visibility: 'visible', 
+            opacity: 1,
             fontFamily: "'Proxima Nova', system-ui, sans-serif",
             fontWeight: 600,
             fontSize: "13px",

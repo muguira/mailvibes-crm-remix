@@ -12,8 +12,6 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   width: fit-content;
   min-width: 100%;
-  visibility: visible !important;
-  opacity: 1 !important;
 }
 
 .grid-header-cell {
@@ -35,8 +33,6 @@
   flex-shrink: 0;
   flex-grow: 0;
   overflow: visible;
-  visibility: visible !important;
-  opacity: 1 !important;
   z-index: 20;
 }
 
@@ -68,7 +64,7 @@
 
 /* Ensure the header content is always visible */
 .grid-header-cell span {
-  display: inline-block !important;
+  display: inline-block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -80,8 +76,6 @@
   line-height: 1.2;
   position: relative;
   z-index: 25;
-  visibility: visible !important;
-  opacity: 1 !important;
 }
 
 /* Fix for header arrangement */
@@ -92,12 +86,6 @@
   z-index: 10;
   width: 100%;
   overflow: visible;
-}
-
-/* Force visibility of header cells and their content */
-.grid-header, .grid-header-cell, .grid-header-cell * {
-  visibility: visible !important;
-  opacity: 1 !important;
 }
 
 /* Add Column button styling */
@@ -115,8 +103,6 @@
   border-left: 1px solid #e0e5eb;
   box-shadow: -2px 0 4px -2px rgba(0,0,0,0.05);
   background-color: #f8f9fa;
-  visibility: visible !important;
-  opacity: 1 !important;
 }
 
 .add-column-cell button {
@@ -129,8 +115,6 @@
   background-color: rgba(20, 184, 166, 0.1);
   color: rgb(20, 184, 166);
   transition: background-color 0.2s;
-  visibility: visible !important;
-  opacity: 1 !important;
 }
 
 .add-column-cell button:hover {

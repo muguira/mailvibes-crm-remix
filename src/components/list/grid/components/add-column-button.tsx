@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { AddColumnDialog } from "./add-column-dialog";
 import { ColumnType } from "../types";
 import { Button } from "@/components/ui/button";
+import { useEffect, useRef } from "react";
 
 interface AddColumnButtonProps {
   isAddingColumn: boolean;
@@ -29,9 +30,30 @@ export function AddColumnButton({
   setNewColumn,
   addColumn
 }: AddColumnButtonProps) {
+  const buttonCellRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Force visibility with direct DOM manipulation
+    if (buttonCellRef.current) {
+      buttonCellRef.current.setAttribute('style', 
+        'position: sticky; right: 0; z-index: 20; display: flex; justify-content: center; ' +
+        'align-items: center; min-width: 40px; width: 40px; height: var(--row-height, 32px); ' + 
+        'padding: 0; background: #f8f9fa; border-left: 1px solid #e0e5eb; ' +
+        'box-shadow: -2px 0 4px -2px rgba(0,0,0,0.05); visibility: visible !important; opacity: 1;');
+      
+      // Also ensure the button itself is visible
+      const button = buttonCellRef.current.querySelector('button');
+      if (button) {
+        button.setAttribute('style', 
+          'visibility: visible !important; opacity: 1; display: flex;');
+      }
+    }
+  }, []);
+
   return (
     <div 
       className="add-column-cell"
+      ref={buttonCellRef}
       style={{
         position: 'sticky',
         right: 0,
@@ -46,7 +68,7 @@ export function AddColumnButton({
         background: '#f8f9fa',
         borderLeft: '1px solid #e0e5eb',
         boxShadow: '-2px 0 4px -2px rgba(0,0,0,0.05)',
-        visibility: 'visible !important',
+        visibility: 'visible',
         opacity: 1
       }}
     >
@@ -59,7 +81,7 @@ export function AddColumnButton({
         title="Add new column"
         aria-label="Add new column"
         style={{
-          visibility: 'visible !important',
+          visibility: 'visible',
           opacity: 1,
           display: 'flex'
         }}

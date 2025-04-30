@@ -77,19 +77,17 @@ export function GridHeaders({
     // Force visibility of header cells
     const ensureHeadersVisible = () => {
       if (headerRef.current) {
-        headerRef.current.style.setProperty('visibility', 'visible', 'important');
-        headerRef.current.style.setProperty('opacity', '1', 'important');
+        // Use setAttribute for !important styles
+        headerRef.current.setAttribute('style', 'visibility: visible !important; opacity: 1 !important;');
         
         const headerCells = headerRef.current.querySelectorAll('.grid-header-cell');
         headerCells.forEach(cell => {
-          (cell as HTMLElement).style.setProperty('visibility', 'visible', 'important');
-          (cell as HTMLElement).style.setProperty('opacity', '1', 'important');
+          (cell as HTMLElement).setAttribute('style', 'visibility: visible !important; opacity: 1 !important;');
           
           const headerText = cell.querySelector('span');
           if (headerText) {
-            (headerText as HTMLElement).style.setProperty('visibility', 'visible', 'important');
-            (headerText as HTMLElement).style.setProperty('opacity', '1', 'important');
-            (headerText as HTMLElement).style.setProperty('display', 'inline-block', 'important');
+            (headerText as HTMLElement).setAttribute('style', 
+              'visibility: visible !important; opacity: 1 !important; display: inline-block !important;');
           }
         });
       }
@@ -97,9 +95,8 @@ export function GridHeaders({
       // Ensure add column button is visible
       const addColumnButton = document.querySelector('.add-column-cell');
       if (addColumnButton) {
-        (addColumnButton as HTMLElement).style.setProperty('visibility', 'visible', 'important');
-        (addColumnButton as HTMLElement).style.setProperty('opacity', '1', 'important');
-        (addColumnButton as HTMLElement).style.setProperty('display', 'flex', 'important');
+        (addColumnButton as HTMLElement).setAttribute('style', 
+          'visibility: visible !important; opacity: 1 !important; display: flex !important;');
       }
     };
     
@@ -138,7 +135,7 @@ export function GridHeaders({
               position: "sticky",
               left: "40px", // Account for row number
               display: "flex",
-              visibility: 'visible !important',
+              visibility: 'visible',
               opacity: 1,
               zIndex: 15
             }}
