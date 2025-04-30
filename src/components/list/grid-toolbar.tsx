@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Search, Filter, Download, Plus } from "lucide-react";
 import { ColumnDef } from "./grid/types";
 import { ZoomControl } from "./zoom-control";
+import { useZoom } from "./grid/contexts/zoom-context";
 
 interface GridToolbarProps {
   listType?: string;
@@ -19,6 +20,9 @@ export function GridToolbar({
   onZoomChange,
   currentZoom
 }: GridToolbarProps) {
+  // Get zoom functionality from context
+  const { zoomLevel, setZoomLevel } = useZoom();
+
   // Count columns with filter property if it exists, otherwise assume 0
   const filterCount = columns.filter(col => col.filter !== undefined).length;
 
@@ -51,8 +55,11 @@ export function GridToolbar({
           Export
         </Button>
         
-        {/* Zoom Control */}
-        <ZoomControl onZoomChange={onZoomChange} />
+        {/* Zoom Control - Now using the context */}
+        <ZoomControl 
+          onZoomChange={onZoomChange || setZoomLevel} 
+          currentZoom={currentZoom || zoomLevel}
+        />
       </div>
       
       <div className="flex items-center space-x-2">
