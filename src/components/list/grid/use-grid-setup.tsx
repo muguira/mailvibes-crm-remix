@@ -16,8 +16,8 @@ export function useGridSetup({
   bodyRef
 }: GridSetupProps) {
   // State for columns and data
-  const [columns, setColumns] = useState(initialColumns);
-  const [data, setData] = useState(initialData);
+  const [columns, setColumns] = useState<ColumnDef[]>(initialColumns);
+  const [data, setData] = useState<any[]>(initialData);
 
   // State for active cell and editing
   const [activeCell, setActiveCell] = useState<{ row: string; col: string } | null>(null);
@@ -34,6 +34,7 @@ export function useGridSetup({
     header: string;
     type: ColumnType;
     options?: string[];
+    colors?: Record<string, string>;
   }>({
     header: "",
     type: "text",
@@ -69,12 +70,12 @@ export function useGridSetup({
   };
   
   // Cell click handler
-  const handleCellClick = (rowId: string, colKey: string) => {
+  const handleCellClick = (rowId: string, colKey: string, colType?: string) => {
     setActiveCell({ row: rowId, col: colKey });
   };
 
   // Cell change handler
-  const handleCellChange = (rowId: string, colKey: string, value: any) => {
+  const handleCellChange = (rowId: string, colKey: string, value: any, type?: string) => {
     setData(prevData => 
       prevData.map(row => 
         row.id === rowId ? { ...row, [colKey]: value } : row
@@ -103,6 +104,7 @@ export function useGridSetup({
       header: newColumn.header,
       type: newColumn.type,
       options: newColumn.options,
+      colors: newColumn.type === 'status' ? newColumn.colors : undefined,
     };
     
     saveStateToHistory();

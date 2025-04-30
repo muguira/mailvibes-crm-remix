@@ -5,7 +5,7 @@ import { CustomButton } from "@/components/ui/custom-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GridHeaderCell } from "./grid-header-cell";
 import { ColumnDef, ColumnType } from "./grid/types";
-import { RefObject } from "react";
+import { RefObject, useState } from "react";
 
 interface GridHeadersProps {
   frozenColumns: ColumnDef[];
@@ -23,11 +23,13 @@ interface GridHeadersProps {
     header: string;
     type: ColumnType;
     options?: string[];
+    colors?: Record<string, string>;
   };
   setNewColumn: (newCol: {
     header: string;
     type: ColumnType;
     options?: string[];
+    colors?: Record<string, string>;
   }) => void;
   addColumn: () => void;
   onHeaderDoubleClick: (colKey: string) => void;
@@ -66,25 +68,64 @@ export function GridHeaders({
   onDragOver,
   onDrop
 }: GridHeadersProps) {
+  const [colorPickerOption, setColorPickerOption] = useState<string | null>(null);
+  const defaultColors = {
+    "Deal Won": "#22c55e", // green
+    "Qualified": "#3b82f6", // blue
+    "Contract Sent": "#eab308", // yellow
+    "In Procurement": "#d97706", // amber
+    "Discovered": "#f97316", // orange
+    "Not Now": "#ef4444", // red
+    "New": "#a855f7", // purple
+  };
+
   return (
-    <div className="flex grid-container">
+    <div className="flex grid-container sticky top-0 z-10 bg-white">
       {/* Row number header */}
       <div className="row-number-header"></div>
       
       {/* Edit column header */}
       <div className="edit-column-header"></div>
       
-      {/* Frozen header columns */}
-      {frozenColumns.length > 0 && (
+      {/* Headers container */}
+      <div className="flex flex-1 sticky top-0 z-10">
+        {/* Frozen header columns */}
+        {frozenColumns.length > 0 && (
+          <div
+            className="grid-header"
+            style={{
+              boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)",
+              position: "sticky",
+              left: "72px", // Account for row number + edit column
+              display: "flex"
+            }}
+          >
+            {frozenColumns.map((column) => (
+              <GridHeaderCell
+                key={column.key}
+                column={column}
+                editingHeader={editingHeader}
+                setEditingHeader={setEditingHeader}
+                onHeaderDoubleClick={onHeaderDoubleClick}
+                onRenameColumn={onRenameColumn}
+                onDuplicateColumn={onDuplicateColumn}
+                onMoveColumn={onMoveColumn}
+                onSortColumn={onSortColumn}
+                onDeleteColumn={onDeleteColumn}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Scrollable header columns */}
         <div
-          className="grid-header"
-          style={{
-            boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)",
-            position: "sticky",
-            left: "72px" // Account for row number + edit column
+          className="grid-header flex"
+          style={{ 
+            marginLeft: frozenColumns.length > 0 ? 0 : "72px" // Adjust margin if no frozen columns
           }}
+          ref={headerRef}
         >
-          {frozenColumns.map((column) => (
+          {scrollableColumns.map((column) => (
             <GridHeaderCell
               key={column.key}
               column={column}
@@ -96,135 +137,239 @@ export function GridHeaders({
               onMoveColumn={onMoveColumn}
               onSortColumn={onSortColumn}
               onDeleteColumn={onDeleteColumn}
+              dragOverColumn={dragOverColumn}
+              onDragStart={onDragStart}
+              onDragOver={onDragOver}
+              onDrop={onDrop}
+              draggable={true}
             />
           ))}
-        </div>
-      )}
 
-      {/* Scrollable header columns */}
-      <div
-        className="grid-header"
-        style={{ 
-          marginLeft: frozenColumns.length > 0 ? 0 : "72px" // Adjust margin if no frozen columns
-        }}
-        ref={headerRef}
-      >
-        {scrollableColumns.map((column) => (
-          <GridHeaderCell
-            key={column.key}
-            column={column}
-            editingHeader={editingHeader}
-            setEditingHeader={setEditingHeader}
-            onHeaderDoubleClick={onHeaderDoubleClick}
-            onRenameColumn={onRenameColumn}
-            onDuplicateColumn={onDuplicateColumn}
-            onMoveColumn={onMoveColumn}
-            onSortColumn={onSortColumn}
-            onDeleteColumn={onDeleteColumn}
-            dragOverColumn={dragOverColumn}
-            onDragStart={onDragStart}
-            onDragOver={onDragOver}
-            onDrop={onDrop}
-            draggable={true}
-          />
-        ))}
-
-        {/* Add Column button */}
-        <div className="grid-header-cell">
-          <Dialog open={isAddingColumn} onOpenChange={setIsAddingColumn}>
-            <DialogTrigger asChild>
-              <button className="w-6 h-6 flex items-center justify-center rounded-full bg-teal-primary/10 hover:bg-teal-primary/20 text-teal-primary">
-                <Plus size={14} />
-              </button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Column</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label htmlFor="column-name" className="text-sm font-medium">
-                    Column Name
-                  </label>
-                  <input
-                    id="column-name"
-                    value={newColumn?.header || ""}
-                    onChange={(e) => {
-                      setNewColumn({
-                        ...newColumn,
-                        header: e.target.value
-                      });
-                    }}
-                    className="w-full p-2 border border-slate-light/50 rounded"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="column-type" className="text-sm font-medium">
-                    Column Type
-                  </label>
-                  <Select
-                    value={newColumn?.type || "text"}
-                    onValueChange={(value: ColumnType) => {
-                      setNewColumn({
-                        ...newColumn,
-                        type: value
-                      });
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="text">Text</SelectItem>
-                      <SelectItem value="number">Number</SelectItem>
-                      <SelectItem value="currency">Currency</SelectItem>
-                      <SelectItem value="date">Date</SelectItem>
-                      <SelectItem value="status">Status</SelectItem>
-                      <SelectItem value="select">Select</SelectItem>
-                      <SelectItem value="checkbox">Checkbox</SelectItem>
-                      <SelectItem value="url">URL</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {(newColumn?.type === 'select' || newColumn?.type === 'status') && (
+          {/* Add Column button */}
+          <div className="grid-header-cell">
+            <Dialog open={isAddingColumn} onOpenChange={setIsAddingColumn}>
+              <DialogTrigger asChild>
+                <button className="w-6 h-6 flex items-center justify-center rounded-full bg-teal-primary/10 hover:bg-teal-primary/20 text-teal-primary">
+                  <Plus size={14} />
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Column</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <label htmlFor="column-options" className="text-sm font-medium">
-                      Options (one per line)
+                    <label htmlFor="column-name" className="text-sm font-medium">
+                      Column Name
                     </label>
-                    <textarea
-                      id="column-options"
-                      className="w-full p-2 border border-slate-light/50 rounded h-24"
+                    <input
+                      id="column-name"
+                      value={newColumn?.header || ""}
                       onChange={(e) => {
                         setNewColumn({
                           ...newColumn,
-                          options: e.target.value.split('\n').filter(opt => opt.trim() !== '')
+                          header: e.target.value
                         });
                       }}
+                      className="w-full p-2 border border-slate-light/50 rounded"
                     />
                   </div>
-                )}
-              </div>
-              <DialogFooter>
-                <CustomButton
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsAddingColumn(false)}
-                >
-                  Cancel
-                </CustomButton>
-                <CustomButton
-                  variant="default"
-                  size="sm"
-                  onClick={addColumn}
-                  disabled={!newColumn?.header}
-                >
-                  Add Column
-                </CustomButton>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+
+                  <div className="space-y-2">
+                    <label htmlFor="column-type" className="text-sm font-medium">
+                      Column Type
+                    </label>
+                    <Select
+                      value={newColumn?.type || "text"}
+                      onValueChange={(value: ColumnType) => {
+                        setNewColumn({
+                          ...newColumn,
+                          type: value,
+                          options: value === "status" || value === "select" ? ["New"] : undefined,
+                          colors: value === "status" ? { "New": "#a855f7" } : undefined
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="text">Text</SelectItem>
+                        <SelectItem value="number">Number</SelectItem>
+                        <SelectItem value="currency">Currency</SelectItem>
+                        <SelectItem value="date">Date</SelectItem>
+                        <SelectItem value="status">Status</SelectItem>
+                        <SelectItem value="select">Select</SelectItem>
+                        <SelectItem value="checkbox">Checkbox</SelectItem>
+                        <SelectItem value="url">URL</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {(newColumn?.type === 'select' || newColumn?.type === 'status') && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        Options
+                      </label>
+                      <div className="space-y-2 max-h-60 overflow-y-auto border border-slate-light/50 rounded p-2">
+                        {(newColumn.options || []).map((option, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <input
+                              value={option}
+                              onChange={(e) => {
+                                const newOptions = [...(newColumn.options || [])];
+                                newOptions[index] = e.target.value;
+                                setNewColumn({
+                                  ...newColumn,
+                                  options: newOptions
+                                });
+                              }}
+                              className="flex-1 p-2 border border-slate-light/50 rounded text-sm"
+                            />
+                            
+                            {newColumn.type === 'status' && (
+                              <div 
+                                className="w-6 h-6 rounded cursor-pointer"
+                                style={{ backgroundColor: newColumn.colors?.[option] || '#888888' }}
+                                onClick={() => setColorPickerOption(option)}
+                              />
+                            )}
+                            
+                            <button
+                              onClick={() => {
+                                const newOptions = [...(newColumn.options || [])];
+                                newOptions.splice(index, 1);
+                                
+                                // Also remove color if it's a status field
+                                let newColors = {...(newColumn.colors || {})};
+                                if (newColumn.type === 'status' && option in newColors) {
+                                  delete newColors[option];
+                                }
+                                
+                                setNewColumn({
+                                  ...newColumn,
+                                  options: newOptions,
+                                  colors: newColumn.type === 'status' ? newColors : undefined
+                                });
+                              }}
+                              className="p-1 text-red-500 hover:bg-red-50 rounded"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                        
+                        {colorPickerOption && newColumn.type === 'status' && (
+                          <div className="mt-2 p-2 border border-slate-200 rounded">
+                            <div className="text-sm font-medium mb-2">Select color for "{colorPickerOption}"</div>
+                            <div className="flex flex-wrap gap-2">
+                              {Object.entries(defaultColors).map(([_, color]) => (
+                                <div
+                                  key={color}
+                                  className="w-6 h-6 rounded cursor-pointer border border-slate-300"
+                                  style={{ backgroundColor: color }}
+                                  onClick={() => {
+                                    setNewColumn({
+                                      ...newColumn,
+                                      colors: {
+                                        ...(newColumn.colors || {}),
+                                        [colorPickerOption]: color
+                                      }
+                                    });
+                                    setColorPickerOption(null);
+                                  }}
+                                />
+                              ))}
+                            </div>
+                            <div className="mt-2">
+                              <label className="text-xs">Custom color (hex)</label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="#RRGGBB"
+                                  className="flex-1 p-1 text-sm border border-slate-300 rounded"
+                                  onBlur={(e) => {
+                                    const colorValue = e.target.value.startsWith('#') ? e.target.value : `#${e.target.value}`;
+                                    setNewColumn({
+                                      ...newColumn,
+                                      colors: {
+                                        ...(newColumn.colors || {}),
+                                        [colorPickerOption]: colorValue
+                                      }
+                                    });
+                                    setColorPickerOption(null);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      const input = e.target as HTMLInputElement;
+                                      const colorValue = input.value.startsWith('#') ? input.value : `#${input.value}`;
+                                      setNewColumn({
+                                        ...newColumn,
+                                        colors: {
+                                          ...(newColumn.colors || {}),
+                                          [colorPickerOption]: colorValue
+                                        }
+                                      });
+                                      setColorPickerOption(null);
+                                    }
+                                  }}
+                                />
+                                <button
+                                  onClick={() => setColorPickerOption(null)}
+                                  className="px-2 bg-slate-100 rounded hover:bg-slate-200"
+                                >
+                                  Done
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <button
+                          onClick={() => {
+                            setNewColumn({
+                              ...newColumn,
+                              options: [...(newColumn.options || []), "New Option"]
+                            });
+                            if (newColumn.type === 'status') {
+                              setNewColumn({
+                                ...newColumn,
+                                options: [...(newColumn.options || []), "New Option"],
+                                colors: {
+                                  ...(newColumn.colors || {}),
+                                  "New Option": "#888888"
+                                }
+                              });
+                            }
+                          }}
+                          className="w-full p-2 mt-2 bg-slate-100 hover:bg-slate-200 rounded text-sm"
+                        >
+                          + Add Option
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <CustomButton
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAddingColumn(false)}
+                  >
+                    Cancel
+                  </CustomButton>
+                  <CustomButton
+                    variant="default"
+                    size="sm"
+                    onClick={addColumn}
+                    disabled={!newColumn?.header}
+                  >
+                    Add Column
+                  </CustomButton>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </div>
     </div>

@@ -85,7 +85,7 @@ export function GridHeaderCell({
         />
       ) : (
         // Don't style the opportunity header as a link
-        <span className={column.key === "opportunity" ? "font-medium text-navy-deep" : ""}>
+        <span className={`font-medium text-navy-deep uppercase text-xs ${column.key !== "opportunity" ? "" : ""}`}>
           {column.header}
         </span>
       )}

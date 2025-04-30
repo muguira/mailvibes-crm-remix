@@ -13,7 +13,7 @@ interface GridRowProps {
   scrollableColsTemplate: string;
   activeCell: { row: string; col: string } | null;
   showSaveIndicator: { row: string; col: string } | null;
-  onCellClick: (rowId: string, colKey: string, colType: string, options?: string[]) => void;
+  onCellClick: (rowId: string, colKey: string, colType?: string, options?: string[]) => void;
   onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
   renderRowActions?: (rowId: string) => React.ReactNode;
 }
@@ -68,6 +68,7 @@ export function GridRow({
           value={rowData[column.key]}
           type={column.type}
           options={column.options}
+          colors={column.colors}
           isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
           onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
           onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
@@ -84,6 +85,7 @@ export function GridRow({
           value={rowData[column.key]}
           type={column.type}
           options={column.options}
+          colors={column.colors}
           isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
           onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
           onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}

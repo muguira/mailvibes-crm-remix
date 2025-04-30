@@ -12,7 +12,7 @@ interface GridBodyProps {
   activeCell: { row: string; col: string } | null;
   showSaveIndicator: { row: string; col: string } | null;
   bodyRef: RefObject<HTMLDivElement>;
-  onCellClick: (rowId: string, colKey: string) => void;
+  onCellClick: (rowId: string, colKey: string, colType?: string, options?: string[]) => void;
   onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
   renderRowActions?: (rowId: string) => React.ReactNode;
 }
@@ -47,40 +47,38 @@ export function GridBody({
   });
 
   return (
-    <div className="overflow-auto flex-1 grid-body" ref={bodyRef}>
-      <div className="grid-container">
-        {validRows.map((row, index) => (
-          <GridRow
-            key={row.id}
-            rowData={row}
-            rowNumber={index + 1} 
-            frozenColumns={frozenColumns}
-            scrollableColumns={scrollableColumns}
-            frozenColsTemplate={frozenColsTemplate}
-            scrollableColsTemplate={scrollableColsTemplate}
-            activeCell={activeCell}
-            showSaveIndicator={showSaveIndicator}
-            onCellClick={(rowId, colKey, colType) => onCellClick(rowId, colKey)}
-            onCellChange={onCellChange}
-            renderRowActions={renderRowActions}
-          />
-        ))}
-
+    <div className="overflow-auto flex-1 bg-white" ref={bodyRef}>
+      {validRows.map((row, index) => (
         <GridRow
-          key={emptyRowId}
-          rowData={emptyRowData}
-          rowNumber={validRows.length + 1}
+          key={row.id}
+          rowData={row}
+          rowNumber={index + 1}
           frozenColumns={frozenColumns}
           scrollableColumns={scrollableColumns}
           frozenColsTemplate={frozenColsTemplate}
           scrollableColsTemplate={scrollableColsTemplate}
           activeCell={activeCell}
           showSaveIndicator={showSaveIndicator}
-          onCellClick={(rowId, colKey, colType) => onCellClick(rowId, colKey)}
+          onCellClick={onCellClick}
           onCellChange={onCellChange}
           renderRowActions={renderRowActions}
         />
-      </div>
+      ))}
+
+      <GridRow
+        key={emptyRowId}
+        rowData={emptyRowData}
+        rowNumber={validRows.length + 1}
+        frozenColumns={frozenColumns}
+        scrollableColumns={scrollableColumns}
+        frozenColsTemplate={frozenColsTemplate}
+        scrollableColsTemplate={scrollableColsTemplate}
+        activeCell={activeCell}
+        showSaveIndicator={showSaveIndicator}
+        onCellClick={onCellClick}
+        onCellChange={onCellChange}
+        renderRowActions={renderRowActions}
+      />
     </div>
   );
 }

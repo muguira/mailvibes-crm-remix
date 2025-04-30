@@ -18,4 +18,7 @@ export interface GridViewProps {
   data: { id: string; [key: string]: any }[];
   listName: string;
   listType: string;
+  listId?: string;
+  onCellChange?: (rowId: string, colKey: string, value: any) => void;
+  onAddItem?: (() => void) | null;
 }
