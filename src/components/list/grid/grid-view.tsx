@@ -19,7 +19,7 @@ export function GridView({
 }: GridViewProps & { 
   listId?: string,
   onCellChange?: (rowId: string, colKey: string, value: any) => void,
-  onAddItem?: () => void
+  onAddItem?: (() => void) | null
 }) {
   // Container references for sync scrolling
   const headerRef = useRef<HTMLDivElement>(null);
@@ -148,7 +148,7 @@ export function GridView({
       <GridToolbar 
         listType={listType} 
         columns={columns} 
-        onAddItem={onAddItem}
+        onAddItem={onAddItem || undefined}
       />
       
       {/* Grid Headers */}

@@ -88,15 +88,17 @@ export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) 
         </div>
         
         {/* Add Button */}
-        <CustomButton 
-          variant="default" 
-          size="sm"
-          className="flex items-center gap-1"
-          onClick={onAddItem}
-        >
-          <Plus size={14} />
-          <span>Add {listType}</span>
-        </CustomButton>
+        {onAddItem && (
+          <CustomButton 
+            variant="default" 
+            size="sm"
+            className="flex items-center gap-1"
+            onClick={onAddItem}
+          >
+            <Plus size={14} />
+            <span>Add {listType}</span>
+          </CustomButton>
+        )}
       </div>
     </div>
   );

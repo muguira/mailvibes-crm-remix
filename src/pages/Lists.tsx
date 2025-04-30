@@ -62,7 +62,7 @@ const Lists = () => {
             gridData={gridData}
             columns={opportunityColumns}
             onCellChange={handleCellChange}
-            onAddItem={handleAddOpportunity}
+            onAddItem={null} // Remove duplicate Add Opportunity button
             setIsCreateListOpen={setIsCreateListOpen}
           />
         </div>

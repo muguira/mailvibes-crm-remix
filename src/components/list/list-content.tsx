@@ -11,7 +11,7 @@ interface ListContentProps {
   gridData: any[];
   columns: any[];
   onCellChange: (rowId: string, colKey: string, value: any) => void;
-  onAddItem: () => void;
+  onAddItem: (() => void) | null;
   setIsCreateListOpen: (isOpen: boolean) => void;
 }
 

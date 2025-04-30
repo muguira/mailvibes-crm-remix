@@ -195,7 +195,7 @@
 
 /* Full-screen styles */
 .full-screen-grid {
-  height: calc(100vh - 96px); /* Adjust for header and top navigation */
+  height: calc(100vh - 57px); /* Adjust for header and top navigation */
   display: flex;
   flex-direction: column;
   overflow: hidden;
