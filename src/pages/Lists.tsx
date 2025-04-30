@@ -4,13 +4,16 @@ import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { GridView, ColumnDef } from "@/components/list/grid-view";
 import { StreamView } from "@/components/list/stream-view";
-import { List, Grid, Menu } from "lucide-react";
+import { List, Grid, Menu, Search, ChevronDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import "@/components/list/grid-view.css";
 
 // Define column types to match the ColumnDef interface
 const columns: ColumnDef[] = [
-  { key: "opportunity", header: "Opportunity", type: "text", editable: true },
-  { key: "status", header: "Status", type: "status", editable: true },
+  { key: "opportunity", header: "Opportunity", type: "text", editable: true, frozen: true },
+  { key: "status", header: "Status", type: "status", editable: true, options: [
+    "Deal Won", "Qualified", "Contract Sent", "In Procurement", "Discovered", "Not Now" 
+  ] },
   { key: "revenue", header: "Revenue", type: "currency", editable: true },
   { key: "closeDate", header: "Close Date", type: "date", editable: true },
   { key: "owner", header: "Owner", type: "text", editable: true },
@@ -19,16 +22,21 @@ const columns: ColumnDef[] = [
 
 // Sample data
 const data = [
-  { id: "1", opportunity: "Avocado Inc", status: "Deal Won", revenue: "$5,000", closeDate: "Sep 24, 2023", owner: "Ryan DeForest", employees: 0 },
-  { id: "2", opportunity: "Lulu - Product A", status: "Qualified", revenue: "$6,645", closeDate: "Aug 13, 2023", owner: "Kelly Singsank", employees: 0 },
-  { id: "3", opportunity: "Lulu - Product B", status: "Deal Won", revenue: "$2,000", closeDate: "Apr 6, 2023", owner: "Rosie Roca", employees: 0 },
-  { id: "4", opportunity: "Pupware", status: "Deal Won", revenue: "$2,000", closeDate: "Jul 13, 2023", owner: "Kelly Singsank", employees: 0 },
-  { id: "5", opportunity: "Big Data Bear Analytics", status: "Contract Sent", revenue: "$9,950", closeDate: "Mar 15, 2023", owner: "Kelly Singsank", employees: 0 },
-  { id: "6", opportunity: "Romy", status: "Deal Won", revenue: "$9,500", closeDate: "Jul 31, 2023", owner: "Edie Robinson", employees: 0 },
-  { id: "7", opportunity: "Tommy2Step", status: "Deal Won", revenue: "$9,456", closeDate: "Apr 29, 2023", owner: "Rosie Roca", employees: 0 },
-  { id: "8", opportunity: "Google - Renewal", status: "Qualified", revenue: "$4,000", closeDate: "Aug 29, 2023", owner: "Rosie Roca", employees: 0 },
-  { id: "9", opportunity: "Living Well", status: "Deal Won", revenue: "$9,000", closeDate: "Aug 7, 2023", owner: "Rosie Roca", employees: 0 },
-  { id: "10", opportunity: "Tequila", status: "Deal Won", revenue: "$9,000", closeDate: "Jul 3, 2023", owner: "Rudy S.", employees: 0 },
+  { id: "1", opportunity: "Avocado Inc", status: "Deal Won", revenue: "$5,000", closeDate: "September 24, 2023", owner: "Ryan DeForest", employees: 0 },
+  { id: "2", opportunity: "Lulu - Product A", status: "Qualified", revenue: "$6,645", closeDate: "August 13, 2023", owner: "Kelly Singsank", employees: 0 },
+  { id: "3", opportunity: "Lulu - Product B", status: "Deal Won", revenue: "$2,000", closeDate: "April 6, 2023", owner: "Rosie Roca", employees: 0 },
+  { id: "4", opportunity: "Pupware", status: "Deal Won", revenue: "$2,000", closeDate: "July 13, 2023", owner: "Kelly Singsank", employees: 0 },
+  { id: "5", opportunity: "Big Data Bear Analytics", status: "Contract Sent", revenue: "$9,950", closeDate: "March 15, 2023", owner: "Kelly Singsank", employees: 0 },
+  { id: "6", opportunity: "Romy", status: "Deal Won", revenue: "$9,500", closeDate: "July 31, 2023", owner: "Edie Robinson", employees: 0 },
+  { id: "7", opportunity: "Tommy2Step", status: "Deal Won", revenue: "$9,456", closeDate: "April 29, 2023", owner: "Rosie Roca", employees: 0 },
+  { id: "8", opportunity: "Google - Renewal", status: "Qualified", revenue: "$4,000", closeDate: "August 29, 2023", owner: "Rosie Roca", employees: 0 },
+  { id: "9", opportunity: "Living Well", status: "Deal Won", revenue: "$9,000", closeDate: "August 7, 2023", owner: "Rosie Roca", employees: 0 },
+  { id: "10", opportunity: "Tequila", status: "Deal Won", revenue: "$9,000", closeDate: "July 3, 2023", owner: "Rudy S.", employees: 0 },
+  { id: "11", opportunity: "Sushi Rito Inc.", status: "Deal Won", revenue: "$6,645", closeDate: "July 7, 2023", owner: "Moxxy Schoeffer", employees: 0 },
+  { id: "12", opportunity: "Techqueria", status: "Not Now", revenue: "$6,645", closeDate: "March 15, 2023", owner: "Moxxy Schoeffer", employees: 2 },
+  { id: "13", opportunity: "Scoop", status: "Discovered", revenue: "$5,000", closeDate: "August 10, 2023", owner: "Kelly Singsank", employees: 154 },
+  { id: "14", opportunity: "Avocado Inc - Upsell", status: "Discovered", revenue: "$2,499", closeDate: "May 16, 2023", owner: "Kelly Singsank", employees: 0 },
+  { id: "15", opportunity: "Bob's Donuts", status: "In Procurement", revenue: "$2,507", closeDate: "April 15, 2023", owner: "Kelly Singsank", employees: 13 }
 ];
 
 // Update ActivityItem type properties to use the correct literal types
@@ -173,6 +181,7 @@ const contacts = [
 const Lists = () => {
   const [viewMode, setViewMode] = useState<"grid" | "stream">("grid");
   const [currentList, setCurrentList] = useState("opportunities");
+  const [searchQuery, setSearchQuery] = useState("");
   
   return (
     <div className="flex h-screen bg-slate-light/20">
@@ -181,31 +190,49 @@ const Lists = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
         
-        <div className="bg-white border-b border-slate-light/30 p-3 flex items-center justify-between">
-          <div className="flex items-center">
-            <button className="text-slate-dark font-semibold text-lg flex items-center gap-2">
-              Opportunities
-              <Menu size={16} />
-            </button>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-medium">29 Opportunities</span>
-            <div className="border-l border-slate-light/50 h-6 mx-2"></div>
-            <div className="flex items-center p-1 bg-slate-light/20 rounded">
+        {/* Page Header - Salesforce style */}
+        <div className="page-header">
+          Lists – Opportunities
+        </div>
+        
+        {/* Toolbar */}
+        <div className="toolbar">
+          <div className="flex items-center space-x-4">
+            {/* Search Bar */}
+            <div className="search-field">
+              <Search size={16} className="text-slate-medium" />
+              <input 
+                type="text" 
+                placeholder="Search Field Values" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-40 lg:w-56"
+              />
+              <ChevronDown size={16} className="text-slate-medium" />
+            </div>
+            
+            {/* View Toggle */}
+            <div className="view-toggle">
               <button 
-                className={`p-1.5 rounded ${viewMode === "grid" ? "bg-white shadow-sm" : ""}`}
+                className={`flex items-center ${viewMode === "grid" ? "active" : ""}`}
                 onClick={() => setViewMode("grid")}
               >
-                <Grid size={18} className={viewMode === "grid" ? "text-teal-primary" : "text-slate-medium"} />
+                <Grid size={16} className={viewMode === "grid" ? "text-teal-primary" : "text-slate-medium"} />
               </button>
               <button 
-                className={`p-1.5 rounded ${viewMode === "stream" ? "bg-white shadow-sm" : ""}`}
+                className={`flex items-center ${viewMode === "stream" ? "active" : ""}`}
                 onClick={() => setViewMode("stream")}
               >
-                <List size={18} className={viewMode === "stream" ? "text-teal-primary" : "text-slate-medium"} />
+                <List size={16} className={viewMode === "stream" ? "text-teal-primary" : "text-slate-medium"} />
               </button>
             </div>
+          </div>
+          
+          <div className="flex items-center">
+            <span className="text-sm text-slate-medium mr-2">28 Opportunities • DEMO</span>
+            <button className="bg-teal-primary text-white rounded px-4 py-2 text-sm font-medium flex items-center gap-1 hover:bg-teal-primary/90">
+              <span>Add Opportunity • DEMO</span>
+            </button>
           </div>
         </div>
         
