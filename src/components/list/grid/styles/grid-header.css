@@ -25,6 +25,7 @@
   text-transform: uppercase;
   border-right: 1px solid #e0e5eb;
   background-color: #f8f9fa;
+  min-width: var(--cell-min-width, 150px);
 }
 
 .grid-header-cell:hover {
