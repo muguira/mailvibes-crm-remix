@@ -5,10 +5,9 @@ export type PopoverType = "select" | "date" | "none";
 
 interface UsePopoverOptions {
   onClose?: () => void;
-  onSelect?: (value: any) => void;
 }
 
-export function usePopover({ onClose, onSelect }: UsePopoverOptions = {}) {
+export function usePopover({ onClose }: UsePopoverOptions = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [popoverType, setPopoverType] = useState<PopoverType>("none");
@@ -91,19 +90,12 @@ export function usePopover({ onClose, onSelect }: UsePopoverOptions = {}) {
     if (onClose) onClose();
   }, [onClose]);
 
-  // Handle selection and auto-close
-  const handleSelect = useCallback((value: any) => {
-    if (onSelect) onSelect(value);
-    closePopover(); // Always close after selection
-  }, [closePopover, onSelect]);
-
   return {
     isOpen,
     position,
     popoverType,
     popoverRef,
     openPopover,
-    closePopover,
-    handleSelect
+    closePopover
   };
 }

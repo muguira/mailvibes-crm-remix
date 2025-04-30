@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { isValidUrl } from "./grid-utils";
 import { ColumnType } from "./grid-view";
@@ -56,14 +57,7 @@ export function GridCell({
     popoverRef,
     openPopover,
     closePopover
-  } = usePopover({
-    onClose: () => {
-      // Revert to original value on close without save
-      if (type === 'date' || type === 'status' || type === 'select') {
-        // Don't trigger a change, just reset UI state
-      }
-    },
-  });
+  } = usePopover();
 
   // Update original value when prop changes
   useEffect(() => {
@@ -118,7 +112,7 @@ export function GridCell({
 
   const handleSelectOption = (optionValue: string) => {
     onCellChange(rowId, colKey, optionValue, type);
-    // After cell change, close the popover
+    // Close the popover after cell change
     closePopover();
   };
 
@@ -130,8 +124,7 @@ export function GridCell({
         year: 'numeric' 
       });
       onCellChange(rowId, colKey, formattedDate, type);
-      // After cell change, close the popover
-      closePopover();
+      // Close popover is now handled inside the GridDatePicker component
     }
   };
 
