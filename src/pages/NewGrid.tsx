@@ -115,7 +115,7 @@ const NewGrid: React.FC = () => {
   const [data, setData] = useState<GridRow[]>([]);
   const location = useLocation();
   
-  // Generate dataset based on URL parameter
+  // Generate dataset based on URL parameter - fixed for 10k rows
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const demo = params.get('demo');
@@ -123,7 +123,20 @@ const NewGrid: React.FC = () => {
     // Generate full 10k rows when demo=10k is in URL
     if (demo === '10k') {
       console.log("Generating 10,000 rows for performance testing");
-      const largeDataset = generateLargeDataset(10000);
+      // Use Array.from to efficiently generate 10k rows
+      const largeDataset = Array.from({ length: 10000 }, (_, i) => ({
+        id: `row-${crypto.randomUUID()}`, // Use crypto.randomUUID for better uniqueness
+        opportunity: `Opportunity ${i}`,
+        status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+        revenue: Math.floor(Math.random() * 100000),
+        closeDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        owner: ['John Doe', 'Jane Smith', 'Robert Johnson'][Math.floor(Math.random() * 3)],
+        website: 'https://example.com',
+        companyName: `Company ${i}`,
+        linkedIn: 'https://linkedin.com/company/example',
+        employees: Math.floor(Math.random() * 1000),
+        lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      }));
       console.log(`Generated ${largeDataset.length} rows`);
       setData(largeDataset);
     } else {
@@ -148,8 +161,8 @@ const NewGrid: React.FC = () => {
       // and retry with a new UUID if needed
     } catch (error) {
       console.error("Error updating cell:", error);
-      // If there's a 409 error, we would generate a new ID and retry
-      const newRowId = `row-${uuidv4()}`;
+      // If there's a 409 error, generate a new ID and retry
+      const newRowId = `row-${crypto.randomUUID()}`; // Using crypto.randomUUID for better uniqueness
       console.log(`Retrying with new ID: ${newRowId}`);
       
       // Update the row with a new ID
