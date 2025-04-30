@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
@@ -205,6 +204,9 @@ export function NewGridView({
   const getColumnWidth = useCallback((index: number) => {
     return columnWidths[index] || 150;
   }, [columnWidths]);
+
+  // Row height callback for VariableSizeGrid
+  const getRowHeight = useCallback(() => ROW_HEIGHT, []);
 
   // Close status dropdown when clicking outside
   useEffect(() => {
@@ -444,7 +446,7 @@ export function NewGridView({
             columnWidth={getColumnWidth}
             height={containerHeight - HEADER_HEIGHT}
             rowCount={filteredData.length + 1} // +1 for header placeholder
-            rowHeight={ROW_HEIGHT} // constant row height
+            rowHeight={getRowHeight} // Using callback function instead of constant
             width={containerWidth}
           >
             {Cell}
