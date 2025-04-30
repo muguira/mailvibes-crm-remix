@@ -18,6 +18,7 @@ interface GridCellProps {
   isActive: boolean;
   onClick: () => void;
   onChange: (value: any) => void;
+  showSaveIndicator?: boolean; // Add this prop with optional flag
 }
 
 export function GridCell({
@@ -28,7 +29,8 @@ export function GridCell({
   options,
   isActive,
   onClick,
-  onChange
+  onChange,
+  showSaveIndicator = false // Set default value to false
 }: GridCellProps) {
   // Store original value for reverting on cancel
   const [originalValue, setOriginalValue] = useState(value);

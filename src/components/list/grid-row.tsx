@@ -83,6 +83,7 @@ export function GridRow({
               isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
               onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
               onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
+              showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
             />
           ))}
         </div>
@@ -107,13 +108,9 @@ export function GridRow({
             isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
             onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
             onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
+            showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
           />
         ))}
-
-        {/* Show save indicator if needed */}
-        {showSaveIndicator?.row === rowData.id && (
-          <SaveIndicator show={true} />
-        )}
       </div>
     </div>
   );
