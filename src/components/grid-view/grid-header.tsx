@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Column } from './types';
+import { Check } from 'lucide-react';
 
 interface GridHeaderProps {
   columns: Column[];
@@ -125,42 +126,47 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
         #
       </div>
       <div className="columns-header">
-        {columns.map((column, index) => (
-          <div
-            key={column.id}
-            className={`
-              grid-header-cell 
-              ${column.frozen ? 'grid-frozen-header' : ''} 
-              ${draggedColumn === column.id ? 'dragging' : ''}
-              ${column.type === 'currency' ? 'text-right' : ''}
-            `}
-            draggable
-            onDragStart={(e) => handleDragStart(e, column.id)}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, column.id)}
-            onDoubleClick={() => handleHeaderDoubleClick(column.id)}
-            style={{ width: column.width }}
-          >
-            {editingHeader === column.id ? (
-              <input
-                type="text"
-                className="header-edit-input"
-                defaultValue={column.title}
-                autoFocus
-                onBlur={(e) => handleHeaderSave(column.id, e.target.value)}
-                onKeyDown={(e) => handleHeaderKeyDown(e, column.id, (e.target as HTMLInputElement).value)}
-              />
-            ) : (
-              <>
-                <span className="header-title">{column.title}</span>
-                <div
-                  className="resize-handle"
-                  onMouseDown={(e) => handleResizeStart(e, column.id, column.width)}
+        {columns.map((column, index) => {
+          // Fix for first column display name
+          const displayTitle = column.id === 'opportunity' ? 'Opportunity' : column.title;
+          
+          return (
+            <div
+              key={column.id}
+              className={`
+                grid-header-cell 
+                ${column.frozen ? 'grid-frozen-header' : ''} 
+                ${draggedColumn === column.id ? 'dragging' : ''}
+                ${column.type === 'currency' ? 'text-right' : ''}
+              `}
+              draggable
+              onDragStart={(e) => handleDragStart(e, column.id)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, column.id)}
+              onDoubleClick={() => handleHeaderDoubleClick(column.id)}
+              style={{ width: column.width }}
+            >
+              {editingHeader === column.id ? (
+                <input
+                  type="text"
+                  className="header-edit-input"
+                  defaultValue={displayTitle}
+                  autoFocus
+                  onBlur={(e) => handleHeaderSave(column.id, e.target.value)}
+                  onKeyDown={(e) => handleHeaderKeyDown(e, column.id, (e.target as HTMLInputElement).value)}
                 />
-              </>
-            )}
-          </div>
-        ))}
+              ) : (
+                <>
+                  <span className="header-title">{displayTitle}</span>
+                  <div
+                    className="resize-handle"
+                    onMouseDown={(e) => handleResizeStart(e, column.id, column.width)}
+                  />
+                </>
+              )}
+            </div>
+          );
+        })}
         <div className="add-column-button">+</div>
       </div>
     </div>
