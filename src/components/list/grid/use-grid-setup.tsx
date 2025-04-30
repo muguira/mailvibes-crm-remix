@@ -47,6 +47,15 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     initialData
   });
   
+  // Create a wrapper function for setNewColumn that properly handles Partial<ColumnDef>
+  const handleSetNewColumn = (column: Partial<ColumnDef>) => {
+    setNewColumn({
+      header: column.header || "",
+      type: column.type || "text",
+      options: column.options
+    });
+  };
+  
   // Initialize grid actions with all required props
   const {
     handleCellClick,
@@ -101,7 +110,7 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     draggedColumn,
     dragOverColumn,
     newColumn,
-    setNewColumn: setNewColumn as (column: Partial<ColumnDef>) => void, // Type assertion to fix TS error
+    setNewColumn: handleSetNewColumn, // Use our wrapper function instead of direct casting
     isAddingColumn,
     setIsAddingColumn,
     showSaveIndicator,
