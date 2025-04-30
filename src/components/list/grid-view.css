@@ -6,20 +6,21 @@
   z-index: 10;
   background-color: #f8f9fa;
   border-bottom: 1px solid rgba(198, 206, 210, 0.3);
-  height: 40px;
+  height: 32px;
 }
 
 .grid-header-cell {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 1rem;
+  padding: 0 0.75rem;
   font-weight: 500;
-  font-size: 0.875rem;
-  height: 40px;
+  font-size: 0.75rem; /* Smaller font size for header */
+  height: 32px;
   user-select: none;
   position: relative;
   color: #133340;
+  text-transform: uppercase;
 }
 
 .grid-header-cell:hover {
@@ -29,32 +30,25 @@
 .grid-row {
   display: grid;
   border-bottom: 1px solid rgba(198, 206, 210, 0.2);
-  height: 40px;
+  height: 32px; /* Google Sheets row height */
   position: relative;
 }
 
 .grid-row:hover {
-  background-color: rgba(198, 206, 210, 0.1);
-}
-
-.grid-row:nth-child(even) {
-  background-color: rgba(249, 250, 251, 0.5);
-}
-
-.grid-row:nth-child(even):hover {
-  background-color: rgba(198, 206, 210, 0.1);
+  background-color: rgba(198, 206, 210, 0.1) !important;
 }
 
 .grid-cell {
-  padding: 0.5rem 1rem;
+  padding: 0 0.75rem;
   font-size: 0.875rem;
-  height: 40px;
+  height: 32px;
   display: flex;
   align-items: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: default;
+  border-right: 1px solid rgba(198, 206, 210, 0.1);
 }
 
 .grid-cell[tabindex="0"]:hover {
@@ -133,6 +127,21 @@
   box-shadow: 2px 0 4px -2px rgba(0,0,0,0.05);
 }
 
+/* Edit column styles */
+.edit-column-cell {
+  position: sticky;
+  left: 40px;
+  z-index: 5;
+  background-color: #f8f9fa;
+  border-right: 1px solid rgba(198, 206, 210, 0.3);
+  width: 32px;
+  min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
 .row-number-header {
   background-color: #f0f0f0;
   border-right: 1px solid rgba(198, 206, 210, 0.3);
@@ -141,6 +150,19 @@
   min-width: 40px;
   position: sticky;
   left: 0;
+  z-index: 15;
+  box-shadow: 2px 0 4px -2px rgba(0,0,0,0.05);
+}
+
+/* Edit column header */
+.edit-column-header {
+  background-color: #f0f0f0;
+  border-right: 1px solid rgba(198, 206, 210, 0.3);
+  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
+  width: 32px;
+  min-width: 32px;
+  position: sticky;
+  left: 40px;
   z-index: 15;
   box-shadow: 2px 0 4px -2px rgba(0,0,0,0.05);
 }
@@ -163,7 +185,7 @@
 
 /* Full-screen styles */
 .full-screen-grid {
-  height: calc(100vh - 64px); /* Adjust for header */
+  height: calc(100vh - 96px); /* Adjust for header and top navigation */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -191,132 +213,13 @@
 }
 
 /* Calendar styling */
-.calendar-popup {
-  width: 280px;
-  border-radius: 12px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-  background: white;
-}
+/* ... keep existing code (calendar styling) */
 
-.calendar-popup .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
-}
-
-.calendar-popup .footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px 12px;
-  border-top: 1px solid rgba(198, 206, 210, 0.3);
-  gap: 8px;
-}
-
-.option-menu {
-  position: absolute;
-  background: white;
-  border-radius: 4px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  z-index: 100;
-  width: 200px;
-}
-
-.option-item {
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.option-item:hover {
-  background-color: rgba(103, 187, 170, 0.1);
-}
-
-.rdp {
-  --rdp-cell-size: 36px !important;
-  --rdp-accent-color: #67BBAA !important;
-  --rdp-background-color: rgba(103, 187, 170, 0.1) !important;
-}
-
-.rdp-month {
-  padding: 0 !important;
-}
-
-@keyframes check-mark-appear {
-  0% { 
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.5);
-  }
-  70% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.2);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
-.filter-sidebar {
-  width: 270px;
-  border-left: 1px solid rgba(198, 206, 210, 0.3);
-}
-
-.filter-header {
-  padding: 12px;
-  font-weight: 500;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
-}
-
-.filter-list {
-  padding: 8px 0;
-}
-
-.filter-item {
-  padding: 8px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.filter-item:hover {
-  background-color: rgba(103, 187, 170, 0.05);
-}
-
-.filter-actions {
-  padding: 12px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  border-top: 1px solid rgba(198, 206, 210, 0.3);
-}
-
-/* Header styling to match Salesforce-like UI */
-.page-header {
-  background-color: #67BBAA;
-  color: white;
-  padding: 1rem;
-  font-size: 1.5rem;
-  font-weight: 500;
-}
-
-.toolbar {
-  background-color: white;
-  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
-  padding: 0.5rem 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
+/* Search styling */
 .search-field {
   display: flex;
   align-items: center;
-  background-color: white;
+  background-color: rgba(255, 255, 255, 0.8);
   border: 1px solid rgba(198, 206, 210, 0.5);
   border-radius: 4px;
   padding: 0 8px;
@@ -327,22 +230,65 @@
   outline: none;
   padding: 6px;
   font-size: 14px;
+  background: transparent;
 }
 
-.view-toggle {
+/* Top navigation bar */
+.top-nav-bar {
+  background-color: #054258;
+  color: white;
+  height: 48px;
   display: flex;
-  background-color: rgba(198, 206, 210, 0.2);
-  border-radius: 4px;
-  padding: 2px;
+  align-items: center;
+  padding: 0 1rem;
+  width: 100%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.view-toggle button {
-  padding: 4px 8px;
-  border-radius: 4px;
+.top-nav-item {
+  padding: 0 1rem;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
   cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
 }
 
-.view-toggle button.active {
-  background-color: white;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+.top-nav-item.active {
+  background-color: rgba(255, 255, 255, 0.1);
 }
+
+.top-nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Page header */
+.salesiq-page-header {
+  background-color: #f8f9fa;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
+}
+
+.salesiq-title {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #133340;
+}
+
+/* Toolbar area */
+.salesiq-toolbar {
+  background-color: #f8f9fa;
+  padding: 0.5rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
+}
+
+/* Keep other existing styles */
+/* ... keep existing code (remaining styles) */

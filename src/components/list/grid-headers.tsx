@@ -71,6 +71,9 @@ export function GridHeaders({
       {/* Row number header */}
       <div className="row-number-header"></div>
       
+      {/* Edit column header */}
+      <div className="edit-column-header"></div>
+      
       {/* Frozen header columns */}
       {frozenColumns.length > 0 && (
         <div
@@ -79,10 +82,9 @@ export function GridHeaders({
             gridTemplateColumns: frozenColsTemplate,
             boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)",
             position: "sticky",
-            left: "40px" // Account for row number column
+            left: "72px" // Account for row number + edit column
           }}
         >
-          <div className="grid-header-cell"></div>
           {frozenColumns.map((column) => (
             <GridHeaderCell
               key={column.key}
@@ -105,12 +107,10 @@ export function GridHeaders({
         className="grid-header grid overflow-hidden"
         style={{ 
           gridTemplateColumns: scrollableColsTemplate,
-          marginLeft: frozenColumns.length > 0 ? 0 : "40px" // Adjust margin if no frozen columns
+          marginLeft: frozenColumns.length > 0 ? 0 : "72px" // Adjust margin if no frozen columns
         }}
         ref={headerRef}
       >
-        {frozenColumns.length === 0 && <div className="grid-header-cell"></div>}
-
         {scrollableColumns.map((column) => (
           <GridHeaderCell
             key={column.key}

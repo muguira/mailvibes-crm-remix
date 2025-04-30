@@ -1,8 +1,7 @@
 
-import { Header } from "@/components/layout/header";
-import { Sidebar } from "@/components/layout/sidebar";
 import { ListHeader } from "@/components/list/list-header";
 import { ListContent } from "@/components/list/list-content";
+import { TopNavbar } from "@/components/layout/top-navbar";
 import { CreateListDialog } from "@/components/list/dialogs/create-list-dialog";
 import { HistoryDialog } from "@/components/list/dialogs/history-dialog";
 import { OpportunityDialog } from "@/components/list/opportunity-dialog";
@@ -34,11 +33,22 @@ const Lists = () => {
   } = useListsPage();
 
   return (
-    <div className="flex h-screen bg-slate-light/20">
-      <Sidebar />
+    <div className="flex flex-col h-screen bg-slate-light/20">
+      {/* Top Navigation - Replacing the sidebar */}
+      <TopNavbar />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
+        <div className="salesiq-page-header">
+          <h1 className="salesiq-title">Opportunities</h1>
+          <div className="flex gap-2">
+            <button
+              className="px-3 py-1.5 bg-teal-primary text-white rounded hover:bg-teal-primary/90 text-sm"
+              onClick={() => setIsAddOpportunityOpen(true)}
+            >
+              Add Opportunity
+            </button>
+          </div>
+        </div>
         
         {/* List Header with list selection and controls */}
         <ListHeader

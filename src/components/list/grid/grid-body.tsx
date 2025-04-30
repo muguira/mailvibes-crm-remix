@@ -48,6 +48,15 @@ export function GridBody({
           renderRowActions={renderRowActions}
         />
       ))}
+
+      {/* Empty row for adding more data */}
+      {data.length > 0 && (
+        <div className="grid-row h-12 bg-white border-0 hover:bg-slate-light/5">
+          <div className="row-number-cell text-slate-300">{data.length + 1}</div>
+          <div className="edit-column-cell"></div>
+          <div className="flex-1"></div>
+        </div>
+      )}
     </div>
   );
 }
