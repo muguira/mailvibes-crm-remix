@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
@@ -223,6 +224,11 @@ export function NewGridView({
     }
   }, [statusDropdownPosition]);
 
+  // Handle filter changes
+  const handleApplyFilters = (filters: string[]) => {
+    setActiveFilters(filters);
+  };
+
   // Highlight search term in text
   const highlightSearchTerm = (text: string) => {
     if (!searchTerm || !text) return text;
@@ -429,6 +435,8 @@ export function NewGridView({
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         filterCount={activeFilters.length}
+        columns={columns}
+        onApplyFilters={handleApplyFilters}
       />
       
       <GridHeader 
@@ -446,8 +454,10 @@ export function NewGridView({
             columnWidth={getColumnWidth}
             height={containerHeight - HEADER_HEIGHT}
             rowCount={filteredData.length + 1} // +1 for header placeholder
-            rowHeight={getRowHeight} // Using callback function instead of constant
+            rowHeight={getRowHeight} // Using callback function
             width={containerWidth}
+            className="react-window-grid" // Added class for targeting with CSS
+            style={{ overflowX: 'auto', overflowY: 'auto', margin: 0, borderTop: 0 }} // Remove any top border/margin
           >
             {Cell}
           </Grid>

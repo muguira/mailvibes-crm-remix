@@ -213,6 +213,12 @@
   font-size: 0.875rem;
 }
 
+/* Fix the white strip issue - ensure no extra padding or margins between header and grid */
+.react-window-grid {
+  border-top: none !important; /* Remove any automatic top border */
+  margin-top: 0 !important; /* Ensure no margin */
+}
+
 /* Status Dropdown Styling */
 .status-dropdown {
   position: absolute;
@@ -248,30 +254,47 @@
   gap: 8px;
 }
 
-/* Filter Drawer */
-.filter-drawer {
-  width: 320px;
-  padding: 1rem;
+/* Filter Popover */
+.filter-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  width: 280px; /* Compact width */
+  max-width: 280px;
+  max-height: 70vh; /* Maximum height */
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px -1px rgba(0, 0, 0, 0.1), 0 2px 10px -1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.filter-drawer-header {
-  margin-bottom: 1rem;
+.filter-popover-content {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* Spacing between sections */
 }
 
 .filter-section {
-  margin-bottom: 1.5rem;
+  margin-bottom: 8px;
 }
 
 .filter-section-title {
   font-weight: 500;
   margin-bottom: 0.5rem;
+  font-size: 0.875rem;
 }
 
 .filter-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  margin-top: 1rem;
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
 }
 
 /* Badge for filter count */
@@ -279,7 +302,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
+  min-width: 20px;
   height: 20px;
   background-color: #0ea5e9;
   color: white;
