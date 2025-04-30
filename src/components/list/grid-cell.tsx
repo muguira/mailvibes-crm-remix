@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { isValidUrl } from "./grid-utils";
 import { ColumnType } from "./grid-view";
@@ -124,7 +123,7 @@ export function GridCell({
         year: 'numeric' 
       });
       onCellChange(rowId, colKey, formattedDate, type);
-      // Close popover is handled inside the DatePicker component
+      // The closePopover is now handled inside the DatePicker component
     }
   };
 
@@ -180,19 +179,17 @@ export function GridCell({
       <SaveIndicator show={showSaveIndicator} />
 
       {/* Date picker popover */}
-      {popoverType === 'date' && (
-        <GridDatePicker
-          isOpen={isOpen && popoverType === 'date'}
-          position={position}
-          selectedDate={selectedDate}
-          onClose={closePopover}
-          onSelect={handleDateSelect}
-          popoverRef={popoverRef}
-        />
-      )}
+      <GridDatePicker
+        isOpen={isOpen && popoverType === 'date'}
+        position={position}
+        selectedDate={selectedDate}
+        onClose={closePopover}
+        onSelect={handleDateSelect}
+        popoverRef={popoverRef}
+      />
 
       {/* Select dropdown popover */}
-      {popoverType === 'select' && options && (
+      {options && (
         <GridSelectDropdown
           isOpen={isOpen && popoverType === 'select'}
           position={position}

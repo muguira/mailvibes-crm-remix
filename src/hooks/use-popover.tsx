@@ -71,12 +71,7 @@ export function usePopover({ onClose }: UsePopoverOptions = {}) {
   // Open the popover
   const openPopover = useCallback((element: HTMLElement, type: PopoverType) => {
     // Close any existing popovers first (enforcing single-popover stack)
-    document.querySelectorAll('.popover-element').forEach(el => {
-      // Force close any existing popovers in the DOM
-      if (el !== popoverRef.current) {
-        el.remove();
-      }
-    });
+    closeExistingPopovers();
     
     setPosition(calculatePosition(element));
     setPopoverType(type);
@@ -89,6 +84,16 @@ export function usePopover({ onClose }: UsePopoverOptions = {}) {
     setPopoverType("none");
     if (onClose) onClose();
   }, [onClose]);
+
+  // Close existing popovers in the DOM
+  const closeExistingPopovers = useCallback(() => {
+    // Force close any existing popovers in the DOM
+    document.querySelectorAll('.popover-element').forEach(el => {
+      if (el !== popoverRef.current) {
+        el.remove();
+      }
+    });
+  }, []);
 
   return {
     isOpen,

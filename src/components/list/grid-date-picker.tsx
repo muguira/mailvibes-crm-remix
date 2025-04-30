@@ -24,7 +24,7 @@ export function GridDatePicker({
 
   const handleSelect = (date: Date | undefined) => {
     onSelect(date);
-    // Close immediately after selecting a date
+    // Ensure we forcibly close the popup after selection
     onClose();
   };
 
