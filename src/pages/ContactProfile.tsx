@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ContactDetails, ContactDetailsDialog } from "@/components/list/dialogs/contact-details-dialog";
 import { Contact } from "@/hooks/supabase/use-contacts";
+import { Json } from "@/integrations/supabase/types";
 
 export default function ContactProfile() {
   const { id } = useParams<{ id: string }>();
@@ -100,12 +101,27 @@ export default function ContactProfile() {
       // Create the full name from first and last names
       const fullName = `${details.firstName} ${details.lastName}`.trim();
       
-      // Prepare contact data for saving
+      // Convert our structured data to a plain object for Supabase
+      // This is the key change - converting ContactField[] to simple objects
       const updatedContactData = {
         ...contact.data,
-        emails: details.emails,
-        phones: details.phones,
-        addresses: details.addresses,
+        emails: details.emails.map(email => ({
+          id: email.id,
+          value: email.value,
+          isPrimary: email.isPrimary,
+          type: email.type
+        })),
+        phones: details.phones.map(phone => ({
+          id: phone.id,
+          value: phone.value,
+          isPrimary: phone.isPrimary,
+          type: phone.type
+        })),
+        addresses: details.addresses.map(address => ({
+          id: address.id,
+          value: address.value,
+          isPrimary: address.isPrimary
+        })),
         linkedin: details.linkedin,
         title: details.title
       };
