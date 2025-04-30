@@ -49,7 +49,10 @@ export function GridRow({
           <button 
             className="w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:text-blue-600 transition-all"
             title="Edit"
-            onClick={() => renderRowActions && renderRowActions(rowData.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              renderRowActions && renderRowActions(rowData.id);
+            }}
           >
             <Pencil size={14} />
           </button>

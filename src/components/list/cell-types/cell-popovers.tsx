@@ -29,8 +29,7 @@ export function CellPopovers({
   // Calculate adjusted position to position popover right below the cell
   const adjustedPosition = {
     top: position.top + 32, // Align with bottom of the cell (row height)
-    left: position.left,
-    zIndex: 9999
+    left: position.left
   };
 
   if (!isOpen) return null;

@@ -98,6 +98,7 @@ export function GridCell({
       });
       onChange(formattedDate);
     }
+    closePopover();
   };
 
   const renderCellContent = () => {
@@ -134,7 +135,10 @@ export function GridCell({
       className={`grid-cell ${isActive ? 'active-cell' : ''} ${
         type === 'currency' ? 'text-right' : ''
       } ${colKey === "opportunity" ? "opportunity-cell" : ""}`}
-      onClick={handleClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleClick(e);
+      }}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       data-cell={`${rowId}-${colKey}`}

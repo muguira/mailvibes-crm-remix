@@ -48,8 +48,9 @@ export function ListContent({
 
   // Process grid data - ensure they all have IDs and create a clean set of data without duplicates
   const uniqueIds = new Set();
-  const processedData = gridData
+  const processedData = (gridData || [])
     .filter(item => {
+      if (!item) return false;
       const id = item.id || `row-${Math.random()}`;
       if (uniqueIds.has(id)) {
         return false; // Skip duplicates
