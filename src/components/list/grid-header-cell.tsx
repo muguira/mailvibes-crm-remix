@@ -42,24 +42,23 @@ export function GridHeaderCell({
   const headerRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
-    // Debug log to verify column header rendering
     console.log("Rendering header cell:", column.header, column.key);
-  }, [column]);
-  
-  // Force reflow of header cell to ensure it's visible
-  useEffect(() => {
+    
+    // Force reflow of header cell to ensure it's visible
     if (headerRef.current) {
       const element = headerRef.current;
       
-      // Force reflow by temporarily modifying display style
-      setTimeout(() => {
-        element.style.visibility = 'hidden';
-        // Force reflow
-        void element.offsetHeight;
-        element.style.visibility = 'visible';
-      }, 10);
+      // Add an inline style to ensure visibility
+      element.style.visibility = 'visible';
+      element.style.opacity = '1';
+      
+      const headerSpan = element.querySelector('span');
+      if (headerSpan) {
+        headerSpan.style.visibility = 'visible';
+        headerSpan.style.opacity = '1';
+      }
     }
-  }, []);
+  }, [column]);
   
   const handleHeaderEditComplete = (key: string, newName: string) => {
     if (!newName.trim() || newName.trim() === column.header) {
@@ -113,7 +112,10 @@ export function GridHeaderCell({
           }}
         />
       ) : (
-        <span className="font-medium text-navy-deep uppercase text-xs">
+        <span 
+          className="font-medium text-navy-deep uppercase text-xs"
+          style={{ visibility: 'visible', opacity: 1 }}
+        >
           {column.header || "Unnamed Column"}
         </span>
       )}

@@ -86,52 +86,54 @@ function GridViewContent({
     });
   }, [frozenColumns, scrollableColumns, columns]);
 
-  // Ensure headers are visible on first render and after data changes
+  // Force header visibility with multiple approaches
   useEffect(() => {
-    // Set a timeout to ensure DOM is ready
-    const timeoutId = setTimeout(() => {
+    const forceHeaderVisibility = () => {
       if (headerRef.current) {
-        console.log("Forcing header reflow");
+        console.log("Forcing header visibility");
         
-        // Force reflow by manipulating styles
+        // Add !important styles
+        headerRef.current.style.setProperty('visibility', 'visible', 'important');
+        headerRef.current.style.setProperty('opacity', '1', 'important');
+        
+        // Force reflow by temporarily hiding and showing
         headerRef.current.style.display = 'none';
         void headerRef.current.offsetHeight; // Force reflow
         headerRef.current.style.display = 'flex';
         
-        // Ensure all header cells are visible
+        // Apply to all header cells
         const headerCells = headerRef.current.querySelectorAll('.grid-header-cell');
         headerCells.forEach((cell) => {
-          (cell as HTMLElement).style.visibility = 'visible';
-          (cell as HTMLElement).style.opacity = '1';
+          (cell as HTMLElement).style.setProperty('visibility', 'visible', 'important');
+          (cell as HTMLElement).style.setProperty('opacity', '1', 'important');
+          
+          // Also make sure spans are visible
+          const spans = cell.querySelectorAll('span');
+          spans.forEach((span) => {
+            (span as HTMLElement).style.setProperty('visibility', 'visible', 'important');
+            (span as HTMLElement).style.setProperty('opacity', '1', 'important');
+          });
         });
+        
+        // Ensure all header container is visible
+        const headersContainer = document.querySelector('.grid-headers-container');
+        if (headersContainer) {
+          (headersContainer as HTMLElement).style.setProperty('visibility', 'visible', 'important');
+          (headersContainer as HTMLElement).style.setProperty('opacity', '1', 'important');
+        }
         
         setHeaderVisible(true);
       }
-    }, 200);
+    };
     
-    return () => clearTimeout(timeoutId);
-  }, [initialColumns, initialData]);
-
-  // Additional effect to ensure columns render properly
-  useEffect(() => {
-    if (columns.length > 0 && headerRef.current) {
-      // Re-render headers by forcing DOM update
-      const forceUpdate = () => {
-        if (headerRef.current) {
-          // Force style recalculation
-          const element = headerRef.current;
-          element.style.visibility = 'hidden';
-          void element.offsetHeight;
-          element.style.visibility = 'visible';
-        }
-      };
-      
-      // Execute multiple times to ensure it catches
-      setTimeout(forceUpdate, 100);
-      setTimeout(forceUpdate, 300);
-      setTimeout(forceUpdate, 500);
-    }
-  }, [columns]);
+    // Apply multiple times with delays to ensure it works
+    forceHeaderVisibility();
+    setTimeout(forceHeaderVisibility, 100);
+    setTimeout(forceHeaderVisibility, 300);
+    setTimeout(forceHeaderVisibility, 500);
+    setTimeout(forceHeaderVisibility, 1000);
+    
+  }, [columns, initialColumns, initialData]);
 
   // Wrap the cell change handler to save to Supabase
   const handleCellChangeAndSave = (rowId: string, colKey: string, value: any, type: string) => {

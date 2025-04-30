@@ -7,8 +7,29 @@ interface StatusCellProps {
 export function StatusCell({ value, colors }: StatusCellProps) {
   if (!value) return null;
 
+  // Default softer colors based on status values
+  const defaultColors = {
+    'Deal Won': 'rgba(52, 211, 153, 0.2)',
+    'Qualified': 'rgba(96, 165, 250, 0.2)',
+    'In Procurement': 'rgba(217, 119, 6, 0.2)',
+    'Contract Sent': 'rgba(234, 179, 8, 0.2)',
+    'Discovered': 'rgba(249, 115, 22, 0.2)',
+    'Not Now': 'rgba(239, 68, 68, 0.2)',
+    'New': 'rgba(168, 85, 247, 0.2)'
+  };
+
+  const defaultTextColors = {
+    'Deal Won': '#22c55e',
+    'Qualified': '#3b82f6',
+    'In Procurement': '#d97706',
+    'Contract Sent': '#eab308',
+    'Discovered': '#f97316',
+    'Not Now': '#ef4444',
+    'New': '#a855f7'
+  };
+
   let backgroundColor = '';
-  let textColor = '#ffffff';
+  let textColor = '';
 
   // Use custom colors if provided
   if (colors && colors[value]) {
@@ -23,14 +44,9 @@ export function StatusCell({ value, colors }: StatusCellProps) {
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
     textColor = brightness > 128 ? '#000000' : '#ffffff';
   } else {
-    // Default colors based on predefined statuses
-    backgroundColor = 
-      value === 'Deal Won' ? '#34D399' : 
-      value === 'Qualified' ? '#60A5FA' : 
-      value === 'In Procurement' ? '#F59E0B' :
-      value === 'Contract Sent' ? '#8B5CF6' :
-      value === 'Discovered' ? '#A78BFA' :
-      '#94A3B8';  // default gray for unknown statuses
+    // Use default soft colors
+    backgroundColor = defaultColors[value] || 'rgba(148, 163, 184, 0.2)';
+    textColor = defaultTextColors[value] || '#64748b';
   }
 
   return (
