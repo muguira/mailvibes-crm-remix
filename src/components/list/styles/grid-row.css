@@ -1,0 +1,20 @@
+
+/* Grid row styles */
+.grid-row {
+  display: grid;
+  border-bottom: 1px solid rgba(198, 206, 210, 0.2);
+  height: 40px;
+  position: relative;
+}
+
+.grid-row:hover {
+  background-color: rgba(198, 206, 210, 0.1);
+}
+
+.grid-row:nth-child(even) {
+  background-color: rgba(249, 250, 251, 0.5);
+}
+
+.grid-row:nth-child(even):hover {
+  background-color: rgba(198, 206, 210, 0.1);
+}

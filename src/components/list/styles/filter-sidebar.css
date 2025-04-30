@@ -1,0 +1,38 @@
+
+/* Filter sidebar styles */
+.filter-sidebar {
+  width: 270px;
+  border-left: 1px solid rgba(198, 206, 210, 0.3);
+}
+
+.filter-header {
+  padding: 12px;
+  font-weight: 500;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
+}
+
+.filter-list {
+  padding: 8px 0;
+}
+
+.filter-item {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-item:hover {
+  background-color: rgba(103, 187, 170, 0.05);
+}
+
+.filter-actions {
+  padding: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid rgba(198, 206, 210, 0.3);
+}

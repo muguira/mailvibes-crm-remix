@@ -1,0 +1,52 @@
+
+/* Grid cell styles */
+.grid-cell {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+  position: relative;
+}
+
+.grid-cell[tabindex="0"]:hover {
+  background-color: rgba(140, 158, 165, 0.05);
+}
+
+/* Remove outline focus styling - we'll use the ::after pseudo-element only */
+.grid-cell[tabindex="0"]:focus {
+  outline: none;
+}
+
+/* Active cell styling - single border with high z-index */
+.grid-cell[data-active="true"]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid #67BBAA;
+  pointer-events: none;
+  z-index: 20; /* Higher z-index to ensure it's above everything */
+  box-sizing: border-box; /* Ensure border is included in element size */
+}
+
+/* Explicitly remove the ::after element for inactive cells */
+.grid-cell[data-active="false"]::after {
+  display: none;
+}
+
+/* Special handling for opportunity cells */
+.opportunity-cell {
+  color: #67BBAA;
+  cursor: pointer;
+}
+
+.opportunity-cell:hover {
+  text-decoration: underline;
+}
