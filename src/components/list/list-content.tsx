@@ -46,26 +46,16 @@ export function ListContent({
     );
   }
 
-  // Create a more compact display data without extra spacing
-  const displayData = gridData.length > 0 ? 
-    gridData.map((item, index) => ({
-      ...item,
-      id: item.id || `row-${index+1}`
-    })) : 
-    Array(10).fill(null).map((_, index) => ({
-      id: `empty-row-${index+1}`,
-      opportunity: "",
-      status: "",
-      revenue: "",
-      close_date: "",
-      owner: "",
-      company: ""
-    }));
+  // Process grid data - ensure they all have IDs and create a clean set of data for the grid
+  const processedData = gridData.map((item, index) => ({
+    ...item,
+    id: item.id || `row-${index+1}`
+  }));
 
   return viewMode === "grid" ? (
     <GridView 
       columns={columns} 
-      data={displayData} 
+      data={processedData} 
       listName={listName} 
       listType="Opportunity"
       listId={currentListId}

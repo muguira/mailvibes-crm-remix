@@ -36,7 +36,8 @@ export function GridRow({
 
   return (
     <div 
-      className={`grid-row group ${isActive ? 'active-row' : isEven ? 'bg-white' : 'bg-slate-50/50'}`}
+      className={`grid-row group ${isActive ? 'active-row' : ''}`}
+      data-row-id={rowData.id}
     >
       {/* Row number cell */}
       <div className="row-number-cell">
@@ -44,9 +45,7 @@ export function GridRow({
       </div>
 
       {/* Edit action column */}
-      <div 
-        className="edit-column-cell"
-      >
+      <div className="edit-column-cell">
         {renderRowActions && !rowData.id.startsWith('empty-row-') && (
           <button 
             className="w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:text-blue-600 transition-all"
@@ -67,7 +66,7 @@ export function GridRow({
             position: "sticky",
             left: "72px", /* Account for row number + edit column */
             zIndex: 4,
-            backgroundColor: isActive ? "rgba(249, 250, 251, 0.95)" : isEven ? "rgba(255, 255, 255, 0.95)" : "rgba(249, 250, 251, 0.95)",
+            backgroundColor: isEven ? "rgba(255, 255, 255, 0.95)" : "rgba(249, 250, 251, 0.95)",
             boxShadow: "2px 0 5px -2px rgba(0,0,0,0.05)",
           }}
         >

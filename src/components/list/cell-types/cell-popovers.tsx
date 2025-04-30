@@ -26,9 +26,9 @@ export function CellPopovers({
   onDateSelect,
   onOptionSelect
 }: CellPopoversProps) {
-  // Adjust position to align with grid
+  // Calculate adjusted position to position popover right below the cell
   const adjustedPosition = {
-    top: position.top + 32, // Align with bottom of the cell
+    top: position.top + 32, // Align with bottom of the cell (row height)
     left: position.left
   };
 

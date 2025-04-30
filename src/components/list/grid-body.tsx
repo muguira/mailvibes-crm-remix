@@ -31,10 +31,10 @@ export function GridBody({
   renderRowActions
 }: GridBodyProps) {
   // Use the provided data directly as we've already ensured sufficient rows in ListContent
-  const displayData = data;
-
-  // Create an empty row data object with the same structure as normal rows
-  const emptyRowId = `empty-row-${displayData.length + 1}`;
+  const rows = data;
+  
+  // Create an empty row data object with the same structure as normal rows for the extra "add new" row
+  const emptyRowId = `empty-row-${rows.length + 1}`;
   const emptyRowData = {
     id: emptyRowId
   };
@@ -45,12 +45,13 @@ export function GridBody({
   });
 
   return (
-    <div className="overflow-auto flex-1" ref={bodyRef}>
-      {displayData.map((row, index) => (
+    <div className="overflow-auto flex-1 grid-body" ref={bodyRef}>
+      {/* Render all data rows */}
+      {rows.map((row, index) => (
         <GridRow
           key={row.id}
           rowData={row}
-          rowNumber={index + 1}
+          rowNumber={index + 1} 
           frozenColumns={frozenColumns}
           scrollableColumns={scrollableColumns}
           frozenColsTemplate={frozenColsTemplate}
@@ -63,11 +64,11 @@ export function GridBody({
         />
       ))}
 
-      {/* Add one additional empty row as a proper GridRow for new data entry */}
+      {/* Add one additional empty row for new data entry */}
       <GridRow
         key={emptyRowId}
         rowData={emptyRowData}
-        rowNumber={displayData.length + 1}
+        rowNumber={rows.length + 1}
         frozenColumns={frozenColumns}
         scrollableColumns={scrollableColumns}
         frozenColsTemplate={frozenColsTemplate}
