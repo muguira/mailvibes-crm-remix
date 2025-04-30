@@ -89,7 +89,8 @@ export function GridView({
     const zoomPercentage = parseFloat(zoomLevel.replace('%', '')) / 100;
     
     return {
-      fontSize: `${zoomPercentage}rem`,
+      // Scale font size to adjust content size
+      fontSize: `${14 * zoomPercentage}px`,
       // Adjust row height based on zoom
       '--row-height': `${24 * zoomPercentage}px`,
       '--cell-min-width': `${150 * zoomPercentage}px`,
@@ -152,7 +153,7 @@ export function GridView({
     return (
       <div className="absolute left-0 top-0 h-full opacity-0 group-hover:opacity-100 flex items-center">
         <button 
-          className="p-1 bg-white rounded shadow hover:text-teal-primary transition-colors"
+          className="p-1 bg-white rounded shadow hover:text-blue-600 transition-colors"
           onClick={() => openPointsOfContact(rowId)}
           title="Edit Points of Contact"
         >

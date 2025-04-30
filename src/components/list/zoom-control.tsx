@@ -7,11 +7,19 @@ const DEFAULT_ZOOM = '100%';
 
 interface ZoomControlProps {
   onZoomChange?: (zoom: string) => void;
+  currentZoom?: string;
 }
 
-export function ZoomControl({ onZoomChange }: ZoomControlProps) {
-  const [zoomLevel, setZoomLevel] = useState<string>(DEFAULT_ZOOM);
+export function ZoomControl({ onZoomChange, currentZoom = DEFAULT_ZOOM }: ZoomControlProps) {
+  const [zoomLevel, setZoomLevel] = useState<string>(currentZoom);
   const [showZoomOptions, setShowZoomOptions] = useState<boolean>(false);
+  
+  // Update internal state when prop changes
+  useEffect(() => {
+    if (currentZoom) {
+      setZoomLevel(currentZoom);
+    }
+  }, [currentZoom]);
   
   const handleZoomIn = () => {
     const currentIndex = ZOOM_LEVELS.indexOf(zoomLevel);
@@ -40,7 +48,9 @@ export function ZoomControl({ onZoomChange }: ZoomControlProps) {
   // Close dropdown when clicking outside
   useEffect(() => {
     if (showZoomOptions) {
-      const handleClickOutside = () => setShowZoomOptions(false);
+      const handleClickOutside = (e: MouseEvent) => {
+        setShowZoomOptions(false);
+      };
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
@@ -77,7 +87,7 @@ export function ZoomControl({ onZoomChange }: ZoomControlProps) {
             {ZOOM_LEVELS.map(level => (
               <div 
                 key={level} 
-                className={`zoom-option ${level === zoomLevel ? 'bg-slate-200' : ''}`}
+                className={`zoom-option ${level === zoomLevel ? 'active' : ''}`}
                 onClick={() => handleZoomSelect(level)}
               >
                 {level}

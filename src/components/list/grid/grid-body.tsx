@@ -34,7 +34,7 @@ export function GridBody({
   const displayData = data;
 
   return (
-    <div className="overflow-auto flex-1" ref={bodyRef}>
+    <div className="overflow-auto flex-1 bg-white" ref={bodyRef}>
       {displayData.map((row, index) => (
         <GridRow
           key={row.id}
@@ -53,12 +53,16 @@ export function GridBody({
       ))}
 
       {/* Add one additional empty row at the end for new data entry */}
-      <div className="grid-row h-24px bg-white border-0 hover:bg-slate-light/5">
+      <div className="grid-row h-[var(--row-height,24px)] bg-white border-0 hover:bg-slate-light/5">
         <div className="row-number-cell text-slate-300">{displayData.length + 1}</div>
         <div className="edit-column-cell"></div>
-        <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${frozenColumns.length + scrollableColumns.length}, minmax(150px, 1fr))` }}>
+        <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${frozenColumns.length + scrollableColumns.length}, minmax(var(--cell-min-width, 150px), 1fr))` }}>
           {Array.from({ length: frozenColumns.length + scrollableColumns.length }, (_, colIndex) => (
-            <div key={`empty-cell-${colIndex}`} className="grid-cell"></div>
+            <div 
+              key={`empty-cell-${colIndex}`} 
+              className="grid-cell"
+              tabIndex={0}
+            ></div>
           ))}
         </div>
       </div>

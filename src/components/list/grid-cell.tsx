@@ -87,7 +87,6 @@ export function GridCell({
         year: 'numeric' 
       });
       onChange(formattedDate);
-      // The closePopover is now handled inside the DatePicker component
     }
   };
 
@@ -122,17 +121,20 @@ export function GridCell({
 
   return (
     <div
-      className={`grid-cell h-[var(--row-height,24px)] ${isActive ? 'bg-blue-50' : ''} ${
+      className={`grid-cell ${isActive ? 'bg-blue-50' : ''} ${
         type === 'currency' ? 'text-right' : ''
-      } ${colKey === "opportunity" ? "opportunity-cell" : ""} relative ${type === 'url' && value ? 'text-teal-primary hover:underline cursor-pointer' : ''}`}
+      } ${colKey === "opportunity" ? "opportunity-cell" : ""} relative ${type === 'url' && value ? 'text-blue-600 hover:underline' : ''}`}
       onClick={handleClick}
       tabIndex={0}
       data-cell={`${rowId}-${colKey}`}
-      style={{ minWidth: 'var(--cell-min-width, 150px)', border: 'none', padding: '0 0.75rem' }}
+      data-row={rowId}
+      data-col={colKey}
     >
       {renderCellContent()}
       
-      <SaveIndicator show={false} />
+      {showSaveIndicator && (
+        <SaveIndicator show={true} />
+      )}
 
       <CellPopovers
         isOpen={isOpen}

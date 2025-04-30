@@ -1,11 +1,10 @@
-
 .grid-header {
   display: grid;
   position: sticky;
   top: 0;
   z-index: 10;
-  background-color: #ffffff;
-  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
+  background-color: #f5f7f9;
+  border-bottom: 1px solid #e0e5eb;
   height: var(--row-height, 24px);
 }
 
@@ -19,13 +18,14 @@
   height: var(--row-height, 24px);
   user-select: none;
   position: relative;
-  color: #133340;
+  color: #5a6673;
   text-transform: uppercase;
-  border-right: 1px solid rgba(198, 206, 210, 0.1);
+  border-right: 1px solid #e0e5eb;
+  background-color: #f5f7f9;
 }
 
 .grid-header-cell:hover {
-  background-color: rgba(140, 158, 165, 0.05);
+  background-color: #ebeef2;
 }
 
 .grid-row {
@@ -33,6 +33,7 @@
   grid-template-columns: 40px 32px 1fr; /* Row numbers, edit column, and content */
   min-width: 100%; /* Ensure minimum width to prevent cramping */
   position: relative;
+  border-bottom: 1px solid #e0e5eb;
 }
 
 /* Alternating row colors */
@@ -41,35 +42,39 @@
 }
 
 .grid-row:nth-child(odd) {
-  background-color: #f9f9f9;
+  background-color: #f8f9fa;
 }
 
 .grid-row:hover {
-  background-color: rgba(198, 206, 210, 0.1) !important;
+  background-color: #f0f4f8 !important;
 }
 
 .grid-cell {
   display: flex;
   align-items: center;
+  padding: 0 0.75rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: cell; /* Changed from default to cell cursor */
-  color: #555555;
-  border-right: 1px solid rgba(198, 206, 210, 0.1);
+  cursor: pointer; /* Changed from cell to pointer cursor */
+  color: #333333;
+  border-right: 1px solid #e0e5eb;
+  height: 100%;
+  min-height: var(--row-height, 24px);
+  position: relative; /* Add position relative for absolute positioning of children */
 }
 
 .grid-cell[tabindex="0"]:hover {
-  background-color: rgba(140, 158, 165, 0.05);
+  background-color: #ebeef2;
 }
 
 .grid-cell[tabindex="0"]:focus {
   outline: none;
-  box-shadow: inset 0 0 0 2px rgba(103, 187, 170, 0.5);
+  box-shadow: inset 0 0 0 2px rgba(0, 112, 210, 0.5);
 }
 
 .opportunity-cell {
-  color: #67BBAA;
+  color: #0070d2;
   cursor: pointer;
 }
 
@@ -121,8 +126,8 @@
   position: sticky;
   left: 0;
   z-index: 5;
-  background-color: #f8f9fa;
-  border-right: 1px solid rgba(198, 206, 210, 0.3);
+  background-color: #f5f7f9;
+  border-right: 1px solid #e0e5eb;
   color: #666;
   font-size: 0.75rem;
   text-align: center;
@@ -141,8 +146,8 @@
   position: sticky;
   left: 40px;
   z-index: 5;
-  background-color: #f8f9fa;
-  border-right: 1px solid rgba(198, 206, 210, 0.3);
+  background-color: #f5f7f9;
+  border-right: 1px solid #e0e5eb;
   width: 32px;
   min-width: 32px;
   height: var(--row-height, 24px);
@@ -154,8 +159,8 @@
 
 .row-number-header {
   background-color: #f0f0f0;
-  border-right: 1px solid rgba(198, 206, 210, 0.3);
-  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
+  border-right: 1px solid #e0e5eb;
+  border-bottom: 1px solid #e0e5eb;
   width: 40px;
   min-width: 40px;
   height: var(--row-height, 24px);
@@ -168,8 +173,8 @@
 /* Edit column header */
 .edit-column-header {
   background-color: #f0f0f0;
-  border-right: 1px solid rgba(198, 206, 210, 0.3);
-  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
+  border-right: 1px solid #e0e5eb;
+  border-bottom: 1px solid #e0e5eb;
   width: 32px;
   min-width: 32px;
   height: var(--row-height, 24px);
@@ -183,7 +188,7 @@
 .zoom-controls {
   display: flex;
   align-items: center;
-  border: 1px solid rgba(198, 206, 210, 0.5);
+  border: 1px solid #e0e5eb;
   border-radius: 4px;
   overflow: hidden;
   margin-left: 8px;
@@ -202,11 +207,11 @@
 }
 
 .zoom-button:hover {
-  background-color: rgba(198, 206, 210, 0.2);
+  background-color: #ebeef2;
 }
 
 .zoom-button:active {
-  background-color: rgba(198, 206, 210, 0.3);
+  background-color: #e0e5eb;
 }
 
 .zoom-button:disabled {
@@ -219,8 +224,8 @@
   font-size: 13px;
   display: flex;
   align-items: center;
-  border-left: 1px solid rgba(198, 206, 210, 0.3);
-  border-right: 1px solid rgba(198, 206, 210, 0.3);
+  border-left: 1px solid #e0e5eb;
+  border-right: 1px solid #e0e5eb;
   position: relative;
   height: 28px;
 }
@@ -234,7 +239,7 @@
   top: 100%;
   left: 0;
   background-color: white;
-  border: 1px solid rgba(198, 206, 210, 0.5);
+  border: 1px solid #e0e5eb;
   border-radius: 4px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   z-index: 100;
@@ -248,14 +253,19 @@
 }
 
 .zoom-option:hover {
-  background-color: rgba(198, 206, 210, 0.2);
+  background-color: #f5f7f9;
+}
+
+.zoom-option.active {
+  background-color: #ebeef2;
+  font-weight: 500;
 }
 
 .grid-drag-indicator {
   position: absolute;
   height: 100%;
   width: 2px;
-  background-color: #67BBAA;
+  background-color: #0070d2;
 }
 
 .save-indicator {
@@ -276,100 +286,6 @@
   width: 100%; /* Ensure it takes full width */
 }
 
-.sheet-style-menu {
-  background-color: #f8f9fa;
-  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
-  padding: 0.5rem 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* Top navigation bar */
-.top-nav-bar {
-  background-color: #054258;
-  color: white;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  padding: 0 1rem;
-  width: 100%;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.top-nav-item {
-  padding: 0 1rem;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  font-weight: 500;
-  cursor: pointer;
-  position: relative;
-  transition: all 0.2s;
-}
-
-.top-nav-item.active {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.top-nav-item:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-/* Page header */
-.salesiq-page-header {
-  background-color: #f8f9fa;
-  padding: 0.75rem 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
-}
-
-.salesiq-title {
-  font-size: 1.5rem;
-  font-weight: 500;
-  color: #133340;
-}
-
-/* Toolbar area */
-.salesiq-toolbar {
-  background-color: #f8f9fa;
-  padding: 0.5rem 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgba(198, 206, 210, 0.3);
-}
-
-/* Search styling */
-.search-field {
-  display: flex;
-  align-items: center;
-  background-color: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(198, 206, 210, 0.5);
-  border-radius: 4px;
-  padding: 0 8px;
-}
-
-.search-field input {
-  border: none;
-  outline: none;
-  padding: 6px;
-  font-size: 14px;
-  background: transparent;
-  color: #555555; /* Softer than black */
-}
-
-/* Ensure row alternation works correctly with editing row */
-.grid-row:nth-child(even).editing-row {
-  background-color: rgba(103, 187, 170, 0.05);
-}
-
-.grid-row:nth-child(odd).editing-row {
-  background-color: rgba(103, 187, 170, 0.05);
-}
-
 /* Even rows for freezed columns need to match */
 .grid-row:nth-child(even) .row-number-cell,
 .grid-row:nth-child(even) .edit-column-cell {
@@ -379,11 +295,16 @@
 /* Odd rows for freezed columns need to match */
 .grid-row:nth-child(odd) .row-number-cell,
 .grid-row:nth-child(odd) .edit-column-cell {
-  background-color: #f9f9f9;
+  background-color: #f8f9fa;
 }
 
 /* On hover, the frozen columns should match the row hover color */
 .grid-row:hover .row-number-cell,
 .grid-row:hover .edit-column-cell {
-  background-color: rgba(198, 206, 210, 0.1);
+  background-color: #f0f4f8;
+}
+
+/* For active rows to make them stand out visually */
+.grid-row.active-row {
+  background-color: #f0f4f8 !important;
 }
