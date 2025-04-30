@@ -1,6 +1,5 @@
 
 import React, { useState, useRef, useMemo } from 'react';
-import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants';
 import { GridToolbar } from './grid-toolbar';
@@ -17,16 +16,10 @@ export function NewGridView({
   onColumnsReorder,
   className
 }: GridContainerProps) {
-  const gridRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Calculate total width of columns
-  const totalWidth = useMemo(() => {
-    return columns.reduce((acc, column) => acc + column.width, 0) + INDEX_COLUMN_WIDTH;
-  }, [columns]);
 
   // Filter data based on search term
   const filteredData = useMemo(() => {
@@ -59,53 +52,31 @@ export function NewGridView({
     };
   }, []);
 
-  // Column getter for grid
-  const getColumnWidth = (index: number) => {
-    if (index === 0) return INDEX_COLUMN_WIDTH;
-    return columns[index - 1]?.width || 0;
-  };
-
-  // Cell renderer
-  const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
-    if (rowIndex === 0) {
-      return null; // Header is rendered separately
-    }
-    
-    const dataRowIndex = rowIndex - 1;
-    const row = filteredData[dataRowIndex];
-    
-    if (!row) return null;
-    
-    if (columnIndex === 0) {
-      return (
-        <div 
-          className="index-column grid-frozen-cell"
-          style={style}
-        >
-          {dataRowIndex + 1}
+  // Temporary implementation without react-window
+  // We'll replace this with proper virtualization once the dependency is ready
+  const renderRows = () => {
+    return filteredData.slice(0, 50).map((row, rowIndex) => (
+      <div key={row.id} className="grid-row" style={{ height: `${ROW_HEIGHT}px` }}>
+        <div className="grid-cell index-column grid-frozen-cell">
+          {rowIndex + 1}
         </div>
-      );
-    }
-    
-    const columnIdx = columnIndex - 1;
-    const column = columns[columnIdx];
-    
-    if (!column) return null;
-    
-    const value = row[column.id];
-    
-    return (
-      <div
-        className={`grid-cell ${column.editable ? 'grid-cell-editable' : ''}`}
-        style={style}
-        onClick={() => {
-          // Handle cell click
-          console.log(`Cell clicked: row ${row.id}, column ${column.id}`);
-        }}
-      >
-        {value !== undefined ? String(value) : ''}
+        {columns.map(column => (
+          <div 
+            key={column.id} 
+            className={`grid-cell ${column.editable ? 'grid-cell-editable' : ''}`}
+            style={{ width: `${column.width}px` }}
+            onClick={() => {
+              console.log(`Cell clicked: row ${row.id}, column ${column.id}`);
+              if (onCellChange && column.editable) {
+                // This will be replaced with proper cell editing later
+              }
+            }}
+          >
+            {row[column.id] !== undefined ? String(row[column.id]) : ''}
+          </div>
+        ))}
       </div>
-    );
+    ));
   };
 
   return (
@@ -124,24 +95,7 @@ export function NewGridView({
       />
       
       <div className="grid-body">
-        {containerWidth > 0 && containerHeight > 0 && (
-          <Grid
-            ref={gridRef}
-            columnCount={columns.length + 1} // +1 for index column
-            columnWidth={getColumnWidth}
-            height={containerHeight - HEADER_HEIGHT}
-            rowCount={filteredData.length + 1} // +1 for header placeholder
-            rowHeight={() => ROW_HEIGHT}
-            width={containerWidth}
-            itemData={{
-              columns,
-              data: filteredData,
-              onCellChange
-            }}
-          >
-            {Cell}
-          </Grid>
-        )}
+        {renderRows()}
       </div>
     </div>
   );
