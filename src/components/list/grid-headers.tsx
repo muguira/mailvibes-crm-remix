@@ -1,11 +1,12 @@
 
-import { Plus } from "lucide-react";
+import { Plus, ColorPicker } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CustomButton } from "@/components/ui/custom-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GridHeaderCell } from "./grid-header-cell";
 import { ColumnDef, ColumnType } from "./grid-view";
-import { RefObject } from "react";
+import { RefObject, useState } from "react";
+import { StatusColorPicker } from "./cell-types/color-picker";
 
 interface GridHeadersProps {
   frozenColumns: ColumnDef[];
@@ -23,11 +24,13 @@ interface GridHeadersProps {
     header: string;
     type: ColumnType;
     options?: string[];
+    colors?: Record<string, string>;
   };
   setNewColumn: (newCol: {
     header: string;
     type: ColumnType;
     options?: string[];
+    colors?: Record<string, string>;
   }) => void;
   addColumn: () => void;
   onHeaderDoubleClick: (colKey: string) => void;
@@ -39,6 +42,7 @@ interface GridHeadersProps {
   onDragStart: (key: string) => void;
   onDragOver: (e: React.DragEvent, key: string) => void;
   onDrop: (key: string) => void;
+  onColumnResize?: (colKey: string, newWidth: number) => void;
 }
 
 export function GridHeaders({
@@ -64,8 +68,56 @@ export function GridHeaders({
   onDeleteColumn,
   onDragStart,
   onDragOver,
-  onDrop
+  onDrop,
+  onColumnResize
 }: GridHeadersProps) {
+  const [optionDraft, setOptionDraft] = useState("");
+  
+  const handleAddOption = () => {
+    if (!optionDraft.trim()) return;
+    
+    const newOptions = [...(newColumn.options || []), optionDraft.trim()];
+    const newColors = { ...(newColumn.colors || {}) };
+    
+    // Set default color for new option
+    if (newColumn.type === 'status' && !newColors[optionDraft.trim()]) {
+      newColors[optionDraft.trim()] = '#4ADE80'; // Default green color
+    }
+    
+    setNewColumn({
+      ...newColumn,
+      options: newOptions,
+      colors: newColors
+    });
+    setOptionDraft("");
+  };
+
+  const handleRemoveOption = (option: string) => {
+    const newOptions = (newColumn.options || []).filter(opt => opt !== option);
+    const newColors = { ...(newColumn.colors || {}) };
+    
+    // Remove color for removed option
+    if (newColors[option]) {
+      delete newColors[option];
+    }
+    
+    setNewColumn({
+      ...newColumn,
+      options: newOptions,
+      colors: newColors
+    });
+  };
+
+  const updateOptionColor = (option: string, color: string) => {
+    setNewColumn({
+      ...newColumn,
+      colors: {
+        ...(newColumn.colors || {}),
+        [option]: color
+      }
+    });
+  };
+
   return (
     <div className="flex">
       {/* Frozen header columns */}
@@ -92,6 +144,7 @@ export function GridHeaders({
               onMoveColumn={onMoveColumn}
               onSortColumn={onSortColumn}
               onDeleteColumn={onDeleteColumn}
+              onResize={onColumnResize}
             />
           ))}
         </div>
@@ -122,6 +175,7 @@ export function GridHeaders({
             onDragOver={onDragOver}
             onDrop={onDrop}
             draggable={true}
+            onResize={onColumnResize}
           />
         ))}
 
@@ -146,7 +200,6 @@ export function GridHeaders({
                     id="column-name"
                     value={newColumn.header}
                     onChange={(e) => {
-                      // Fix #1: Create a new object with updated header
                       setNewColumn({
                         ...newColumn,
                         header: e.target.value
@@ -163,10 +216,11 @@ export function GridHeaders({
                   <Select
                     value={newColumn.type}
                     onValueChange={(value: ColumnType) => {
-                      // Fix #2: Create a new object with updated type
                       setNewColumn({
                         ...newColumn,
-                        type: value
+                        type: value,
+                        options: value === 'status' || value === 'select' ? ['Yes', 'No'] : undefined,
+                        colors: value === 'status' ? { 'Yes': '#4ADE80', 'No': '#FB7185' } : undefined
                       });
                     }}
                   >
@@ -189,19 +243,51 @@ export function GridHeaders({
                 {(newColumn.type === 'select' || newColumn.type === 'status') && (
                   <div className="space-y-2">
                     <label htmlFor="column-options" className="text-sm font-medium">
-                      Options (one per line)
+                      Options 
                     </label>
-                    <textarea
-                      id="column-options"
-                      className="w-full p-2 border border-slate-light/50 rounded h-24"
-                      onChange={(e) => {
-                        // Fix #3: Create a new object with updated options
-                        setNewColumn({
-                          ...newColumn,
-                          options: e.target.value.split('\n').filter(opt => opt.trim() !== '')
-                        });
-                      }}
-                    />
+                    <div className="flex space-x-2">
+                      <input
+                        id="column-options"
+                        value={optionDraft}
+                        onChange={(e) => setOptionDraft(e.target.value)}
+                        placeholder="Add option"
+                        className="flex-1 p-2 border border-slate-light/50 rounded"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddOption();
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={handleAddOption}
+                        className="px-3 py-1.5 bg-teal-primary text-white rounded hover:bg-teal-primary/90"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    
+                    <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
+                      {newColumn.options?.map((option) => (
+                        <div key={option} className="flex items-center justify-between bg-slate-light/10 p-2 rounded">
+                          <div className="flex items-center gap-2">
+                            {newColumn.type === 'status' && (
+                              <StatusColorPicker 
+                                color={newColumn.colors?.[option] || '#4ADE80'}
+                                onChange={(color) => updateOptionColor(option, color)}
+                              />
+                            )}
+                            <span>{option}</span>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveOption(option)}
+                            className="text-red-500 hover:bg-red-50 p-1 rounded"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

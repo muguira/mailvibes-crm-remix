@@ -49,6 +49,7 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
     handleDragOver,
     handleDrop,
     handleKeyDown,
+    handleColumnResize
   } = useGridSetup({
     initialColumns,
     initialData,
@@ -87,6 +88,7 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
+        onColumnResize={handleColumnResize}
       />
       
       {/* Grid Content */}

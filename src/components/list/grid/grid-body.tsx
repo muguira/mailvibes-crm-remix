@@ -1,7 +1,7 @@
 
-import { RefObject } from "react";
+import { ColumnDef } from "../grid-view";
 import { GridRow } from "../grid-row";
-import { ColumnDef } from "./types";
+import { RefObject } from "react";
 
 interface GridBodyProps {
   data: { id: string; [key: string]: any }[];
@@ -12,7 +12,7 @@ interface GridBodyProps {
   activeCell: { row: string; col: string } | null;
   showSaveIndicator: { row: string; col: string } | null;
   bodyRef: RefObject<HTMLDivElement>;
-  onCellClick: (rowId: string, colKey: string, colType: string, options?: string[]) => void;
+  onCellClick: (rowId: string, colKey: string, type: string, options?: string[]) => void;
   onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
 }
 
@@ -29,21 +29,57 @@ export function GridBody({
   onCellChange
 }: GridBodyProps) {
   return (
-    <div className="overflow-auto flex-1" ref={bodyRef}>
-      {data.map((row) => (
-        <GridRow
-          key={row.id}
-          rowData={row}
-          frozenColumns={frozenColumns}
-          scrollableColumns={scrollableColumns}
-          frozenColsTemplate={frozenColsTemplate}
-          scrollableColsTemplate={scrollableColsTemplate}
-          activeCell={activeCell}
-          showSaveIndicator={showSaveIndicator}
-          onCellClick={onCellClick}
-          onCellChange={onCellChange}
-        />
-      ))}
+    <div className="flex-1 overflow-hidden relative">
+      {/* Grid body container */}
+      <div className="grid-view h-full flex">
+        {/* Frozen body columns */}
+        {frozenColumns.length > 0 && (
+          <div
+            className="grid-body grid"
+            style={{
+              gridTemplateColumns: frozenColsTemplate,
+              boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)",
+              position: "sticky",
+              left: 0,
+              zIndex: 5
+            }}
+          >
+            {data.map((row) => (
+              <GridRow
+                key={row.id}
+                rowId={row.id}
+                columns={frozenColumns}
+                rowData={row}
+                activeCell={activeCell}
+                showSaveIndicator={showSaveIndicator}
+                onCellClick={onCellClick}
+                onCellChange={onCellChange}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Scrollable body columns */}
+        <div
+          className="grid-body grid overflow-auto"
+          style={{ gridTemplateColumns: scrollableColsTemplate }}
+          ref={bodyRef}
+        >
+          {data.map((row) => (
+            <GridRow
+              key={row.id}
+              rowId={row.id}
+              columns={scrollableColumns}
+              rowData={row}
+              activeCell={activeCell}
+              showSaveIndicator={showSaveIndicator}
+              onCellClick={onCellClick}
+              onCellChange={onCellChange}
+              showRowNumber={frozenColumns.length === 0}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

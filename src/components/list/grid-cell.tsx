@@ -18,6 +18,7 @@ interface GridCellProps {
   isEditable: boolean;
   showSaveIndicator: boolean;
   options?: string[];
+  colors?: Record<string, string>;
   onCellClick: (rowId: string, colKey: string, type: ColumnType, options?: string[]) => void;
   onCellChange: (rowId: string, colKey: string, value: any, type: ColumnType) => void;
 }
@@ -31,6 +32,7 @@ export function GridCell({
   isEditable,
   showSaveIndicator,
   options,
+  colors,
   onCellClick,
   onCellChange
 }: GridCellProps) {
@@ -109,7 +111,7 @@ export function GridCell({
 
     switch (type) {
       case 'status':
-        return <StatusCell value={value} />;
+        return <StatusCell value={value} colors={colors} />;
       case 'checkbox':
         return (
           <CheckboxCell
