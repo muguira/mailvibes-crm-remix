@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,7 +6,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { CustomButton } from "@/components/ui/custom-button";
 import { Edit, Phone, Mail, MapPin, Linkedin, Building, Briefcase } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { ContactDetails, ContactDetailsDialog } from "@/components/list/dialogs/contact-details-dialog";
 import { Contact } from "@/hooks/supabase/use-contacts";
 
@@ -46,44 +45,46 @@ export default function ContactProfile() {
         if (error) throw error;
         
         if (data) {
-          setContact(data);
+          // Convert the data to the proper Contact type
+          const contactData = {
+            ...data,
+            data: typeof data.data === 'string' ? JSON.parse(data.data) : data.data as Record<string, any>
+          } as Contact;
+          
+          setContact(contactData);
           
           // Parse contact data into the detailed format
-          const contactData = data.data || {};
+          const contactJsonData = contactData.data || {};
           const nameParts = data.name ? data.name.split(' ') : ['', ''];
           
           setContactDetails({
             firstName: nameParts[0] || '',
             lastName: nameParts.slice(1).join(' ') || '',
-            emails: contactData.emails ? contactData.emails.map((email: any) => ({
+            emails: contactJsonData.emails ? contactJsonData.emails.map((email: any) => ({
               id: email.id || crypto.randomUUID(),
               value: email.value,
               isPrimary: email.isPrimary || false,
               type: email.type || 'work'
             })) : [],
-            phones: contactData.phones ? contactData.phones.map((phone: any) => ({
+            phones: contactJsonData.phones ? contactJsonData.phones.map((phone: any) => ({
               id: phone.id || crypto.randomUUID(),
               value: phone.value,
               isPrimary: phone.isPrimary || false,
               type: phone.type || 'mobile'
             })) : [],
-            addresses: contactData.addresses ? contactData.addresses.map((address: any) => ({
+            addresses: contactJsonData.addresses ? contactJsonData.addresses.map((address: any) => ({
               id: address.id || crypto.randomUUID(),
               value: address.value,
               isPrimary: address.isPrimary || false
             })) : [],
-            linkedin: contactData.linkedin || '',
-            company: data.company || contactData.company || '',
-            title: contactData.title || ''
+            linkedin: contactJsonData.linkedin || '',
+            company: data.company || contactJsonData.company || '',
+            title: contactJsonData.title || ''
           });
         }
       } catch (error: any) {
         console.error('Error fetching contact:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load contact data",
-          variant: "destructive",
-        });
+        toast.error("Failed to load contact data");
       } finally {
         setLoading(false);
       }
@@ -136,17 +137,10 @@ export default function ContactProfile() {
       
       // Close dialog and show success toast
       setEditMode(null);
-      toast({
-        title: "Contact saved",
-        description: "Contact details have been updated successfully"
-      });
+      toast.success("Contact details have been updated successfully");
     } catch (error: any) {
       console.error('Error updating contact:', error);
-      toast({
-        title: "Error",
-        description: `Failed to update contact: ${error.message}`,
-        variant: "destructive",
-      });
+      toast.error(`Failed to update contact: ${error.message}`);
     }
   };
 

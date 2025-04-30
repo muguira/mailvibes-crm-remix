@@ -46,8 +46,9 @@ export function StreamView({ listName, listId }: StreamViewProps) {
           formattedContacts.length > 0 ? (
             <ContactsList 
               contacts={formattedContacts}
-              activeContactId={selectedContactId || ""}
+              selectedContactId={selectedContactId || ""}
               onContactSelect={handleContactSelect}
+              onCreateContact={() => setIsCreateContactOpen(true)}
             />
           ) : (
             <div className="p-4 text-center text-slate-medium">
