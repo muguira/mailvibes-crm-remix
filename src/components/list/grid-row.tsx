@@ -64,8 +64,8 @@ export function GridRow({
               type={column.type}
               options={column.options}
               isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
-              onClick={onCellClick}
-              onChange={onCellChange}
+              onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
+              onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
             />
           ))}
         </div>
@@ -94,14 +94,14 @@ export function GridRow({
             type={column.type}
             options={column.options}
             isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
-            onClick={onCellClick}
-            onChange={onCellChange}
+            onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
+            onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
           />
         ))}
 
         {/* Show save indicator if needed */}
         {showSaveIndicator?.row === rowData.id && (
-          <SaveIndicator colKey={showSaveIndicator.col} />
+          <SaveIndicator show={true} />
         )}
       </div>
     </div>

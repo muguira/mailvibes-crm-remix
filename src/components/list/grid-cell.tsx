@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { ColumnType, ColumnDef } from "./grid/types";
+import { ColumnType } from "./grid/types";
 import { usePopover } from "@/hooks/use-popover";
 import { SaveIndicator } from "./save-indicator";
 import { useCellDatePicker } from "@/hooks/use-cell-date-picker";
@@ -11,8 +11,10 @@ import { CheckboxCell, UrlCell, StatusCell, TextCell, EditCell } from "./cell-ty
 
 interface GridCellProps {
   rowId: string;
+  colKey: string;
   value: any;
-  column: ColumnDef;
+  type: ColumnType;
+  options?: string[];
   isActive: boolean;
   onClick: () => void;
   onChange: (value: any) => void;
@@ -20,8 +22,10 @@ interface GridCellProps {
 
 export function GridCell({
   rowId,
+  colKey,
   value,
-  column,
+  type,
+  options,
   isActive,
   onClick,
   onChange
@@ -30,7 +34,7 @@ export function GridCell({
   const [originalValue, setOriginalValue] = useState(value);
   
   // Initialize date picker hook
-  const { selectedDate } = useCellDatePicker(value, column.type);
+  const { selectedDate } = useCellDatePicker(value, type);
   
   // Initialize popover hook
   const {
@@ -49,13 +53,13 @@ export function GridCell({
 
   // Initialize click handler
   const { handleClick } = useCellClickHandler({
-    isEditable: column.editable !== false,
-    type: column.type,
+    isEditable: true,
+    type,
     value,
     isActive,
     rowId,
-    colKey: column.key,
-    options: column.options,
+    colKey,
+    options,
     onCellChange: onChange,
     onCellClick: onClick,
     openPopover
@@ -64,8 +68,8 @@ export function GridCell({
   // Initialize key handler
   const { handleKeyDown } = useCellKeyHandler({
     rowId,
-    colKey: column.key,
-    type: column.type,
+    colKey,
+    type,
     onCellChange: onChange,
     onCellClick: onClick
   });
@@ -92,14 +96,14 @@ export function GridCell({
       return (
         <EditCell 
           value={value} 
-          type={column.type} 
+          type={type} 
           onBlur={(value) => onChange(value)}
           onKeyDown={handleKeyDown}
         />
       );
     }
 
-    switch (column.type) {
+    switch (type) {
       case 'status':
         return <StatusCell value={value} />;
       case 'checkbox':
@@ -119,11 +123,11 @@ export function GridCell({
   return (
     <div
       className={`grid-cell ${isActive ? 'bg-blue-50' : ''} ${
-        column.type === 'currency' ? 'text-right' : ''
-      } ${column.key === "opportunity" ? "opportunity-cell" : ""} relative ${column.type === 'url' && value ? 'text-teal-primary hover:underline cursor-pointer' : ''}`}
+        type === 'currency' ? 'text-right' : ''
+      } ${colKey === "opportunity" ? "opportunity-cell" : ""} relative ${type === 'url' && value ? 'text-teal-primary hover:underline cursor-pointer' : ''}`}
       onClick={handleClick}
-      tabIndex={column.editable !== false ? 0 : undefined}
-      data-cell={`${rowId}-${column.key}`}
+      tabIndex={0}
+      data-cell={`${rowId}-${colKey}`}
     >
       {renderCellContent()}
       
@@ -134,7 +138,7 @@ export function GridCell({
         position={position}
         popoverType={popoverType}
         selectedDate={selectedDate}
-        options={column.options}
+        options={options}
         popoverRef={popoverRef}
         onClose={closePopover}
         onDateSelect={handleDateSelect}
