@@ -1,6 +1,5 @@
 
 import { useRef } from "react";
-import { GridToolbar } from "../grid-toolbar";
 import { GridHeaders } from "../grid-headers";
 import { GridBody } from "./grid-body";
 import { useGridSetup } from "./use-grid-setup";
@@ -63,9 +62,6 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
       onKeyDown={(e) => handleKeyDown(e, undoStack, setUndoStack, redoStack, setRedoStack)} 
       tabIndex={-1}
     >
-      {/* Grid Toolbar - Now without View Mode selector */}
-      <GridToolbar listType={listType} columns={columns} />
-      
       {/* Grid Headers */}
       <GridHeaders 
         frozenColumns={frozenColumns}
