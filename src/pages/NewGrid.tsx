@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { NewGridView } from '@/components/grid-view/new-grid-view';
@@ -186,15 +185,15 @@ const NewGrid: React.FC = () => {
     setColumns(reorderedColumns);
   };
   
-  // Handle column deletion - disabled for now
+  // Handle column deletion
   const handleDeleteColumn = (columnId: string) => {
-    // This is disabled in the context menu but kept for future use
+    // This is kept for TypeScript compatibility but implementation can remain the same
     console.log("Column deletion disabled for stability");
   };
   
-  // Handle adding a new column - disabled for now
+  // Handle adding a new column
   const handleAddColumn = (afterColumnId: string) => {
-    // This is disabled in the context menu but kept for future use
+    // This is kept for TypeScript compatibility but implementation can remain the same
     console.log("Column insertion disabled for stability");
   };
   
