@@ -19,6 +19,9 @@ export function GridToolbar({
   onZoomChange,
   currentZoom
 }: GridToolbarProps) {
+  // Count columns with filter property if it exists, otherwise assume 0
+  const filterCount = columns.filter(col => col.filter !== undefined).length;
+
   return (
     <div className="flex justify-between items-center p-2 border-b border-slate-light/20 bg-white">
       <div className="flex items-center space-x-2">
@@ -35,7 +38,7 @@ export function GridToolbar({
           className="flex items-center text-xs font-normal px-2 text-slate-dark hover:text-slate-darker"
         >
           <Filter size={14} className="mr-1" />
-          Filters ({columns.filter(col => col.filter).length})
+          Filters ({filterCount})
         </Button>
         
         {/* Download Button - Moved to the left of zoom control */}
