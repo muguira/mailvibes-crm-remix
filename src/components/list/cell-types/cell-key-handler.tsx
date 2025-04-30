@@ -21,7 +21,8 @@ export function useCellKeyHandler({
     if (e.key === 'Enter') {
       onCellChange(rowId, colKey, e.currentTarget.value, type);
     } else if (e.key === 'Escape') {
-      onCellClick("", "", "text"); // Reset active cell
+      // Reset active cell with proper parameters
+      onCellClick("", "", "text");
     }
   };
 
