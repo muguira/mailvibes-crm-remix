@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "@/pages/Index";
 import Lists from "@/pages/Lists";
+import NewGrid from "@/pages/NewGrid"; // Add the new grid page
 import Reports from "@/pages/Reports";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
@@ -31,6 +32,7 @@ function App() {
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<Index />} />
               <Route path="/lists" element={<Lists />} />
+              <Route path="/new-grid" element={<NewGrid />} /> {/* Add route for the new grid */}
               <Route path="/reports" element={<Reports />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/contact/:id" element={<ContactProfile />} />
