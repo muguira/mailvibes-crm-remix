@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
-import { isValidUrl } from "./grid-utils";
+
+import { useState } from "react";
 import { ColumnType } from "./grid-view";
 import { usePopover } from "@/hooks/use-popover";
-import { GridDatePicker } from "./grid-date-picker";
-import { GridSelectDropdown } from "./grid-select-dropdown";
-import { CheckboxCell, UrlCell, StatusCell, TextCell, EditCell } from "./cell-types";
 import { SaveIndicator } from "./save-indicator";
+import { useCellDatePicker } from "@/hooks/use-cell-date-picker";
+import { useCellClickHandler } from "./cell-types/cell-click-handler";
+import { useCellKeyHandler } from "./cell-types/cell-key-handler";
+import { CellPopovers } from "./cell-types/cell-popovers";
+import { CheckboxCell, UrlCell, StatusCell, TextCell, EditCell } from "./cell-types";
 
 interface GridCellProps {
   rowId: string;
@@ -35,19 +37,9 @@ export function GridCell({
   // Store original value for reverting on cancel
   const [originalValue, setOriginalValue] = useState(value);
   
-  // For date picker
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
-    if (value && type === 'date') {
-      try {
-        const date = new Date(value);
-        return !isNaN(date.getTime()) ? date : undefined;
-      } catch (e) {
-        return undefined;
-      }
-    }
-    return undefined;
-  });
-
+  // Initialize date picker hook
+  const { selectedDate } = useCellDatePicker(value, type);
+  
   // Initialize popover hook
   const {
     isOpen,
@@ -59,59 +51,35 @@ export function GridCell({
   } = usePopover();
 
   // Update original value when prop changes
-  useEffect(() => {
+  useState(() => {
     setOriginalValue(value);
-    // Also update the date if it's a date cell
-    if (type === 'date' && value) {
-      try {
-        const date = new Date(value);
-        if (!isNaN(date.getTime())) {
-          setSelectedDate(date);
-        }
-      } catch (e) {
-        setSelectedDate(undefined);
-      }
-    }
-  }, [value, type]);
+  });
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (!isEditable) return;
-    
-    // Handle checkbox toggle directly
-    if (type === 'checkbox') {
-      onCellChange(rowId, colKey, !value, type);
-      return;
-    }
+  // Initialize click handler
+  const { handleClick } = useCellClickHandler({
+    isEditable,
+    type,
+    value,
+    isActive,
+    rowId,
+    colKey,
+    options,
+    onCellChange,
+    onCellClick,
+    openPopover
+  });
 
-    // Handle URL click (open link in new tab)
-    if (type === 'url' && value && isValidUrl(value)) {
-      if (!isActive) {
-        window.open(value, "_blank");
-        return;
-      }
-    }
-
-    // For status or select type, open the dropdown
-    if ((type === 'status' || type === 'select') && options && options.length > 0) {
-      const cellElement = e.currentTarget as HTMLElement;
-      openPopover(cellElement, 'select');
-      return;
-    }
-
-    // For date type, open the date picker
-    if (type === 'date') {
-      const cellElement = e.currentTarget as HTMLElement;
-      openPopover(cellElement, 'date');
-      return;
-    }
-
-    // For other types, activate the cell for direct editing
-    onCellClick(rowId, colKey, type, options);
-  };
+  // Initialize key handler
+  const { handleKeyDown } = useCellKeyHandler({
+    rowId,
+    colKey,
+    type,
+    onCellChange,
+    onCellClick
+  });
 
   const handleSelectOption = (optionValue: string) => {
     onCellChange(rowId, colKey, optionValue, type);
-    // Close the popover after cell change
     closePopover();
   };
 
@@ -124,15 +92,6 @@ export function GridCell({
       });
       onCellChange(rowId, colKey, formattedDate, type);
       // The closePopover is now handled inside the DatePicker component
-    }
-  };
-
-  // Fix: Properly type the input element
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      onCellChange(rowId, colKey, e.currentTarget.value, type);
-    } else if (e.key === 'Escape') {
-      onCellClick("", "", "text"); // Reset active cell
     }
   };
 
@@ -178,27 +137,17 @@ export function GridCell({
       
       <SaveIndicator show={showSaveIndicator} />
 
-      {/* Date picker popover */}
-      <GridDatePicker
-        isOpen={isOpen && popoverType === 'date'}
+      <CellPopovers
+        isOpen={isOpen}
         position={position}
+        popoverType={popoverType}
         selectedDate={selectedDate}
-        onClose={closePopover}
-        onSelect={handleDateSelect}
+        options={options}
         popoverRef={popoverRef}
+        onClose={closePopover}
+        onDateSelect={handleDateSelect}
+        onOptionSelect={handleSelectOption}
       />
-
-      {/* Select dropdown popover */}
-      {options && (
-        <GridSelectDropdown
-          isOpen={isOpen && popoverType === 'select'}
-          position={position}
-          options={options}
-          onSelect={handleSelectOption}
-          onClose={closePopover}
-          popoverRef={popoverRef}
-        />
-      )}
     </div>
   );
 }
