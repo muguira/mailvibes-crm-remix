@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { ColumnType } from "./grid-view";
+import { ColumnType, ColumnDef } from "./grid/types";
 import { usePopover } from "@/hooks/use-popover";
 import { SaveIndicator } from "./save-indicator";
 import { useCellDatePicker } from "@/hooks/use-cell-date-picker";
@@ -11,34 +11,26 @@ import { CheckboxCell, UrlCell, StatusCell, TextCell, EditCell } from "./cell-ty
 
 interface GridCellProps {
   rowId: string;
-  colKey: string;
   value: any;
-  type: ColumnType;
+  column: ColumnDef;
   isActive: boolean;
-  isEditable: boolean;
-  showSaveIndicator: boolean;
-  options?: string[];
-  onCellClick: (rowId: string, colKey: string, type: ColumnType, options?: string[]) => void;
-  onCellChange: (rowId: string, colKey: string, value: any, type: ColumnType) => void;
+  onClick: () => void;
+  onChange: (value: any) => void;
 }
 
 export function GridCell({
   rowId,
-  colKey,
   value,
-  type,
+  column,
   isActive,
-  isEditable,
-  showSaveIndicator,
-  options,
-  onCellClick,
-  onCellChange
+  onClick,
+  onChange
 }: GridCellProps) {
   // Store original value for reverting on cancel
   const [originalValue, setOriginalValue] = useState(value);
   
   // Initialize date picker hook
-  const { selectedDate } = useCellDatePicker(value, type);
+  const { selectedDate } = useCellDatePicker(value, column.type);
   
   // Initialize popover hook
   const {
@@ -57,29 +49,29 @@ export function GridCell({
 
   // Initialize click handler
   const { handleClick } = useCellClickHandler({
-    isEditable,
-    type,
+    isEditable: column.editable !== false,
+    type: column.type,
     value,
     isActive,
     rowId,
-    colKey,
-    options,
-    onCellChange,
-    onCellClick,
+    colKey: column.key,
+    options: column.options,
+    onCellChange: onChange,
+    onCellClick: onClick,
     openPopover
   });
 
   // Initialize key handler
   const { handleKeyDown } = useCellKeyHandler({
     rowId,
-    colKey,
-    type,
-    onCellChange,
-    onCellClick
+    colKey: column.key,
+    type: column.type,
+    onCellChange: onChange,
+    onCellClick: onClick
   });
 
   const handleSelectOption = (optionValue: string) => {
-    onCellChange(rowId, colKey, optionValue, type);
+    onChange(optionValue);
     closePopover();
   };
 
@@ -90,7 +82,7 @@ export function GridCell({
         day: 'numeric', 
         year: 'numeric' 
       });
-      onCellChange(rowId, colKey, formattedDate, type);
+      onChange(formattedDate);
       // The closePopover is now handled inside the DatePicker component
     }
   };
@@ -100,14 +92,14 @@ export function GridCell({
       return (
         <EditCell 
           value={value} 
-          type={type} 
-          onBlur={(value) => onCellChange(rowId, colKey, value, type)}
+          type={column.type} 
+          onBlur={(value) => onChange(value)}
           onKeyDown={handleKeyDown}
         />
       );
     }
 
-    switch (type) {
+    switch (column.type) {
       case 'status':
         return <StatusCell value={value} />;
       case 'checkbox':
@@ -127,22 +119,22 @@ export function GridCell({
   return (
     <div
       className={`grid-cell ${isActive ? 'bg-blue-50' : ''} ${
-        type === 'currency' ? 'text-right' : ''
-      } ${colKey === "opportunity" ? "opportunity-cell" : ""} relative ${type === 'url' && value ? 'text-teal-primary hover:underline cursor-pointer' : ''}`}
+        column.type === 'currency' ? 'text-right' : ''
+      } ${column.key === "opportunity" ? "opportunity-cell" : ""} relative ${column.type === 'url' && value ? 'text-teal-primary hover:underline cursor-pointer' : ''}`}
       onClick={handleClick}
-      tabIndex={isEditable ? 0 : undefined}
-      data-cell={`${rowId}-${colKey}`}
+      tabIndex={column.editable !== false ? 0 : undefined}
+      data-cell={`${rowId}-${column.key}`}
     >
       {renderCellContent()}
       
-      <SaveIndicator show={showSaveIndicator} />
+      <SaveIndicator show={false} />
 
       <CellPopovers
         isOpen={isOpen}
         position={position}
         popoverType={popoverType}
         selectedDate={selectedDate}
-        options={options}
+        options={column.options}
         popoverRef={popoverRef}
         onClose={closePopover}
         onDateSelect={handleDateSelect}

@@ -65,7 +65,7 @@ export function GridRow({
             {showSaveIndicator && 
               showSaveIndicator.row === rowData.id && 
               showSaveIndicator.col === column.key && (
-                <SaveIndicator />
+                <SaveIndicator show={true} />
               )
             }
           </div>
@@ -97,7 +97,7 @@ export function GridRow({
             {showSaveIndicator && 
               showSaveIndicator.row === rowData.id && 
               showSaveIndicator.col === column.key && (
-                <SaveIndicator />
+                <SaveIndicator show={true} />
               )
             }
           </div>

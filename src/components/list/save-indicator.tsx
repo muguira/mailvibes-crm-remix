@@ -1,7 +1,7 @@
 
 import { Check } from "lucide-react";
 
-interface SaveIndicatorProps {
+export interface SaveIndicatorProps {
   show: boolean;
 }
 
