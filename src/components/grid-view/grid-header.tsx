@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Column } from './types';
 import { Check } from 'lucide-react';
 
@@ -91,7 +91,7 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
     document.addEventListener('mouseup', handleResizeEnd);
   }, []);
   
-  // Handle column resize move - fix to update widths in real time
+  // Handle column resize move
   const handleResizeMove = useCallback((e: MouseEvent) => {
     e.preventDefault();
     
@@ -100,7 +100,7 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
     const diffX = e.clientX - initialX;
     const newWidth = Math.max(100, initialWidth + diffX); // Minimum width of 100px
     
-    // Update column width during drag
+    // Update column width during drag in real-time
     const columnIndex = columns.findIndex(col => col.id === resizingColumn);
     
     if (columnIndex >= 0 && onColumnResize) {
@@ -129,6 +129,14 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
     document.removeEventListener('mousemove', handleResizeMove);
     document.removeEventListener('mouseup', handleResizeEnd);
   }, [resizingColumn, onColumnResize, columns, initialX, initialWidth, handleResizeMove]);
+  
+  // Clean up event listeners on unmount
+  useEffect(() => {
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMove);
+      document.removeEventListener('mouseup', handleResizeEnd);
+    };
+  }, [handleResizeMove, handleResizeEnd]);
 
   return (
     <div className="grid-header">

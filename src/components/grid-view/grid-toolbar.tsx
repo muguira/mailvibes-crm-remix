@@ -176,7 +176,7 @@ export function GridToolbar({
             <AbsolutePopoverContent 
               ref={filterPopoverRef}
               position={{ top: 40, left: 0 }}
-              className="filter-popover"
+              className="filter-popover-container"
             >
               <FilterPopover 
                 columns={columns}

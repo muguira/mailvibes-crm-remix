@@ -19,6 +19,7 @@ export function NewGridView({
   className
 }: GridContainerProps) {
   const gridRef = useRef<any>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
@@ -234,6 +235,13 @@ export function NewGridView({
     setActiveFilters(filters);
   };
 
+  // Sync header scrolling with grid body
+  const handleGridScroll = useCallback(({ scrollLeft }: { scrollLeft: number; scrollTop: number }) => {
+    if (headerRef.current) {
+      headerRef.current.scrollLeft = scrollLeft;
+    }
+  }, []);
+
   // Close status dropdown when clicking outside
   useEffect(() => {
     if (statusDropdownPosition) {
@@ -398,7 +406,7 @@ export function NewGridView({
     if (columnIndex === 0) {
       return (
         <div 
-          className="index-column grid-frozen-cell"
+          className="index-column"
           style={{
             ...style,
             borderTop: 'none', // Fix for removing gaps
@@ -491,12 +499,14 @@ export function NewGridView({
         activeFilters={activeFilters}
       />
       
-      <GridHeader 
-        columns={columns}
-        onColumnChange={onColumnChange}
-        onColumnsReorder={onColumnsReorder}
-        onColumnResize={handleColumnResize}
-      />
+      <div ref={headerRef} style={{ overflow: 'hidden' }}>
+        <GridHeader 
+          columns={columns}
+          onColumnChange={onColumnChange}
+          onColumnsReorder={onColumnsReorder}
+          onColumnResize={handleColumnResize}
+        />
+      </div>
       
       <div className="grid-body">
         {containerWidth > 0 && containerHeight > 0 && (
@@ -519,6 +529,7 @@ export function NewGridView({
               borderSpacing: 0
             }}
             innerElementType={innerElementType}
+            onScroll={handleGridScroll}
           >
             {Cell}
           </Grid>
