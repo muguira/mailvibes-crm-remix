@@ -74,33 +74,37 @@ export function GridHeaders({
       scrollable: scrollableColumns 
     });
     
-    // Force visibility of header cells after they're rendered
+    // Force visibility of header cells
     const ensureHeadersVisible = () => {
       if (headerRef.current) {
+        headerRef.current.style.setProperty('visibility', 'visible', 'important');
+        headerRef.current.style.setProperty('opacity', '1', 'important');
+        
         const headerCells = headerRef.current.querySelectorAll('.grid-header-cell');
         headerCells.forEach(cell => {
-          (cell as HTMLElement).style.visibility = 'visible';
-          (cell as HTMLElement).style.opacity = '1';
+          (cell as HTMLElement).style.setProperty('visibility', 'visible', 'important');
+          (cell as HTMLElement).style.setProperty('opacity', '1', 'important');
           
-          // Make sure the header text is visible too
           const headerText = cell.querySelector('span');
           if (headerText) {
-            (headerText as HTMLElement).style.visibility = 'visible';
-            (headerText as HTMLElement).style.opacity = '1';
+            (headerText as HTMLElement).style.setProperty('visibility', 'visible', 'important');
+            (headerText as HTMLElement).style.setProperty('opacity', '1', 'important');
+            (headerText as HTMLElement).style.setProperty('display', 'inline-block', 'important');
           }
         });
       }
       
-      if (localHeaderRef.current) {
-        const allHeaderContainers = localHeaderRef.current.querySelectorAll('.grid-header');
-        allHeaderContainers.forEach(container => {
-          (container as HTMLElement).style.visibility = 'visible';
-          (container as HTMLElement).style.opacity = '1';
-        });
+      // Ensure add column button is visible
+      const addColumnButton = document.querySelector('.add-column-cell');
+      if (addColumnButton) {
+        (addColumnButton as HTMLElement).style.setProperty('visibility', 'visible', 'important');
+        (addColumnButton as HTMLElement).style.setProperty('opacity', '1', 'important');
+        (addColumnButton as HTMLElement).style.setProperty('display', 'flex', 'important');
       }
     };
     
-    // Execute multiple times to ensure it catches
+    // Execute multiple times to ensure it works
+    setTimeout(ensureHeadersVisible, 0);
     setTimeout(ensureHeadersVisible, 100);
     setTimeout(ensureHeadersVisible, 300);
   }, [frozenColumns, scrollableColumns, headerRef]);
@@ -109,6 +113,7 @@ export function GridHeaders({
     <div 
       className="grid-headers-container sticky top-0 z-10 bg-white"
       ref={localHeaderRef}
+      style={{ visibility: 'visible', opacity: 1 }}
     >
       {/* Row number header */}
       <div className="row-number-header"></div>
@@ -133,15 +138,17 @@ export function GridHeaders({
               position: "sticky",
               left: "40px", // Account for row number
               display: "flex",
-              visibility: 'visible',
-              opacity: 1
+              visibility: 'visible !important',
+              opacity: 1,
+              zIndex: 15
             }}
           />
         )}
 
         {/* Scrollable header columns */}
         <div className="flex flex-1 overflow-visible relative" style={{ 
-          marginLeft: frozenColumns && frozenColumns.length > 0 ? 0 : "40px" // Adjust margin if no frozen columns
+          marginLeft: frozenColumns && frozenColumns.length > 0 ? 0 : "40px", // Adjust margin if no frozen columns
+          position: 'relative'
         }}>
           <GridHeadersSection
             columns={scrollableColumns}

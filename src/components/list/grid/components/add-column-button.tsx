@@ -30,7 +30,26 @@ export function AddColumnButton({
   addColumn
 }: AddColumnButtonProps) {
   return (
-    <div className="add-column-cell">
+    <div 
+      className="add-column-cell"
+      style={{
+        position: 'sticky',
+        right: 0,
+        zIndex: 20,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minWidth: '40px',
+        width: '40px',
+        height: 'var(--row-height, 32px)',
+        padding: 0,
+        background: '#f8f9fa',
+        borderLeft: '1px solid #e0e5eb',
+        boxShadow: '-2px 0 4px -2px rgba(0,0,0,0.05)',
+        visibility: 'visible !important',
+        opacity: 1
+      }}
+    >
       <Button
         type="button"
         variant="ghost"
@@ -39,6 +58,11 @@ export function AddColumnButton({
         onClick={() => setIsAddingColumn(true)}
         title="Add new column"
         aria-label="Add new column"
+        style={{
+          visibility: 'visible !important',
+          opacity: 1,
+          display: 'flex'
+        }}
       >
         <Plus size={14} className="text-teal-primary" />
       </Button>

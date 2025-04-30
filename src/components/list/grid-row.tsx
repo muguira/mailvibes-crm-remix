@@ -76,6 +76,9 @@ export function GridRow({
           showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
         />
       ))}
+
+      {/* Render row actions if provided */}
+      {renderRowActions && renderRowActions(rowData.id)}
     </div>
   );
 }

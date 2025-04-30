@@ -42,39 +42,49 @@ export function GridHeadersSection({
 }: GridHeadersSectionProps) {
   const localHeaderRef = useRef<HTMLDivElement>(null);
   
-  // Force visibility on render and ensure all columns are displayed
+  // Force header visibility
   useEffect(() => {
-    console.log(`Rendering ${isFrozen ? 'frozen' : 'scrollable'} headers section with ${columns.length} columns`);
-    console.log("Columns to render:", columns.map(col => `${col.key} (${col.header || 'no header'})`));
+    console.log(`Rendering headers section with ${columns.length} columns`);
+    console.log("Columns:", columns.map(col => `${col.key}: ${col.header || 'no header'}`));
     
     const ref = headerRef || localHeaderRef;
     
-    if (ref.current) {
-      const element = ref.current;
-      
-      // Apply important styles
-      element.style.setProperty('visibility', 'visible', 'important');
-      element.style.setProperty('opacity', '1', 'important');
-      
-      // Force reflow of element
-      element.style.display = 'none';
-      void element.offsetHeight;
-      element.style.display = 'flex';
-      
-      // Apply to all child header cells
-      const headerCells = element.querySelectorAll('.grid-header-cell');
-      headerCells.forEach((cell) => {
-        (cell as HTMLElement).style.setProperty('visibility', 'visible', 'important');
-        (cell as HTMLElement).style.setProperty('opacity', '1', 'important');
+    // Apply direct styles to ensure headers are visible
+    const forceVisible = () => {
+      if (ref.current) {
+        // Apply to header container
+        ref.current.style.setProperty('visibility', 'visible', 'important');
+        ref.current.style.setProperty('opacity', '1', 'important');
+        ref.current.style.setProperty('z-index', '10', 'important');
         
-        // Make sure the header text is visible
-        const headerText = cell.querySelector('span');
-        if (headerText) {
-          (headerText as HTMLElement).style.setProperty('visibility', 'visible', 'important');
-          (headerText as HTMLElement).style.setProperty('opacity', '1', 'important');
-        }
-      });
-    }
+        // Apply to each header cell
+        const headerCells = ref.current.querySelectorAll('.grid-header-cell');
+        headerCells.forEach(cell => {
+          (cell as HTMLElement).style.setProperty('visibility', 'visible', 'important');
+          (cell as HTMLElement).style.setProperty('opacity', '1', 'important');
+          (cell as HTMLElement).style.setProperty('z-index', '20', 'important');
+          
+          // Apply to the header text
+          const headerText = cell.querySelector('span');
+          if (headerText) {
+            (headerText as HTMLElement).style.setProperty('visibility', 'visible', 'important');
+            (headerText as HTMLElement).style.setProperty('opacity', '1', 'important');
+            (headerText as HTMLElement).style.setProperty('display', 'inline-block', 'important');
+            (headerText as HTMLElement).style.setProperty('z-index', '25', 'important');
+          }
+        });
+      }
+    };
+    
+    // Execute multiple times to ensure it works
+    forceVisible();
+    const timer1 = setTimeout(forceVisible, 100);
+    const timer2 = setTimeout(forceVisible, 300);
+    
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
   }, [columns, headerRef, isFrozen]);
   
   if (!columns || columns.length === 0) {
@@ -85,8 +95,9 @@ export function GridHeadersSection({
     <div 
       className="grid-header flex"
       style={{ 
-        visibility: 'visible',
+        visibility: 'visible !important',
         opacity: 1,
+        zIndex: 10,
         ...style 
       }}
       ref={headerRef || localHeaderRef}

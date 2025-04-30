@@ -47,18 +47,16 @@ export function GridHeaderCell({
   useEffect(() => {
     console.log("Rendering header cell:", displayHeader, column.key);
     
-    // Force reflow of header cell to ensure it's visible
+    // Force visibility of the header cell 
     if (headerRef.current) {
       const element = headerRef.current;
-      
-      // Add an inline style to ensure visibility
-      element.style.visibility = 'visible';
-      element.style.opacity = '1';
+      element.style.setProperty('visibility', 'visible', 'important');
+      element.style.setProperty('opacity', '1', 'important');
       
       const headerSpan = element.querySelector('span');
       if (headerSpan) {
-        headerSpan.style.visibility = 'visible';
-        headerSpan.style.opacity = '1';
+        headerSpan.style.setProperty('visibility', 'visible', 'important');
+        headerSpan.style.setProperty('opacity', '1', 'important');
       }
     }
   }, [column, displayHeader]);
@@ -95,8 +93,10 @@ export function GridHeaderCell({
       onDrop={draggable ? handleDropEvent : undefined}
       data-header-key={column.key}
       style={{
-        visibility: 'visible',
-        opacity: 1
+        visibility: 'visible !important',
+        opacity: '1 !important',
+        position: 'relative',
+        zIndex: 20
       }}
     >
       {editingHeader === column.key ? (
@@ -118,11 +118,14 @@ export function GridHeaderCell({
         <span 
           className="font-medium text-navy-deep uppercase text-xs"
           style={{ 
-            visibility: 'visible', 
-            opacity: 1,
+            visibility: 'visible !important', 
+            opacity: '1 !important',
             fontFamily: "'Proxima Nova', system-ui, sans-serif",
             fontWeight: 600,
-            fontSize: "13px"
+            fontSize: "13px",
+            display: 'inline-block',
+            position: 'relative',
+            zIndex: 25
           }}
         >
           {displayHeader}

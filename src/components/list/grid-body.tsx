@@ -2,6 +2,7 @@
 import { RefObject } from "react";
 import { GridRow } from "./grid-row";
 import { ColumnDef } from "./grid/types";
+import { v4 as uuidv4 } from "uuid";
 
 interface GridBodyProps {
   data: { id: string; [key: string]: any }[];
@@ -35,8 +36,8 @@ export function GridBody({
     row.id && self.findIndex(r => r.id === row.id) === index
   );
   
-  // Create an empty row data object for the "add new" row with a unique ID
-  const emptyRowId = `empty-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  // Create an empty row with a UUID instead of timestamp-based ID to avoid duplicates
+  const emptyRowId = `new-row-${uuidv4()}`;
   const emptyRowData = {
     id: emptyRowId
   };
