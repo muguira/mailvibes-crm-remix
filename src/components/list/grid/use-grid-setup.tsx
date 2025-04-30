@@ -1,122 +1,64 @@
-
-import { RefObject } from "react";
-import { useGridState } from "../grid-hooks/use-grid-state";
-import { useGridActions } from "../grid-hooks/use-grid-actions";
-import { useGridScroll } from "../grid-hooks/use-grid-scroll";
+import { useMemo, useState } from "react";
 import { ColumnDef } from "./types";
 
-interface UseGridSetupProps {
+interface GridSetupProps {
   initialColumns: ColumnDef[];
-  initialData: { id: string; [key: string]: any }[];
-  headerRef: RefObject<HTMLDivElement>;
-  bodyRef: RefObject<HTMLDivElement>;
+  initialData: any[];
+  headerRef: React.RefObject<HTMLDivElement>;
+  bodyRef: React.RefObject<HTMLDivElement>;
 }
 
-export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }: UseGridSetupProps) {
-  // Initialize grid state
-  const {
-    columns,
-    setColumns,
-    data,
-    setData,
-    activeCell,
-    setActiveCell,
-    editingHeader,
-    setEditingHeader,
-    draggedColumn,
-    setDraggedColumn,
-    dragOverColumn,
-    setDragOverColumn,
-    newColumn,
-    setNewColumn,
-    isAddingColumn,
-    setIsAddingColumn,
-    showSaveIndicator,
-    setShowSaveIndicator,
-    undoStack,
-    setUndoStack,
-    redoStack,
-    setRedoStack,
-    saveStateToHistory,
-    frozenColumns,
-    scrollableColumns,
-    frozenColsTemplate,
-    scrollableColsTemplate
-  } = useGridState({
-    initialColumns,
-    initialData
-  });
+export function useGridSetup({ 
+  initialColumns, 
+  initialData,
+  headerRef,
+  bodyRef
+}: GridSetupProps) {
+  const [columns, setColumns] = useState(initialColumns);
+  const [data, setData] = useState(initialData);
+  const [activeCell, setActiveCell] = useState<{ row: string; col: string } | null>(null);
+  const [showSaveIndicator, setShowSaveIndicator] = useState<{ row: string; col: string } | null>(null);
   
-  // Initialize grid actions
-  const {
-    handleCellClick,
-    handleHeaderDoubleClick,
-    handleCellChange,
-    addColumn,
-    deleteColumn,
-    duplicateColumn,
-    renameColumn,
-    sortColumn,
-    moveColumn,
-    handleDragStart,
-    handleDragOver,
-    handleDrop,
-    handleKeyDown
-  } = useGridActions({
-    columns,
-    setColumns,
-    data,
-    setData,
-    activeCell,
-    setActiveCell,
-    showSaveIndicator,
-    setShowSaveIndicator,
-    draggedColumn,
-    setDraggedColumn,
-    saveStateToHistory
-  });
+  const frozenColumns = useMemo(() => columns.filter(col => col.frozen), [columns]);
+  const scrollableColumns = useMemo(() => columns.filter(col => !col.frozen), [columns]);
   
-  // Setup scroll synchronization
-  useGridScroll(headerRef, bodyRef);
+  const colMinWidth = 150;
+  const colDefaultWidth = 150;
   
-  return {
-    // State
-    columns,
-    data,
-    activeCell,
-    editingHeader,
-    setEditingHeader,
-    draggedColumn,
-    dragOverColumn,
-    newColumn,
-    setNewColumn,
-    isAddingColumn,
-    setIsAddingColumn,
-    showSaveIndicator,
-    undoStack,
-    setUndoStack,
-    redoStack,
-    setRedoStack,
+  const frozenColsTemplate = useMemo(() => {
+    document.documentElement.style.setProperty('--cell-min-width', `${colMinWidth}px`);
+    document.documentElement.style.setProperty('--cell-width', `${colDefaultWidth}px`);
     
-    // Computed values
+    return frozenColumns.map(() => `${colDefaultWidth}px`).join(' ');
+  }, [frozenColumns]);
+  
+  const scrollableColsTemplate = useMemo(() => {
+    return scrollableColumns.map(() => `${colDefaultWidth}px`).join(' ');
+  }, [scrollableColumns]);
+  
+  const handleCellClick = (rowId: string, colKey: string) => {
+    setActiveCell({ row: rowId, col: colKey });
+  };
+
+  const handleCellChange = (rowId: string, colKey: string, value: any) => {
+    setData(prevData => 
+      prevData.map(row => 
+        row.id === rowId ? { ...row, [colKey]: value } : row
+      )
+    );
+    setShowSaveIndicator({ row: rowId, col: colKey });
+  };
+
+  return {
+    columns,
+    data,
+    activeCell,
+    showSaveIndicator,
     frozenColumns,
     scrollableColumns,
     frozenColsTemplate,
     scrollableColsTemplate,
-    
-    // Actions
     handleCellClick,
-    handleHeaderDoubleClick,
     handleCellChange,
-    addColumn: () => addColumn(newColumn),
-    deleteColumn,
-    duplicateColumn,
-    renameColumn,
-    sortColumn,
-    moveColumn,
-    handleDragStart,
-    handleDragOver,
-    handleDrop,
-    handleKeyDown,
   };
 }

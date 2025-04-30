@@ -33,12 +33,9 @@ export function GridRow({
 }: GridRowProps) {
   const isActive = activeCell?.row === rowData.id;
 
-  // Combination of frozen and scrollable columns in one array
-  const allColumns = [...frozenColumns, ...scrollableColumns];
-
   return (
     <div 
-      className={`grid-row group ${isActive ? 'active-row' : ''}`}
+      className={`grid-row ${isActive ? 'active-row' : ''}`}
       data-row-id={rowData.id}
     >
       {/* Row number cell */}
@@ -62,8 +59,24 @@ export function GridRow({
         )}
       </div>
 
-      {/* Column cells */}
-      {allColumns.map((column) => (
+      {/* Frozen columns (if any) */}
+      {frozenColumns.map((column) => (
+        <GridCell
+          key={`${rowData.id}-${column.key}`}
+          rowId={rowData.id}
+          colKey={column.key}
+          value={rowData[column.key]}
+          type={column.type}
+          options={column.options}
+          isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
+          onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
+          onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
+          showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
+        />
+      ))}
+
+      {/* Scrollable columns */}
+      {scrollableColumns.map((column) => (
         <GridCell
           key={`${rowData.id}-${column.key}`}
           rowId={rowData.id}

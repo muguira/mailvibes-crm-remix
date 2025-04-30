@@ -1,4 +1,3 @@
-
 import { Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CustomButton } from "@/components/ui/custom-button";
@@ -67,7 +66,7 @@ export function GridHeaders({
   onDrop
 }: GridHeadersProps) {
   return (
-    <div className="flex">
+    <div className="flex grid-container">
       {/* Row number header */}
       <div className="row-number-header"></div>
       
@@ -77,9 +76,8 @@ export function GridHeaders({
       {/* Frozen header columns */}
       {frozenColumns.length > 0 && (
         <div
-          className="grid-header grid z-10"
+          className="grid-header"
           style={{
-            gridTemplateColumns: frozenColsTemplate,
             boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)",
             position: "sticky",
             left: "72px" // Account for row number + edit column
@@ -104,9 +102,8 @@ export function GridHeaders({
 
       {/* Scrollable header columns */}
       <div
-        className="grid-header grid overflow-hidden"
+        className="grid-header"
         style={{ 
-          gridTemplateColumns: scrollableColsTemplate,
           marginLeft: frozenColumns.length > 0 ? 0 : "72px" // Adjust margin if no frozen columns
         }}
         ref={headerRef}

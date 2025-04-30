@@ -48,11 +48,28 @@ export function GridBody({
 
   return (
     <div className="overflow-auto flex-1 grid-body" ref={bodyRef}>
-      {validRows.map((row, index) => (
+      <div className="grid-container">
+        {validRows.map((row, index) => (
+          <GridRow
+            key={row.id}
+            rowData={row}
+            rowNumber={index + 1} 
+            frozenColumns={frozenColumns}
+            scrollableColumns={scrollableColumns}
+            frozenColsTemplate={frozenColsTemplate}
+            scrollableColsTemplate={scrollableColsTemplate}
+            activeCell={activeCell}
+            showSaveIndicator={showSaveIndicator}
+            onCellClick={onCellClick}
+            onCellChange={onCellChange}
+            renderRowActions={renderRowActions}
+          />
+        ))}
+
         <GridRow
-          key={row.id}
-          rowData={row}
-          rowNumber={index + 1} 
+          key={emptyRowId}
+          rowData={emptyRowData}
+          rowNumber={validRows.length + 1}
           frozenColumns={frozenColumns}
           scrollableColumns={scrollableColumns}
           frozenColsTemplate={frozenColsTemplate}
@@ -63,22 +80,7 @@ export function GridBody({
           onCellChange={onCellChange}
           renderRowActions={renderRowActions}
         />
-      ))}
-
-      <GridRow
-        key={emptyRowId}
-        rowData={emptyRowData}
-        rowNumber={validRows.length + 1}
-        frozenColumns={frozenColumns}
-        scrollableColumns={scrollableColumns}
-        frozenColsTemplate={frozenColsTemplate}
-        scrollableColsTemplate={scrollableColsTemplate}
-        activeCell={activeCell}
-        showSaveIndicator={showSaveIndicator}
-        onCellClick={onCellClick}
-        onCellChange={onCellChange}
-        renderRowActions={renderRowActions}
-      />
+      </div>
     </div>
   );
 }
