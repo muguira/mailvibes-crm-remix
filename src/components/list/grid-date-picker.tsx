@@ -37,7 +37,10 @@ export function GridDatePicker({
       <div className="header p-3 border-b flex justify-between items-center">
         <span className="text-sm font-medium">Select Date</span>
         <button
-          onClick={onClose}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
           className="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"
           type="button"
         >

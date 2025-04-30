@@ -1,6 +1,5 @@
 
 import { AbsolutePopoverContent } from "@/components/ui/popover";
-import { X } from "lucide-react";
 import React from "react";
 
 interface SelectDropdownProps {
@@ -34,16 +33,6 @@ export function GridSelectDropdown({
       position={position}
       className="w-48 py-1 bg-white border border-slate-200 shadow-lg rounded-md option-menu z-[1200]"
     >
-      <div className="flex items-center justify-between px-4 py-2 border-b">
-        <span className="text-sm font-medium">Select Option</span>
-        <button
-          onClick={onClose}
-          className="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"
-          type="button"
-        >
-          <X size={14} />
-        </button>
-      </div>
       <div className="overflow-y-auto max-h-[240px]">
         {options.map((option) => (
           <button
