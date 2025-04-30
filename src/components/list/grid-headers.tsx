@@ -79,6 +79,9 @@ export function GridHeaders({
     "New": "#a855f7", // purple
   };
 
+  console.log("Rendering GridHeaders with frozenColumns:", frozenColumns);
+  console.log("Rendering GridHeaders with scrollableColumns:", scrollableColumns);
+
   return (
     <div className="flex grid-container sticky top-0 z-10 bg-white">
       {/* Row number header */}

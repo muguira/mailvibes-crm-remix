@@ -12,7 +12,7 @@ interface GridBodyProps {
   activeCell: { row: string; col: string } | null;
   showSaveIndicator: { row: string; col: string } | null;
   bodyRef: RefObject<HTMLDivElement>;
-  onCellClick: (rowId: string, colKey: string, colType: string, options?: string[]) => void;
+  onCellClick: (rowId: string, colKey: string, colType?: string) => void;
   onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
   renderRowActions?: (rowId: string) => React.ReactNode;
 }
@@ -32,6 +32,9 @@ export function GridBody({
 }: GridBodyProps) {
   // Use the provided data directly as we've already ensured sufficient rows in ListContent
   const displayData = data;
+
+  console.log("GridBody: frozenColumns", frozenColumns);
+  console.log("GridBody: scrollableColumns", scrollableColumns);
 
   return (
     <div className="overflow-auto flex-1 bg-white" ref={bodyRef}>
@@ -53,7 +56,7 @@ export function GridBody({
       ))}
 
       {/* Add one additional empty row at the end for new data entry */}
-      <div className="grid-row h-[var(--row-height,24px)] bg-white border-0 hover:bg-slate-light/5">
+      <div className="grid-row h-[var(--row-height,32px)] bg-white border-0 hover:bg-slate-light/5">
         <div className="row-number-cell text-slate-300">{displayData.length + 1}</div>
         <div className="edit-column-cell"></div>
         <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${frozenColumns.length + scrollableColumns.length}, minmax(var(--cell-min-width, 150px), 1fr))` }}>

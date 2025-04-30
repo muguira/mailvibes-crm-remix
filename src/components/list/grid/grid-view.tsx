@@ -36,7 +36,6 @@ function GridViewContent({
   const { setOpenPointsOfContactFn, renderRowActions } = usePointsOfContact();
   
   const {
-    // State
     columns,
     data,
     activeCell,
@@ -50,17 +49,13 @@ function GridViewContent({
     setIsAddingColumn,
     showSaveIndicator,
     undoStack,
-    setUndoStack,
     redoStack,
+    setUndoStack,
     setRedoStack,
-    
-    // Computed values
     frozenColumns,
     scrollableColumns,
     frozenColsTemplate,
     scrollableColsTemplate,
-    
-    // Actions
     handleCellClick,
     handleHeaderDoubleClick,
     handleCellChange,
@@ -81,10 +76,13 @@ function GridViewContent({
     bodyRef
   });
 
+  console.log("GridViewContent: frozenColumns", frozenColumns);
+  console.log("GridViewContent: scrollableColumns", scrollableColumns);
+
   // Wrap the cell change handler to save to Supabase
   const handleCellChangeAndSave = (rowId: string, colKey: string, value: any, type: string) => {
     // First handle the local change
-    handleCellChange(rowId, colKey, value);
+    handleCellChange(rowId, colKey, value, type);
     
     // Then save to Supabase if callback is provided
     if (onCellChange && !rowId.startsWith('empty-row-')) {

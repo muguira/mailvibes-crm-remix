@@ -59,6 +59,8 @@ export function GridHeaderCell({
     if (onDragStart) onDragStart(column.key);
   };
 
+  console.log("Rendering header cell for column:", column.header, column.key);
+
   return (
     <div 
       className={`grid-header-cell ${dragOverColumn === column.key ? 'border-l-2 border-r-2 border-teal-primary' : ''}`}
@@ -67,6 +69,7 @@ export function GridHeaderCell({
       onDragStart={draggable ? handleDragStartEvent : undefined}
       onDragOver={draggable ? handleDragOverEvent : undefined}
       onDrop={draggable ? handleDropEvent : undefined}
+      data-header-key={column.key}
     >
       {editingHeader === column.key ? (
         <input 
@@ -84,8 +87,7 @@ export function GridHeaderCell({
           }}
         />
       ) : (
-        // Don't style the opportunity header as a link
-        <span className={`font-medium text-navy-deep uppercase text-xs ${column.key !== "opportunity" ? "" : ""}`}>
+        <span className="font-medium text-navy-deep uppercase text-xs">
           {column.header}
         </span>
       )}

@@ -51,6 +51,9 @@
   left: 0;
   z-index: 15;
   box-shadow: 2px 0 4px -2px rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Edit column header */
@@ -66,6 +69,9 @@
   left: 40px;
   z-index: 15;
   box-shadow: 2px 0 4px -2px rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Fix for header container visibility */

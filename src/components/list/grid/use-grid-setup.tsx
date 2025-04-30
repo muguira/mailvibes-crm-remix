@@ -1,5 +1,5 @@
 
-import { useMemo, useState, useRef, RefObject } from "react";
+import { useMemo, useState, useRef, RefObject, useEffect } from "react";
 import { ColumnDef, ColumnType } from "./types";
 
 interface GridSetupProps {
@@ -18,6 +18,18 @@ export function useGridSetup({
   // State for columns and data
   const [columns, setColumns] = useState<ColumnDef[]>(initialColumns);
   const [data, setData] = useState<any[]>(initialData);
+
+  // Effect to update columns when initialColumns changes
+  useEffect(() => {
+    console.log("initialColumns updated:", initialColumns);
+    setColumns(initialColumns);
+  }, [initialColumns]);
+
+  // Effect to update data when initialData changes
+  useEffect(() => {
+    console.log("initialData updated:", initialData);
+    setData(initialData);
+  }, [initialData]);
 
   // State for active cell and editing
   const [activeCell, setActiveCell] = useState<{ row: string; col: string } | null>(null);
@@ -46,8 +58,17 @@ export function useGridSetup({
   const [redoStack, setRedoStack] = useState<{columns: ColumnDef[], data: any[]}[]>([]);
   
   // Memoized frozen and scrollable columns
-  const frozenColumns = useMemo(() => columns.filter(col => col.frozen), [columns]);
-  const scrollableColumns = useMemo(() => columns.filter(col => !col.frozen), [columns]);
+  const frozenColumns = useMemo(() => {
+    const frozen = columns.filter(col => col.frozen);
+    console.log("Frozen columns computed:", frozen);
+    return frozen;
+  }, [columns]);
+  
+  const scrollableColumns = useMemo(() => {
+    const scrollable = columns.filter(col => !col.frozen);
+    console.log("Scrollable columns computed:", scrollable);
+    return scrollable;
+  }, [columns]);
   
   const colMinWidth = 150;
   const colDefaultWidth = 150;
@@ -91,6 +112,7 @@ export function useGridSetup({
   
   // Header double click handler
   const handleHeaderDoubleClick = (colKey: string) => {
+    console.log("Double click on header:", colKey);
     setEditingHeader(colKey);
   };
   
@@ -107,6 +129,7 @@ export function useGridSetup({
       colors: newColumn.type === 'status' ? newColumn.colors : undefined,
     };
     
+    console.log("Adding new column:", newColumnDef);
     saveStateToHistory();
     setColumns(prevColumns => [...prevColumns, newColumnDef]);
     
@@ -130,6 +153,7 @@ export function useGridSetup({
   
   // Delete column handler
   const deleteColumn = (colKey: string) => {
+    console.log("Deleting column:", colKey);
     saveStateToHistory();
     setColumns(prevColumns => prevColumns.filter(col => col.key !== colKey));
     setData(prevData =>
@@ -142,6 +166,7 @@ export function useGridSetup({
   
   // Duplicate column handler
   const duplicateColumn = (column: ColumnDef) => {
+    console.log("Duplicating column:", column);
     saveStateToHistory();
     const newKey = `${column.key}_copy`;
     const newColumn = { ...column, key: newKey, header: `${column.header} Copy` };
@@ -153,6 +178,7 @@ export function useGridSetup({
   
   // Rename column handler
   const renameColumn = (colKey: string, newName: string) => {
+    console.log("Renaming column:", colKey, "to", newName);
     saveStateToHistory();
     setColumns(prevColumns =>
       prevColumns.map(col =>
@@ -203,6 +229,7 @@ export function useGridSetup({
   
   // Drag handlers
   const handleDragStart = (key: string) => {
+    console.log("Drag start:", key);
     setDraggedColumn(key);
   };
   
@@ -212,6 +239,7 @@ export function useGridSetup({
   };
   
   const handleDrop = (key: string) => {
+    console.log("Drop on:", key);
     if (!draggedColumn) return;
     
     const draggingColIndex = columns.findIndex(col => col.key === draggedColumn);
