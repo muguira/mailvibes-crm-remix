@@ -1,22 +1,16 @@
 
-import { Filter, FileDown, Plus, Search, ChevronDown, Grid, List } from "lucide-react";
+import { Filter, FileDown, Plus, Search, ChevronDown } from "lucide-react";
 import { CustomButton } from "@/components/ui/custom-button";
 import { useState } from "react";
 import { ColumnDef } from "./grid-view";
+import { ViewModeSelector } from "./view-mode-selector";
 
 interface GridToolbarProps {
   listType: string;
   columns: ColumnDef[];
-  viewMode?: "grid" | "stream";
-  onViewModeChange?: (mode: "grid" | "stream") => void;
 }
 
-export function GridToolbar({ 
-  listType, 
-  columns, 
-  viewMode = "grid", 
-  onViewModeChange 
-}: GridToolbarProps) {
+export function GridToolbar({ listType, columns }: GridToolbarProps) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -45,24 +39,6 @@ export function GridToolbar({
           />
           <ChevronDown size={16} className="text-slate-medium" />
         </div>
-        
-        {/* View Toggle */}
-        {onViewModeChange && (
-          <div className="flex bg-slate-light/20 rounded overflow-hidden">
-            <button 
-              className={`flex items-center justify-center p-1 w-8 h-8 ${viewMode === "grid" ? "bg-white shadow-sm" : ""}`}
-              onClick={() => onViewModeChange("grid")}
-            >
-              <Grid size={16} className={viewMode === "grid" ? "text-teal-primary" : "text-slate-medium"} />
-            </button>
-            <button 
-              className={`flex items-center justify-center p-1 w-8 h-8 ${viewMode === "stream" ? "bg-white shadow-sm" : ""}`}
-              onClick={() => onViewModeChange("stream")}
-            >
-              <List size={16} className={viewMode === "stream" ? "text-teal-primary" : "text-slate-medium"} />
-            </button>
-          </div>
-        )}
       </div>
       
       <div className="flex items-center gap-4">

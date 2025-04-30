@@ -63,7 +63,7 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
       onKeyDown={(e) => handleKeyDown(e, undoStack, setUndoStack, redoStack, setRedoStack)} 
       tabIndex={-1}
     >
-      {/* Toolbar */}
+      {/* Grid Toolbar - Now without View Mode selector */}
       <GridToolbar listType={listType} columns={columns} />
       
       {/* Grid Headers */}
