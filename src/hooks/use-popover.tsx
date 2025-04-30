@@ -42,27 +42,44 @@ export function usePopover({ onClose }: UsePopoverOptions = {}) {
     };
   }, [isOpen]);
 
-  // Handle collision detection and positioning
+  // Improved position calculation to place popover directly below or above the element
   const calculatePosition = useCallback((element: HTMLElement) => {
     const rect = element.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
     
-    // Default position (below the cell)
-    let top = rect.bottom + 5;
+    // Calculate popover dimensions (approximation)
+    const popoverHeight = 300; // Calendar/dropdown height approximation
+    const popoverWidth = 240;  // Calendar/dropdown width approximation
+    
+    // Default position (directly below the cell)
+    let top = rect.bottom;
     let left = rect.left;
     
     // Check if there's enough space below
-    const hasSpaceBelow = viewportHeight - rect.bottom > 300; // Assume calendar height ~300px
+    const hasSpaceBelow = viewportHeight - rect.bottom > popoverHeight + 5;
     
     if (!hasSpaceBelow) {
-      // Position above if not enough space below
-      top = Math.max(5, rect.top - 300); // Don't go above viewport
+      // Position directly above if not enough space below
+      top = rect.top - popoverHeight;
     }
     
-    // Handle horizontal overflow
-    if (left + 300 > viewportWidth) { // Assume calendar width ~300px
-      left = Math.max(5, viewportWidth - 305); // 5px padding from viewport edge
+    // Center the dropdown horizontally relative to the cell if possible
+    left = rect.left + (rect.width / 2) - (popoverWidth / 2);
+    
+    // Ensure the dropdown doesn't overflow horizontally
+    if (left + popoverWidth > viewportWidth) {
+      left = Math.max(5, viewportWidth - popoverWidth - 5);
+    }
+    
+    if (left < 5) {
+      left = 5; // Prevent positioning off-screen to the left
+    }
+    
+    // Ensure top is not negative (off-screen)
+    if (top < 5) {
+      // If we can't fit it above, put it below instead, even if it's tight
+      top = rect.bottom;
     }
     
     return { top, left };
