@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { NewGridView } from '@/components/grid-view/new-grid-view';
@@ -17,6 +16,7 @@ const opportunityColumns: Column[] = [
     width: DEFAULT_COLUMN_WIDTH,
     editable: true,
     frozen: true,
+    resizable: false, // Don't allow resizing the opportunity column
   },
   {
     id: 'status',

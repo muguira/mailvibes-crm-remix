@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Column } from './types';
 import { 
@@ -8,11 +7,10 @@ import {
   EyeOff, 
   Plus, 
   Trash2,
-  Copy,
-  Scissors,
   Clipboard,
-  Filter,
-  StretchHorizontal
+  Scissors,
+  StretchHorizontal,
+  Filter
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -172,7 +170,7 @@ export function GridHeader({
   
   // Handle column resize start with improved live update and bidirectional resizing
   const handleResizeStart = useCallback((e: React.MouseEvent, columnId: string, initialWidth: number) => {
-    // Don't allow resizing the opportunity column if it's marked non-resizable
+    // Don't allow resizing if the column is marked non-resizable
     const column = columns.find(col => col.id === columnId);
     if (column?.resizable === false) return;
     

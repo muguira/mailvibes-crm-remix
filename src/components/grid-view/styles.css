@@ -41,11 +41,12 @@
   z-index: 10;
   padding: 0;
   margin: 0;
+  border-collapse: collapse;
 }
 
 .index-header {
-  min-width: 40px;
-  flex: 0 0 40px;
+  min-width: 56px;
+  flex: 0 0 56px;
   border-right: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
@@ -166,14 +167,20 @@
 .grid-body {
   flex: 1;
   position: relative;
-  transform: none; /* Remove translate transform to fix alignment */
+  transform: none;
   border-collapse: collapse;
   overflow: auto;
+  margin: 0;
+}
+
+/* Explicitly hide the phantom spacer */
+.grid-body > div:first-child {
+  display: none;
 }
 
 .react-window-grid {
-  border-top: none !important; /* Fix for white band */
-  margin-top: 0 !important; /* Fix for white band */
+  border-top: none !important;
+  margin-top: 0 !important;
 }
 
 .react-window-grid-inner {

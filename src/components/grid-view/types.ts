@@ -8,6 +8,7 @@ export interface Column {
   width: number;
   editable?: boolean;
   frozen?: boolean;
+  resizable?: boolean;
   options?: string[];
   colors?: Record<string, string>;
 }

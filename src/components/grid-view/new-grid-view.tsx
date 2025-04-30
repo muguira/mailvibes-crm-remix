@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
@@ -12,8 +11,9 @@ import './styles.css';
 import { v4 as uuidv4 } from 'uuid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 
-// Constants for minimum column width
+// Constants for minimum column width and index column width
 const MIN_COL_WIDTH = 100;
+const INDEX_WIDTH = 56; // Fixed width for index column
 const ROWS_PER_PAGE = 100;
 
 export function NewGridView({
@@ -282,6 +282,7 @@ export function NewGridView({
 
   // Column width getter for grid - using callback to ensure it's stable
   const getColumnWidth = useCallback((index: number) => {
+    if (index === 0) return INDEX_WIDTH; // Fixed width for index column
     return columnWidths[index] || 150;
   }, [columnWidths]);
 
@@ -559,7 +560,7 @@ export function NewGridView({
         borderBottom: '1px solid #e5e7eb',
         borderRight: '1px solid #e5e7eb',
         zIndex: 5,
-        width: INDEX_COLUMN_WIDTH,
+        width: INDEX_WIDTH, // Use the same width as in the header
       };
       
       return (
