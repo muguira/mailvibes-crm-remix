@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Palette } from 'lucide-react';
+import { ColorPicker } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -47,7 +47,7 @@ export function StatusColorPicker({ color, onChange }: ColorPickerProps) {
           style={{ color: currentColor }}
           title="Change color"
         >
-          <Palette size={14} />
+          <ColorPicker size={14} />
           <span className="hidden sm:inline">Color</span>
         </button>
       </PopoverTrigger>
