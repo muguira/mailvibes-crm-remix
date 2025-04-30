@@ -164,7 +164,7 @@ export function GridHeaders({
             headerRef={headerRef}
           />
 
-          {/* Add Column button */}
+          {/* Add Column button - positioned as sticky */}
           <AddColumnButton
             isAddingColumn={isAddingColumn}
             setIsAddingColumn={setIsAddingColumn}

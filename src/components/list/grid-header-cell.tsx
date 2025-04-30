@@ -117,7 +117,13 @@ export function GridHeaderCell({
       ) : (
         <span 
           className="font-medium text-navy-deep uppercase text-xs"
-          style={{ visibility: 'visible', opacity: 1 }}
+          style={{ 
+            visibility: 'visible', 
+            opacity: 1,
+            fontFamily: "'Proxima Nova', system-ui, sans-serif",
+            fontWeight: 600,
+            fontSize: "13px"
+          }}
         >
           {displayHeader}
         </span>
@@ -131,8 +137,7 @@ export function GridHeaderCell({
           <DropdownMenuContent>
             {column.key !== "opportunity" && (
               <DropdownMenuItem onClick={() => {
-                const newName = prompt("Rename column:", displayHeader);
-                if (newName) onRenameColumn(column.key, newName);
+                setEditingHeader(column.key);
               }}>
                 <PencilLine size={14} className="mr-2" />
                 Rename

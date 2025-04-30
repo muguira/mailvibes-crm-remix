@@ -90,9 +90,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 80%;
-  font-size: 0.75rem; 
-  font-weight: 600; /* Updated to match requirement: 600 weight */
-  font-family: "Proxima Nova", system-ui, sans-serif; /* Updated to match requirement */
+  font-size: 13px; 
+  font-weight: 600;
+  font-family: "Proxima Nova", system-ui, sans-serif;
   color: #555555;
   line-height: 1.2;
   position: relative;
@@ -129,6 +129,7 @@
 .add-column-cell {
   min-width: 40px !important;
   width: 40px !important;
+  height: var(--row-height, 32px);
   padding: 0 !important;
   display: flex;
   justify-content: center;
@@ -138,6 +139,7 @@
   z-index: 12;
   border-left: 1px solid #e0e5eb;
   box-shadow: -2px 0 4px -2px rgba(0,0,0,0.05);
+  background-color: #f8f9fa;
 }
 
 .add-column-cell button {

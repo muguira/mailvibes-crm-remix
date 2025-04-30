@@ -42,31 +42,32 @@ export function GridHeadersSection({
 }: GridHeadersSectionProps) {
   const localHeaderRef = useRef<HTMLDivElement>(null);
   
-  // Force visibility on render
+  // Force visibility on render and ensure all columns are displayed
   useEffect(() => {
     console.log(`Rendering ${isFrozen ? 'frozen' : 'scrollable'} headers section with ${columns.length} columns`);
+    console.log("Columns to render:", columns.map(col => `${col.key} (${col.header})`));
     
-    // Force reflow of header cells to ensure they're visible
     const ref = headerRef || localHeaderRef;
     
     if (ref.current) {
       const element = ref.current;
       
+      // Apply important styles
       element.style.setProperty('visibility', 'visible', 'important');
       element.style.setProperty('opacity', '1', 'important');
       
-      // Force reflow
+      // Force reflow of element
       element.style.display = 'none';
       void element.offsetHeight;
       element.style.display = 'flex';
       
-      // Apply to all header cells
+      // Apply to all child header cells
       const headerCells = element.querySelectorAll('.grid-header-cell');
       headerCells.forEach((cell) => {
         (cell as HTMLElement).style.setProperty('visibility', 'visible', 'important');
         (cell as HTMLElement).style.setProperty('opacity', '1', 'important');
         
-        // Make sure the header text is visible too
+        // Make sure the header text is visible
         const headerText = cell.querySelector('span');
         if (headerText) {
           (headerText as HTMLElement).style.setProperty('visibility', 'visible', 'important');

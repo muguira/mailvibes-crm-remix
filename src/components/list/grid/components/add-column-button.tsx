@@ -2,6 +2,7 @@
 import { Plus } from "lucide-react";
 import { AddColumnDialog } from "./add-column-dialog";
 import { ColumnType } from "../types";
+import { Button } from "@/components/ui/button";
 
 interface AddColumnButtonProps {
   isAddingColumn: boolean;
@@ -29,22 +30,19 @@ export function AddColumnButton({
   addColumn
 }: AddColumnButtonProps) {
   return (
-    <div 
-      className="grid-header-cell add-column-cell"
-      style={{ 
-        position: 'sticky',
-        right: 0,
-        zIndex: 12,
-        background: '#f8f9fa',
-        boxShadow: '-2px 0 4px -2px rgba(0,0,0,0.1)',
-        minWidth: '40px',
-        width: '40px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 0
-      }}
-    >
+    <div className="add-column-cell">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="w-6 h-6 p-0 rounded-full bg-teal-primary/10 hover:bg-teal-primary/20"
+        onClick={() => setIsAddingColumn(true)}
+        title="Add new column"
+        aria-label="Add new column"
+      >
+        <Plus size={14} className="text-teal-primary" />
+      </Button>
+      
       <AddColumnDialog
         isAddingColumn={isAddingColumn}
         setIsAddingColumn={setIsAddingColumn}

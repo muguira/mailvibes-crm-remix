@@ -18,12 +18,14 @@ export interface PresenceUser {
 export function useRealtimePresence(listId?: string) {
   const { user } = useAuth();
   const [presentUsers, setPresentUsers] = useState<Record<string, PresenceUser>>({});
+  const [channel, setChannel] = useState<any>(null);
 
   useEffect(() => {
     if (!user || !listId) return;
 
     // Create a channel for this list
-    const channel = supabase.channel(`presence:list:${listId}`);
+    const channelInstance = supabase.channel(`presence:list:${listId}`);
+    setChannel(channelInstance);
     
     // Track the current user's presence
     const userPresence: PresenceUser = {
@@ -35,10 +37,10 @@ export function useRealtimePresence(listId?: string) {
     };
 
     // Subscribe to the channel and track the user's presence
-    channel
+    channelInstance
       .on('presence', { event: 'sync' }, () => {
         // Get the current state
-        const state = channel.presenceState();
+        const state = channelInstance.presenceState();
         
         // Convert presence state to our user format
         const users: Record<string, PresenceUser> = {};
@@ -67,7 +69,7 @@ export function useRealtimePresence(listId?: string) {
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          await channel.track({
+          await channelInstance.track({
             user_id: userPresence.id,
             ...userPresence,
             last_active: new Date().toISOString()
@@ -77,25 +79,27 @@ export function useRealtimePresence(listId?: string) {
 
     // Update last active time periodically
     const interval = setInterval(async () => {
-      await channel.track({
-        user_id: userPresence.id,
-        ...userPresence,
-        last_active: new Date().toISOString()
-      });
+      if (channelInstance) {
+        await channelInstance.track({
+          user_id: userPresence.id,
+          ...userPresence,
+          last_active: new Date().toISOString()
+        });
+      }
     }, 30000); // every 30 seconds
 
     // Cleanup
     return () => {
       clearInterval(interval);
-      channel.unsubscribe();
+      if (channelInstance) {
+        channelInstance.unsubscribe();
+      }
     };
   }, [user, listId]);
 
   // Method to update the cursor position
   const updateCursorPosition = async (rowId: string, colKey: string) => {
-    if (!user || !listId) return;
-
-    const channel = supabase.channel(`presence:list:${listId}`);
+    if (!user || !listId || !channel) return;
     
     const userPresence: PresenceUser = {
       id: user.id,
@@ -106,10 +110,15 @@ export function useRealtimePresence(listId?: string) {
       cursor: { rowId, colKey }
     };
 
-    await channel.track({
-      user_id: userPresence.id,
-      ...userPresence
-    });
+    // Make sure channel is subscribed before tracking
+    try {
+      await channel.track({
+        user_id: userPresence.id,
+        ...userPresence
+      });
+    } catch (error) {
+      console.error("Error tracking cursor position:", error);
+    }
   };
 
   return {
