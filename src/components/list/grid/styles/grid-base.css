@@ -75,3 +75,8 @@
 .popover-element {
   z-index: 1000 !important;
 }
+
+/* Prevent overflow issues */
+.grid-body {
+  contain: strict;
+}

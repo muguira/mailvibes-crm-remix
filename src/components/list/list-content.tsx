@@ -46,11 +46,21 @@ export function ListContent({
     );
   }
 
-  // Process grid data - ensure they all have IDs and create a clean set of data for the grid
-  const processedData = gridData.map((item, index) => ({
-    ...item,
-    id: item.id || `row-${index+1}`
-  }));
+  // Process grid data - ensure they all have IDs and create a clean set of data without duplicates
+  const uniqueIds = new Set();
+  const processedData = gridData
+    .filter(item => {
+      const id = item.id || `row-${Math.random()}`;
+      if (uniqueIds.has(id)) {
+        return false; // Skip duplicates
+      }
+      uniqueIds.add(id);
+      return true;
+    })
+    .map((item, index) => ({
+      ...item,
+      id: item.id || `row-${index+1}`
+    }));
 
   return viewMode === "grid" ? (
     <GridView 

@@ -56,7 +56,7 @@ export function GridRow({
         )}
       </div>
 
-      {/* Frozen columns */}
+      {/* Frozen columns container */}
       {frozenColumns.length > 0 && (
         <div
           className="grid h-full"
@@ -71,7 +71,7 @@ export function GridRow({
         >
           {frozenColumns.map((column) => (
             <GridCell
-              key={column.key}
+              key={`${rowData.id}-${column.key}`}
               rowId={rowData.id}
               colKey={column.key}
               value={rowData[column.key]}
@@ -86,7 +86,7 @@ export function GridRow({
         </div>
       )}
 
-      {/* Scrollable columns */}
+      {/* Scrollable columns container */}
       <div
         className="grid h-full"
         style={{
@@ -96,7 +96,7 @@ export function GridRow({
       >
         {scrollableColumns.map((column) => (
           <GridCell
-            key={column.key}
+            key={`${rowData.id}-${column.key}`}
             rowId={rowData.id}
             colKey={column.key}
             value={rowData[column.key]}

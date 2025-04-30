@@ -30,11 +30,13 @@ export function GridBody({
   onCellChange,
   renderRowActions
 }: GridBodyProps) {
-  // Use the provided data directly as we've already ensured sufficient rows in ListContent
-  const rows = data;
+  // Only include rows with valid IDs and filter out any potential duplicates
+  const validRows = data.filter((row, index, self) => 
+    row.id && self.findIndex(r => r.id === row.id) === index
+  );
   
-  // Create an empty row data object with the same structure as normal rows for the extra "add new" row
-  const emptyRowId = `empty-row-${rows.length + 1}`;
+  // Create an empty row data object for the "add new" row
+  const emptyRowId = `empty-row-${validRows.length + 1}`;
   const emptyRowData = {
     id: emptyRowId
   };
@@ -47,7 +49,7 @@ export function GridBody({
   return (
     <div className="overflow-auto flex-1 grid-body" ref={bodyRef}>
       {/* Render all data rows */}
-      {rows.map((row, index) => (
+      {validRows.map((row, index) => (
         <GridRow
           key={row.id}
           rowData={row}
@@ -68,7 +70,7 @@ export function GridBody({
       <GridRow
         key={emptyRowId}
         rowData={emptyRowData}
-        rowNumber={rows.length + 1}
+        rowNumber={validRows.length + 1}
         frozenColumns={frozenColumns}
         scrollableColumns={scrollableColumns}
         frozenColsTemplate={frozenColsTemplate}

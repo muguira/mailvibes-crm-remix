@@ -10,7 +10,6 @@
   cursor: cell;
   color: #333333;
   border-right: 1px solid #e0e5eb;
-  border-bottom: 1px solid #e0e5eb;
   height: 100%;
   position: relative;
   font-size: inherit;
@@ -41,7 +40,6 @@
   align-items: center;
   padding: 0 0.75rem;
   border-right: 1px solid #e0e5eb;
-  border-bottom: 1px solid #e0e5eb;
   background-color: inherit;
   cursor: cell;
   height: 100%;
@@ -71,59 +69,8 @@
   text-decoration: underline;
 }
 
-/* Row number styles */
-.row-number-cell {
-  position: sticky;
-  left: 0;
-  z-index: 5;
-  background-color: #f5f7f9;
-  border-right: 1px solid #e0e5eb;
-  border-bottom: 1px solid #e0e5eb;
-  color: #666;
-  font-size: 0.75rem;
-  text-align: center;
-  width: 40px;
-  min-width: 40px;
-  height: var(--row-height, 24px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  user-select: none;
-  box-shadow: 2px 0 4px -2px rgba(0,0,0,0.05);
-}
-
-/* Edit column styles */
-.edit-column-cell {
-  position: sticky;
-  left: 40px;
-  z-index: 5;
-  background-color: #f5f7f9;
-  border-right: 1px solid #e0e5eb;
-  border-bottom: 1px solid #e0e5eb;
-  width: 32px;
-  min-width: 32px;
-  height: var(--row-height, 24px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  user-select: none;
-}
-
-/* Frozen columns backgrounds */
-/* Even rows for freezed columns need to match */
-.grid-row:nth-child(even) .row-number-cell,
-.grid-row:nth-child(even) .edit-column-cell {
-  background-color: #ffffff;
-}
-
-/* Odd rows for freezed columns need to match */
-.grid-row:nth-child(odd) .row-number-cell,
-.grid-row:nth-child(odd) .edit-column-cell {
-  background-color: #f8f9fa;
-}
-
-/* On hover, the frozen columns should match the row hover color */
-.grid-row:hover .row-number-cell,
-.grid-row:hover .edit-column-cell {
-  background-color: #edf3f8;
+/* Remove border-bottom from cells as it creates doubled borders */
+.grid-cell, 
+.empty-grid-cell {
+  border-bottom: none;
 }

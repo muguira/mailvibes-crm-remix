@@ -29,25 +29,30 @@ export function CellPopovers({
   // Calculate adjusted position to position popover right below the cell
   const adjustedPosition = {
     top: position.top + 32, // Align with bottom of the cell (row height)
-    left: position.left
+    left: position.left,
+    zIndex: 9999
   };
+
+  if (!isOpen) return null;
 
   return (
     <>
       {/* Date picker popover */}
-      <GridDatePicker
-        isOpen={isOpen && popoverType === 'date'}
-        position={adjustedPosition}
-        selectedDate={selectedDate}
-        onClose={onClose}
-        onSelect={onDateSelect}
-        popoverRef={popoverRef}
-      />
+      {popoverType === 'date' && (
+        <GridDatePicker
+          isOpen={true}
+          position={adjustedPosition}
+          selectedDate={selectedDate}
+          onClose={onClose}
+          onSelect={onDateSelect}
+          popoverRef={popoverRef}
+        />
+      )}
 
       {/* Select dropdown popover */}
-      {options && (
+      {popoverType === 'select' && options && (
         <GridSelectDropdown
-          isOpen={isOpen && popoverType === 'select'}
+          isOpen={true}
           position={adjustedPosition}
           options={options}
           onSelect={onOptionSelect}
