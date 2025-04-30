@@ -83,7 +83,7 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     dragOverColumn,
     setDragOverColumn,
     newColumn,
-    setNewColumn,
+    setNewColumn: handleSetNewColumn, // Pass our wrapper function here
     isAddingColumn,
     setIsAddingColumn,
     showSaveIndicator,
@@ -110,7 +110,7 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     draggedColumn,
     dragOverColumn,
     newColumn,
-    setNewColumn: handleSetNewColumn, // Use our wrapper function instead of direct casting
+    setNewColumn: handleSetNewColumn, // Use our wrapper function consistently here too
     isAddingColumn,
     setIsAddingColumn,
     showSaveIndicator,
