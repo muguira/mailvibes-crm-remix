@@ -1,15 +1,18 @@
 
-import { useRef, useState, useMemo } from "react";
+import { useRef } from "react";
 import { GridToolbar } from "../grid-toolbar";
 import { GridHeaders } from "../grid-headers";
 import { GridBody } from "../grid-body";
 import { useGridSetup } from "./use-grid-setup";
 import { GridViewProps } from "./types";
-import { Pencil } from "lucide-react";
-import { PointsOfContactDialog } from "../dialogs/points-of-contact-dialog";
+import { SaveIndicatorProvider } from "./contexts/save-indicator-context";
+import { ZoomProvider, useZoom } from "./contexts/zoom-context";
+import { PointsOfContactDialogContainer } from "./components/points-of-contact-dialog-container";
+import { usePointsOfContact } from "./hooks/use-points-of-contact";
 import "./grid-view.css";
 
-export function GridView({ 
+// Internal Grid component that uses the contexts
+function GridViewContent({ 
   columns: initialColumns, 
   data: initialData, 
   listName, 
@@ -26,16 +29,11 @@ export function GridView({
   const headerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   
-  // Points of Contact dialog state
-  const [isPointsOfContactOpen, setIsPointsOfContactOpen] = useState(false);
-  const [currentOpportunity, setCurrentOpportunity] = useState<{
-    id: string;
-    name: string;
-    company?: string;
-  } | null>(null);
+  // Access zoom context
+  const { zoomLevel, setZoomLevel, gridStyle } = useZoom();
   
-  // Add zoom state
-  const [zoomLevel, setZoomLevel] = useState('100%');
+  // Setup points of contact functionality
+  const { setOpenPointsOfContactFn, renderRowActions } = usePointsOfContact();
   
   const {
     // State
@@ -82,45 +80,6 @@ export function GridView({
     headerRef,
     bodyRef
   });
-  
-  // Calculate grid style based on zoom level
-  const gridStyle = useMemo(() => {
-    // Remove the % sign and convert to a number
-    const zoomPercentage = parseFloat(zoomLevel.replace('%', '')) / 100;
-    
-    return {
-      // Scale font size to adjust content size
-      fontSize: `${13 * zoomPercentage}px`,
-      // Adjust row height based on zoom
-      '--row-height': `${24 * zoomPercentage}px`,
-      '--cell-min-width': `${150 * zoomPercentage}px`,
-    } as React.CSSProperties;
-  }, [zoomLevel]);
-  
-  // Extract domain from company name
-  const getCompanyDomain = (companyName?: string) => {
-    if (!companyName) return undefined;
-    // Convert company name to a domain-like string
-    return companyName.toLowerCase().replace(/\s+/g, '') + '.com';
-  };
-
-  // Open Points of Contact dialog for an opportunity
-  const openPointsOfContact = (rowId: string) => {
-    const row = data.find(r => r.id === rowId);
-    if (row) {
-      setCurrentOpportunity({
-        id: row.id,
-        name: row.opportunity || 'Opportunity',
-        company: row.company
-      });
-      setIsPointsOfContactOpen(true);
-    }
-  };
-
-  // Handle zoom change
-  const handleZoomChange = (zoom: string) => {
-    setZoomLevel(zoom);
-  };
 
   // Wrap the cell change handler to save to Supabase
   const handleCellChangeAndSave = (rowId: string, colKey: string, value: any, type: string) => {
@@ -131,36 +90,6 @@ export function GridView({
     if (onCellChange && !rowId.startsWith('empty-row-')) {
       onCellChange(rowId, colKey, value);
     }
-  };
-
-  // Handle saving contacts
-  const handleSaveContacts = (contacts: any[]) => {
-    if (!currentOpportunity) return;
-    
-    // In a real implementation, this would update the opportunity's contacts in the database
-    console.log(`Saved ${contacts.length} contacts for opportunity ${currentOpportunity.name}`);
-    
-    // Update the primary contact in the grid if needed
-    if (contacts.length > 0 && onCellChange) {
-      onCellChange(currentOpportunity.id, 'primary_contact', contacts[0].name);
-    }
-  };
-  
-  // Add row hover actions to render function
-  const renderRowActions = (rowId: string) => {
-    if (rowId.startsWith('empty-row-')) return null;
-    
-    return (
-      <div className="absolute left-0 top-0 h-full opacity-0 group-hover:opacity-100 flex items-center">
-        <button 
-          className="p-1 bg-white rounded shadow hover:text-blue-600 transition-colors"
-          onClick={() => openPointsOfContact(rowId)}
-          title="Edit Points of Contact"
-        >
-          <Pencil size={14} />
-        </button>
-      </div>
-    );
   };
   
   return (
@@ -175,7 +104,7 @@ export function GridView({
         listType={listType} 
         columns={columns}
         onAddItem={onAddItem || undefined}
-        onZoomChange={handleZoomChange}
+        onZoomChange={setZoomLevel}
         currentZoom={zoomLevel}
       />
       
@@ -218,22 +147,30 @@ export function GridView({
         bodyRef={bodyRef}
         onCellClick={handleCellClick}
         onCellChange={handleCellChangeAndSave}
-        renderRowActions={renderRowActions}
+        renderRowActions={(rowId) => renderRowActions(rowId, data.find(r => r.id === rowId))}
       />
       
       {/* Points of Contact Dialog */}
-      {currentOpportunity && listId && (
-        <PointsOfContactDialog
-          isOpen={isPointsOfContactOpen}
-          onClose={() => setIsPointsOfContactOpen(false)}
-          listId={listId}
-          opportunityId={currentOpportunity.id}
-          opportunityName={currentOpportunity.name}
-          companyDomain={getCompanyDomain(currentOpportunity.company)}
-          onSave={handleSaveContacts}
-          initialContacts={[]} // Would be populated from real data in a complete implementation
-        />
-      )}
+      <PointsOfContactDialogContainer 
+        listId={listId} 
+        onCellChange={onCellChange} 
+        ref={setOpenPointsOfContactFn} 
+      />
     </div>
+  );
+}
+
+// Main GridView wrapper with providers
+export function GridView(props: GridViewProps & { 
+  listId?: string,
+  onCellChange?: (rowId: string, colKey: string, value: any) => void,
+  onAddItem?: (() => void) | null
+}) {
+  return (
+    <SaveIndicatorProvider>
+      <ZoomProvider>
+        <GridViewContent {...props} />
+      </ZoomProvider>
+    </SaveIndicatorProvider>
   );
 }
