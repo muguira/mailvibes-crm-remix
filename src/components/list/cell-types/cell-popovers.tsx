@@ -34,9 +34,9 @@ export function CellPopovers({
 
   if (!isOpen) return null;
 
+  // Render the appropriate popover based on type
   return (
     <>
-      {/* Date picker popover */}
       {popoverType === 'date' && (
         <GridDatePicker
           isOpen={true}
@@ -48,7 +48,6 @@ export function CellPopovers({
         />
       )}
 
-      {/* Select dropdown popover */}
       {popoverType === 'select' && options && (
         <GridSelectDropdown
           isOpen={true}

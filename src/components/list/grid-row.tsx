@@ -33,6 +33,9 @@ export function GridRow({
 }: GridRowProps) {
   const isActive = activeCell?.row === rowData.id;
 
+  // Combination of frozen and scrollable columns in one array
+  const allColumns = [...frozenColumns, ...scrollableColumns];
+
   return (
     <div 
       className={`grid-row group ${isActive ? 'active-row' : ''}`}
@@ -59,59 +62,21 @@ export function GridRow({
         )}
       </div>
 
-      {/* Frozen columns container */}
-      {frozenColumns.length > 0 && (
-        <div
-          className="grid h-full"
-          style={{
-            gridTemplateColumns: frozenColsTemplate,
-            position: "sticky",
-            left: "72px", /* Account for row number + edit column */
-            zIndex: 4,
-            backgroundColor: "inherit",
-            boxShadow: "2px 0 5px -2px rgba(0,0,0,0.05)",
-          }}
-        >
-          {frozenColumns.map((column) => (
-            <GridCell
-              key={`${rowData.id}-${column.key}`}
-              rowId={rowData.id}
-              colKey={column.key}
-              value={rowData[column.key]}
-              type={column.type}
-              options={column.options}
-              isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
-              onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
-              onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
-              showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Scrollable columns container */}
-      <div
-        className="grid h-full"
-        style={{
-          gridTemplateColumns: scrollableColsTemplate,
-          marginLeft: frozenColumns.length > 0 ? 0 : "72px", /* Adjust margin if no frozen columns */
-        }}
-      >
-        {scrollableColumns.map((column) => (
-          <GridCell
-            key={`${rowData.id}-${column.key}`}
-            rowId={rowData.id}
-            colKey={column.key}
-            value={rowData[column.key]}
-            type={column.type}
-            options={column.options}
-            isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
-            onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
-            onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
-            showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
-          />
-        ))}
-      </div>
+      {/* Column cells */}
+      {allColumns.map((column) => (
+        <GridCell
+          key={`${rowData.id}-${column.key}`}
+          rowId={rowData.id}
+          colKey={column.key}
+          value={rowData[column.key]}
+          type={column.type}
+          options={column.options}
+          isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
+          onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
+          onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
+          showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
+        />
+      ))}
     </div>
   );
 }

@@ -48,7 +48,6 @@ export function GridBody({
 
   return (
     <div className="overflow-auto flex-1 grid-body" ref={bodyRef}>
-      {/* Render all data rows */}
       {validRows.map((row, index) => (
         <GridRow
           key={row.id}
@@ -66,7 +65,6 @@ export function GridBody({
         />
       ))}
 
-      {/* Add one additional empty row for new data entry */}
       <GridRow
         key={emptyRowId}
         rowData={emptyRowData}

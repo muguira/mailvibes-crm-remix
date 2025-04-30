@@ -1,5 +1,5 @@
 
-import { GridView } from "./grid-view";
+import { GridView } from "./grid/grid-view";
 import { StreamView } from "./stream-view";
 import { CustomButton } from "@/components/ui/custom-button";
 
@@ -46,15 +46,13 @@ export function ListContent({
     );
   }
 
-  // Process grid data - ensure they all have IDs and create a clean set of data without duplicates
+  // Process grid data - remove duplicates and ensure IDs
   const uniqueIds = new Set();
   const processedData = (gridData || [])
     .filter(item => {
       if (!item) return false;
-      const id = item.id || `row-${Math.random()}`;
-      if (uniqueIds.has(id)) {
-        return false; // Skip duplicates
-      }
+      const id = item.id || `temp-${Math.random().toString(36)}`;
+      if (uniqueIds.has(id)) return false;
       uniqueIds.add(id);
       return true;
     })
@@ -63,10 +61,9 @@ export function ListContent({
       id: item.id || `row-${uniqueIds.size}`
     }));
 
-  // Only render one view component based on viewMode
   return viewMode === "grid" ? (
     <GridView 
-      key="grid-view" // Add key to ensure proper React component lifecycle
+      key="grid-view"
       columns={columns} 
       data={processedData} 
       listName={listName} 
@@ -77,7 +74,7 @@ export function ListContent({
     />
   ) : (
     <StreamView 
-      key="stream-view" // Add key to ensure proper React component lifecycle
+      key="stream-view"
       contacts={[]} 
       listName={listName}
       listId={currentListId}

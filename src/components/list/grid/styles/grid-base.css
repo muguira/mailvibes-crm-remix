@@ -12,8 +12,7 @@
 
 /* Row styles */
 .grid-row {
-  display: grid;
-  grid-template-columns: 40px 32px 1fr; /* Row numbers, edit column, and content */
+  display: flex;
   min-width: 100%;
   position: relative;
   height: var(--row-height, 32px);
@@ -78,9 +77,8 @@
   z-index: 1000 !important;
 }
 
-/* Ensure grid body is properly layered and only one instance exists */
+/* Ensure grid body is properly layered */
 .grid-body {
-  contain: layout;
   flex: 1;
   overflow: auto;
   position: relative;
