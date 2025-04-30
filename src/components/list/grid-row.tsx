@@ -36,7 +36,8 @@ export function GridRow({
 
   return (
     <div 
-      className={`grid-row group ${isActive ? 'bg-slate-light/10' : isEven ? 'bg-white' : 'bg-slate-50/50'}`}
+      className={`grid-row group h-[var(--row-height,24px)] ${isActive ? 'bg-slate-light/10' : isEven ? 'bg-white' : 'bg-slate-50/50'}`}
+      style={{ borderBottom: '1px solid rgba(198, 206, 210, 0.2)' }}
     >
       {/* Row number cell */}
       <div className="row-number-cell">

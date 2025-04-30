@@ -1,5 +1,5 @@
 
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { GridToolbar } from "../grid-toolbar";
 import { GridHeaders } from "../grid-headers";
 import { GridBody } from "./grid-body";
@@ -33,6 +33,9 @@ export function GridView({
     name: string;
     company?: string;
   } | null>(null);
+  
+  // Add zoom state
+  const [zoomLevel, setZoomLevel] = useState('100%');
   
   const {
     // State
@@ -80,6 +83,19 @@ export function GridView({
     bodyRef
   });
   
+  // Calculate grid style based on zoom level
+  const gridStyle = useMemo(() => {
+    // Remove the % sign and convert to a number
+    const zoomPercentage = parseFloat(zoomLevel.replace('%', '')) / 100;
+    
+    return {
+      fontSize: `${zoomPercentage}rem`,
+      // Adjust row height based on zoom
+      '--row-height': `${24 * zoomPercentage}px`,
+      '--cell-min-width': `${150 * zoomPercentage}px`,
+    } as React.CSSProperties;
+  }, [zoomLevel]);
+  
   // Extract domain from company name
   const getCompanyDomain = (companyName?: string) => {
     if (!companyName) return undefined;
@@ -98,6 +114,11 @@ export function GridView({
       });
       setIsPointsOfContactOpen(true);
     }
+  };
+
+  // Handle zoom change
+  const handleZoomChange = (zoom: string) => {
+    setZoomLevel(zoom);
   };
 
   // Wrap the cell change handler to save to Supabase
@@ -146,12 +167,15 @@ export function GridView({
       className="h-full flex flex-col full-screen-grid" 
       onKeyDown={(e) => handleKeyDown(e)} 
       tabIndex={-1}
+      style={gridStyle}
     >
       {/* Grid Toolbar - Including filter options */}
       <GridToolbar 
         listType={listType} 
-        columns={columns} 
+        columns={columns}
         onAddItem={onAddItem || undefined}
+        onZoomChange={handleZoomChange}
+        currentZoom={zoomLevel}
       />
       
       {/* Grid Headers */}
