@@ -9,20 +9,18 @@ interface ViewModeSelectorProps {
 
 export function ViewModeSelector({ viewMode, onViewModeChange }: ViewModeSelectorProps) {
   return (
-    <div className="flex bg-white/20 rounded overflow-hidden">
+    <div className="flex bg-slate-light/20 rounded overflow-hidden">
       <button 
-        className={`flex items-center justify-center p-1 w-8 h-8 ${viewMode === "grid" ? "bg-white text-salesforce-mint" : "text-white"}`}
+        className={`flex items-center justify-center p-1 w-8 h-8 ${viewMode === "grid" ? "bg-white shadow-sm" : ""}`}
         onClick={() => onViewModeChange("grid")}
-        aria-label="Grid View"
       >
-        <Grid size={16} />
+        <Grid size={16} className={viewMode === "grid" ? "text-teal-primary" : "text-slate-medium"} />
       </button>
       <button 
-        className={`flex items-center justify-center p-1 w-8 h-8 ${viewMode === "stream" ? "bg-white text-salesforce-mint" : "text-white"}`}
+        className={`flex items-center justify-center p-1 w-8 h-8 ${viewMode === "stream" ? "bg-white shadow-sm" : ""}`}
         onClick={() => onViewModeChange("stream")}
-        aria-label="Stream View"
       >
-        <List size={16} />
+        <List size={16} className={viewMode === "stream" ? "text-teal-primary" : "text-slate-medium"} />
       </button>
     </div>
   );

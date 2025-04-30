@@ -39,19 +39,13 @@ export function ListHeader({
   };
 
   return (
-    <div className="bg-salesforce-mint p-4 flex items-center justify-between shadow-sm">
+    <div className="bg-white border-b border-slate-light/30 p-4 flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <h1 className="text-xl font-medium text-white">
-          {listsLoading ? "Lists" : 
-           currentListId ? lists.find(list => list.id === currentListId)?.name || "Lists" : 
-           "Lists - Grid View"}
-        </h1>
-        
         {listsLoading ? (
-          <div className="text-white opacity-80">Loading lists...</div>
+          <div>Loading lists...</div>
         ) : lists.length > 0 ? (
           <select 
-            className="px-3 py-2 border border-white/30 bg-salesforce-mint text-white rounded-md focus:outline-none focus:ring-2 focus:ring-white/50"
+            className="px-3 py-2 border border-slate-light/30 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-primary"
             value={currentListId || ""}
             onChange={(e) => setCurrentListId(e.target.value)}
           >
@@ -60,15 +54,13 @@ export function ListHeader({
             ))}
           </select>
         ) : (
-          <div className="text-white opacity-80">No lists available</div>
+          <div>No lists available</div>
         )}
-      </div>
-      
-      <div className="flex items-center gap-3">
+        
         <CustomButton
           variant="outline"
           size="sm"
-          className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+          className="flex items-center gap-1"
           onClick={() => setIsCreateListOpen(true)}
         >
           <Plus size={14} />
@@ -80,7 +72,7 @@ export function ListHeader({
             <CustomButton
               variant="outline"
               size="sm"
-              className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+              className="flex items-center gap-1"
               onClick={() => setIsHistoryOpen(true)}
             >
               <History size={14} />
@@ -92,7 +84,7 @@ export function ListHeader({
                 <CustomButton
                   variant="outline"
                   size="sm"
-                  className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+                  className="flex items-center gap-1"
                 >
                   <Users size={14} />
                   <span>Users ({Object.keys(presentUsers).length})</span>
@@ -126,9 +118,9 @@ export function ListHeader({
             </Popover>
           </>
         )}
-        
-        <ViewModeSelector viewMode={viewMode} onViewModeChange={setViewMode} />
       </div>
+
+      <ViewModeSelector viewMode={viewMode} onViewModeChange={setViewMode} />
     </div>
   );
 }
