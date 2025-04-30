@@ -7,9 +7,10 @@ import { ColumnDef } from "./grid-view";
 interface GridToolbarProps {
   listType: string;
   columns: ColumnDef[];
+  onAddItem?: () => void;
 }
 
-export function GridToolbar({ listType, columns }: GridToolbarProps) {
+export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -91,6 +92,7 @@ export function GridToolbar({ listType, columns }: GridToolbarProps) {
           variant="default" 
           size="sm"
           className="flex items-center gap-1"
+          onClick={onAddItem}
         >
           <Plus size={14} />
           <span>Add {listType}</span>

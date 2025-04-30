@@ -12,9 +12,11 @@ export function GridView({
   data: initialData, 
   listName, 
   listType,
-  onCellChange // New prop for saving changes
+  onCellChange,
+  onAddItem
 }: GridViewProps & { 
-  onCellChange?: (rowId: string, colKey: string, value: any) => void 
+  onCellChange?: (rowId: string, colKey: string, value: any) => void,
+  onAddItem?: () => void
 }) {
   // Container references for sync scrolling
   const headerRef = useRef<HTMLDivElement>(null);
@@ -84,7 +86,11 @@ export function GridView({
       tabIndex={-1}
     >
       {/* Grid Toolbar - Including View Mode selector */}
-      <GridToolbar listType={listType} columns={columns} />
+      <GridToolbar 
+        listType={listType} 
+        columns={columns} 
+        onAddItem={onAddItem}
+      />
       
       {/* Grid Headers */}
       <GridHeaders 

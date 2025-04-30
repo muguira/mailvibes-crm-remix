@@ -6,18 +6,21 @@ import { GridView } from "@/components/list/grid-view";
 import { StreamView } from "@/components/list/stream-view";
 import { ViewModeSelector } from "@/components/list/view-mode-selector";
 import { opportunityColumns } from "@/data/opportunities-data";
-import { useLists, useGridData } from "@/hooks/use-supabase-data";
+import { useLists, useGridData, useContacts } from "@/hooks/use-supabase-data";
 import { useAuth } from "@/contexts/AuthContext";
 import { CustomButton } from "@/components/ui/custom-button";
+import { OpportunityDialog } from "@/components/list/opportunity-dialog";
 import { Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import "@/components/list/grid-view.css";
+import { v4 as uuidv4 } from "uuid";
 
 const Lists = () => {
   const [viewMode, setViewMode] = useState<"grid" | "stream">("grid");
   const [currentListId, setCurrentListId] = useState<string | null>(null);
   const [isCreateListOpen, setIsCreateListOpen] = useState(false);
+  const [isAddOpportunityOpen, setIsAddOpportunityOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
   const { user } = useAuth();
   
@@ -26,6 +29,9 @@ const Lists = () => {
   
   // Fetch grid data for the current list
   const { gridData, isLoading: dataLoading, saveGridChange } = useGridData(currentListId || undefined);
+
+  // Fetch/create contacts for the current list
+  const { contacts, createContact } = useContacts(currentListId || undefined);
   
   // Set the first list as current when lists are loaded
   useEffect(() => {
@@ -63,6 +69,51 @@ const Lists = () => {
 
     setNewListName("");
     setIsCreateListOpen(false);
+  };
+
+  // Handle adding a new opportunity
+  const handleAddOpportunity = () => {
+    if (!currentListId) {
+      toast({
+        title: "Error",
+        description: "Please select a list first",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsAddOpportunityOpen(true);
+  };
+
+  // Save new opportunity
+  const handleSaveOpportunity = (data: { name: string; company: string; website?: string }) => {
+    if (!currentListId) return;
+    
+    // Generate a unique row ID for the grid data
+    const rowId = uuidv4();
+    
+    // Create a new contact for the opportunity
+    createContact({
+      name: data.name,
+      company: data.company,
+      email: "",
+      phone: "",
+      status: "New",
+      data: {
+        company_website: data.website || "",
+        opportunity_value: "",
+        close_date: "",
+        status: "New"
+      },
+    });
+    
+    // Close the dialog
+    setIsAddOpportunityOpen(false);
+    
+    toast({
+      title: "Success",
+      description: "Opportunity added successfully",
+    });
   };
 
   return (
@@ -113,10 +164,11 @@ const Lists = () => {
                 listName={lists.find(l => l.id === currentListId)?.name || "Opportunities"} 
                 listType="Opportunity"
                 onCellChange={handleCellChange}
+                onAddItem={handleAddOpportunity}
               />
             ) : (
               <StreamView 
-                contacts={[]} // We'll implement this in the next step
+                contacts={[]} 
                 listName={lists.find(l => l.id === currentListId)?.name || "Opportunities"}
                 listId={currentListId}
               />
@@ -177,6 +229,14 @@ const Lists = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add opportunity dialog */}
+      <OpportunityDialog
+        isOpen={isAddOpportunityOpen}
+        onClose={() => setIsAddOpportunityOpen(false)}
+        onSave={handleSaveOpportunity}
+        listName={lists.find(l => l.id === currentListId)?.name || "DEMO"}
+      />
     </div>
   );
 };
