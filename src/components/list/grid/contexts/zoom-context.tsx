@@ -38,10 +38,11 @@ export const ZoomProvider = ({ children }: { children: ReactNode }) => {
   
   const gridStyle: React.CSSProperties = {
     // Using CSS variables for easier scaling
+    // Use the correct TypeScript syntax for CSS variables
     "--row-height": `${baseRowHeight * zoomFactor}px`,
     "--cell-min-width": `${baseCellMinWidth * zoomFactor}px`,
     fontSize: `${14 * zoomFactor}px`,
-  };
+  } as React.CSSProperties; // Add type assertion to fix TypeScript error
   
   return (
     <ZoomContext.Provider value={{ zoomLevel, setZoomLevel, gridStyle }}>
