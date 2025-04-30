@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+
+import { useState, useRef, useEffect } from "react";
 import { 
   ChevronDown, 
   Filter, 
@@ -17,7 +18,8 @@ import {
   SortDesc,
   SortAsc,
   PencilLine,
-  CalendarIcon
+  CalendarIcon,
+  ExternalLink
 } from "lucide-react";
 import { CustomButton } from "@/components/ui/custom-button";
 import { 
@@ -46,6 +48,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 
 export type ColumnType = "text" | "number" | "date" | "status" | "currency" | "select" | "checkbox" | "url";
@@ -58,6 +61,7 @@ export interface ColumnDef {
   width?: number;
   options?: string[];
   colors?: Record<string, string>;
+  frozen?: boolean; // For keeping columns like "Opportunity" fixed
 }
 
 interface RowData {
@@ -73,9 +77,21 @@ interface GridViewProps {
 }
 
 export function GridView({ columns: initialColumns, data: initialData, listName, listType }: GridViewProps) {
-  const [columns, setColumns] = useState<ColumnDef[]>(initialColumns);
+  // Container references for sync scrolling
+  const headerRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  
+  const [columns, setColumns] = useState<ColumnDef[]>(() => {
+    // Set the Opportunity column as frozen and first
+    return initialColumns.map(col => ({
+      ...col,
+      frozen: col.key === "opportunity"
+    }));
+  });
+  
   const [data, setData] = useState<RowData[]>(initialData);
   const [activeCell, setActiveCell] = useState<{ row: string; col: string } | null>(null);
+  const [editingHeader, setEditingHeader] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
@@ -93,16 +109,69 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [calendarAnchor, setCalendarAnchor] = useState({ top: 0, left: 0 });
   const [activeDateCell, setActiveDateCell] = useState<{ row: string; col: string } | null>(null);
+  const [selectDropdownOpen, setSelectDropdownOpen] = useState(false);
+  const [activeSelectCell, setActiveSelectCell] = useState<{ row: string; col: string, options: string[] } | null>(null);
   
   // History stack for undo/redo functionality
   const [undoStack, setUndoStack] = useState<{columns: ColumnDef[], data: RowData[]}[]>([]);
   const [redoStack, setRedoStack] = useState<{columns: ColumnDef[], data: RowData[]}[]>([]);
   
-  const handleCellClick = (rowId: string, colKey: string, colType: ColumnType) => {
+  // Sync scrolling between header and body
+  useEffect(() => {
+    const headerEl = headerRef.current;
+    const bodyEl = bodyRef.current;
+    
+    if (!headerEl || !bodyEl) return;
+    
+    const handleBodyScroll = () => {
+      if (headerEl) {
+        headerEl.scrollLeft = bodyEl.scrollLeft;
+      }
+    };
+    
+    bodyEl.addEventListener('scroll', handleBodyScroll);
+    return () => {
+      bodyEl.removeEventListener('scroll', handleBodyScroll);
+    };
+  }, []);
+  
+  // Validate URLs
+  const isValidUrl = (url: string) => {
+    // Simple validation for common URL patterns
+    const urlPatterns = [
+      /^https?:\/\//i, // Starts with http:// or https://
+      /\.(com|io|org|net|dev|co|app|ai)($|\/)/i, // Common TLDs
+      /^www\./i // Starts with www.
+    ];
+    
+    return urlPatterns.some(pattern => pattern.test(url));
+  };
+  
+  const formatUrl = (url: string) => {
+    if (!url) return url;
+    
+    // If it doesn't have a protocol but looks like a domain, add https://
+    if (!url.match(/^https?:\/\//i) && (url.includes('.') || url.startsWith('www.'))) {
+      return `https://${url}`;
+    }
+    
+    return url;
+  };
+
+  const handleCellClick = (rowId: string, colKey: string, colType: ColumnType, options?: string[]) => {
     // Don't open editor for checkbox type - toggle value directly
     if (colType === "checkbox") {
       toggleCheckbox(rowId, colKey);
       return;
+    }
+    
+    // For URL type, open in new tab on single click if it's a valid URL
+    if (colType === "url" && !activeCell) {
+      const url = data.find(row => row.id === rowId)?.[colKey];
+      if (url && isValidUrl(url)) {
+        window.open(formatUrl(url), "_blank");
+        return;
+      }
     }
     
     // For date type, open the date picker
@@ -112,7 +181,7 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
         const rect = cell.getBoundingClientRect();
         setCalendarAnchor({
           top: rect.top + rect.height,
-          left: rect.left
+          left: Math.max(rect.left, 10) // Ensure it's not off-screen
         });
         setActiveDateCell({ row: rowId, col: colKey });
         // Parse the current date value if it exists
@@ -134,7 +203,41 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
       return;
     }
     
+    // For select/status type, open the select dropdown
+    if ((colType === "select" || colType === "status") && options && options.length) {
+      const cell = document.querySelector(`[data-cell="${rowId}-${colKey}"]`);
+      if (cell) {
+        setActiveSelectCell({ 
+          row: rowId, 
+          col: colKey, 
+          options 
+        });
+        setSelectDropdownOpen(true);
+      }
+      return;
+    }
+    
     setActiveCell({ row: rowId, col: colKey });
+  };
+  
+  const handleHeaderDoubleClick = (colKey: string) => {
+    // Don't allow editing the opportunity column header
+    if (colKey === "opportunity") return;
+    
+    const column = columns.find(col => col.key === colKey);
+    if (column) {
+      setEditingHeader(colKey);
+    }
+  };
+  
+  const handleHeaderEditComplete = (key: string, newName: string) => {
+    if (!newName.trim() || newName.trim() === columns.find(col => col.key === key)?.header) {
+      setEditingHeader(null);
+      return;
+    }
+    
+    renameColumn(key, newName);
+    setEditingHeader(null);
   };
 
   const toggleCheckbox = (rowId: string, colKey: string) => {
@@ -158,6 +261,9 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
   };
 
   const handleCellChange = (rowId: string, colKey: string, value: any, type: ColumnType) => {
+    // Save previous state for undo
+    saveStateToHistory();
+    
     // Format value based on type
     let formattedValue = value;
     
@@ -167,6 +273,12 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
       // Remove currency symbol and format
       const numValue = value.replace(/[^0-9.-]+/g, "");
       formattedValue = isNaN(parseFloat(numValue)) ? 0 : `$${parseFloat(numValue).toLocaleString()}`;
+    } else if (type === "url") {
+      // Basic validation for URLs
+      if (value && !isValidUrl(value)) {
+        toast.warning("Please enter a valid URL with protocol or domain extension");
+        formattedValue = "";
+      }
     }
     
     // Update data
@@ -217,6 +329,31 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
     
     setDatePickerOpen(false);
     setActiveDateCell(null);
+  };
+  
+  const handleSelectOption = (rowId: string, colKey: string, value: string) => {
+    if (activeSelectCell) {
+      // Save previous state for undo
+      saveStateToHistory();
+      
+      // Update data
+      setData(prevData => prevData.map(row => {
+        if (row.id === rowId) {
+          return {
+            ...row,
+            [colKey]: value
+          };
+        }
+        return row;
+      }));
+      
+      // Show save indicator
+      setShowSaveIndicator({ row: rowId, col: colKey });
+      setTimeout(() => setShowSaveIndicator(null), 500);
+    }
+    
+    setSelectDropdownOpen(false);
+    setActiveSelectCell(null);
   };
 
   const saveStateToHistory = () => {
@@ -300,6 +437,12 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
   };
 
   const deleteColumn = (key: string) => {
+    // Don't allow deleting the opportunity column
+    if (key === "opportunity") {
+      toast.error("The Opportunity column cannot be deleted");
+      return;
+    }
+    
     // Save current state for undo
     saveStateToHistory();
     
@@ -326,7 +469,8 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
     const duplicatedColumn: ColumnDef = {
       ...column,
       key: newKey,
-      header: newHeader
+      header: newHeader,
+      frozen: false // Duplicated columns are never frozen
     };
     
     // Add duplicate column to columns array
@@ -342,6 +486,12 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
   };
 
   const renameColumn = (key: string, newName: string) => {
+    // Don't allow renaming the opportunity column
+    if (key === "opportunity") {
+      toast.error("The Opportunity column cannot be renamed");
+      return;
+    }
+    
     // Save current state for undo
     saveStateToHistory();
     
@@ -399,6 +549,12 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
   };
 
   const moveColumn = (key: string, direction: 'left' | 'right') => {
+    // Don't allow moving the opportunity column
+    if (key === "opportunity" && direction === "left") {
+      toast.error("The Opportunity column must remain first");
+      return;
+    }
+    
     // Save current state for undo
     saveStateToHistory();
     
@@ -413,6 +569,12 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
     // Don't do anything if we're already at the edge
     if (newIndex === columnIndex) return;
     
+    // Don't allow other columns to move to the leftmost position if opportunity column exists
+    if (newIndex === 0 && columns.some(col => col.key === "opportunity")) {
+      toast.error("The Opportunity column must remain first");
+      return;
+    }
+    
     // Create new columns array with moved column
     const newColumns = [...columns];
     const [removed] = newColumns.splice(columnIndex, 1);
@@ -422,11 +584,22 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
   };
 
   const handleDragStart = (key: string) => {
+    // Don't allow dragging the opportunity column
+    if (key === "opportunity") {
+      toast.error("The Opportunity column cannot be reordered");
+      return;
+    }
+    
     setDraggedColumn(key);
   };
 
   const handleDragOver = (e: React.DragEvent, key: string) => {
     e.preventDefault();
+    // Don't allow dropping to the left of the opportunity column
+    if (key === "opportunity" && columns[0]?.key === "opportunity") {
+      return;
+    }
+    
     if (draggedColumn && draggedColumn !== key) {
       setDragOverColumn(key);
     }
@@ -439,11 +612,23 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
       return;
     }
     
+    // Don't allow dropping to the left of the opportunity column
+    if (key === "opportunity" && columns[0]?.key === "opportunity") {
+      setDraggedColumn(null);
+      setDragOverColumn(null);
+      return;
+    }
+    
     // Save current state for undo
     saveStateToHistory();
     
     const fromIndex = columns.findIndex(col => col.key === draggedColumn);
-    const toIndex = columns.findIndex(col => col.key === key);
+    let toIndex = columns.findIndex(col => col.key === key);
+    
+    // Prevent moving to position 0 if opportunity column exists and is first
+    if (toIndex === 0 && columns[0]?.key === "opportunity") {
+      toIndex = 1;
+    }
     
     if (fromIndex !== -1 && toIndex !== -1) {
       // Create new columns array with reordered columns
@@ -457,7 +642,18 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
     setDraggedColumn(null);
     setDragOverColumn(null);
   };
-
+  
+  // Calculate frozen and scrollable columns
+  const frozenColumns = columns.filter(col => col.frozen);
+  const scrollableColumns = columns.filter(col => !col.frozen);
+  
+  // Calculate grid template columns for both sections
+  const frozenColsTemplate = frozenColumns.length > 0 
+    ? `40px repeat(${frozenColumns.length}, minmax(150px, 1fr))`
+    : "40px";
+    
+  const scrollableColsTemplate = `repeat(${scrollableColumns.length}, minmax(150px, 1fr)) auto`;
+  
   return (
     <div className="h-full flex flex-col" onKeyDown={handleKeyDown} tabIndex={-1}>
       {/* Toolbar */}
@@ -524,227 +720,474 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
         </div>
       </div>
       
-      {/* Grid Headers */}
-      <div className="grid-header grid" style={{ gridTemplateColumns: `40px repeat(${columns.length}, minmax(150px, 1fr)) auto` }}>
-        <div className="grid-header-cell"></div>
-        {columns.map((column) => (
+      {/* Grid Headers - Split into frozen and scrollable sections */}
+      <div className="flex">
+        {/* Frozen header columns */}
+        {frozenColumns.length > 0 && (
           <div 
-            key={column.key} 
-            className={`grid-header-cell ${dragOverColumn === column.key ? 'border-l-2 border-r-2 border-teal-primary' : ''}`}
-            draggable
-            onDragStart={() => handleDragStart(column.key)}
-            onDragOver={(e) => handleDragOver(e, column.key)}
-            onDrop={() => handleDrop(column.key)}
+            className="grid-header grid z-10" 
+            style={{ 
+              gridTemplateColumns: frozenColsTemplate,
+              boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)",
+              position: "sticky",
+              left: 0
+            }}
           >
-            <span>{column.header}</span>
-            <div className="flex items-center">
-              <DropdownMenu>
-                <DropdownMenuTrigger className="p-1 rounded hover:bg-slate-light/20">
-                  <ChevronDown size={14} />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => {
-                    const newName = prompt("Rename column:", column.header);
-                    if (newName) renameColumn(column.key, newName);
-                  }}>
-                    <PencilLine size={14} className="mr-2" />
-                    Rename
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => duplicateColumn(column)}>
-                    <Copy size={14} className="mr-2" />
-                    Duplicate
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => moveColumn(column.key, 'left')}>
-                    <ArrowLeft size={14} className="mr-2" />
-                    Move Left
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => moveColumn(column.key, 'right')}>
-                    <ArrowRight size={14} className="mr-2" />
-                    Move Right
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => sortColumn(column.key, 'asc')}>
-                    <SortAsc size={14} className="mr-2" />
-                    Sort A-Z
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => sortColumn(column.key, 'desc')}>
-                    <SortDesc size={14} className="mr-2" />
-                    Sort Z-A
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => deleteColumn(column.key)} className="text-red-500">
-                    <Trash2 size={14} className="mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        ))}
-        
-        {/* Add Column button */}
-        <div className="grid-header-cell">
-          <Dialog open={isAddingColumn} onOpenChange={setIsAddingColumn}>
-            <DialogTrigger asChild>
-              <button className="w-6 h-6 flex items-center justify-center rounded-full bg-teal-primary/10 hover:bg-teal-primary/20 text-teal-primary">
-                <Plus size={14} />
-              </button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Column</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label htmlFor="column-name" className="text-sm font-medium">
-                    Column Name
-                  </label>
-                  <input
-                    id="column-name"
-                    value={newColumn.header}
-                    onChange={(e) => setNewColumn(prev => ({ ...prev, header: e.target.value }))}
-                    className="w-full p-2 border border-slate-light/50 rounded"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="column-type" className="text-sm font-medium">
-                    Column Type
-                  </label>
-                  <Select 
-                    value={newColumn.type} 
-                    onValueChange={(value: ColumnType) => 
-                      setNewColumn(prev => ({ ...prev, type: value }))
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="text">Text</SelectItem>
-                      <SelectItem value="number">Number</SelectItem>
-                      <SelectItem value="currency">Currency</SelectItem>
-                      <SelectItem value="date">Date</SelectItem>
-                      <SelectItem value="status">Status</SelectItem>
-                      <SelectItem value="select">Select</SelectItem>
-                      <SelectItem value="checkbox">Checkbox</SelectItem>
-                      <SelectItem value="url">URL</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {(newColumn.type === 'select' || newColumn.type === 'status') && (
-                  <div className="space-y-2">
-                    <label htmlFor="column-options" className="text-sm font-medium">
-                      Options (one per line)
-                    </label>
-                    <textarea
-                      id="column-options"
-                      className="w-full p-2 border border-slate-light/50 rounded h-24"
-                      onChange={(e) => setNewColumn(prev => ({ 
-                        ...prev, 
-                        options: e.target.value.split('\n').filter(opt => opt.trim() !== '')
-                      }))}
-                    />
-                  </div>
-                )}
-              </div>
-              <DialogFooter>
-                <CustomButton
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsAddingColumn(false)}
-                >
-                  Cancel
-                </CustomButton>
-                <CustomButton
-                  variant="default"
-                  size="sm"
-                  onClick={addColumn}
-                  disabled={!newColumn.header}
-                >
-                  Add Column
-                </CustomButton>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-      
-      {/* Grid Content */}
-      <div className="overflow-auto flex-1">
-        {data.map((row, rowIndex) => (
-          <div 
-            key={row.id}
-            className="grid grid-row"
-            style={{ gridTemplateColumns: `40px repeat(${columns.length}, minmax(150px, 1fr)) auto` }}
-          >
-            <div className="grid-cell flex items-center">
-              <input type="checkbox" className="ml-2" />
-              <button className="ml-2 text-slate-medium">
-                <Edit size={14} />
-              </button>
-            </div>
-            
-            {columns.map((col) => (
+            <div className="grid-header-cell"></div>
+            {frozenColumns.map((column) => (
               <div 
-                key={`${row.id}-${col.key}`} 
-                className={`grid-cell ${activeCell?.row === row.id && activeCell?.col === col.key ? 'bg-blue-50' : ''} ${
-                  col.type === 'currency' ? 'text-right' : ''
-                } relative`}
-                onClick={() => col.editable && handleCellClick(row.id, col.key, col.type)}
-                tabIndex={0}
-                data-cell={`${row.id}-${col.key}`}
+                key={column.key} 
+                className={`grid-header-cell ${
+                  column.key === "opportunity" ? "text-teal-primary" : ""
+                }`}
+                onDoubleClick={() => handleHeaderDoubleClick(column.key)}
               >
-                {activeCell?.row === row.id && activeCell?.col === col.key ? (
+                {editingHeader === column.key ? (
                   <input 
-                    type={col.type === 'number' || col.type === 'currency' ? 'number' : 'text'}
-                    className="w-full bg-transparent outline-none"
-                    defaultValue={col.type === 'currency' ? row[col.key]?.replace(/[^0-9.-]+/g, '') : row[col.key]}
+                    type="text"
+                    className="w-full bg-transparent outline-none border-b border-teal-primary"
+                    defaultValue={column.header}
                     autoFocus
-                    onBlur={(e) => handleCellChange(row.id, col.key, e.target.value, col.type)}
+                    onBlur={(e) => handleHeaderEditComplete(column.key, e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
-                        handleCellChange(row.id, col.key, e.currentTarget.value, col.type);
+                        handleHeaderEditComplete(column.key, e.currentTarget.value);
                       } else if (e.key === 'Escape') {
-                        setActiveCell(null);
+                        setEditingHeader(null);
                       }
                     }}
                   />
-                ) : col.type === 'status' ? (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                    row[col.key] === 'Deal Won' ? 'bg-teal-primary/20 text-teal-primary' : 
-                    row[col.key] === 'Qualified' ? 'bg-blue-100 text-blue-600' : 
-                    row[col.key] === 'In Procurement' ? 'bg-purple-100 text-purple-600' :
-                    row[col.key] === 'Contract Sent' ? 'bg-yellow-100 text-yellow-600' :
-                    row[col.key] === 'Discovered' ? 'bg-orange-100 text-orange-600' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {row[col.key]}
-                  </span>
-                ) : col.type === 'checkbox' ? (
-                  <div className="flex justify-center">
-                    <Checkbox 
-                      checked={!!row[col.key]} 
-                      onCheckedChange={() => toggleCheckbox(row.id, col.key)}
-                    />
-                  </div>
                 ) : (
-                  <span>{row[col.key]}</span>
+                  <span className={column.key === "opportunity" ? "font-medium relative hover:after:content-[''] hover:after:absolute hover:after:w-full hover:after:h-0.5 hover:after:bg-teal-primary hover:after:bottom-[-2px] hover:after:left-0" : ""}>
+                    {column.header}
+                  </span>
                 )}
                 
-                {/* Save indicator */}
-                {showSaveIndicator && showSaveIndicator.row === row.id && showSaveIndicator.col === col.key && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-teal-primary animate-fade-in">
-                    <Check size={16} />
-                  </div>
-                )}
+                <div className="flex items-center">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="p-1 rounded hover:bg-slate-light/20">
+                      <ChevronDown size={14} />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {column.key !== "opportunity" && (
+                        <DropdownMenuItem onClick={() => {
+                          const newName = prompt("Rename column:", column.header);
+                          if (newName) renameColumn(column.key, newName);
+                        }}>
+                          <PencilLine size={14} className="mr-2" />
+                          Rename
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={() => duplicateColumn(column)}>
+                        <Copy size={14} className="mr-2" />
+                        Duplicate
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {column.key !== "opportunity" && (
+                        <>
+                          <DropdownMenuItem onClick={() => moveColumn(column.key, 'left')}>
+                            <ArrowLeft size={14} className="mr-2" />
+                            Move Left
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => moveColumn(column.key, 'right')}>
+                            <ArrowRight size={14} className="mr-2" />
+                            Move Right
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
+                      <DropdownMenuItem onClick={() => sortColumn(column.key, 'asc')}>
+                        <SortAsc size={14} className="mr-2" />
+                        Sort A-Z
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => sortColumn(column.key, 'desc')}>
+                        <SortDesc size={14} className="mr-2" />
+                        Sort Z-A
+                      </DropdownMenuItem>
+                      {column.key !== "opportunity" && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => deleteColumn(column.key)} className="text-red-500">
+                            <Trash2 size={14} className="mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             ))}
-            <div className="grid-cell"></div>
           </div>
-        ))}
+        )}
+        
+        {/* Scrollable header columns */}
+        <div 
+          className="grid-header grid overflow-hidden" 
+          style={{ gridTemplateColumns: scrollableColsTemplate }}
+          ref={headerRef}
+        >
+          {frozenColumns.length === 0 && <div className="grid-header-cell"></div>}
+          
+          {scrollableColumns.map((column) => (
+            <div 
+              key={column.key} 
+              className={`grid-header-cell ${dragOverColumn === column.key ? 'border-l-2 border-r-2 border-teal-primary' : ''}`}
+              draggable
+              onDragStart={() => handleDragStart(column.key)}
+              onDragOver={(e) => handleDragOver(e, column.key)}
+              onDrop={() => handleDrop(column.key)}
+              onDoubleClick={() => handleHeaderDoubleClick(column.key)}
+            >
+              {editingHeader === column.key ? (
+                <input 
+                  type="text"
+                  className="w-full bg-transparent outline-none border-b border-teal-primary"
+                  defaultValue={column.header}
+                  autoFocus
+                  onBlur={(e) => handleHeaderEditComplete(column.key, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleHeaderEditComplete(column.key, e.currentTarget.value);
+                    } else if (e.key === 'Escape') {
+                      setEditingHeader(null);
+                    }
+                  }}
+                />
+              ) : (
+                <span>{column.header}</span>
+              )}
+              
+              <div className="flex items-center">
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="p-1 rounded hover:bg-slate-light/20">
+                    <ChevronDown size={14} />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => {
+                      const newName = prompt("Rename column:", column.header);
+                      if (newName) renameColumn(column.key, newName);
+                    }}>
+                      <PencilLine size={14} className="mr-2" />
+                      Rename
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => duplicateColumn(column)}>
+                      <Copy size={14} className="mr-2" />
+                      Duplicate
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => moveColumn(column.key, 'left')}>
+                      <ArrowLeft size={14} className="mr-2" />
+                      Move Left
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => moveColumn(column.key, 'right')}>
+                      <ArrowRight size={14} className="mr-2" />
+                      Move Right
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => sortColumn(column.key, 'asc')}>
+                      <SortAsc size={14} className="mr-2" />
+                      Sort A-Z
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => sortColumn(column.key, 'desc')}>
+                      <SortDesc size={14} className="mr-2" />
+                      Sort Z-A
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => deleteColumn(column.key)} className="text-red-500">
+                      <Trash2 size={14} className="mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          ))}
+          
+          {/* Add Column button */}
+          <div className="grid-header-cell">
+            <Dialog open={isAddingColumn} onOpenChange={setIsAddingColumn}>
+              <DialogTrigger asChild>
+                <button className="w-6 h-6 flex items-center justify-center rounded-full bg-teal-primary/10 hover:bg-teal-primary/20 text-teal-primary">
+                  <Plus size={14} />
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Column</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label htmlFor="column-name" className="text-sm font-medium">
+                      Column Name
+                    </label>
+                    <input
+                      id="column-name"
+                      value={newColumn.header}
+                      onChange={(e) => setNewColumn(prev => ({ ...prev, header: e.target.value }))}
+                      className="w-full p-2 border border-slate-light/50 rounded"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label htmlFor="column-type" className="text-sm font-medium">
+                      Column Type
+                    </label>
+                    <Select 
+                      value={newColumn.type} 
+                      onValueChange={(value: ColumnType) => 
+                        setNewColumn(prev => ({ ...prev, type: value }))
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="text">Text</SelectItem>
+                        <SelectItem value="number">Number</SelectItem>
+                        <SelectItem value="currency">Currency</SelectItem>
+                        <SelectItem value="date">Date</SelectItem>
+                        <SelectItem value="status">Status</SelectItem>
+                        <SelectItem value="select">Select</SelectItem>
+                        <SelectItem value="checkbox">Checkbox</SelectItem>
+                        <SelectItem value="url">URL</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {(newColumn.type === 'select' || newColumn.type === 'status') && (
+                    <div className="space-y-2">
+                      <label htmlFor="column-options" className="text-sm font-medium">
+                        Options (one per line)
+                      </label>
+                      <textarea
+                        id="column-options"
+                        className="w-full p-2 border border-slate-light/50 rounded h-24"
+                        onChange={(e) => setNewColumn(prev => ({ 
+                          ...prev, 
+                          options: e.target.value.split('\n').filter(opt => opt.trim() !== '')
+                        }))}
+                      />
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <CustomButton
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAddingColumn(false)}
+                  >
+                    Cancel
+                  </CustomButton>
+                  <CustomButton
+                    variant="default"
+                    size="sm"
+                    onClick={addColumn}
+                    disabled={!newColumn.header}
+                  >
+                    Add Column
+                  </CustomButton>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+      </div>
+      
+      {/* Grid Content - ScrollArea for smooth scrolling */}
+      <div className="overflow-auto flex-1" ref={bodyRef}>
+        <div className="flex">
+          {/* Frozen body columns */}
+          {frozenColumns.length > 0 && (
+            <div className="z-10" style={{ 
+              position: "sticky", 
+              left: 0,
+              boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)"
+            }}>
+              {data.map((row, rowIndex) => (
+                <div 
+                  key={`frozen-${row.id}`}
+                  className="grid grid-row"
+                  style={{ gridTemplateColumns: frozenColsTemplate }}
+                >
+                  <div className="grid-cell flex items-center bg-white">
+                    <input type="checkbox" className="ml-2" />
+                    <button className="ml-2 text-slate-medium">
+                      <Edit size={14} />
+                    </button>
+                  </div>
+                  
+                  {frozenColumns.map((col) => (
+                    <div 
+                      key={`frozen-${row.id}-${col.key}`} 
+                      className={`grid-cell bg-white ${
+                        activeCell?.row === row.id && activeCell?.col === col.key ? 'bg-blue-50' : ''
+                      } ${
+                        col.type === 'currency' ? 'text-right' : ''
+                      } ${
+                        col.key === 'opportunity' ? 'font-medium' : ''
+                      } relative`}
+                      onClick={() => col.editable && handleCellClick(row.id, col.key, col.type, col.options)}
+                      onDoubleClick={() => col.editable && setActiveCell({ row: row.id, col: col.key })}
+                      tabIndex={0}
+                      data-cell={`${row.id}-${col.key}`}
+                    >
+                      {activeCell?.row === row.id && activeCell?.col === col.key ? (
+                        <input 
+                          type={col.type === 'number' || col.type === 'currency' ? 'number' : 'text'}
+                          className="w-full bg-transparent outline-none"
+                          defaultValue={col.type === 'currency' ? row[col.key]?.replace(/[^0-9.-]+/g, '') : row[col.key]}
+                          autoFocus
+                          onBlur={(e) => handleCellChange(row.id, col.key, e.target.value, col.type)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleCellChange(row.id, col.key, e.currentTarget.value, col.type);
+                            } else if (e.key === 'Escape') {
+                              setActiveCell(null);
+                            }
+                          }}
+                        />
+                      ) : col.type === 'status' ? (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          row[col.key] === 'Deal Won' ? 'bg-teal-primary/20 text-teal-primary' : 
+                          row[col.key] === 'Qualified' ? 'bg-blue-100 text-blue-600' : 
+                          row[col.key] === 'In Procurement' ? 'bg-purple-100 text-purple-600' :
+                          row[col.key] === 'Contract Sent' ? 'bg-yellow-100 text-yellow-600' :
+                          row[col.key] === 'Discovered' ? 'bg-orange-100 text-orange-600' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {row[col.key]}
+                        </span>
+                      ) : col.type === 'checkbox' ? (
+                        <div className="flex justify-center">
+                          <Checkbox 
+                            checked={!!row[col.key]} 
+                            onCheckedChange={() => toggleCheckbox(row.id, col.key)}
+                          />
+                        </div>
+                      ) : col.type === 'url' && row[col.key] ? (
+                        <span 
+                          className="text-teal-primary hover:underline cursor-pointer flex items-center"
+                          onClick={(e) => {
+                            if (isValidUrl(row[col.key])) {
+                              e.stopPropagation();
+                              window.open(formatUrl(row[col.key]), "_blank");
+                            }
+                          }}
+                        >
+                          {row[col.key]}
+                          <ExternalLink size={12} className="ml-1 inline-block" />
+                        </span>
+                      ) : col.key === 'opportunity' ? (
+                        <span className="text-teal-primary hover:underline">{row[col.key]}</span>
+                      ) : (
+                        <span>{row[col.key]}</span>
+                      )}
+                      
+                      {/* Save indicator */}
+                      {showSaveIndicator && showSaveIndicator.row === row.id && showSaveIndicator.col === col.key && (
+                        <div className="save-indicator">
+                          <Check size={16} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Scrollable body columns */}
+          <div className="flex-1">
+            {data.map((row, rowIndex) => (
+              <div 
+                key={row.id}
+                className="grid grid-row"
+                style={{ gridTemplateColumns: scrollableColsTemplate }}
+              >
+                {frozenColumns.length === 0 && (
+                  <div className="grid-cell flex items-center">
+                    <input type="checkbox" className="ml-2" />
+                    <button className="ml-2 text-slate-medium">
+                      <Edit size={14} />
+                    </button>
+                  </div>
+                )}
+                
+                {scrollableColumns.map((col) => (
+                  <div 
+                    key={`${row.id}-${col.key}`} 
+                    className={`grid-cell ${activeCell?.row === row.id && activeCell?.col === col.key ? 'bg-blue-50' : ''} ${
+                      col.type === 'currency' ? 'text-right' : ''
+                    } relative`}
+                    onClick={() => col.editable && handleCellClick(row.id, col.key, col.type, col.options)}
+                    onDoubleClick={() => col.editable && setActiveCell({ row: row.id, col: col.key })}
+                    tabIndex={0}
+                    data-cell={`${row.id}-${col.key}`}
+                  >
+                    {activeCell?.row === row.id && activeCell?.col === col.key ? (
+                      <input 
+                        type={col.type === 'number' || col.type === 'currency' ? 'number' : 'text'}
+                        className="w-full bg-transparent outline-none"
+                        defaultValue={col.type === 'currency' ? row[col.key]?.replace(/[^0-9.-]+/g, '') : row[col.key]}
+                        autoFocus
+                        onBlur={(e) => handleCellChange(row.id, col.key, e.target.value, col.type)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleCellChange(row.id, col.key, e.currentTarget.value, col.type);
+                          } else if (e.key === 'Escape') {
+                            setActiveCell(null);
+                          }
+                        }}
+                      />
+                    ) : col.type === 'status' ? (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        row[col.key] === 'Deal Won' ? 'bg-teal-primary/20 text-teal-primary' : 
+                        row[col.key] === 'Qualified' ? 'bg-blue-100 text-blue-600' : 
+                        row[col.key] === 'In Procurement' ? 'bg-purple-100 text-purple-600' :
+                        row[col.key] === 'Contract Sent' ? 'bg-yellow-100 text-yellow-600' :
+                        row[col.key] === 'Discovered' ? 'bg-orange-100 text-orange-600' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {row[col.key]}
+                      </span>
+                    ) : col.type === 'checkbox' ? (
+                      <div className="flex justify-center">
+                        <Checkbox 
+                          checked={!!row[col.key]} 
+                          onCheckedChange={() => toggleCheckbox(row.id, col.key)}
+                        />
+                      </div>
+                    ) : col.type === 'url' && row[col.key] ? (
+                      <span 
+                        className="text-teal-primary hover:underline cursor-pointer flex items-center"
+                        onClick={(e) => {
+                          if (isValidUrl(row[col.key])) {
+                            e.stopPropagation();
+                            window.open(formatUrl(row[col.key]), "_blank");
+                          }
+                        }}
+                      >
+                        {row[col.key]}
+                        <ExternalLink size={12} className="ml-1 inline-block" />
+                      </span>
+                    ) : (
+                      <span>{row[col.key]}</span>
+                    )}
+                    
+                    {/* Save indicator */}
+                    {showSaveIndicator && showSaveIndicator.row === row.id && showSaveIndicator.col === col.key && (
+                      <div className="save-indicator">
+                        <Check size={16} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div className="grid-cell"></div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
       
       {/* Date picker popover */}
@@ -753,7 +1196,8 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
           className="fixed bg-white shadow-lg rounded-md z-50 border border-slate-200"
           style={{
             top: calendarAnchor.top + 'px',
-            left: calendarAnchor.left + 'px'
+            left: calendarAnchor.left + 'px',
+            width: '280px'
           }}
         >
           <div className="flex justify-between items-center p-2 border-b">
@@ -770,7 +1214,7 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
             selected={selectedDate}
             onSelect={handleDateSelection}
             initialFocus
-            className="p-3 pointer-events-auto"
+            className="p-3 pointer-events-auto w-[280px]"
           />
           <div className="flex justify-end p-2 border-t">
             <CustomButton 
@@ -788,6 +1232,38 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
             >
               Apply
             </CustomButton>
+          </div>
+        </div>
+      )}
+      
+      {/* Select dropdown */}
+      {selectDropdownOpen && activeSelectCell && (
+        <div 
+          className="fixed bg-white shadow-lg rounded-md z-50 border border-slate-200 w-48"
+          style={{
+            top: calendarAnchor.top + 'px',
+            left: calendarAnchor.left + 'px'
+          }}
+        >
+          <div className="flex justify-between items-center p-2 border-b">
+            <span className="text-sm font-medium">Select Option</span>
+            <button 
+              onClick={() => setSelectDropdownOpen(false)}
+              className="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <div className="max-h-48 overflow-y-auto p-1">
+            {activeSelectCell.options.map(option => (
+              <div 
+                key={option}
+                className="px-3 py-1.5 hover:bg-slate-light/20 rounded cursor-pointer text-sm"
+                onClick={() => handleSelectOption(activeSelectCell.row, activeSelectCell.col, option)}
+              >
+                {option}
+              </div>
+            ))}
           </div>
         </div>
       )}
