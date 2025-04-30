@@ -1,6 +1,6 @@
 
-import React, { useState, useRef, useMemo } from 'react';
-import { FixedSizeGrid as Grid } from 'react-window';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants';
 import { GridToolbar } from './grid-toolbar';
@@ -25,10 +25,20 @@ export function NewGridView({
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCell, setEditingCell] = useState<{rowId: string, columnId: string} | null>(null);
 
+  // Column widths state
+  const [columnWidths, setColumnWidths] = useState<number[]>(
+    [INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]
+  );
+
+  // Update column widths when columns change
+  useEffect(() => {
+    setColumnWidths([INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]);
+  }, [columns]);
+
   // Calculate total width of columns
   const totalWidth = useMemo(() => {
-    return columns.reduce((acc, column) => acc + column.width, 0) + INDEX_COLUMN_WIDTH;
-  }, [columns]);
+    return columnWidths.reduce((acc, width) => acc + width, 0);
+  }, [columnWidths]);
 
   // Filter data based on search term
   const filteredData = useMemo(() => {
@@ -45,7 +55,7 @@ export function NewGridView({
   }, [data, columns, searchTerm]);
 
   // Resize observer for container
-  React.useEffect(() => {
+  useEffect(() => {
     if (!containerRef.current) return;
     
     const resizeObserver = new ResizeObserver(entries => {
@@ -60,6 +70,24 @@ export function NewGridView({
       resizeObserver.disconnect();
     };
   }, []);
+
+  // Handle column resize
+  const handleColumnResize = (columnIndex: number, newWidth: number) => {
+    const newWidths = [...columnWidths];
+    newWidths[columnIndex] = newWidth;
+    setColumnWidths(newWidths);
+    
+    // Reset after column resize to re-render grid with new widths
+    if (gridRef.current) {
+      gridRef.current.resetAfterColumnIndex(0);
+    }
+    
+    // If it's not the index column, update the column in the columns array
+    if (columnIndex > 0 && onColumnChange) {
+      const columnId = columns[columnIndex - 1].id;
+      onColumnChange(columnId, { width: newWidth });
+    }
+  };
 
   // Handle cell click for editing
   const handleCellClick = (rowId: string, columnId: string) => {
@@ -94,10 +122,9 @@ export function NewGridView({
     handleCellChange(rowId, columnId, value);
   };
 
-  // Column getter for grid
+  // Column width getter for grid
   const getColumnWidth = (index: number) => {
-    if (index === 0) return INDEX_COLUMN_WIDTH;
-    return columns[index - 1]?.width || 0;
+    return columnWidths[index] || 150;
   };
 
   // Highlight search term in text
@@ -276,6 +303,7 @@ export function NewGridView({
         columns={columns}
         onColumnChange={onColumnChange}
         onColumnsReorder={onColumnsReorder}
+        onColumnResize={handleColumnResize}
       />
       
       <div className="grid-body">
@@ -283,10 +311,10 @@ export function NewGridView({
           <Grid
             ref={gridRef}
             columnCount={columns.length + 1} // +1 for index column
-            columnWidth={getColumnWidth}
+            columnWidth={index => getColumnWidth(index)}
             height={containerHeight - HEADER_HEIGHT}
             rowCount={filteredData.length + 1} // +1 for header placeholder
-            rowHeight={ROW_HEIGHT} // Using ROW_HEIGHT as a direct number value, not a function
+            rowHeight={() => ROW_HEIGHT}
             width={containerWidth}
           >
             {Cell}

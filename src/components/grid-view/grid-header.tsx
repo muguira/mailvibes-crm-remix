@@ -1,202 +1,167 @@
 
 import React, { useState } from 'react';
 import { Column } from './types';
-import { INDEX_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH } from './grid-constants';
 
 interface GridHeaderProps {
   columns: Column[];
   onColumnChange?: (columnId: string, updates: Partial<Column>) => void;
   onColumnsReorder?: (columnIds: string[]) => void;
+  onColumnResize?: (columnIndex: number, newWidth: number) => void;
 }
 
-export function GridHeader({ columns, onColumnChange, onColumnsReorder }: GridHeaderProps) {
-  // State for column resizing
-  const [resizingColumnId, setResizingColumnId] = useState<string | null>(null);
-  const [startX, setStartX] = useState(0);
-  const [columnStartWidth, setColumnStartWidth] = useState(0);
+export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumnResize }: GridHeaderProps) {
+  const [editingHeader, setEditingHeader] = useState<string | null>(null);
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [initialX, setInitialX] = useState(0);
+  const [initialWidth, setInitialWidth] = useState(0);
   
-  // State for column reordering
-  const [draggingColumnId, setDraggingColumnId] = useState<string | null>(null);
-  
-  // State for header editing
-  const [editingHeaderId, setEditingHeaderId] = useState<string | null>(null);
-  
-  // Handle start resize
-  const handleResizeStart = (e: React.MouseEvent, columnId: string, currentWidth: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setResizingColumnId(columnId);
-    setStartX(e.clientX);
-    setColumnStartWidth(currentWidth);
-    
-    // Add document-level mouse move and up listeners
-    document.addEventListener('mousemove', handleResizeMove);
-    document.addEventListener('mouseup', handleResizeEnd);
+  // Handle column header edit (double click)
+  const handleHeaderDoubleClick = (columnId: string) => {
+    setEditingHeader(columnId);
   };
   
-  // Handle resize move
-  const handleResizeMove = (e: MouseEvent) => {
-    if (!resizingColumnId) return;
-    
-    const diff = e.clientX - startX;
-    const newWidth = Math.max(80, columnStartWidth + diff); // Minimum width: 80px
+  // Save edited header title
+  const handleHeaderSave = (columnId: string, newTitle: string) => {
+    setEditingHeader(null);
     
     if (onColumnChange) {
-      onColumnChange(resizingColumnId, { width: newWidth });
+      onColumnChange(columnId, { title: newTitle });
     }
   };
   
-  // Handle resize end
-  const handleResizeEnd = () => {
-    setResizingColumnId(null);
-    document.removeEventListener('mousemove', handleResizeMove);
-    document.removeEventListener('mouseup', handleResizeEnd);
+  // Cancel header editing
+  const handleHeaderKeyDown = (e: React.KeyboardEvent, columnId: string, newTitle: string) => {
+    if (e.key === 'Enter') {
+      handleHeaderSave(columnId, newTitle);
+    } else if (e.key === 'Escape') {
+      setEditingHeader(null);
+    }
   };
   
   // Handle column drag start
   const handleDragStart = (e: React.DragEvent, columnId: string) => {
-    setDraggingColumnId(columnId);
+    setDraggedColumn(columnId);
     e.dataTransfer.effectAllowed = 'move';
-    // Use a transparent drag image
-    const dragImage = document.createElement('div');
-    dragImage.style.width = '1px';
-    dragImage.style.height = '1px';
-    document.body.appendChild(dragImage);
-    e.dataTransfer.setDragImage(dragImage, 0, 0);
-    setTimeout(() => {
-      document.body.removeChild(dragImage);
-    }, 0);
   };
   
   // Handle column drag over
-  const handleDragOver = (e: React.DragEvent, columnId: string) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    if (draggingColumnId === columnId) return;
   };
   
-  // Handle column drop
+  // Handle column drop for reordering
   const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
-    if (!draggingColumnId || draggingColumnId === targetColumnId) return;
     
-    // Prevent reordering of the first column if it's locked
-    const draggingIndex = columns.findIndex(col => col.id === draggingColumnId);
-    const targetIndex = columns.findIndex(col => col.id === targetColumnId);
-    
-    if (draggingIndex === 0 && columns[0].frozen) return;
-    if (targetIndex === 0 && columns[0].frozen) return;
-    
-    const newColumnOrder = [...columns];
-    const [draggedColumn] = newColumnOrder.splice(draggingIndex, 1);
-    newColumnOrder.splice(targetIndex, 0, draggedColumn);
-    
-    if (onColumnsReorder) {
-      onColumnsReorder(newColumnOrder.map(col => col.id));
+    if (!draggedColumn || !onColumnsReorder || draggedColumn === targetColumnId) {
+      setDraggedColumn(null);
+      return;
     }
     
-    setDraggingColumnId(null);
-  };
-  
-  // Handle double click on header for renaming
-  const handleHeaderDoubleClick = (columnId: string) => {
-    // Don't allow renaming frozen columns
-    const column = columns.find(col => col.id === columnId);
-    if (column?.frozen) return;
+    const draggedColumnIndex = columns.findIndex(col => col.id === draggedColumn);
+    const targetColumnIndex = columns.findIndex(col => col.id === targetColumnId);
     
-    setEditingHeaderId(columnId);
+    if (draggedColumnIndex < 0 || targetColumnIndex < 0) {
+      setDraggedColumn(null);
+      return;
+    }
+    
+    // Reorder columns
+    const newColumns = [...columns];
+    const [draggedCol] = newColumns.splice(draggedColumnIndex, 1);
+    newColumns.splice(targetColumnIndex, 0, draggedCol);
+    
+    onColumnsReorder(newColumns.map(col => col.id));
+    setDraggedColumn(null);
   };
   
-  // Handle header edit completion
-  const handleHeaderEditComplete = (columnId: string, newTitle: string) => {
-    if (onColumnChange && newTitle.trim()) {
-      onColumnChange(columnId, { title: newTitle });
-    }
-    setEditingHeaderId(null);
+  // Handle column resize start
+  const handleResizeStart = (e: React.MouseEvent, columnId: string, initialWidth: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setResizingColumn(columnId);
+    setInitialX(e.clientX);
+    setInitialWidth(initialWidth);
+    
+    // Add event listeners for mousemove and mouseup
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('mouseup', handleResizeEnd);
   };
   
-  // Handle add column button click
-  const handleAddColumn = () => {
-    // This would typically open a modal to configure the new column
-    // For now, we'll just add a placeholder column
-    if (onColumnChange) {
-      const newColumnId = `column-${columns.length + 1}`;
-      const newColumn: Column = {
-        id: newColumnId,
-        title: `New Column`,
-        type: 'text',
-        width: DEFAULT_COLUMN_WIDTH,
-        editable: true
-      };
-      
-      if (onColumnsReorder) {
-        onColumnsReorder([...columns.map(c => c.id), newColumnId]);
-      }
+  // Handle column resize move
+  const handleResizeMove = (e: MouseEvent) => {
+    e.preventDefault();
+    
+    if (!resizingColumn) return;
+    
+    const diffX = e.clientX - initialX;
+    const newWidth = Math.max(100, initialWidth + diffX); // Minimum width of 100px
+    
+    // Update column width visually during drag
+    const columnIndex = columns.findIndex(col => col.id === resizingColumn);
+    
+    if (columnIndex >= 0 && onColumnResize) {
+      // Add 1 for the index column
+      onColumnResize(columnIndex + 1, newWidth);
     }
+  };
+  
+  // Handle column resize end
+  const handleResizeEnd = (e: MouseEvent) => {
+    e.preventDefault();
+    
+    setResizingColumn(null);
+    
+    // Remove event listeners
+    document.removeEventListener('mousemove', handleResizeMove);
+    document.removeEventListener('mouseup', handleResizeEnd);
   };
 
   return (
     <div className="grid-header">
-      {/* Index Column Header */}
-      <div 
-        className="index-column grid-frozen-cell"
-        style={{ width: INDEX_COLUMN_WIDTH }}
-      >
+      <div className="index-header">
         #
       </div>
-      
-      {/* Data Column Headers */}
-      {columns.map((column, index) => (
-        <div
-          key={column.id}
-          className={`grid-header-cell ${column.frozen ? 'grid-frozen-cell' : ''} ${draggingColumnId === column.id ? 'dragging' : ''}`}
-          style={{ width: column.width }}
-          draggable={!column.frozen}
-          onDragStart={(e) => handleDragStart(e, column.id)}
-          onDragOver={(e) => handleDragOver(e, column.id)}
-          onDrop={(e) => handleDrop(e, column.id)}
-          onDoubleClick={() => handleHeaderDoubleClick(column.id)}
-        >
-          {editingHeaderId === column.id ? (
-            <input
-              type="text"
-              className="header-edit-input"
-              defaultValue={column.title}
-              autoFocus
-              onBlur={(e) => handleHeaderEditComplete(column.id, e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleHeaderEditComplete(column.id, e.currentTarget.value);
-                } else if (e.key === 'Escape') {
-                  setEditingHeaderId(null);
-                }
-              }}
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <div className="grid-header-cell-content">
-              {column.title}
-            </div>
-          )}
-          
-          {/* Column resizer */}
-          <div 
-            className="grid-header-cell-resizer"
-            onMouseDown={(e) => handleResizeStart(e, column.id, column.width)}
-          />
-        </div>
-      ))}
-      
-      {/* Add Column Button */}
-      <div 
-        className="grid-header-cell" 
-        style={{ width: 40, justifyContent: 'center' }}
-      >
-        <button 
-          className="text-teal-primary hover:text-teal-dark"
-          onClick={handleAddColumn}
-        >
-          +
-        </button>
+      <div className="columns-header">
+        {columns.map((column, index) => (
+          <div
+            key={column.id}
+            className={`
+              grid-header-cell 
+              ${column.frozen ? 'grid-frozen-header' : ''} 
+              ${draggedColumn === column.id ? 'dragging' : ''}
+              ${column.type === 'currency' ? 'text-right' : ''}
+            `}
+            draggable
+            onDragStart={(e) => handleDragStart(e, column.id)}
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, column.id)}
+            onDoubleClick={() => handleHeaderDoubleClick(column.id)}
+            style={{ width: column.width }}
+          >
+            {editingHeader === column.id ? (
+              <input
+                type="text"
+                className="header-edit-input"
+                defaultValue={column.title}
+                autoFocus
+                onBlur={(e) => handleHeaderSave(column.id, e.target.value)}
+                onKeyDown={(e) => handleHeaderKeyDown(e, column.id, (e.target as HTMLInputElement).value)}
+              />
+            ) : (
+              <>
+                <span className="header-title">{column.title}</span>
+                <div
+                  className="resize-handle"
+                  onMouseDown={(e) => handleResizeStart(e, column.id, column.width)}
+                />
+              </>
+            )}
+          </div>
+        ))}
+        <div className="add-column-button">+</div>
       </div>
     </div>
   );
