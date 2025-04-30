@@ -2,7 +2,7 @@
 import { useRef, useState, useMemo } from "react";
 import { GridToolbar } from "../grid-toolbar";
 import { GridHeaders } from "../grid-headers";
-import { GridBody } from "./grid-body";
+import { GridBody } from "../grid-body";
 import { useGridSetup } from "./use-grid-setup";
 import { GridViewProps } from "./types";
 import { Pencil } from "lucide-react";
@@ -90,7 +90,7 @@ export function GridView({
     
     return {
       // Scale font size to adjust content size
-      fontSize: `${14 * zoomPercentage}px`,
+      fontSize: `${13 * zoomPercentage}px`,
       // Adjust row height based on zoom
       '--row-height': `${24 * zoomPercentage}px`,
       '--cell-min-width': `${150 * zoomPercentage}px`,

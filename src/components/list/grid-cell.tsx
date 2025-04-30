@@ -18,7 +18,7 @@ interface GridCellProps {
   isActive: boolean;
   onClick: () => void;
   onChange: (value: any) => void;
-  showSaveIndicator?: boolean; // Add this prop with optional flag
+  showSaveIndicator?: boolean;
 }
 
 export function GridCell({
@@ -30,7 +30,7 @@ export function GridCell({
   isActive,
   onClick,
   onChange,
-  showSaveIndicator = false // Set default value to false
+  showSaveIndicator = false
 }: GridCellProps) {
   // Store original value for reverting on cancel
   const [originalValue, setOriginalValue] = useState(value);
@@ -123,14 +123,16 @@ export function GridCell({
 
   return (
     <div
-      className={`grid-cell ${isActive ? 'bg-blue-50' : ''} ${
+      className={`grid-cell ${isActive ? 'active-cell' : ''} ${
         type === 'currency' ? 'text-right' : ''
-      } ${colKey === "opportunity" ? "opportunity-cell" : ""} relative ${type === 'url' && value ? 'text-blue-600 hover:underline' : ''}`}
+      } ${colKey === "opportunity" ? "opportunity-cell" : ""}`}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       tabIndex={0}
       data-cell={`${rowId}-${colKey}`}
       data-row={rowId}
       data-col={colKey}
+      aria-selected={isActive}
     >
       {renderCellContent()}
       

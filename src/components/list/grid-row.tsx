@@ -36,8 +36,7 @@ export function GridRow({
 
   return (
     <div 
-      className={`grid-row group h-[var(--row-height,24px)] ${isActive ? 'bg-slate-light/10' : isEven ? 'bg-white' : 'bg-slate-50/50'}`}
-      style={{ borderBottom: '1px solid rgba(198, 206, 210, 0.2)' }}
+      className={`grid-row group ${isActive ? 'active-row' : isEven ? 'bg-white' : 'bg-slate-50/50'}`}
     >
       {/* Row number cell */}
       <div className="row-number-cell">
@@ -50,7 +49,7 @@ export function GridRow({
       >
         {renderRowActions && !rowData.id.startsWith('empty-row-') && (
           <button 
-            className="w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:text-teal-primary transition-all"
+            className="w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:text-blue-600 transition-all"
             title="Edit"
             onClick={() => renderRowActions && renderRowActions(rowData.id)}
           >
