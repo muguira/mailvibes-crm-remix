@@ -1,0 +1,46 @@
+
+/* Base grid layout styles */
+.full-screen-grid {
+  height: calc(100vh - 57px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+  border-top: 1px solid #e0e5eb;
+}
+
+/* Row styles */
+.grid-row {
+  display: grid;
+  grid-template-columns: 40px 32px 1fr; /* Row numbers, edit column, and content */
+  min-width: 100%;
+  position: relative;
+  height: var(--row-height, 24px);
+  border-bottom: 1px solid #e0e5eb;
+}
+
+/* Alternating row colors */
+.grid-row:nth-child(even) {
+  background-color: #ffffff;
+}
+
+.grid-row:nth-child(odd) {
+  background-color: #f8f9fa;
+}
+
+.grid-row:hover {
+  background-color: #edf3f8 !important;
+}
+
+/* Empty row styling */
+.empty-row {
+  height: var(--row-height, 24px);
+}
+
+/* Grid drag indicator */
+.grid-drag-indicator {
+  position: absolute;
+  height: 100%;
+  width: 2px;
+  background-color: #0070d2;
+}
