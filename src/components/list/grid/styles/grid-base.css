@@ -7,7 +7,7 @@
   overflow: hidden;
   width: 100%;
   border-top: 1px solid #e0e5eb;
-  position: relative; /* Add position relative */
+  position: relative;
 }
 
 /* Row styles */
@@ -48,7 +48,7 @@
   background-color: inherit;
   border-right: 1px solid #e0e5eb;
   user-select: none;
-  pointer-events: none; /* Allow clicking through */
+  pointer-events: none;
 }
 
 /* Edit column cell styling */
@@ -78,11 +78,11 @@
   z-index: 1000 !important;
 }
 
-/* Prevent overflow issues and ensure grid body is properly layered */
+/* Ensure grid body is properly layered and only one instance exists */
 .grid-body {
   contain: layout;
   flex: 1;
   overflow: auto;
   position: relative;
-  z-index: 1; /* Ensure grid body is above other elements */
+  z-index: 1;
 }

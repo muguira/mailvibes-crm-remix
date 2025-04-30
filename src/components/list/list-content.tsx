@@ -58,13 +58,15 @@ export function ListContent({
       uniqueIds.add(id);
       return true;
     })
-    .map((item, index) => ({
+    .map(item => ({
       ...item,
-      id: item.id || `row-${index+1}`
+      id: item.id || `row-${uniqueIds.size}`
     }));
 
+  // Only render one view component based on viewMode
   return viewMode === "grid" ? (
     <GridView 
+      key="grid-view" // Add key to ensure proper React component lifecycle
       columns={columns} 
       data={processedData} 
       listName={listName} 
@@ -75,6 +77,7 @@ export function ListContent({
     />
   ) : (
     <StreamView 
+      key="stream-view" // Add key to ensure proper React component lifecycle
       contacts={[]} 
       listName={listName}
       listId={currentListId}
