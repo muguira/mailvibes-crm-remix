@@ -43,22 +43,6 @@ export function GridRow({
         {rowNumber}
       </div>
 
-      {/* Edit action column */}
-      <div className="edit-column-cell">
-        {renderRowActions && !rowData.id.startsWith('empty-row-') && (
-          <button 
-            className="w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:text-blue-600 transition-all"
-            title="Edit"
-            onClick={(e) => {
-              e.stopPropagation();
-              renderRowActions && renderRowActions(rowData.id);
-            }}
-          >
-            <Pencil size={14} />
-          </button>
-        )}
-      </div>
-
       {/* Frozen columns (if any) */}
       {frozenColumns.map((column) => (
         <GridCell

@@ -60,24 +60,6 @@
   justify-content: center;
 }
 
-/* Edit column header */
-.edit-column-header {
-  background-color: #f0f0f0;
-  border-right: 1px solid #e0e5eb;
-  border-bottom: 1px solid #e0e5eb;
-  width: 32px;
-  min-width: 32px;
-  flex-shrink: 0;
-  height: var(--row-height, 32px);
-  position: sticky;
-  left: 40px;
-  z-index: 15;
-  box-shadow: 2px 0 4px -2px rgba(0,0,0,0.05);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 /* Fix for header container visibility */
 .grid-container {
   position: relative;

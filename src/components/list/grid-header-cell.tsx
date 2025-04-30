@@ -41,8 +41,11 @@ export function GridHeaderCell({
   // Reference to the header cell element
   const headerRef = useRef<HTMLDivElement>(null);
   
+  // Ensure we always have a display name for the header
+  const displayHeader = column.header || column.key || "Unnamed Column";
+  
   useEffect(() => {
-    console.log("Rendering header cell:", column.header, column.key);
+    console.log("Rendering header cell:", displayHeader, column.key);
     
     // Force reflow of header cell to ensure it's visible
     if (headerRef.current) {
@@ -58,10 +61,10 @@ export function GridHeaderCell({
         headerSpan.style.opacity = '1';
       }
     }
-  }, [column]);
+  }, [column, displayHeader]);
   
   const handleHeaderEditComplete = (key: string, newName: string) => {
-    if (!newName.trim() || newName.trim() === column.header) {
+    if (!newName.trim() || newName.trim() === displayHeader) {
       setEditingHeader(null);
       return;
     }
@@ -80,9 +83,6 @@ export function GridHeaderCell({
   const handleDragStartEvent = () => {
     if (onDragStart) onDragStart(column.key);
   };
-
-  // Ensure we always have a display name for the header
-  const displayHeader = column.header || column.key || "Unnamed Column";
 
   return (
     <div 

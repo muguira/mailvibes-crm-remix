@@ -68,7 +68,6 @@ export function GridHeaders({
   // Local ref to help with head cell visibility
   const localHeaderRef = useRef<HTMLDivElement>(null);
   
-  // Debug log to verify columns are being passed correctly
   useEffect(() => {
     console.log("GridHeaders rendering with columns:", { 
       frozen: frozenColumns, 
@@ -114,9 +113,6 @@ export function GridHeaders({
       {/* Row number header */}
       <div className="row-number-header"></div>
       
-      {/* Edit column header */}
-      <div className="edit-column-header"></div>
-      
       {/* Headers container */}
       <div className="flex flex-1 overflow-visible">
         {/* Frozen header columns */}
@@ -135,7 +131,7 @@ export function GridHeaders({
             style={{
               boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)",
               position: "sticky",
-              left: "72px", // Account for row number + edit column
+              left: "40px", // Account for row number
               display: "flex",
               visibility: 'visible',
               opacity: 1
@@ -145,7 +141,7 @@ export function GridHeaders({
 
         {/* Scrollable header columns */}
         <div className="flex flex-1 overflow-visible relative" style={{ 
-          marginLeft: frozenColumns && frozenColumns.length > 0 ? 0 : "72px" // Adjust margin if no frozen columns
+          marginLeft: frozenColumns && frozenColumns.length > 0 ? 0 : "40px" // Adjust margin if no frozen columns
         }}>
           <GridHeadersSection
             columns={scrollableColumns}

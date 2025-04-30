@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "../use-toast";
+import { v4 as uuidv4 } from 'uuid';
 
 // Hook for grid data operations
 export function useGridData(listId?: string) {
@@ -78,6 +79,10 @@ export function useGridData(listId?: string) {
         if (error) throw error;
         return data[0];
       } else {
+        // Generate a unique row ID if this is a new row
+        // To avoid duplicate key errors
+        const uniqueRowId = rowId.startsWith('empty-row') ? uuidv4() : rowId;
+        
         // Create new row
         const newRowData = { [colKey]: value };
         const { data, error } = await supabase
@@ -85,7 +90,7 @@ export function useGridData(listId?: string) {
           .insert({
             user_id: user.id,
             list_id: listId,
-            row_id: rowId,
+            row_id: uniqueRowId,
             data: newRowData
           })
           .select();

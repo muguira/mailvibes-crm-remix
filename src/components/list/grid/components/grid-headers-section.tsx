@@ -45,7 +45,7 @@ export function GridHeadersSection({
   // Force visibility on render and ensure all columns are displayed
   useEffect(() => {
     console.log(`Rendering ${isFrozen ? 'frozen' : 'scrollable'} headers section with ${columns.length} columns`);
-    console.log("Columns to render:", columns.map(col => `${col.key} (${col.header})`));
+    console.log("Columns to render:", columns.map(col => `${col.key} (${col.header || 'no header'})`));
     
     const ref = headerRef || localHeaderRef;
     

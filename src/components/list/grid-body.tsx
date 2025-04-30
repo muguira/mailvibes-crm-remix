@@ -35,8 +35,8 @@ export function GridBody({
     row.id && self.findIndex(r => r.id === row.id) === index
   );
   
-  // Create an empty row data object for the "add new" row
-  const emptyRowId = `empty-row-${validRows.length + 1}`;
+  // Create an empty row data object for the "add new" row with a unique ID
+  const emptyRowId = `empty-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const emptyRowData = {
     id: emptyRowId
   };

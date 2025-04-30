@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { CustomButton } from "@/components/ui/custom-button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
+import { v4 as uuidv4 } from 'uuid';
 
 interface Company {
   id: string;
@@ -87,6 +88,10 @@ export function OpportunityDialog({ isOpen, onClose, onSave, listName }: Opportu
         website: selectedCompany.website
       });
     }
+    
+    // Reset selection after save
+    setSelectedCompany(null);
+    setSearchTerm("");
   };
 
   const handleSelectCompany = (company: Company) => {
