@@ -32,10 +32,11 @@ export function GridBody({
 }: GridBodyProps) {
   return (
     <div className="overflow-auto flex-1" ref={bodyRef}>
-      {data.map((row) => (
+      {data.map((row, index) => (
         <GridRow
           key={row.id}
           rowData={row}
+          rowNumber={index + 1}
           frozenColumns={frozenColumns}
           scrollableColumns={scrollableColumns}
           frozenColsTemplate={frozenColsTemplate}

@@ -5,8 +5,9 @@ import { GridHeaders } from "../grid-headers";
 import { GridBody } from "./grid-body";
 import { useGridSetup } from "./use-grid-setup";
 import { GridViewProps } from "./types";
-import { Pencil } from "lucide-react";
+import { Pencil, FileEdit, FileText, Edit2 } from "lucide-react";
 import { PointsOfContactDialog } from "../dialogs/points-of-contact-dialog";
+import { SheetMenu } from "../sheet-menu";
 
 export function GridView({ 
   columns: initialColumns, 
@@ -140,11 +141,14 @@ export function GridView({
   
   return (
     <div 
-      className="h-full flex flex-col" 
+      className="h-full flex flex-col full-screen-grid" 
       onKeyDown={(e) => handleKeyDown(e)} 
       tabIndex={-1}
     >
-      {/* Grid Toolbar - Including View Mode selector */}
+      {/* Google Sheets style top menu */}
+      <SheetMenu listName={listName} />
+      
+      {/* Grid Toolbar - Including filter options */}
       <GridToolbar 
         listType={listType} 
         columns={columns} 

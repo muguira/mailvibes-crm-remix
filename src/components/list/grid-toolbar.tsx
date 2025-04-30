@@ -2,7 +2,7 @@
 import { Filter, FileDown, Plus, Search, ChevronDown } from "lucide-react";
 import { CustomButton } from "@/components/ui/custom-button";
 import { useState } from "react";
-import { ColumnDef } from "./grid-view";
+import { ColumnDef } from "./grid/types";
 
 interface GridToolbarProps {
   listType: string;
@@ -17,13 +17,13 @@ export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) 
   return (
     <div className="bg-white border-b border-slate-light/30 p-2 flex items-center justify-between">
       <div className="flex items-center space-x-4">
-        {/* Checkbox */}
+        {/* Selection checkbox */}
         <button className="p-1 rounded hover:bg-slate-light/20 text-slate-medium">
-          <input type="checkbox" className="mr-2" />
+          <input type="checkbox" className="mr-2" title="Select all" />
         </button>
         
-        {/* Download Button */}
-        <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-light/20 text-slate-medium">
+        {/* Export Button */}
+        <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-light/20 text-slate-medium" title="Download">
           <FileDown size={18} />
         </button>
         
@@ -43,7 +43,7 @@ export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) 
       
       <div className="flex items-center gap-4">
         {/* List Info */}
-        <span className="text-sm text-slate-medium">28 Opportunities • DEMO</span>
+        <span className="text-sm text-slate-medium">{columns.length} columns • {listType}</span>
         
         {/* Filter Button */}
         <div className="relative">

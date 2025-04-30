@@ -1,11 +1,11 @@
 
 import { GridCell } from "./grid-cell";
-import { ColumnDef } from "./grid/types";
 import { SaveIndicator } from "./save-indicator";
-import { clsx } from "clsx";
+import { ColumnDef } from "./grid/types";
 
 interface GridRowProps {
   rowData: { id: string; [key: string]: any };
+  rowNumber: number;
   frozenColumns: ColumnDef[];
   scrollableColumns: ColumnDef[];
   frozenColsTemplate: string;
@@ -19,6 +19,7 @@ interface GridRowProps {
 
 export function GridRow({
   rowData,
+  rowNumber,
   frozenColumns,
   scrollableColumns,
   frozenColsTemplate,
@@ -29,79 +30,79 @@ export function GridRow({
   onCellChange,
   renderRowActions
 }: GridRowProps) {
+  const isActive = activeCell?.row === rowData.id;
+
   return (
-    <div className="flex w-full hover:bg-slate-light/5 group relative">
-      {/* Row number column */}
-      <div 
-        className="grid border-b border-r border-slate-light/20" 
-        style={{ gridTemplateColumns: frozenColsTemplate }}
-      >
-        <div className="py-2 px-3 text-xs text-slate-medium flex items-center justify-center">
-          {renderRowActions && (
-            <div className="relative">
-              {renderRowActions(rowData.id)}
-            </div>
-          )}
-        </div>
-        
-        {/* Frozen columns */}
-        {frozenColumns.map((column) => (
-          <div key={column.key} className="relative">
-            <GridCell
-              value={rowData[column.key]}
-              column={column}
-              rowId={rowData.id}
-              isActive={
-                activeCell?.row === rowData.id && 
-                activeCell?.col === column.key
-              }
-              onClick={() => 
-                onCellClick(rowData.id, column.key, column.type, column.options)
-              }
-              onChange={(value) => 
-                onCellChange(rowData.id, column.key, value, column.type)
-              }
-            />
-            {showSaveIndicator && 
-              showSaveIndicator.row === rowData.id && 
-              showSaveIndicator.col === column.key && (
-                <SaveIndicator show={true} />
-              )
-            }
-          </div>
-        ))}
+    <div className={`grid-row group ${isActive ? 'bg-slate-light/10' : ''}`}>
+      {/* Row number cell */}
+      <div className="row-number-cell">
+        {rowNumber}
       </div>
-      
-      {/* Scrollable columns */}
-      <div 
-        className="grid flex-1 border-b border-slate-light/20" 
-        style={{ gridTemplateColumns: scrollableColsTemplate }}
-      >
-        {scrollableColumns.map((column) => (
-          <div key={column.key} className="relative">
-            <GridCell
-              value={rowData[column.key]}
-              column={column}
-              rowId={rowData.id}
-              isActive={
-                activeCell?.row === rowData.id && 
-                activeCell?.col === column.key
-              }
-              onClick={() => 
-                onCellClick(rowData.id, column.key, column.type, column.options)
-              }
-              onChange={(value) => 
-                onCellChange(rowData.id, column.key, value, column.type)
-              }
-            />
-            {showSaveIndicator && 
-              showSaveIndicator.row === rowData.id && 
-              showSaveIndicator.col === column.key && (
-                <SaveIndicator show={true} />
-              )
-            }
+
+      {/* Frozen columns */}
+      {frozenColumns.length > 0 && (
+        <div
+          className="grid h-full"
+          style={{
+            gridTemplateColumns: frozenColsTemplate,
+            position: "sticky",
+            left: "40px", // Account for row number cell
+            zIndex: 4,
+            backgroundColor: isActive ? "rgba(249, 250, 251, 0.95)" : undefined,
+            boxShadow: "2px 0 5px -2px rgba(0,0,0,0.05)",
+          }}
+        >
+          <div className="h-full w-8 relative">
+            {renderRowActions && renderRowActions(rowData.id)}
           </div>
+          {frozenColumns.map((column) => (
+            <GridCell
+              key={column.key}
+              rowId={rowData.id}
+              colKey={column.key}
+              value={rowData[column.key]}
+              type={column.type}
+              options={column.options}
+              isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
+              onClick={onCellClick}
+              onChange={onCellChange}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Scrollable columns */}
+      <div
+        className="grid h-full"
+        style={{
+          gridTemplateColumns: scrollableColsTemplate,
+          marginLeft: frozenColumns.length > 0 ? 0 : "40px", // Adjust margin if no frozen columns
+        }}
+      >
+        {frozenColumns.length === 0 && (
+          <div className="h-full w-8 relative">
+            {renderRowActions && renderRowActions(rowData.id)}
+          </div>
+        )}
+
+        {scrollableColumns.map((column) => (
+          <GridCell
+            key={column.key}
+            rowId={rowData.id}
+            colKey={column.key}
+            value={rowData[column.key]}
+            type={column.type}
+            options={column.options}
+            isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
+            onClick={onCellClick}
+            onChange={onCellChange}
+          />
         ))}
+
+        {/* Show save indicator if needed */}
+        {showSaveIndicator?.row === rowData.id && (
+          <SaveIndicator colKey={showSaveIndicator.col} />
+        )}
       </div>
     </div>
   );

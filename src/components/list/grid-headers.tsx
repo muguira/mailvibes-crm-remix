@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { CustomButton } from "@/components/ui/custom-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GridHeaderCell } from "./grid-header-cell";
-import { ColumnDef, ColumnType } from "./grid-view";
+import { ColumnDef, ColumnType } from "./grid/types";
 import { RefObject } from "react";
 
 interface GridHeadersProps {
@@ -68,6 +68,9 @@ export function GridHeaders({
 }: GridHeadersProps) {
   return (
     <div className="flex">
+      {/* Row number header */}
+      <div className="row-number-header"></div>
+      
       {/* Frozen header columns */}
       {frozenColumns.length > 0 && (
         <div
@@ -76,7 +79,7 @@ export function GridHeaders({
             gridTemplateColumns: frozenColsTemplate,
             boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)",
             position: "sticky",
-            left: 0
+            left: "40px" // Account for row number column
           }}
         >
           <div className="grid-header-cell"></div>
@@ -100,7 +103,10 @@ export function GridHeaders({
       {/* Scrollable header columns */}
       <div
         className="grid-header grid overflow-hidden"
-        style={{ gridTemplateColumns: scrollableColsTemplate }}
+        style={{ 
+          gridTemplateColumns: scrollableColsTemplate,
+          marginLeft: frozenColumns.length > 0 ? 0 : "40px" // Adjust margin if no frozen columns
+        }}
         ref={headerRef}
       >
         {frozenColumns.length === 0 && <div className="grid-header-cell"></div>}

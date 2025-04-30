@@ -40,6 +40,7 @@ const Lists = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
         
+        {/* List Header with list selection and controls */}
         <ListHeader
           listsLoading={listsLoading}
           lists={lists}
@@ -52,6 +53,7 @@ const Lists = () => {
           setViewMode={setViewMode}
         />
         
+        {/* Full-screen list content */}
         <div className="flex-1 overflow-hidden">
           <ListContent
             currentListId={currentListId}
@@ -88,6 +90,6 @@ const Lists = () => {
       />
     </div>
   );
-};
+}
 
 export default Lists;
