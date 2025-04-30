@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 
@@ -26,4 +27,32 @@ const PopoverContent = React.forwardRef<
 ))
 PopoverContent.displayName = PopoverPrimitive.Content.displayName
 
-export { Popover, PopoverTrigger, PopoverContent }
+// Custom popover content that can be positioned absolutely
+interface AbsolutePopoverContentProps extends React.HTMLAttributes<HTMLDivElement> {
+  position?: { top: number; left: number };
+  onClose?: () => void;
+  children: React.ReactNode;
+}
+
+const AbsolutePopoverContent = React.forwardRef<
+  HTMLDivElement, 
+  AbsolutePopoverContentProps
+>(({ className, position, children, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "fixed bg-white rounded-md border border-slate-200 shadow-lg z-[1200] popover-element",
+      className
+    )}
+    style={{
+      top: position?.top ? `${position.top}px` : undefined,
+      left: position?.left ? `${position.left}px` : undefined,
+    }}
+    {...props}
+  >
+    {children}
+  </div>
+))
+AbsolutePopoverContent.displayName = "AbsolutePopoverContent"
+
+export { Popover, PopoverTrigger, PopoverContent, AbsolutePopoverContent }

@@ -1,11 +1,8 @@
-
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { GridToolbar } from "./grid-toolbar";
 import { GridHeaders } from "./grid-headers";
 import { GridRow } from "./grid-row";
-import { GridDatePicker } from "./grid-date-picker";
-import { GridSelectDropdown } from "./grid-select-dropdown";
 import { isValidUrl } from "./grid-utils";
 
 export type ColumnType = "text" | "number" | "date" | "status" | "currency" | "select" | "checkbox" | "url";
@@ -61,12 +58,6 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
   });
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [showSaveIndicator, setShowSaveIndicator] = useState<{row: string, col: string} | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [calendarAnchor, setCalendarAnchor] = useState({ top: 0, left: 0 });
-  const [activeDateCell, setActiveDateCell] = useState<{ row: string; col: string } | null>(null);
-  const [selectDropdownOpen, setSelectDropdownOpen] = useState(false);
-  const [activeSelectCell, setActiveSelectCell] = useState<{ row: string; col: string, options: string[] } | null>(null);
   
   // History stack for undo/redo functionality
   const [undoStack, setUndoStack] = useState<{columns: ColumnDef[], data: RowData[]}[]>([]);
@@ -92,70 +83,16 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
   }, []);
 
   const handleCellClick = (rowId: string, colKey: string, colType: ColumnType, options?: string[]) => {
-    // Don't open editor for checkbox type - toggle value directly
-    if (colType === "checkbox") {
-      toggleCheckbox(rowId, colKey);
+    // Reset active cell if clicking on a blank area or the same cell
+    if (rowId === "" && colKey === "") {
+      setActiveCell(null);
       return;
     }
     
-    // For URL type, open in new tab on single click if it's a valid URL
-    if (colType === "url" && !activeCell) {
-      const url = data.find(row => row.id === rowId)?.[colKey];
-      if (url && isValidUrl(url)) {
-        window.open(url, "_blank");
-        return;
-      }
+    // Set the active cell (only for direct editing types)
+    if (colType !== "checkbox" && colType !== "date" && colType !== "status" && colType !== "select") {
+      setActiveCell({ row: rowId, col: colKey });
     }
-    
-    // For date type, open the date picker
-    if (colType === "date") {
-      const cell = document.querySelector(`[data-cell="${rowId}-${colKey}"]`);
-      if (cell) {
-        const rect = cell.getBoundingClientRect();
-        setCalendarAnchor({
-          top: rect.top + rect.height,
-          left: Math.max(rect.left, 10) // Ensure it's not off-screen
-        });
-        setActiveDateCell({ row: rowId, col: colKey });
-        // Parse the current date value if it exists
-        const currentValue = data.find(row => row.id === rowId)?.[colKey];
-        if (currentValue) {
-          try {
-            const dateValue = new Date(currentValue);
-            if (!isNaN(dateValue.getTime())) {
-              setSelectedDate(dateValue);
-            }
-          } catch (e) {
-            setSelectedDate(undefined);
-          }
-        } else {
-          setSelectedDate(undefined);
-        }
-        setDatePickerOpen(true);
-      }
-      return;
-    }
-    
-    // For select/status type, open the select dropdown
-    if ((colType === "select" || colType === "status") && options && options.length) {
-      const cell = document.querySelector(`[data-cell="${rowId}-${colKey}"]`);
-      if (cell) {
-        const rect = cell.getBoundingClientRect();
-        setCalendarAnchor({
-          top: rect.top + rect.height,
-          left: Math.max(rect.left, 10) // Ensure it's not off-screen
-        });
-        setActiveSelectCell({ 
-          row: rowId, 
-          col: colKey, 
-          options 
-        });
-        setSelectDropdownOpen(true);
-      }
-      return;
-    }
-    
-    setActiveCell({ row: rowId, col: colKey });
   };
   
   const handleHeaderDoubleClick = (colKey: string) => {
@@ -207,6 +144,9 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
         toast.warning("Please enter a valid URL with protocol or domain extension");
         formattedValue = "";
       }
+    } else if (type === "checkbox") {
+      toggleCheckbox(rowId, colKey);
+      return;
     }
     
     // Update data
@@ -224,64 +164,8 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
     setShowSaveIndicator({ row: rowId, col: colKey });
     setTimeout(() => setShowSaveIndicator(null), 500);
     
+    // Reset active cell after editing
     setActiveCell(null);
-  };
-
-  const handleDateSelection = (date: Date | undefined) => {
-    if (date && activeDateCell) {
-      // Save previous state for undo
-      saveStateToHistory();
-      
-      // Format date as string (e.g., "Apr 15, 2023")
-      const formattedDate = date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
-      });
-      
-      // Update data
-      setData(prevData => prevData.map(row => {
-        if (row.id === activeDateCell.row) {
-          return {
-            ...row,
-            [activeDateCell.col]: formattedDate
-          };
-        }
-        return row;
-      }));
-      
-      // Show save indicator
-      setShowSaveIndicator({ row: activeDateCell.row, col: activeDateCell.col });
-      setTimeout(() => setShowSaveIndicator(null), 500);
-    }
-    
-    setDatePickerOpen(false);
-    setActiveDateCell(null);
-  };
-  
-  const handleSelectOption = (value: string) => {
-    if (activeSelectCell) {
-      // Save previous state for undo
-      saveStateToHistory();
-      
-      // Update data
-      setData(prevData => prevData.map(row => {
-        if (row.id === activeSelectCell.row) {
-          return {
-            ...row,
-            [activeSelectCell.col]: value
-          };
-        }
-        return row;
-      }));
-      
-      // Show save indicator
-      setShowSaveIndicator({ row: activeSelectCell.row, col: activeSelectCell.col });
-      setTimeout(() => setShowSaveIndicator(null), 500);
-    }
-    
-    setSelectDropdownOpen(false);
-    setActiveSelectCell(null);
   };
 
   const saveStateToHistory = () => {
@@ -631,25 +515,6 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
           />
         ))}
       </div>
-      
-      {/* Date picker */}
-      <GridDatePicker 
-        isOpen={datePickerOpen}
-        position={calendarAnchor}
-        selectedDate={selectedDate}
-        onClose={() => setDatePickerOpen(false)}
-        onSelect={handleDateSelection}
-      />
-      
-      {/* Select dropdown */}
-      {activeSelectCell && (
-        <GridSelectDropdown
-          isOpen={selectDropdownOpen}
-          position={calendarAnchor}
-          options={activeSelectCell.options}
-          onSelect={handleSelectOption}
-        />
-      )}
     </div>
   );
 }

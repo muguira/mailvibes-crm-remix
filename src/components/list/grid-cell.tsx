@@ -3,6 +3,10 @@ import { Check, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ColumnType } from "./grid-view";
 import { formatUrl, isValidUrl } from "./grid-utils";
+import { usePopover } from "@/hooks/use-popover";
+import { GridDatePicker } from "./grid-date-picker";
+import { GridSelectDropdown } from "./grid-select-dropdown";
+import { useEffect, useState } from "react";
 
 interface GridCellProps {
   rowId: string;
@@ -29,9 +33,103 @@ export function GridCell({
   onCellClick,
   onCellChange
 }: GridCellProps) {
-  const handleClick = () => {
-    if (isEditable) {
-      onCellClick(rowId, colKey, type, options);
+  // Store original value for reverting on cancel
+  const [originalValue, setOriginalValue] = useState(value);
+  
+  // For date picker
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
+    if (value && type === 'date') {
+      try {
+        const date = new Date(value);
+        return !isNaN(date.getTime()) ? date : undefined;
+      } catch (e) {
+        return undefined;
+      }
+    }
+    return undefined;
+  });
+
+  // Initialize popover hook
+  const {
+    isOpen,
+    position,
+    popoverType,
+    popoverRef,
+    openPopover,
+    closePopover,
+    handleSelect
+  } = usePopover({
+    onClose: () => {
+      // Revert to original value on close without save
+      if (type === 'date' || type === 'status' || type === 'select') {
+        // Don't trigger a change, just reset UI state
+      }
+    },
+  });
+
+  // Update original value when prop changes
+  useEffect(() => {
+    setOriginalValue(value);
+    // Also update the date if it's a date cell
+    if (type === 'date' && value) {
+      try {
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+          setSelectedDate(date);
+        }
+      } catch (e) {
+        setSelectedDate(undefined);
+      }
+    }
+  }, [value, type]);
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (!isEditable) return;
+    
+    // Handle checkbox toggle directly
+    if (type === 'checkbox') {
+      onCellChange(rowId, colKey, !value, type);
+      return;
+    }
+
+    // Handle URL click (open link in new tab)
+    if (type === 'url' && value && isValidUrl(value)) {
+      if (!isActive) {
+        window.open(value, "_blank");
+        return;
+      }
+    }
+
+    // For status or select type, open the dropdown
+    if ((type === 'status' || type === 'select') && options && options.length > 0) {
+      const cellElement = e.currentTarget as HTMLElement;
+      openPopover(cellElement, 'select');
+      return;
+    }
+
+    // For date type, open the date picker
+    if (type === 'date') {
+      const cellElement = e.currentTarget as HTMLElement;
+      openPopover(cellElement, 'date');
+      return;
+    }
+
+    // For other types, activate the cell for direct editing
+    onCellClick(rowId, colKey, type, options);
+  };
+
+  const handleSelectOption = (optionValue: string) => {
+    onCellChange(rowId, colKey, optionValue, type);
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      const formattedDate = date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+      onCellChange(rowId, colKey, formattedDate, type);
     }
   };
 
@@ -74,7 +172,7 @@ export function GridCell({
         <div className="flex justify-center">
           <Checkbox
             checked={!!value}
-            onCheckedChange={() => handleClick()}
+            onCheckedChange={() => handleClick}
           />
         </div>
       ) : type === 'url' && value ? (
@@ -91,6 +189,30 @@ export function GridCell({
         <div className="save-indicator">
           <Check size={16} />
         </div>
+      )}
+
+      {/* Date picker popover */}
+      {popoverType === 'date' && (
+        <GridDatePicker
+          isOpen={isOpen && popoverType === 'date'}
+          position={position}
+          selectedDate={selectedDate}
+          onClose={closePopover}
+          onSelect={handleDateSelect}
+          popoverRef={popoverRef}
+        />
+      )}
+
+      {/* Select dropdown popover */}
+      {popoverType === 'select' && options && (
+        <GridSelectDropdown
+          isOpen={isOpen && popoverType === 'select'}
+          position={position}
+          options={options}
+          onSelect={handleSelectOption}
+          onClose={closePopover}
+          popoverRef={popoverRef}
+        />
       )}
     </div>
   );

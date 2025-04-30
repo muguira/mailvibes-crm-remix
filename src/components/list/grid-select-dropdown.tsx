@@ -1,38 +1,47 @@
 
+import { AbsolutePopoverContent } from "@/components/ui/popover";
+import React from "react";
+
 interface SelectDropdownProps {
   isOpen: boolean;
   position: { top: number; left: number };
   options: string[];
   onSelect: (value: string) => void;
+  onClose?: () => void;
+  popoverRef?: React.RefObject<HTMLDivElement>;
 }
 
 export function GridSelectDropdown({
   isOpen,
   position,
   options,
-  onSelect
+  onSelect,
+  onClose,
+  popoverRef
 }: SelectDropdownProps) {
   if (!isOpen) return null;
 
+  const handleSelect = (option: string) => {
+    onSelect(option);
+  };
+
   return (
-    <div
-      className="fixed bg-white shadow-lg rounded-md z-50 border border-slate-200 option-menu"
-      style={{
-        top: position.top + 'px',
-        left: position.left + 'px',
-      }}
+    <AbsolutePopoverContent
+      ref={popoverRef}
+      position={position}
+      className="w-48 py-1 option-menu"
     >
-      <div className="py-1">
+      <div className="overflow-y-auto max-h-[240px]">
         {options.map((option) => (
           <button
             key={option}
-            className="option-item w-full text-left px-4 py-2"
-            onClick={() => onSelect(option)}
+            className="option-item w-full text-left px-4 py-2 text-sm hover:bg-slate-100"
+            onClick={() => handleSelect(option)}
           >
             {option}
           </button>
         ))}
       </div>
-    </div>
+    </AbsolutePopoverContent>
   );
 }
