@@ -32,7 +32,7 @@ export function GridDatePicker({
     <AbsolutePopoverContent
       ref={popoverRef}
       position={position}
-      className="calendar-popup"
+      className="calendar-popup z-[1200]"
     >
       <div className="header p-3 border-b flex justify-between items-center">
         <span className="text-sm font-medium">Select Date</span>

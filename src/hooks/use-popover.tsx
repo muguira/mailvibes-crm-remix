@@ -42,56 +42,62 @@ export function usePopover({ onClose }: UsePopoverOptions = {}) {
     };
   }, [isOpen]);
 
-  // Improved position calculation to place popover directly below or above the element
+  // Enhanced position calculation to ensure popover is always properly positioned
   const calculatePosition = useCallback((element: HTMLElement) => {
     const rect = element.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
     
-    // Calculate popover dimensions (approximation)
-    const popoverHeight = 300; // Calendar/dropdown height approximation
-    const popoverWidth = 240;  // Calendar/dropdown width approximation
+    // Get more accurate popover dimensions based on type
+    const popoverHeight = popoverType === 'date' ? 380 : 250; // Calendar is taller than dropdown
+    const popoverWidth = popoverType === 'date' ? 300 : 240;
     
-    // Default position (directly below the cell)
-    let top = rect.bottom;
-    let left = rect.left;
+    // Space needed above/below for the popover plus a small gap
+    const spaceNeeded = popoverHeight + 5;
     
-    // Check if there's enough space below
-    const hasSpaceBelow = viewportHeight - rect.bottom > popoverHeight + 5;
+    // Check if there's enough space below the element
+    const spaceBelow = viewportHeight - rect.bottom;
+    const placeBelow = spaceBelow >= spaceNeeded;
     
-    if (!hasSpaceBelow) {
-      // Position directly above if not enough space below
-      top = rect.top - popoverHeight;
+    // Calculate vertical position
+    let top;
+    if (placeBelow) {
+      // Position below with 2px gap
+      top = rect.bottom + 2;
+    } else {
+      // Position above with 2px gap (if there's space)
+      top = rect.top - popoverHeight - 2;
+      
+      // If positioning above would go off-screen, force to top of screen with padding
+      if (top < 5) {
+        // As a last resort, align to top of viewport with minimal padding
+        top = 5;
+      }
     }
     
-    // Center the dropdown horizontally relative to the cell if possible
-    left = rect.left + (rect.width / 2) - (popoverWidth / 2);
+    // Calculate horizontal position (centered on the element)
+    let left = rect.left + (rect.width / 2) - (popoverWidth / 2);
     
-    // Ensure the dropdown doesn't overflow horizontally
-    if (left + popoverWidth > viewportWidth) {
-      left = Math.max(5, viewportWidth - popoverWidth - 5);
+    // Prevent horizontal overflow
+    if (left + popoverWidth > viewportWidth - 5) {
+      left = viewportWidth - popoverWidth - 5; // 5px from right edge
     }
     
+    // Prevent left overflow
     if (left < 5) {
-      left = 5; // Prevent positioning off-screen to the left
-    }
-    
-    // Ensure top is not negative (off-screen)
-    if (top < 5) {
-      // If we can't fit it above, put it below instead, even if it's tight
-      top = rect.bottom;
+      left = 5; // 5px from left edge
     }
     
     return { top, left };
-  }, []);
+  }, [popoverType]);
 
   // Open the popover
   const openPopover = useCallback((element: HTMLElement, type: PopoverType) => {
     // Close any existing popovers first (enforcing single-popover stack)
     closeExistingPopovers();
     
-    setPosition(calculatePosition(element));
     setPopoverType(type);
+    setPosition(calculatePosition(element));
     setIsOpen(true);
   }, [calculatePosition]);
 
