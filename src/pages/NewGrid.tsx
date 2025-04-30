@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { NewGridView } from '@/components/grid-view/new-grid-view';
 import { Column, GridRow } from '@/components/grid-view/types';
 import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
+import { STATUS_COLORS } from '@/components/grid-view/grid-constants';
 
 // Sample column definitions for opportunities
 const opportunityColumns: Column[] = [
@@ -88,24 +89,29 @@ const opportunityColumns: Column[] = [
   }
 ];
 
-// Sample data
-const opportunityData: GridRow[] = Array.from({ length: 100 }, (_, i) => ({
-  id: `row-${i}`,
-  opportunity: `Opportunity ${i}`,
-  status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-  revenue: Math.floor(Math.random() * 100000),
-  closeDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-  owner: ['John Doe', 'Jane Smith', 'Robert Johnson'][Math.floor(Math.random() * 3)],
-  website: 'https://example.com',
-  companyName: `Company ${i}`,
-  linkedIn: 'https://linkedin.com/company/example',
-  employees: Math.floor(Math.random() * 1000),
-  lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-}));
+// Generate a large dataset for performance testing
+const generateLargeDataset = (count: number): GridRow[] => {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `row-${i}`,
+    opportunity: `Opportunity ${i}`,
+    status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+    revenue: Math.floor(Math.random() * 100000),
+    closeDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    owner: ['John Doe', 'Jane Smith', 'Robert Johnson'][Math.floor(Math.random() * 3)],
+    website: 'https://example.com',
+    companyName: `Company ${i}`,
+    linkedIn: 'https://linkedin.com/company/example',
+    employees: Math.floor(Math.random() * 1000),
+    lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  }));
+};
+
+// Generate 10,000 rows for performance testing
+const opportunityData = generateLargeDataset(10000);
 
 const NewGrid: React.FC = () => {
-  const [columns, setColumns] = React.useState<Column[]>(opportunityColumns);
-  const [data, setData] = React.useState<GridRow[]>(opportunityData);
+  const [columns, setColumns] = useState<Column[]>(opportunityColumns);
+  const [data, setData] = useState<GridRow[]>(opportunityData);
   
   // Handle cell value changes
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
@@ -129,6 +135,14 @@ const NewGrid: React.FC = () => {
     );
   };
   
+  // Handle column reordering
+  const handleColumnsReorder = (columnIds: string[]) => {
+    const reorderedColumns: Column[] = columnIds.map(
+      id => columns.find(col => col.id === id)!
+    );
+    setColumns(reorderedColumns);
+  };
+  
   return (
     <div className="flex flex-col h-screen">
       <TopNavbar />
@@ -140,6 +154,7 @@ const NewGrid: React.FC = () => {
           listType="Opportunity"
           onCellChange={handleCellChange}
           onColumnChange={handleColumnChange}
+          onColumnsReorder={handleColumnsReorder}
         />
       </div>
     </div>

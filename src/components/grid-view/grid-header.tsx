@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Column } from './types';
-import { INDEX_COLUMN_WIDTH } from './grid-constants';
+import { INDEX_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH } from './grid-constants';
 
 interface GridHeaderProps {
   columns: Column[];
@@ -11,13 +11,20 @@ interface GridHeaderProps {
 
 export function GridHeader({ columns, onColumnChange, onColumnsReorder }: GridHeaderProps) {
   // State for column resizing
-  const [resizingColumnId, setResizingColumnId] = React.useState<string | null>(null);
-  const [startX, setStartX] = React.useState(0);
-  const [columnStartWidth, setColumnStartWidth] = React.useState(0);
+  const [resizingColumnId, setResizingColumnId] = useState<string | null>(null);
+  const [startX, setStartX] = useState(0);
+  const [columnStartWidth, setColumnStartWidth] = useState(0);
+  
+  // State for column reordering
+  const [draggingColumnId, setDraggingColumnId] = useState<string | null>(null);
+  
+  // State for header editing
+  const [editingHeaderId, setEditingHeaderId] = useState<string | null>(null);
   
   // Handle start resize
   const handleResizeStart = (e: React.MouseEvent, columnId: string, currentWidth: number) => {
     e.preventDefault();
+    e.stopPropagation();
     setResizingColumnId(columnId);
     setStartX(e.clientX);
     setColumnStartWidth(currentWidth);
@@ -45,6 +52,87 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder }: GridHe
     document.removeEventListener('mousemove', handleResizeMove);
     document.removeEventListener('mouseup', handleResizeEnd);
   };
+  
+  // Handle column drag start
+  const handleDragStart = (e: React.DragEvent, columnId: string) => {
+    setDraggingColumnId(columnId);
+    e.dataTransfer.effectAllowed = 'move';
+    // Use a transparent drag image
+    const dragImage = document.createElement('div');
+    dragImage.style.width = '1px';
+    dragImage.style.height = '1px';
+    document.body.appendChild(dragImage);
+    e.dataTransfer.setDragImage(dragImage, 0, 0);
+    setTimeout(() => {
+      document.body.removeChild(dragImage);
+    }, 0);
+  };
+  
+  // Handle column drag over
+  const handleDragOver = (e: React.DragEvent, columnId: string) => {
+    e.preventDefault();
+    if (draggingColumnId === columnId) return;
+  };
+  
+  // Handle column drop
+  const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
+    e.preventDefault();
+    if (!draggingColumnId || draggingColumnId === targetColumnId) return;
+    
+    // Prevent reordering of the first column if it's locked
+    const draggingIndex = columns.findIndex(col => col.id === draggingColumnId);
+    const targetIndex = columns.findIndex(col => col.id === targetColumnId);
+    
+    if (draggingIndex === 0 && columns[0].frozen) return;
+    if (targetIndex === 0 && columns[0].frozen) return;
+    
+    const newColumnOrder = [...columns];
+    const [draggedColumn] = newColumnOrder.splice(draggingIndex, 1);
+    newColumnOrder.splice(targetIndex, 0, draggedColumn);
+    
+    if (onColumnsReorder) {
+      onColumnsReorder(newColumnOrder.map(col => col.id));
+    }
+    
+    setDraggingColumnId(null);
+  };
+  
+  // Handle double click on header for renaming
+  const handleHeaderDoubleClick = (columnId: string) => {
+    // Don't allow renaming frozen columns
+    const column = columns.find(col => col.id === columnId);
+    if (column?.frozen) return;
+    
+    setEditingHeaderId(columnId);
+  };
+  
+  // Handle header edit completion
+  const handleHeaderEditComplete = (columnId: string, newTitle: string) => {
+    if (onColumnChange && newTitle.trim()) {
+      onColumnChange(columnId, { title: newTitle });
+    }
+    setEditingHeaderId(null);
+  };
+  
+  // Handle add column button click
+  const handleAddColumn = () => {
+    // This would typically open a modal to configure the new column
+    // For now, we'll just add a placeholder column
+    if (onColumnChange) {
+      const newColumnId = `column-${columns.length + 1}`;
+      const newColumn: Column = {
+        id: newColumnId,
+        title: `New Column`,
+        type: 'text',
+        width: DEFAULT_COLUMN_WIDTH,
+        editable: true
+      };
+      
+      if (onColumnsReorder) {
+        onColumnsReorder([...columns.map(c => c.id), newColumnId]);
+      }
+    }
+  };
 
   return (
     <div className="grid-header">
@@ -60,12 +148,35 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder }: GridHe
       {columns.map((column, index) => (
         <div
           key={column.id}
-          className={`grid-header-cell ${column.frozen ? 'grid-frozen-cell' : ''}`}
+          className={`grid-header-cell ${column.frozen ? 'grid-frozen-cell' : ''} ${draggingColumnId === column.id ? 'dragging' : ''}`}
           style={{ width: column.width }}
+          draggable={!column.frozen}
+          onDragStart={(e) => handleDragStart(e, column.id)}
+          onDragOver={(e) => handleDragOver(e, column.id)}
+          onDrop={(e) => handleDrop(e, column.id)}
+          onDoubleClick={() => handleHeaderDoubleClick(column.id)}
         >
-          <div className="grid-header-cell-content">
-            {column.title}
-          </div>
+          {editingHeaderId === column.id ? (
+            <input
+              type="text"
+              className="header-edit-input"
+              defaultValue={column.title}
+              autoFocus
+              onBlur={(e) => handleHeaderEditComplete(column.id, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleHeaderEditComplete(column.id, e.currentTarget.value);
+                } else if (e.key === 'Escape') {
+                  setEditingHeaderId(null);
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <div className="grid-header-cell-content">
+              {column.title}
+            </div>
+          )}
           
           {/* Column resizer */}
           <div 
@@ -80,7 +191,12 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder }: GridHe
         className="grid-header-cell" 
         style={{ width: 40, justifyContent: 'center' }}
       >
-        <button className="text-teal-primary hover:text-teal-dark">+</button>
+        <button 
+          className="text-teal-primary hover:text-teal-dark"
+          onClick={handleAddColumn}
+        >
+          +
+        </button>
       </div>
     </div>
   );
