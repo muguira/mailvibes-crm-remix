@@ -47,16 +47,7 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     initialData
   });
   
-  // Create a wrapper function for setNewColumn that properly handles Partial<ColumnDef>
-  const handleSetNewColumn = (column: Partial<ColumnDef>) => {
-    setNewColumn({
-      header: column.header || "",
-      type: column.type || "text",
-      options: column.options
-    });
-  };
-  
-  // Initialize grid actions with all required props
+  // Initialize grid actions
   const {
     handleCellClick,
     handleHeaderDoubleClick,
@@ -78,22 +69,11 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     setData,
     activeCell,
     setActiveCell,
-    editingHeader,
-    setEditingHeader,
-    dragOverColumn,
-    setDragOverColumn,
-    newColumn,
-    setNewColumn: handleSetNewColumn, // Pass our wrapper function here
-    isAddingColumn,
-    setIsAddingColumn,
     showSaveIndicator,
     setShowSaveIndicator,
-    undoStack,
-    setUndoStack,
-    redoStack,
-    setRedoStack,
     saveStateToHistory,
     setDraggedColumn,
+    setDragOverColumn,
     draggedColumn
   });
   
@@ -110,7 +90,7 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     draggedColumn,
     dragOverColumn,
     newColumn,
-    setNewColumn: handleSetNewColumn, // Use our wrapper function consistently here too
+    setNewColumn,
     isAddingColumn,
     setIsAddingColumn,
     showSaveIndicator,

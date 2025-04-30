@@ -1,49 +1,41 @@
-import { KeyboardEvent, MouseEvent, SetStateAction } from "react";
-import { ColumnDef } from "../grid/types";
+import { useState } from "react";
+import { ColumnDef } from "../grid-view";
+import { RowData } from "./use-grid-state";
+import { toast } from "sonner";
+import { saveColumn } from "@/services/column.service";
 
-// Replace this import with an inline implementation
-// import { columnService } from "@/services/column.service";
-const columnService = {
-  getDefaultConfig: (type: string) => {
-    return {
-      key: `col_${Date.now()}`,
-      name: "New Column",
-      type: type || "text",
-      editable: true
-    };
-  }
-};
-
-// Define RowData type to match the expected structure
-interface RowData {
-  id: string;
-  [key: string]: any;
-}
-
-export interface UseGridActionsProps {
+interface UseGridActionsProps {
   columns: ColumnDef[];
-  setColumns: (columns: SetStateAction<ColumnDef[]>) => void;
+  setColumns: React.Dispatch<React.SetStateAction<ColumnDef[]>>;
   data: RowData[];
-  setData: (data: SetStateAction<RowData[]>) => void;
+  setData: React.Dispatch<React.SetStateAction<RowData[]>>;
   activeCell: { row: string; col: string } | null;
-  setActiveCell: (cell: { row: string; col: string } | null) => void;
+  setActiveCell: React.Dispatch<React.SetStateAction<{ row: string; col: string } | null>>;
   editingHeader: string | null;
-  setEditingHeader: (key: string | null) => void;
-  dragOverColumn: string | null;
-  setDragOverColumn: (key: string | null) => void;
-  newColumn: Partial<ColumnDef>;
-  setNewColumn: (column: Partial<ColumnDef>) => void;
-  isAddingColumn: boolean;
-  setIsAddingColumn: (isAdding: boolean) => void;
-  showSaveIndicator: { row: string; col: string } | null;
-  setShowSaveIndicator: (cell: { row: string; col: string } | null) => void;
-  undoStack: any[];
-  setUndoStack: (stack: SetStateAction<any[]>) => void;
-  redoStack: any[];
-  setRedoStack: (stack: SetStateAction<any[]>) => void;
-  saveStateToHistory: () => void;
-  setDraggedColumn: (key: string | null) => void;
+  setEditingHeader: React.Dispatch<React.SetStateAction<string | null>>;
   draggedColumn: string | null;
+  setDraggedColumn: React.Dispatch<React.SetStateAction<string | null>>;
+  dragOverColumn: string | null;
+  setDragOverColumn: React.Dispatch<React.SetStateAction<string | null>>;
+  newColumn: {
+    header: string;
+    type: string;
+    options?: string[];
+  };
+  setNewColumn: React.Dispatch<
+    React.SetStateAction<{
+      header: string;
+      type: string;
+      options?: string[];
+    }>
+  >;
+  isAddingColumn: boolean;
+  setIsAddingColumn: React.Dispatch<React.SetStateAction<boolean>>;
+  showSaveIndicator: { row: string; col: string } | null;
+  setShowSaveIndicator: React.Dispatch<React.SetStateAction<{ row: string; col: string } | null>>;
+  headerRef: React.RefObject<HTMLDivElement>;
+  bodyRef: React.RefObject<HTMLDivElement>;
+  saveStateToHistory: () => void;
 }
 
 export function useGridActions({
@@ -55,21 +47,19 @@ export function useGridActions({
   setActiveCell,
   editingHeader,
   setEditingHeader,
+  draggedColumn,
+  setDraggedColumn,
   dragOverColumn,
   setDragOverColumn,
-  newColumn,
+  newColumn, 
   setNewColumn,
-  isAddingColumn,
+  isAddingColumn, 
   setIsAddingColumn,
-  showSaveIndicator,
+  showSaveIndicator, 
   setShowSaveIndicator,
-  undoStack,
-  setUndoStack,
-  redoStack,
-  setRedoStack,
-  saveStateToHistory,
-  setDraggedColumn,
-  draggedColumn
+  headerRef,
+  bodyRef,
+  saveStateToHistory
 }: UseGridActionsProps) {
   // Cell click handler
   const handleCellClick = (rowId: string, colKey: string) => {
@@ -77,24 +67,16 @@ export function useGridActions({
   };
   
   // Cell change handler
-  const handleCellChange = (rowId: string, colKey: string, value: any, type: string) => {
-    // Logic to handle cell value changes
-    saveStateToHistory();
-    
-    setData((prevData) => {
-      return prevData.map((row) => {
-        if (row.id === rowId) {
-          return { ...row, [colKey]: value };
-        }
-        return row;
-      });
-    });
-    
+  const handleCellChange = (rowId: string, colKey: string, newValue: any) => {
+    setData(prevData =>
+      prevData.map(row =>
+        row.id === rowId ? { ...row, [colKey]: newValue } : row
+      )
+    );
     setShowSaveIndicator({ row: rowId, col: colKey });
-    
     setTimeout(() => {
       setShowSaveIndicator(null);
-    }, 1500);
+    }, 1000);
   };
   
   // Header double click handler
@@ -102,7 +84,7 @@ export function useGridActions({
     setEditingHeader(colKey);
   };
   
-  // Add column handler - fixed TypeScript error
+  // Add column handler
   const addColumn = (newColumn: any, setNewColumn: any, setIsAddingColumn: any) => {
     const newKey = newColumn.header.toLowerCase().replace(/\s/g, "_");
     const newColumnDef = {
@@ -115,12 +97,9 @@ export function useGridActions({
     setNewColumn({ header: "", type: "text" });
     setIsAddingColumn(false);
     
-    // Add the new column to all existing data rows - fixed TypeScript error
+    // Add the new column to all existing data rows
     setData(prevData =>
-      prevData.map(row => ({
-        ...row,
-        [newKey]: ""
-      })) as RowData[] // Type assertion to fix TS error
+      prevData.map(row => ({ ...row, [newKey]: "" }))
     );
   };
   
@@ -130,7 +109,7 @@ export function useGridActions({
     setData(prevData =>
       prevData.map(row => {
         const { [colKey]: deletedKey, ...rest } = row;
-        return rest as RowData; // Type assertion to fix TS error
+        return rest;
       })
     );
   };
@@ -227,6 +206,7 @@ export function useGridActions({
     }
   };
 
+  // This function was causing TS errors because it was expecting 0 arguments but receiving 1
   // Handle keyboard shortcuts for undo/redo
   const handleKeyDown = (
     e: React.KeyboardEvent,
@@ -260,8 +240,8 @@ export function useGridActions({
   
   return {
     handleCellClick,
-    handleHeaderDoubleClick,
     handleCellChange,
+    handleHeaderDoubleClick,
     addColumn,
     deleteColumn,
     duplicateColumn,
@@ -271,6 +251,6 @@ export function useGridActions({
     handleDragStart,
     handleDragOver,
     handleDrop,
-    handleKeyDown
+    handleKeyDown,
   };
 }

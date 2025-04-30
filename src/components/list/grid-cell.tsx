@@ -91,14 +91,7 @@ export function GridCell({
         year: 'numeric' 
       });
       onCellChange(rowId, colKey, formattedDate, type);
-    }
-  };
-
-  // Prevent default behavior to avoid layout shifts
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Only prevent default if we're not clicking on a checkbox or URL
-    if (type !== 'checkbox' && type !== 'url') {
-      e.preventDefault();
+      // The closePopover is now handled inside the DatePicker component
     }
   };
 
@@ -131,19 +124,14 @@ export function GridCell({
     }
   };
 
-  // Create the appropriate cell class name - maintain consistent sizing regardless of active state
-  const cellClassName = `grid-cell ${
-    type === 'currency' ? 'text-right' : ''
-  } ${colKey === "opportunity" ? "opportunity-cell" : ""} relative ${type === 'url' && value ? 'text-teal-primary hover:underline cursor-pointer' : ''}`;
-
   return (
     <div
-      className={cellClassName}
+      className={`grid-cell ${isActive ? 'bg-blue-50' : ''} ${
+        type === 'currency' ? 'text-right' : ''
+      } ${colKey === "opportunity" ? "opportunity-cell" : ""} relative ${type === 'url' && value ? 'text-teal-primary hover:underline cursor-pointer' : ''}`}
       onClick={handleClick}
-      onMouseDown={handleMouseDown}
       tabIndex={isEditable ? 0 : undefined}
       data-cell={`${rowId}-${colKey}`}
-      data-active={isActive ? "true" : "false"}
     >
       {renderCellContent()}
       
