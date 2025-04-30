@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
@@ -25,7 +24,7 @@ export function NewGridView({
   const [containerHeight, setContainerHeight] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCell, setEditingCell] = useState<{rowId: string, columnId: string} | null>(null);
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [activeFilters, setActiveFilters] = useState<{columns: string[], values: Record<string, any>}>({ columns: [], values: {} });
   const [statusDropdownPosition, setStatusDropdownPosition] = useState<{ top: number; left: number; rowId: string; columnId: string } | null>(null);
 
   // Column widths state
@@ -59,12 +58,47 @@ export function NewGridView({
       });
     }
     
-    // Apply column filters - only show rows that have data in all the filtered columns
-    if (activeFilters.length > 0) {
+    // Apply column filters with improved logic
+    if (activeFilters.columns.length > 0) {
       result = result.filter(row => {
-        return activeFilters.every(columnId => {
+        return activeFilters.columns.every(columnId => {
           const value = row[columnId];
-          return value !== null && value !== undefined && value !== '';
+          const filterValue = activeFilters.values[columnId];
+          const column = columns.find(col => col.id === columnId);
+          
+          if (!column) return true;
+          
+          // Different filter logic based on column type
+          switch (column.type) {
+            case 'status':
+              // If no specific values selected, just check if field has any value
+              if (!filterValue || filterValue.length === 0) {
+                return value !== null && value !== undefined && value !== '';
+              }
+              // Otherwise check if value is in the selected options
+              return filterValue.includes(value);
+              
+            case 'date':
+              if (!filterValue) return value !== null && value !== undefined && value !== '';
+              
+              const dateValue = value ? new Date(value) : null;
+              if (!dateValue) return false;
+              
+              const startDate = filterValue.start ? new Date(filterValue.start) : null;
+              const endDate = filterValue.end ? new Date(filterValue.end) : null;
+              
+              if (startDate && endDate) {
+                return dateValue >= startDate && dateValue <= endDate;
+              } else if (startDate) {
+                return dateValue >= startDate;
+              } else if (endDate) {
+                return dateValue <= endDate;
+              }
+              return true;
+              
+            default:
+              return value !== null && value !== undefined && value !== '';
+          }
         });
       });
     }
@@ -229,8 +263,8 @@ export function NewGridView({
   // Row height callback for VariableSizeGrid
   const getRowHeight = useCallback(() => ROW_HEIGHT, []);
 
-  // Handle filter changes
-  const handleApplyFilters = (filters: string[]) => {
+  // Handle filter changes with enhanced functionality
+  const handleApplyFilters = (filters: {columns: string[], values: Record<string, any>}) => {
     console.log("Applying filters:", filters);
     setActiveFilters(filters);
   };
@@ -493,7 +527,7 @@ export function NewGridView({
         listType={listType}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        filterCount={activeFilters.length}
+        filterCount={activeFilters.columns.length}
         columns={columns}
         onApplyFilters={handleApplyFilters}
         activeFilters={activeFilters}
@@ -514,7 +548,7 @@ export function NewGridView({
             ref={gridRef}
             columnCount={columns.length + 1} // +1 for index column
             columnWidth={getColumnWidth}
-            height={containerHeight - HEADER_HEIGHT}
+            height={containerHeight - HEADER_HEIGHT + 10} // Add 10px to remove the gap
             rowCount={filteredData.length + 1} // +1 for header placeholder
             rowHeight={getRowHeight}
             width={containerWidth}

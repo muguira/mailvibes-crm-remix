@@ -20,7 +20,7 @@
   display: flex;
   border-bottom: 1px solid #e5e7eb;
   background-color: #f9fafb;
-  height: 40px;
+  height: 30px; /* Reduced from 40px to 30px */
   position: relative;
   user-select: none;
   overflow: visible;
@@ -39,6 +39,7 @@
   position: sticky;
   left: 0;
   z-index: 10;
+  height: 30px; /* Reduced from 40px to 30px */
 }
 
 .columns-header {
@@ -56,6 +57,7 @@
   display: flex;
   align-items: center;
   min-width: 120px;
+  height: 30px; /* Reduced from 40px to 30px */
 }
 
 .grid-frozen-header {
@@ -106,6 +108,7 @@
   align-items: center;
   justify-content: center;
   width: 40px;
+  height: 30px; /* Reduced from 40px to 30px */
 }
 
 .add-column-button:hover {
@@ -168,7 +171,7 @@
 .grid-frozen-cell {
   background-color: #fff;
   position: sticky;
-  left: 50px; /* Aligns with the frozen header width */
+  left: 0; /* Align with left edge instead of 50px offset */
   z-index: 2;
   margin-left: 0 !important;
   border-left: none !important;
@@ -276,7 +279,7 @@
 }
 
 /* Filter Popover */
-.filter-popover {
+.filter-popover-container {
   position: absolute;
   top: 100%;
   left: 0;
@@ -288,8 +291,13 @@
   border-radius: 8px;
   box-shadow: 0 4px 15px -1px rgba(0, 0, 0, 0.1), 0 2px 10px -1px rgba(0, 0, 0, 0.06);
   overflow: hidden;
+}
+
+.filter-popover {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  height: 100%;
 }
 
 .filter-popover-content {
@@ -339,3 +347,30 @@
   gap: 8px;
   margin-bottom: 4px;
 }
+
+/* Filter value selectors */
+.filter-value-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.filter-values-list {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.date-range-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.date-range-input {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+

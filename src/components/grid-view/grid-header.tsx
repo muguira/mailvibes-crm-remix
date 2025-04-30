@@ -91,7 +91,7 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
     document.addEventListener('mouseup', handleResizeEnd);
   }, []);
   
-  // Handle column resize move
+  // Handle column resize move - improved to update in real-time
   const handleResizeMove = useCallback((e: MouseEvent) => {
     e.preventDefault();
     
@@ -109,7 +109,7 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
     }
   }, [resizingColumn, initialX, initialWidth, columns, onColumnResize]);
   
-  // Handle column resize end
+  // Handle column resize end with explicit update to ensure persistence
   const handleResizeEnd = useCallback((e: MouseEvent) => {
     e.preventDefault();
     

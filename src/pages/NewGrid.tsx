@@ -92,6 +92,8 @@ const opportunityColumns: Column[] = [
 
 // Generate a large dataset for performance testing
 const generateLargeDataset = (count: number): GridRow[] => {
+  console.log(`Generating ${count} rows of data...`);
+  
   return Array.from({ length: count }, (_, i) => ({
     id: `row-${i}`,
     opportunity: `Opportunity ${i}`,
@@ -120,7 +122,9 @@ const NewGrid: React.FC = () => {
     // Generate full 10k rows when demo=10k is in URL
     if (demo === '10k') {
       console.log("Generating 10,000 rows for performance testing");
-      setData(generateLargeDataset(10000));
+      const largeDataset = generateLargeDataset(10000);
+      console.log(`Generated ${largeDataset.length} rows`);
+      setData(largeDataset);
     } else {
       // Default to 100 rows for normal use
       setData(generateLargeDataset(100));
