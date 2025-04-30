@@ -24,9 +24,13 @@ export function GridDatePicker({
 
   const handleSelect = (date: Date | undefined) => {
     onSelect(date);
-    // Ensure we forcibly close the popup after selection
+    // Force close the popup after selection
     onClose();
   };
+
+  // Ensure calendar has a default date if none is selected
+  // This prevents it from getting "stuck" on a specific day
+  const defaultDate = selectedDate || new Date();
 
   return (
     <AbsolutePopoverContent
@@ -51,6 +55,7 @@ export function GridDatePicker({
         mode="single"
         selected={selectedDate}
         onSelect={handleSelect}
+        defaultMonth={defaultDate}
         initialFocus
         className="p-3 pointer-events-auto"
       />

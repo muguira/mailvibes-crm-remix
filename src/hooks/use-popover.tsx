@@ -42,49 +42,45 @@ export function usePopover({ onClose }: UsePopoverOptions = {}) {
     };
   }, [isOpen]);
 
-  // Enhanced position calculation to ensure popover aligns perfectly with the clicked element
+  // Enhanced position calculation for precise alignment with cell
   const calculatePosition = useCallback((element: HTMLElement) => {
     const rect = element.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
     
-    // Get more accurate popover dimensions based on type
+    // Estimate popover dimensions based on type
     const popoverHeight = popoverType === 'date' ? 380 : 250; // Calendar is taller than dropdown
     const popoverWidth = popoverType === 'date' ? 300 : 240;
     
-    // Space needed above/below for the popover plus a small gap
-    const spaceNeeded = popoverHeight + 5;
+    // Space needed for the popover
+    const spaceNeeded = popoverHeight;
     
     // Check if there's enough space below the element
     const spaceBelow = viewportHeight - rect.bottom;
     const placeBelow = spaceBelow >= spaceNeeded;
     
-    // Calculate vertical position
+    // Calculate vertical position - always align with top or bottom edge precisely
     let top;
     if (placeBelow) {
-      // Position below with no gap
+      // Position exactly at bottom of element
       top = rect.bottom;
     } else {
-      // Position above with no gap
+      // Position exactly at top of element minus popover height
       top = rect.top - popoverHeight;
       
-      // If positioning above would go off-screen, force to top of screen with minimal padding
-      if (top < 2) {
-        top = 2;
+      // If positioning above would go off-screen, adjust to visible area
+      if (top < 0) {
+        top = 0;
       }
     }
     
-    // Align left edge of popover with left edge of the element
+    // Calculate horizontal position - align with left edge of element
     let left = rect.left;
     
     // Prevent horizontal overflow
-    if (left + popoverWidth > viewportWidth - 5) {
-      left = viewportWidth - popoverWidth - 5; // 5px from right edge
-    }
-    
-    // Ensure minimum left padding
-    if (left < 2) {
-      left = 2;
+    if (left + popoverWidth > viewportWidth) {
+      left = viewportWidth - popoverWidth;
+      if (left < 0) left = 0; // Ensure it's not negative
     }
     
     return { top, left };

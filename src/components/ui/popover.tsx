@@ -45,8 +45,8 @@ const AbsolutePopoverContent = React.forwardRef<
       className
     )}
     style={{
-      top: position?.top ? `${position.top}px` : undefined,
-      left: position?.left ? `${position.left}px` : undefined,
+      top: position?.top !== undefined ? `${position.top}px` : undefined,
+      left: position?.left !== undefined ? `${position.left}px` : undefined,
     }}
     {...props}
   >
