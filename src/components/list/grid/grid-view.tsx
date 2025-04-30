@@ -7,6 +7,7 @@ import { useGridSetup } from "./use-grid-setup";
 import { GridViewProps } from "./types";
 import { Pencil } from "lucide-react";
 import { PointsOfContactDialog } from "../dialogs/points-of-contact-dialog";
+import "./grid-view.css";
 
 export function GridView({ 
   columns: initialColumns, 
@@ -100,12 +101,12 @@ export function GridView({
   };
 
   // Wrap the cell change handler to save to Supabase
-  const handleCellChangeAndSave = (rowId: string, colKey: string, value: any) => {
+  const handleCellChangeAndSave = (rowId: string, colKey: string, value: any, type: string) => {
     // First handle the local change
     handleCellChange(rowId, colKey, value);
     
     // Then save to Supabase if callback is provided
-    if (onCellChange) {
+    if (onCellChange && !rowId.startsWith('empty-row-')) {
       onCellChange(rowId, colKey, value);
     }
   };
@@ -125,6 +126,8 @@ export function GridView({
   
   // Add row hover actions to render function
   const renderRowActions = (rowId: string) => {
+    if (rowId.startsWith('empty-row-')) return null;
+    
     return (
       <div className="absolute left-0 top-0 h-full opacity-0 group-hover:opacity-100 flex items-center">
         <button 
@@ -190,7 +193,7 @@ export function GridView({
         bodyRef={bodyRef}
         onCellClick={handleCellClick}
         onCellChange={handleCellChangeAndSave}
-        renderRowActions={renderRowActions} // Pass the row actions renderer
+        renderRowActions={renderRowActions}
       />
       
       {/* Points of Contact Dialog */}

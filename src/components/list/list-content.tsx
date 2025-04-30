@@ -46,10 +46,23 @@ export function ListContent({
     );
   }
 
+  // Always ensure we have at least 10 empty rows to show when there's no data
+  const displayData = gridData.length > 0 
+    ? gridData 
+    : Array.from({ length: 20 }, (_, i) => ({ 
+        id: `empty-row-${i+1}`,
+        opportunity: "",
+        status: "",
+        revenue: "",
+        close_date: "",
+        owner: "",
+        company: ""
+      }));
+
   return viewMode === "grid" ? (
     <GridView 
       columns={columns} 
-      data={gridData} 
+      data={displayData} 
       listName={listName} 
       listType="Opportunity"
       listId={currentListId}
