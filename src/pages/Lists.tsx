@@ -6,21 +6,26 @@ import { GridView } from "@/components/list/grid-view";
 import { StreamView } from "@/components/list/stream-view";
 import { ViewModeSelector } from "@/components/list/view-mode-selector";
 import { opportunityColumns } from "@/data/opportunities-data";
-import { useLists, useGridData, useContacts } from "@/hooks/supabase";
+import { useLists, useGridData, useContacts, useChangeHistory, useRealtimePresence } from "@/hooks/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { CustomButton } from "@/components/ui/custom-button";
 import { OpportunityDialog } from "@/components/list/opportunity-dialog";
-import { Plus } from "lucide-react";
+import { Plus, History, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import "@/components/list/grid-view.css";
 import { v4 as uuidv4 } from "uuid";
+import { ChangeRecord, PresenceUser } from "@/hooks/supabase";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 
 const Lists = () => {
   const [viewMode, setViewMode] = useState<"grid" | "stream">("grid");
   const [currentListId, setCurrentListId] = useState<string | null>(null);
   const [isCreateListOpen, setIsCreateListOpen] = useState(false);
   const [isAddOpportunityOpen, setIsAddOpportunityOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
   const { user } = useAuth();
   
@@ -33,6 +38,12 @@ const Lists = () => {
   // Fetch/create contacts for the current list
   const { contacts, createContact } = useContacts(currentListId || undefined);
   
+  // Get change history
+  const { changes, recordChange } = useChangeHistory(currentListId || undefined);
+  
+  // Get realtime presence
+  const { presentUsers, updateCursorPosition } = useRealtimePresence(currentListId || undefined);
+  
   // Set the first list as current when lists are loaded
   useEffect(() => {
     if (lists.length > 0 && !currentListId) {
@@ -44,11 +55,30 @@ const Lists = () => {
   const handleCellChange = (rowId: string, colKey: string, value: any) => {
     if (!currentListId || !user) return;
     
+    // Get the existing value from gridData
+    const row = gridData.find(r => r.id === rowId);
+    const oldValue = row ? row[colKey] : null;
+    
+    // Save the change to grid data
     saveGridChange({
       rowId,
       colKey,
       value
     });
+    
+    // Record the change in history
+    if (currentListId) {
+      recordChange({
+        list_id: currentListId,
+        row_id: rowId,
+        column_key: colKey,
+        old_value: oldValue,
+        new_value: value
+      });
+    }
+    
+    // Update cursor position for realtime presence
+    updateCursorPosition(rowId, colKey);
   };
 
   // Create a new list
@@ -116,6 +146,25 @@ const Lists = () => {
     });
   };
 
+  // Format a date string for display
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'MMM d, h:mm a');
+    } catch (e) {
+      return 'Invalid date';
+    }
+  };
+
+  // Get initials from name
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
     <div className="flex h-screen bg-slate-light/20">
       <Sidebar />
@@ -150,6 +199,58 @@ const Lists = () => {
               <Plus size={14} />
               <span>New List</span>
             </CustomButton>
+            
+            {currentListId && (
+              <>
+                <CustomButton
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
+                  onClick={() => setIsHistoryOpen(true)}
+                >
+                  <History size={14} />
+                  <span>History</span>
+                </CustomButton>
+                
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <CustomButton
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                    >
+                      <Users size={14} />
+                      <span>Users ({Object.keys(presentUsers).length})</span>
+                    </CustomButton>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80">
+                    <div className="space-y-2">
+                      <h3 className="font-medium">Currently viewing</h3>
+                      {Object.values(presentUsers).length === 0 ? (
+                        <p className="text-sm text-slate-500">No one else is viewing this list</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {Object.values(presentUsers).map((user: PresenceUser) => (
+                            <div key={user.id} className="flex items-center gap-2">
+                              <Avatar className="h-6 w-6">
+                                {user.avatar_url ? (
+                                  <AvatarImage src={user.avatar_url} alt={user.name} />
+                                ) : null}
+                                <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{user.name}</span>
+                              <span className="text-xs text-slate-500">
+                                {formatDate(user.last_active)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </>
+            )}
           </div>
 
           <ViewModeSelector viewMode={viewMode} onViewModeChange={setViewMode} />
@@ -160,7 +261,7 @@ const Lists = () => {
             viewMode === "grid" ? (
               <GridView 
                 columns={opportunityColumns} 
-                data={gridData as { id: string; [key: string]: any }[]} 
+                data={gridData} 
                 listName={lists.find(l => l.id === currentListId)?.name || "Opportunities"} 
                 listType="Opportunity"
                 onCellChange={handleCellChange}
@@ -237,6 +338,48 @@ const Lists = () => {
         onSave={handleSaveOpportunity}
         listName={lists.find(l => l.id === currentListId)?.name || "DEMO"}
       />
+      
+      {/* History dialog */}
+      <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Change History</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 overflow-y-auto">
+            {changes.length === 0 ? (
+              <p className="text-center text-slate-500">No changes have been recorded yet</p>
+            ) : (
+              <div className="space-y-4">
+                {changes.map((change: ChangeRecord) => (
+                  <div key={change.id} className="border-b pb-2">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarFallback>{getInitials(change.user_name || '')}</AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium">{change.user_name || 'Unknown User'}</span>
+                      <span className="text-xs text-slate-500">
+                        {formatDate(change.changed_at)}
+                      </span>
+                    </div>
+                    <div className="ml-8 mt-1">
+                      <p className="text-sm">
+                        Changed <span className="font-semibold">{change.column_key}</span> from{' '}
+                        <span className="bg-red-50 px-1 rounded">{JSON.stringify(change.old_value)}</span> to{' '}
+                        <span className="bg-green-50 px-1 rounded">{JSON.stringify(change.new_value)}</span>
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <CustomButton onClick={() => setIsHistoryOpen(false)}>
+              Close
+            </CustomButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
