@@ -103,6 +103,18 @@
   .grid-header-cell {
     @apply px-3 py-2 font-semibold text-sm text-slate-dark flex items-center justify-between cursor-pointer;
   }
+  
+  /* Search field customization */
+  input[type="text"]::placeholder {
+    color: #9CA3AF;
+    opacity: 0.8;
+  }
+  
+  /* Remove default outline for search fields */
+  input[type="text"]:focus {
+    outline: none;
+    box-shadow: none;
+  }
 }
 
 /* Custom scrollbar */

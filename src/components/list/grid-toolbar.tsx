@@ -20,10 +20,14 @@ export function GridToolbar({
   return (
     <div className="flex justify-between items-center p-2 border-b border-slate-light/20 bg-white">
       <div className="flex items-center space-x-2">
-        {/* Search Field */}
-        <div className="search-field">
-          <Search size={16} className="text-slate-400" />
-          <input type="text" placeholder="Search Field Values" className="w-48" />
+        {/* Search Field - Updated to be inline with magnifying glass */}
+        <div className="flex items-center border-b border-gray-300">
+          <Search size={16} className="text-slate-400 mr-2" />
+          <input 
+            type="text" 
+            placeholder="Search Field Values" 
+            className="border-none outline-none text-sm py-1 w-52 focus:ring-0 bg-transparent"
+          />
         </div>
         
         {/* Filter Button */}
