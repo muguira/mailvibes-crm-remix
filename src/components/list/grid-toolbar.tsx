@@ -3,7 +3,6 @@ import { Filter, FileDown, Plus, Search, ChevronDown } from "lucide-react";
 import { CustomButton } from "@/components/ui/custom-button";
 import { useState } from "react";
 import { ColumnDef } from "./grid-view";
-import { ViewModeSelector } from "./view-mode-selector";
 
 interface GridToolbarProps {
   listType: string;

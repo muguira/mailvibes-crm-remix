@@ -21,7 +21,7 @@ const Lists = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
         
-        {/* Toolbar with view mode selector moved to GridToolbar */}
+        {/* Toolbar with view mode selector */}
         <div className="bg-white border-b border-slate-light/30 p-2 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             {/* Checkbox */}
@@ -45,7 +45,7 @@ const Lists = () => {
               <ChevronDown size={16} className="text-slate-medium" />
             </div>
             
-            {/* View Mode Selector - moved here from the other row */}
+            {/* View Mode Selector moved here */}
             <ViewModeSelector 
               viewMode={viewMode}
               onViewModeChange={setViewMode}
