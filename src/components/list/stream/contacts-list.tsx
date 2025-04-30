@@ -1,42 +1,57 @@
-
 import { ContactData } from "../types";
+import { EmptyState } from "@/components/ui/empty-state";
 
-interface ContactsListProps {
+export function ContactsList({
+  contacts,
+  selectedContactId,
+  onContactSelect,
+  onCreateContact
+}: {
   contacts: ContactData[];
-  activeContactId: string;
+  selectedContactId: string | null;
   onContactSelect: (contact: ContactData) => void;
-}
-
-export function ContactsList({ contacts, activeContactId, onContactSelect }: ContactsListProps) {
+  onCreateContact: () => void;
+}) {
   return (
-    <div className="w-72 border-r border-slate-light/30 bg-white overflow-y-auto">
-      <div className="p-2 border-b border-slate-light/30 flex items-center justify-between">
-        <input
-          type="text"
-          placeholder="Search Field Values"
-          className="px-2 py-1 text-sm border border-slate-light/30 rounded w-full"
+    <div className="flex-1 overflow-y-auto h-full">
+      {contacts.length === 0 ? (
+        <EmptyState 
+          title="No contacts found"
+          description="Get started by creating a new contact"
+          actionLabel="Create Contact"
+          onAction={onCreateContact}
         />
-      </div>
-      
-      {contacts.map((contact) => (
-        <div
-          key={contact.id}
-          className={`p-3 border-b border-slate-light/30 cursor-pointer ${
-            activeContactId === contact.id ? 'bg-teal-primary/10' : 'hover:bg-slate-light/10'
-          }`}
-          onClick={() => onContactSelect(contact)}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium">{contact.name}</div>
-              {contact.company && (
-                <div className="text-xs text-slate-medium">{contact.company}</div>
-              )}
+      ) : (
+        <div className="divide-y divide-slate-light/20">
+          {contacts.map(contact => (
+            <div 
+              key={contact.id}
+              className={`p-3 hover:bg-slate-light/10 cursor-pointer ${
+                contact.id === selectedContactId ? 'bg-teal-primary/10' : ''
+              }`}
+              onClick={() => onContactSelect(contact)}
+            >
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="font-medium">
+                    <a 
+                      href={`/contact/${contact.id}`} 
+                      className="text-teal-primary hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {contact.name || 'Unnamed Contact'}
+                    </a>
+                  </div>
+                  {contact.company && (
+                    <div className="text-sm text-slate-medium">{contact.company}</div>
+                  )}
+                </div>
+                <div className="text-xs text-slate-medium">{contact.lastActivity}</div>
+              </div>
             </div>
-            <div className="text-xs text-slate-medium">{contact.lastActivity}</div>
-          </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }
