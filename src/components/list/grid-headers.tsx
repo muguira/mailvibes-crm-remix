@@ -1,10 +1,11 @@
+
 import { Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CustomButton } from "@/components/ui/custom-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GridHeaderCell } from "./grid-header-cell";
 import { ColumnDef, ColumnType } from "./grid/types";
-import { RefObject, useState, useEffect } from "react";
+import { RefObject, useState, useEffect, useRef } from "react";
 
 interface GridHeadersProps {
   frozenColumns: ColumnDef[];
@@ -78,16 +79,45 @@ export function GridHeaders({
     "New": "#a855f7", // purple
   };
   
+  // Local ref to help with head cell visibility
+  const localHeaderRef = useRef<HTMLDivElement>(null);
+  
   // Debug log to verify columns are being passed correctly
   useEffect(() => {
     console.log("GridHeaders rendering with columns:", { 
       frozen: frozenColumns, 
       scrollable: scrollableColumns 
     });
+    
+    // Force visibility of header cells after they're rendered
+    const ensureHeadersVisible = () => {
+      if (headerRef.current) {
+        const headerCells = headerRef.current.querySelectorAll('.grid-header-cell');
+        headerCells.forEach(cell => {
+          (cell as HTMLElement).style.visibility = 'visible';
+          (cell as HTMLElement).style.opacity = '1';
+        });
+      }
+      
+      if (localHeaderRef.current) {
+        const allHeaderContainers = localHeaderRef.current.querySelectorAll('.grid-header');
+        allHeaderContainers.forEach(container => {
+          (container as HTMLElement).style.visibility = 'visible';
+          (container as HTMLElement).style.opacity = '1';
+        });
+      }
+    };
+    
+    // Execute multiple times to ensure it catches
+    setTimeout(ensureHeadersVisible, 100);
+    setTimeout(ensureHeadersVisible, 300);
   }, [frozenColumns, scrollableColumns]);
 
   return (
-    <div className="grid-headers-container sticky top-0 z-10 bg-white">
+    <div 
+      className="grid-headers-container sticky top-0 z-10 bg-white"
+      ref={localHeaderRef}
+    >
       {/* Row number header */}
       <div className="row-number-header"></div>
       
@@ -104,7 +134,9 @@ export function GridHeaders({
               boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)",
               position: "sticky",
               left: "72px", // Account for row number + edit column
-              display: "flex"
+              display: "flex",
+              visibility: 'visible',
+              opacity: 1
             }}
           >
             {frozenColumns.map((column) => (
@@ -128,7 +160,9 @@ export function GridHeaders({
         <div
           className="grid-header flex"
           style={{ 
-            marginLeft: frozenColumns && frozenColumns.length > 0 ? 0 : "72px" // Adjust margin if no frozen columns
+            marginLeft: frozenColumns && frozenColumns.length > 0 ? 0 : "72px", // Adjust margin if no frozen columns
+            visibility: 'visible',
+            opacity: 1
           }}
           ref={headerRef}
         >

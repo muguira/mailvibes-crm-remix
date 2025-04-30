@@ -1,5 +1,5 @@
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { GridToolbar } from "../grid-toolbar";
 import { GridHeaders } from "../grid-headers";
 import { GridBody } from "../grid-body";
@@ -28,6 +28,7 @@ function GridViewContent({
   // Container references for sync scrolling
   const headerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const [headerVisible, setHeaderVisible] = useState(false);
   
   // Access zoom context
   const { zoomLevel, setZoomLevel, gridStyle } = useZoom();
@@ -87,17 +88,50 @@ function GridViewContent({
 
   // Ensure headers are visible on first render and after data changes
   useEffect(() => {
+    // Set a timeout to ensure DOM is ready
     const timeoutId = setTimeout(() => {
       if (headerRef.current) {
         console.log("Forcing header reflow");
+        
+        // Force reflow by manipulating styles
         headerRef.current.style.display = 'none';
-        headerRef.current.offsetHeight; // Force reflow
+        void headerRef.current.offsetHeight; // Force reflow
         headerRef.current.style.display = 'flex';
+        
+        // Ensure all header cells are visible
+        const headerCells = headerRef.current.querySelectorAll('.grid-header-cell');
+        headerCells.forEach((cell) => {
+          (cell as HTMLElement).style.visibility = 'visible';
+          (cell as HTMLElement).style.opacity = '1';
+        });
+        
+        setHeaderVisible(true);
       }
-    }, 100);
+    }, 200);
     
     return () => clearTimeout(timeoutId);
   }, [initialColumns, initialData]);
+
+  // Additional effect to ensure columns render properly
+  useEffect(() => {
+    if (columns.length > 0 && headerRef.current) {
+      // Re-render headers by forcing DOM update
+      const forceUpdate = () => {
+        if (headerRef.current) {
+          // Force style recalculation
+          const element = headerRef.current;
+          element.style.visibility = 'hidden';
+          void element.offsetHeight;
+          element.style.visibility = 'visible';
+        }
+      };
+      
+      // Execute multiple times to ensure it catches
+      setTimeout(forceUpdate, 100);
+      setTimeout(forceUpdate, 300);
+      setTimeout(forceUpdate, 500);
+    }
+  }, [columns]);
 
   // Wrap the cell change handler to save to Supabase
   const handleCellChangeAndSave = (rowId: string, colKey: string, value: any, type: string) => {

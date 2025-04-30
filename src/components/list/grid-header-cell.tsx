@@ -2,7 +2,7 @@
 import { ChevronDown, PencilLine, Copy, ArrowLeft, ArrowRight, SortAsc, SortDesc, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ColumnDef } from "./grid/types";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface GridHeaderCellProps {
   column: ColumnDef;
@@ -38,10 +38,28 @@ export function GridHeaderCell({
   draggable = false
 }: GridHeaderCellProps) {
   
+  // Reference to the header cell element
+  const headerRef = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
     // Debug log to verify column header rendering
     console.log("Rendering header cell:", column.header, column.key);
   }, [column]);
+  
+  // Force reflow of header cell to ensure it's visible
+  useEffect(() => {
+    if (headerRef.current) {
+      const element = headerRef.current;
+      
+      // Force reflow by temporarily modifying display style
+      setTimeout(() => {
+        element.style.visibility = 'hidden';
+        // Force reflow
+        void element.offsetHeight;
+        element.style.visibility = 'visible';
+      }, 10);
+    }
+  }, []);
   
   const handleHeaderEditComplete = (key: string, newName: string) => {
     if (!newName.trim() || newName.trim() === column.header) {
@@ -66,6 +84,7 @@ export function GridHeaderCell({
 
   return (
     <div 
+      ref={headerRef}
       className={`grid-header-cell ${dragOverColumn === column.key ? 'border-l-2 border-r-2 border-teal-primary' : ''}`}
       onDoubleClick={() => onHeaderDoubleClick(column.key)}
       draggable={draggable}
@@ -73,6 +92,10 @@ export function GridHeaderCell({
       onDragOver={draggable ? handleDragOverEvent : undefined}
       onDrop={draggable ? handleDropEvent : undefined}
       data-header-key={column.key}
+      style={{
+        visibility: 'visible',
+        opacity: 1
+      }}
     >
       {editingHeader === column.key ? (
         <input 
