@@ -18,14 +18,21 @@ export interface ListsPageProps {
   // Add any props needed for the Lists page component
 }
 
-// Add missing ContactData type
+// Updated ContactData type with added properties
 export interface ContactData {
   id: string;
   name: string;
   company?: string;
+  email?: string;
   lastActivity?: string;
   activities?: ActivityItem[];
   fields?: Record<string, any>;
+  points_of_contact?: Array<{
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+  }>;
 }
 
 // Add missing ActivityItem type

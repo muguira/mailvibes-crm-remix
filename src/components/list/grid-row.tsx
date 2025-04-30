@@ -1,7 +1,8 @@
 
-import { Edit } from "lucide-react";
 import { GridCell } from "./grid-cell";
-import { ColumnDef, ColumnType } from "./grid-view";
+import { ColumnDef } from "./grid/types";
+import { SaveIndicator } from "./save-indicator";
+import { clsx } from "clsx";
 
 interface GridRowProps {
   rowData: { id: string; [key: string]: any };
@@ -11,8 +12,9 @@ interface GridRowProps {
   scrollableColsTemplate: string;
   activeCell: { row: string; col: string } | null;
   showSaveIndicator: { row: string; col: string } | null;
-  onCellClick: (rowId: string, colKey: string, colType: ColumnType, options?: string[]) => void;
-  onCellChange: (rowId: string, colKey: string, value: any, type: ColumnType) => void;
+  onCellClick: (rowId: string, colKey: string, colType: string, options?: string[]) => void;
+  onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
+  renderRowActions?: (rowId: string) => React.ReactNode;
 }
 
 export function GridRow({
@@ -24,78 +26,82 @@ export function GridRow({
   activeCell,
   showSaveIndicator,
   onCellClick,
-  onCellChange
+  onCellChange,
+  renderRowActions
 }: GridRowProps) {
   return (
-    <div className="flex">
-      {/* Frozen cells */}
-      {frozenColumns.length > 0 && (
-        <div
-          className="grid grid-row"
-          style={{
-            gridTemplateColumns: frozenColsTemplate,
-            position: "sticky",
-            left: 0,
-            zIndex: 5,
-            backgroundColor: "white",
-            boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)"
-          }}
-        >
-          <div className="grid-cell flex items-center">
-            <input type="checkbox" className="ml-2" />
-            <button className="ml-2 text-slate-medium">
-              <Edit size={14} />
-            </button>
-          </div>
-
-          {frozenColumns.map(column => (
-            <GridCell
-              key={`${rowData.id}-${column.key}`}
-              rowId={rowData.id}
-              colKey={column.key}
-              value={rowData[column.key]}
-              type={column.type}
-              isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
-              isEditable={!!column.editable}
-              showSaveIndicator={!!(showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key)}
-              options={column.options}
-              onCellClick={onCellClick}
-              onCellChange={onCellChange}
-            />
-          ))}
+    <div className="flex w-full hover:bg-slate-light/5 group relative">
+      {/* Row number column */}
+      <div 
+        className="grid border-b border-r border-slate-light/20" 
+        style={{ gridTemplateColumns: frozenColsTemplate }}
+      >
+        <div className="py-2 px-3 text-xs text-slate-medium flex items-center justify-center">
+          {renderRowActions && (
+            <div className="relative">
+              {renderRowActions(rowData.id)}
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Scrollable cells */}
-      <div
-        className="grid grid-row"
+        
+        {/* Frozen columns */}
+        {frozenColumns.map((column) => (
+          <div key={column.key} className="relative">
+            <GridCell
+              value={rowData[column.key]}
+              column={column}
+              rowId={rowData.id}
+              isActive={
+                activeCell?.row === rowData.id && 
+                activeCell?.col === column.key
+              }
+              onClick={() => 
+                onCellClick(rowData.id, column.key, column.type, column.options)
+              }
+              onChange={(value) => 
+                onCellChange(rowData.id, column.key, value, column.type)
+              }
+            />
+            {showSaveIndicator && 
+              showSaveIndicator.row === rowData.id && 
+              showSaveIndicator.col === column.key && (
+                <SaveIndicator />
+              )
+            }
+          </div>
+        ))}
+      </div>
+      
+      {/* Scrollable columns */}
+      <div 
+        className="grid flex-1 border-b border-slate-light/20" 
         style={{ gridTemplateColumns: scrollableColsTemplate }}
       >
-        {frozenColumns.length === 0 && (
-          <div className="grid-cell flex items-center">
-            <input type="checkbox" className="ml-2" />
-            <button className="ml-2 text-slate-medium">
-              <Edit size={14} />
-            </button>
-          </div>
-        )}
-
         {scrollableColumns.map((column) => (
-          <GridCell
-            key={`${rowData.id}-${column.key}`}
-            rowId={rowData.id}
-            colKey={column.key}
-            value={rowData[column.key]}
-            type={column.type}
-            isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
-            isEditable={!!column.editable}
-            showSaveIndicator={!!(showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key)}
-            options={column.options}
-            onCellClick={onCellClick}
-            onCellChange={onCellChange}
-          />
+          <div key={column.key} className="relative">
+            <GridCell
+              value={rowData[column.key]}
+              column={column}
+              rowId={rowData.id}
+              isActive={
+                activeCell?.row === rowData.id && 
+                activeCell?.col === column.key
+              }
+              onClick={() => 
+                onCellClick(rowData.id, column.key, column.type, column.options)
+              }
+              onChange={(value) => 
+                onCellChange(rowData.id, column.key, value, column.type)
+              }
+            />
+            {showSaveIndicator && 
+              showSaveIndicator.row === rowData.id && 
+              showSaveIndicator.col === column.key && (
+                <SaveIndicator />
+              )
+            }
+          </div>
         ))}
-        <div className="grid-cell"></div>
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ interface GridBodyProps {
   bodyRef: RefObject<HTMLDivElement>;
   onCellClick: (rowId: string, colKey: string, colType: string, options?: string[]) => void;
   onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
+  renderRowActions?: (rowId: string) => React.ReactNode;
 }
 
 export function GridBody({
@@ -26,7 +27,8 @@ export function GridBody({
   showSaveIndicator,
   bodyRef,
   onCellClick,
-  onCellChange
+  onCellChange,
+  renderRowActions
 }: GridBodyProps) {
   return (
     <div className="overflow-auto flex-1" ref={bodyRef}>
@@ -42,6 +44,7 @@ export function GridBody({
           showSaveIndicator={showSaveIndicator}
           onCellClick={onCellClick}
           onCellChange={onCellChange}
+          renderRowActions={renderRowActions}
         />
       ))}
     </div>
