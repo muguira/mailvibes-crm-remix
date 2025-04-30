@@ -6,7 +6,7 @@ import { GridView } from "@/components/list/grid-view";
 import { StreamView } from "@/components/list/stream-view";
 import { ViewModeSelector } from "@/components/list/view-mode-selector";
 import { opportunityColumns } from "@/data/opportunities-data";
-import { useLists, useGridData, useContacts } from "@/hooks/use-supabase-data";
+import { useLists, useGridData, useContacts } from "@/hooks/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { CustomButton } from "@/components/ui/custom-button";
 import { OpportunityDialog } from "@/components/list/opportunity-dialog";
