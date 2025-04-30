@@ -15,6 +15,7 @@ interface GridCellProps {
   value: any;
   type: ColumnType;
   options?: string[];
+  colors?: Record<string, string>; // Added colors prop to the interface
   isActive: boolean;
   onClick: () => void;
   onChange: (value: any) => void;
@@ -27,6 +28,7 @@ export function GridCell({
   value,
   type,
   options,
+  colors, // Pass colors to the component
   isActive,
   onClick,
   onChange,
@@ -115,7 +117,7 @@ export function GridCell({
 
     switch (type) {
       case 'status':
-        return <StatusCell value={value} />;
+        return <StatusCell value={value} colors={colors} />;
       case 'checkbox':
         return (
           <CheckboxCell
