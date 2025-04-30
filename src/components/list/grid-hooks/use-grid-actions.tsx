@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { ColumnDef, ColumnType } from "../grid-view";
 import { RowData } from "./use-grid-state";
+import { isValidUrl, formatUrl } from "../grid-utils"; // Import the isValidUrl function
 
 interface UseGridActionsProps {
   columns: ColumnDef[];
@@ -16,6 +17,7 @@ interface UseGridActionsProps {
   saveStateToHistory: () => void;
   setDraggedColumn: React.Dispatch<React.SetStateAction<string | null>>;
   setDragOverColumn: React.Dispatch<React.SetStateAction<string | null>>;
+  draggedColumn: string | null; // Add draggedColumn as a prop
 }
 
 export function useGridActions({
@@ -29,7 +31,8 @@ export function useGridActions({
   setShowSaveIndicator,
   saveStateToHistory,
   setDraggedColumn,
-  setDragOverColumn
+  setDragOverColumn,
+  draggedColumn // Add draggedColumn to destructuring
 }: UseGridActionsProps) {
   
   const handleCellClick = (rowId: string, colKey: string, colType: ColumnType, options?: string[]) => {
