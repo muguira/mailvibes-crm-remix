@@ -50,12 +50,12 @@ export function useChangeHistory(listId?: string) {
     }
 
     // Transform the data to include user information
-    return data?.map(record => ({
+    return (data || []).map(record => ({
       ...record,
       user_name: record.profiles ? 
-        `${record.profiles.first_name || ''} ${record.profiles.last_name || ''}`.trim() : 
+        `${record.profiles.first_name || ''} ${record.profiles.last_name || ''}`.trim() || 'Unknown User' : 
         'Unknown User',
-    })) || [];
+    }));
   };
 
   // Query to fetch change history
