@@ -49,7 +49,11 @@ export function StreamView({ contacts: initialContacts, listName, listId }: Stre
   const handleCreateContact = () => {
     if (!newContact.name.trim() || !listId) return;
     
+    // Generate a unique ID for the new contact
+    const newContactId = crypto.randomUUID();
+    
     createContact({
+      id: newContactId, // Add the id property
       name: newContact.name,
       company: newContact.company,
       email: newContact.email,
@@ -93,7 +97,7 @@ export function StreamView({ contacts: initialContacts, listName, listId }: Stre
     id: contact.id,
     name: contact.name,
     company: contact.company,
-    lastActivity: new Date(contact.last_activity).toLocaleDateString(),
+    lastActivity: contact.last_activity ? new Date(contact.last_activity).toLocaleDateString() : 'No activity',
     activities: [],
     fields: contact.data || {}
   }));
