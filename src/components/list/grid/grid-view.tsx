@@ -5,6 +5,7 @@ import { GridHeaders } from "../grid-headers";
 import { GridBody } from "./grid-body";
 import { useGridSetup } from "./use-grid-setup";
 import { GridViewProps } from "./types";
+import { ViewModeSelector } from "../view-mode-selector";
 
 export function GridView({ columns: initialColumns, data: initialData, listName, listType }: GridViewProps) {
   // Container references for sync scrolling
@@ -60,10 +61,10 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
   return (
     <div 
       className="h-full flex flex-col" 
-      onKeyDown={(e) => handleKeyDown(e, undoStack, setUndoStack, redoStack, setRedoStack)} 
+      onKeyDown={(e) => handleKeyDown(e)} 
       tabIndex={-1}
     >
-      {/* Grid Toolbar - Now without View Mode selector */}
+      {/* Grid Toolbar - Including View Mode selector */}
       <GridToolbar listType={listType} columns={columns} />
       
       {/* Grid Headers */}
