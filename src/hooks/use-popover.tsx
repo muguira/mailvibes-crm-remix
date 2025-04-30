@@ -94,7 +94,7 @@ export function usePopover({ onClose, onSelect }: UsePopoverOptions = {}) {
   // Handle selection and auto-close
   const handleSelect = useCallback((value: any) => {
     if (onSelect) onSelect(value);
-    closePopover();
+    closePopover(); // Always close after selection
   }, [closePopover, onSelect]);
 
   return {

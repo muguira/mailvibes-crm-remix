@@ -56,8 +56,7 @@ export function GridCell({
     popoverType,
     popoverRef,
     openPopover,
-    closePopover,
-    handleSelect
+    closePopover
   } = usePopover({
     onClose: () => {
       // Revert to original value on close without save
@@ -120,6 +119,8 @@ export function GridCell({
 
   const handleSelectOption = (optionValue: string) => {
     onCellChange(rowId, colKey, optionValue, type);
+    // After cell change, close the popover
+    closePopover();
   };
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -130,6 +131,8 @@ export function GridCell({
         year: 'numeric' 
       });
       onCellChange(rowId, colKey, formattedDate, type);
+      // After cell change, close the popover
+      closePopover();
     }
   };
 

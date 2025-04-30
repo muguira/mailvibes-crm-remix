@@ -23,6 +23,8 @@ export function GridSelectDropdown({
 
   const handleSelect = (option: string) => {
     onSelect(option);
+    // Ensure dropdown closes immediately after selection
+    if (onClose) onClose();
   };
 
   return (
