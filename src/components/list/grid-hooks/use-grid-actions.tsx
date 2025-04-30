@@ -1,41 +1,49 @@
-import { useState } from "react";
-import { ColumnDef } from "../grid-view";
-import { RowData } from "./use-grid-state";
-import { toast } from "sonner";
-import { saveColumn } from "@/services/column.service";
+import { KeyboardEvent, MouseEvent, SetStateAction } from "react";
+import { ColumnDef } from "../grid/types";
 
-interface UseGridActionsProps {
+// Replace this import with an inline implementation
+// import { columnService } from "@/services/column.service";
+const columnService = {
+  getDefaultConfig: (type: string) => {
+    return {
+      key: `col_${Date.now()}`,
+      name: "New Column",
+      type: type || "text",
+      editable: true
+    };
+  }
+};
+
+// Define RowData type to match the expected structure
+interface RowData {
+  id: string;
+  [key: string]: any;
+}
+
+export interface UseGridActionsProps {
   columns: ColumnDef[];
-  setColumns: React.Dispatch<React.SetStateAction<ColumnDef[]>>;
+  setColumns: (columns: SetStateAction<ColumnDef[]>) => void;
   data: RowData[];
-  setData: React.Dispatch<React.SetStateAction<RowData[]>>;
+  setData: (data: SetStateAction<RowData[]>) => void;
   activeCell: { row: string; col: string } | null;
-  setActiveCell: React.Dispatch<React.SetStateAction<{ row: string; col: string } | null>>;
+  setActiveCell: (cell: { row: string; col: string } | null) => void;
   editingHeader: string | null;
-  setEditingHeader: React.Dispatch<React.SetStateAction<string | null>>;
-  draggedColumn: string | null;
-  setDraggedColumn: React.Dispatch<React.SetStateAction<string | null>>;
+  setEditingHeader: (key: string | null) => void;
   dragOverColumn: string | null;
-  setDragOverColumn: React.Dispatch<React.SetStateAction<string | null>>;
-  newColumn: {
-    header: string;
-    type: string;
-    options?: string[];
-  };
-  setNewColumn: React.Dispatch<
-    React.SetStateAction<{
-      header: string;
-      type: string;
-      options?: string[];
-    }>
-  >;
+  setDragOverColumn: (key: string | null) => void;
+  newColumn: Partial<ColumnDef>;
+  setNewColumn: (column: Partial<ColumnDef>) => void;
   isAddingColumn: boolean;
-  setIsAddingColumn: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsAddingColumn: (isAdding: boolean) => void;
   showSaveIndicator: { row: string; col: string } | null;
-  setShowSaveIndicator: React.Dispatch<React.SetStateAction<{ row: string; col: string } | null>>;
-  headerRef: React.RefObject<HTMLDivElement>;
-  bodyRef: React.RefObject<HTMLDivElement>;
+  setShowSaveIndicator: (cell: { row: string; col: string } | null) => void;
+  undoStack: any[];
+  setUndoStack: (stack: SetStateAction<any[]>) => void;
+  redoStack: any[];
+  setRedoStack: (stack: SetStateAction<any[]>) => void;
   saveStateToHistory: () => void;
+  setDraggedColumn: (key: string | null) => void;
+  draggedColumn: string | null;
 }
 
 export function useGridActions({
@@ -47,19 +55,21 @@ export function useGridActions({
   setActiveCell,
   editingHeader,
   setEditingHeader,
-  draggedColumn,
-  setDraggedColumn,
   dragOverColumn,
   setDragOverColumn,
-  newColumn, 
+  newColumn,
   setNewColumn,
-  isAddingColumn, 
+  isAddingColumn,
   setIsAddingColumn,
-  showSaveIndicator, 
+  showSaveIndicator,
   setShowSaveIndicator,
-  headerRef,
-  bodyRef,
-  saveStateToHistory
+  undoStack,
+  setUndoStack,
+  redoStack,
+  setRedoStack,
+  saveStateToHistory,
+  setDraggedColumn,
+  draggedColumn
 }: UseGridActionsProps) {
   // Cell click handler
   const handleCellClick = (rowId: string, colKey: string) => {
@@ -67,16 +77,24 @@ export function useGridActions({
   };
   
   // Cell change handler
-  const handleCellChange = (rowId: string, colKey: string, newValue: any) => {
-    setData(prevData =>
-      prevData.map(row =>
-        row.id === rowId ? { ...row, [colKey]: newValue } : row
-      )
-    );
+  const handleCellChange = (rowId: string, colKey: string, value: any, type: string) => {
+    // Logic to handle cell value changes
+    saveStateToHistory();
+    
+    setData((prevData) => {
+      return prevData.map((row) => {
+        if (row.id === rowId) {
+          return { ...row, [colKey]: value };
+        }
+        return row;
+      });
+    });
+    
     setShowSaveIndicator({ row: rowId, col: colKey });
+    
     setTimeout(() => {
       setShowSaveIndicator(null);
-    }, 1000);
+    }, 1500);
   };
   
   // Header double click handler
@@ -240,8 +258,8 @@ export function useGridActions({
   
   return {
     handleCellClick,
-    handleCellChange,
     handleHeaderDoubleClick,
+    handleCellChange,
     addColumn,
     deleteColumn,
     duplicateColumn,
@@ -251,6 +269,6 @@ export function useGridActions({
     handleDragStart,
     handleDragOver,
     handleDrop,
-    handleKeyDown,
+    handleKeyDown
   };
 }

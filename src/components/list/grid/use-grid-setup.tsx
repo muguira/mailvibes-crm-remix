@@ -72,6 +72,7 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     editingHeader,
     setEditingHeader,
     dragOverColumn,
+    setDragOverColumn,
     newColumn,
     setNewColumn,
     isAddingColumn,
@@ -84,7 +85,6 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     setRedoStack,
     saveStateToHistory,
     setDraggedColumn,
-    setDragOverColumn,
     draggedColumn
   });
   

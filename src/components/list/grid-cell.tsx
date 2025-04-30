@@ -124,8 +124,8 @@ export function GridCell({
     }
   };
 
-  // Create the appropriate cell class name
-  const cellClassName = `grid-cell ${isActive ? 'active-cell bg-blue-50' : ''} ${
+  // Create the appropriate cell class name - remove the active-cell class as we're using ::after for the border
+  const cellClassName = `grid-cell ${isActive ? 'bg-blue-50' : ''} ${
     type === 'currency' ? 'text-right' : ''
   } ${colKey === "opportunity" ? "opportunity-cell" : ""} relative ${type === 'url' && value ? 'text-teal-primary hover:underline cursor-pointer' : ''}`;
 

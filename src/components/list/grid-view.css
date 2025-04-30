@@ -56,7 +56,6 @@
   white-space: nowrap;
   cursor: default;
   position: relative;
-  border: 1px solid transparent;
 }
 
 .grid-cell[tabindex="0"]:hover {
@@ -68,11 +67,17 @@
   outline: none;
 }
 
-/* Active cell styling */
-.active-cell, 
-.grid-cell[data-active="true"] {
-  border: 2px solid #67BBAA !important;
-  z-index: 5;
+/* Active cell styling - using a pseudo element for the border to keep it above content */
+.grid-cell[data-active="true"]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid #67BBAA;
+  pointer-events: none;
+  z-index: 10;
 }
 
 /* Special handling for opportunity cells */
@@ -83,10 +88,6 @@
 
 .opportunity-cell:hover {
   text-decoration: underline;
-}
-
-.opportunity-cell.active-cell {
-  z-index: 5;
 }
 
 .status-pill {
