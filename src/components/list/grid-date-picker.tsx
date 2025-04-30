@@ -23,11 +23,9 @@ export function GridDatePicker({
   if (!isOpen) return null;
 
   const handleSelect = (date: Date | undefined) => {
-    if (date) {
-      onSelect(date);
-      // Close immediately after selecting a date
-      onClose();
-    }
+    onSelect(date);
+    // Close immediately after selecting a date
+    onClose();
   };
 
   return (
@@ -41,6 +39,7 @@ export function GridDatePicker({
         <button
           onClick={onClose}
           className="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"
+          type="button"
         >
           <X size={14} />
         </button>
@@ -48,11 +47,10 @@ export function GridDatePicker({
       <Calendar
         mode="single"
         selected={selectedDate}
-        onSelect={(date) => handleSelect(date)}
+        onSelect={handleSelect}
         initialFocus
         className="p-3 pointer-events-auto"
       />
-      {/* Apply/Cancel buttons removed */}
     </AbsolutePopoverContent>
   );
 }

@@ -124,7 +124,7 @@ export function GridCell({
         year: 'numeric' 
       });
       onCellChange(rowId, colKey, formattedDate, type);
-      // Close popover is now handled inside the GridDatePicker component
+      // Close popover is handled inside the DatePicker component
     }
   };
 
