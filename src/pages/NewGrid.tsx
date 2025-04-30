@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { NewGridView } from '@/components/grid-view/new-grid-view';
@@ -126,6 +127,10 @@ const NewGrid: React.FC = () => {
       console.log("Generating 10,000 rows for performance testing");
       // Generate 10k rows efficiently
       setData(generateDataset(10000));
+    } else if (demo === '1k') {
+      console.log("Generating 1,000 rows for pagination testing");
+      // Generate 1k rows for pagination testing
+      setData(generateDataset(1000));
     } else {
       // Default to 100 rows for normal use
       setData(generateDataset(100));

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
@@ -745,12 +746,20 @@ export function NewGridView({
   const handleNextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage(prev => prev + 1);
+      // Reset scroll position when changing page
+      if (gridRef.current) {
+        gridRef.current.scrollTo({ scrollTop: 0 });
+      }
     }
   };
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
       setCurrentPage(prev => prev - 1);
+      // Reset scroll position when changing page
+      if (gridRef.current) {
+        gridRef.current.scrollTo({ scrollTop: 0 });
+      }
     }
   };
 
