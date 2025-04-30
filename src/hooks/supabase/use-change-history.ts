@@ -29,7 +29,7 @@ export function useChangeHistory(listId?: string) {
       .from('grid_change_history')
       .select(`
         *,
-        profiles:user_id (
+        profiles(
           first_name,
           last_name,
           avatar_url
@@ -50,12 +50,23 @@ export function useChangeHistory(listId?: string) {
     }
 
     // Transform the data to include user information
-    return (data || []).map(record => ({
-      ...record,
-      user_name: record.profiles ? 
-        `${record.profiles.first_name || ''} ${record.profiles.last_name || ''}`.trim() || 'Unknown User' : 
-        'Unknown User',
-    }));
+    return (data || []).map(record => {
+      // Handle the profiles data safely with proper type checking
+      const profiles = record.profiles as { 
+        first_name?: string; 
+        last_name?: string;
+        avatar_url?: string;
+      } | null;
+      
+      const userName = profiles 
+        ? `${profiles.first_name || ''} ${profiles.last_name || ''}`.trim() || 'Unknown User' 
+        : 'Unknown User';
+      
+      return {
+        ...record,
+        user_name: userName,
+      };
+    });
   };
 
   // Query to fetch change history
