@@ -92,7 +92,8 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
     setShowSaveIndicator,
     saveStateToHistory,
     setDraggedColumn,
-    setDragOverColumn
+    setDragOverColumn,
+    draggedColumn  // Add this property
   });
   
   // Setup scroll synchronization
