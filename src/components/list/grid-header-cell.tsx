@@ -1,8 +1,8 @@
 
-import { ChevronDown, PencilLine, Copy, ArrowLeft, ArrowRight, SortAsc, SortDesc, Trash2, GripVertical } from "lucide-react";
+import { ChevronDown, PencilLine, Copy, ArrowLeft, ArrowRight, SortAsc, SortDesc, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ColumnDef } from "./grid-view";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 interface GridHeaderCellProps {
@@ -20,7 +20,6 @@ interface GridHeaderCellProps {
   onDragOver?: (e: React.DragEvent, key: string) => void;
   onDrop?: (key: string) => void;
   draggable?: boolean;
-  onResize?: (colKey: string, newWidth: number) => void;
 }
 
 export function GridHeaderCell({ 
@@ -37,14 +36,8 @@ export function GridHeaderCell({
   onDragStart,
   onDragOver,
   onDrop,
-  draggable = false,
-  onResize
+  draggable = false
 }: GridHeaderCellProps) {
-  const [isResizing, setIsResizing] = useState(false);
-  const [resizeStartX, setResizeStartX] = useState(0);
-  const [initialWidth, setInitialWidth] = useState(column.width || 150);
-  const cellRef = useRef<HTMLDivElement>(null);
-  const resizeTooltipRef = useRef<HTMLDivElement>(null);
   
   const handleHeaderEditComplete = (key: string, newName: string) => {
     if (!newName.trim() || newName.trim() === column.header) {
@@ -66,85 +59,15 @@ export function GridHeaderCell({
   const handleDragStartEvent = () => {
     if (onDragStart) onDragStart(column.key);
   };
-  
-  // Handle column resize
-  const handleResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsResizing(true);
-    setResizeStartX(e.clientX);
-    
-    if (cellRef.current) {
-      setInitialWidth(cellRef.current.offsetWidth);
-    }
-    
-    // Show resize tooltip
-    if (resizeTooltipRef.current) {
-      resizeTooltipRef.current.style.display = 'block';
-      resizeTooltipRef.current.textContent = `${initialWidth}px`;
-    }
-    
-    document.addEventListener('mousemove', handleResizeMove);
-    document.addEventListener('mouseup', handleResizeEnd);
-  };
-  
-  const handleResizeMove = (e: MouseEvent) => {
-    if (!isResizing) return;
-    
-    const diff = e.clientX - resizeStartX;
-    const newWidth = Math.max(80, initialWidth + diff); // Minimum width of 80px
-    
-    // Update resize tooltip
-    if (resizeTooltipRef.current) {
-      resizeTooltipRef.current.textContent = `${newWidth}px`;
-      
-      // Position tooltip near the cursor
-      resizeTooltipRef.current.style.left = `${e.clientX + 10}px`;
-      resizeTooltipRef.current.style.top = `${e.clientY - 20}px`;
-    }
-    
-    // Update the width visually during drag
-    if (cellRef.current) {
-      cellRef.current.style.width = `${newWidth}px`;
-    }
-  };
-  
-  const handleResizeEnd = () => {
-    setIsResizing(false);
-    
-    // Hide resize tooltip
-    if (resizeTooltipRef.current) {
-      resizeTooltipRef.current.style.display = 'none';
-    }
-    
-    // Calculate final width
-    if (cellRef.current && onResize) {
-      const finalWidth = cellRef.current.offsetWidth;
-      onResize(column.key, finalWidth);
-    }
-    
-    document.removeEventListener('mousemove', handleResizeMove);
-    document.removeEventListener('mouseup', handleResizeEnd);
-  };
-  
-  useEffect(() => {
-    // Clean up event listeners when component unmounts
-    return () => {
-      document.removeEventListener('mousemove', handleResizeMove);
-      document.removeEventListener('mouseup', handleResizeEnd);
-    };
-  }, [isResizing]);
 
   return (
     <div 
-      ref={cellRef}
-      className={`grid-header-cell ${dragOverColumn === column.key ? 'border-l-2 border-r-2 border-teal-primary' : ''} relative`}
+      className={`grid-header-cell ${dragOverColumn === column.key ? 'border-l-2 border-r-2 border-teal-primary' : ''}`}
       onDoubleClick={() => onHeaderDoubleClick(column.key)}
       draggable={draggable}
       onDragStart={draggable ? handleDragStartEvent : undefined}
       onDragOver={draggable ? handleDragOverEvent : undefined}
       onDrop={draggable ? handleDropEvent : undefined}
-      style={{ width: column.width ? `${column.width}px` : undefined }}
     >
       {editingHeader === column.key ? (
         <input 
@@ -221,23 +144,6 @@ export function GridHeaderCell({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      
-      {/* Column resize handle */}
-      {onResize && (
-        <div 
-          className="absolute top-0 right-0 h-full w-2 cursor-col-resize flex items-center hover:bg-teal-primary/20"
-          onMouseDown={handleResizeStart}
-        >
-          <GripVertical size={10} className="opacity-0 group-hover:opacity-100 text-slate-medium" />
-        </div>
-      )}
-      
-      {/* Resize tooltip */}
-      <div 
-        ref={resizeTooltipRef}
-        className="fixed bg-slate-dark text-white px-2 py-1 text-xs rounded pointer-events-none hidden z-50"
-        style={{ left: '0', top: '0' }}
-      ></div>
     </div>
   );
 }

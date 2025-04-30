@@ -22,8 +22,3 @@ export const formatUrl = (url: string): string => {
   
   return url;
 };
-
-// Generate a unique key/slug for new columns
-export const generateSlug = (): string => {
-  return `col-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-};

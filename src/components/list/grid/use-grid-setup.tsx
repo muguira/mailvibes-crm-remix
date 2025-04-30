@@ -61,8 +61,7 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     handleDragStart,
     handleDragOver,
     handleDrop,
-    handleKeyDown,
-    handleColumnResize
+    handleKeyDown
   } = useGridActions({
     columns,
     setColumns,
@@ -120,6 +119,5 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     handleDragOver,
     handleDrop,
     handleKeyDown,
-    handleColumnResize
   };
 }

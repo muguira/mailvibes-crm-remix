@@ -1,22 +1,23 @@
 
-import { useState } from "react";
-import { ColumnDef, ColumnType } from "../grid-view";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
-import { generateSlug } from "../grid-utils";
+import { ColumnDef, ColumnType } from "../grid-view";
+import { RowData } from "./use-grid-state";
+import { isValidUrl, formatUrl } from "../grid-utils"; // Import the isValidUrl function
 
 interface UseGridActionsProps {
   columns: ColumnDef[];
   setColumns: React.Dispatch<React.SetStateAction<ColumnDef[]>>;
-  data: { id: string; [key: string]: any }[];
-  setData: React.Dispatch<React.SetStateAction<{ id: string; [key: string]: any }[]>>;
+  data: RowData[];
+  setData: React.Dispatch<React.SetStateAction<RowData[]>>;
   activeCell: { row: string; col: string } | null;
   setActiveCell: React.Dispatch<React.SetStateAction<{ row: string; col: string } | null>>;
-  showSaveIndicator: { row: string; col: string } | null;
-  setShowSaveIndicator: React.Dispatch<React.SetStateAction<{ row: string; col: string } | null>>;
+  showSaveIndicator: {row: string, col: string} | null;
+  setShowSaveIndicator: React.Dispatch<React.SetStateAction<{row: string, col: string} | null>>;
   saveStateToHistory: () => void;
   setDraggedColumn: React.Dispatch<React.SetStateAction<string | null>>;
   setDragOverColumn: React.Dispatch<React.SetStateAction<string | null>>;
-  draggedColumn: string | null;
+  draggedColumn: string | null; // Add draggedColumn as a prop
 }
 
 export function useGridActions({
@@ -31,310 +32,319 @@ export function useGridActions({
   saveStateToHistory,
   setDraggedColumn,
   setDragOverColumn,
-  draggedColumn
+  draggedColumn // Add draggedColumn to destructuring
 }: UseGridActionsProps) {
-  // Handler for cell clicks
-  const handleCellClick = (
-    rowId: string,
-    colKey: string,
-    type: ColumnType,
-    options?: string[]
-  ) => {
-    // Clicked on same cell - maintain active state
-    if (activeCell?.row === rowId && activeCell?.col === colKey) {
+  
+  const handleCellClick = (rowId: string, colKey: string, colType: ColumnType, options?: string[]) => {
+    // Reset active cell if clicking on a blank area or the same cell
+    if (rowId === "" && colKey === "") {
+      setActiveCell(null);
       return;
     }
-
-    // Set the active cell
-    setActiveCell({ row: rowId, col: colKey });
+    
+    // Set the active cell (only for direct editing types)
+    if (colType !== "checkbox" && colType !== "date" && colType !== "status" && colType !== "select") {
+      setActiveCell({ row: rowId, col: colKey });
+    }
   };
-
-  // Handler for header double click (rename)
+  
   const handleHeaderDoubleClick = (colKey: string) => {
-    const col = columns.find((c) => c.key === colKey);
-    
-    // Don't allow editing the opportunity column
-    if (col && col.key !== "opportunity") {
-      setEditingHeader(colKey);
-    }
+    // Don't allow editing the opportunity column header
+    if (colKey === "opportunity") return;
   };
 
-  // Handler for cell changes
-  const handleCellChange = (
-    rowId: string,
-    colKey: string,
-    value: any,
-    type: ColumnType
-  ) => {
-    // Save state for undo/redo
+  const toggleCheckbox = (rowId: string, colKey: string) => {
+    // Save previous state for undo
     saveStateToHistory();
     
-    // Special handling for different types
-    let processedValue = value;
-    
-    if (type === "currency" && value) {
-      // Format currency value
-      const numValue = parseFloat(value);
-      if (!isNaN(numValue)) {
-        processedValue = `$${numValue.toLocaleString()}`;
+    // Toggle the checkbox value
+    setData(prevData => prevData.map(row => {
+      if (row.id === rowId) {
+        return {
+          ...row,
+          [colKey]: !row[colKey]
+        };
       }
-    } else if (type === "url" && value) {
-      // Ensure URLs have http:// prefix
-      if (value && !value.startsWith("http://") && !value.startsWith("https://")) {
-        processedValue = `https://${value}`;
-      }
-    }
+      return row;
+    }));
     
-    // Update the data state with the new value
-    setData((prevData) =>
-      prevData.map((row) =>
-        row.id === rowId ? { ...row, [colKey]: processedValue } : row
-      )
-    );
-    
-    // Clear active cell selection
-    setActiveCell(null);
-    
-    // Show save indicator briefly
+    // Show save indicator
     setShowSaveIndicator({ row: rowId, col: colKey });
-    setTimeout(() => {
-      setShowSaveIndicator(null);
-    }, 1500);
+    setTimeout(() => setShowSaveIndicator(null), 500);
   };
 
-  // State for tracking which header is being edited
-  const [editingHeader, setEditingHeader] = useState<string | null>(null);
-
-  // Add a new column
-  const addColumn = (
-    newColumnInfo: {
-      header: string;
-      type: ColumnType;
-      options?: string[];
-      colors?: Record<string, string>;
-    },
-    setNewColumnInfo: (info: {
-      header: string;
-      type: ColumnType;
-      options?: string[];
-      colors?: Record<string, string>;
-    }) => void,
-    setIsAddingColumn: (isAdding: boolean) => void
-  ) => {
-    // Save state for undo/redo
+  const handleCellChange = (rowId: string, colKey: string, value: any, type: ColumnType) => {
+    // Save previous state for undo
     saveStateToHistory();
     
-    // Generate a key for the new column
-    const newKey = generateSlug(newColumnInfo.header);
+    // Format value based on type
+    let formattedValue = value;
     
-    // Check for duplicate keys
-    if (columns.some((col) => col.key === newKey)) {
-      toast.error("A column with a similar name already exists");
+    if (type === "number") {
+      formattedValue = isNaN(parseFloat(value)) ? 0 : parseFloat(value);
+    } else if (type === "currency") {
+      // Remove currency symbol and format
+      const numValue = value.replace(/[^0-9.-]+/g, "");
+      formattedValue = isNaN(parseFloat(numValue)) ? 0 : `$${parseFloat(numValue).toLocaleString()}`;
+    } else if (type === "url") {
+      // Basic validation for URLs
+      if (value && !isValidUrl(value)) {
+        toast.warning("Please enter a valid URL with protocol or domain extension");
+        formattedValue = "";
+      }
+    } else if (type === "checkbox") {
+      toggleCheckbox(rowId, colKey);
       return;
     }
     
-    // Create the new column definition
-    const newColumn: ColumnDef = {
-      key: newKey,
-      header: newColumnInfo.header,
-      type: newColumnInfo.type,
+    // Update data
+    setData(prevData => prevData.map(row => {
+      if (row.id === rowId) {
+        return {
+          ...row,
+          [colKey]: formattedValue
+        };
+      }
+      return row;
+    }));
+    
+    // Show save indicator
+    setShowSaveIndicator({ row: rowId, col: colKey });
+    setTimeout(() => setShowSaveIndicator(null), 500);
+    
+    // Reset active cell after editing
+    setActiveCell(null);
+  };
+
+  const undo = (undoStack: {columns: ColumnDef[], data: RowData[]}[], setUndoStack: any, redoStack: any, setRedoStack: any) => {
+    if (undoStack.length > 0) {
+      // Get last state from undo stack
+      const lastState = undoStack[undoStack.length - 1];
+      // Remove last state from undo stack
+      setUndoStack(prev => prev.slice(0, -1));
+      // Save current state to redo stack
+      setRedoStack(prev => [...prev, { columns, data }]);
+      // Restore last state
+      setColumns(lastState.columns);
+      setData(lastState.data);
+    }
+  };
+
+  const redo = (redoStack: {columns: ColumnDef[], data: RowData[]}[], setRedoStack: any, undoStack: any, setUndoStack: any) => {
+    if (redoStack.length > 0) {
+      // Get last state from redo stack
+      const nextState = redoStack[redoStack.length - 1];
+      // Remove last state from redo stack
+      setRedoStack(prev => prev.slice(0, -1));
+      // Save current state to undo stack
+      setUndoStack(prev => [...prev, { columns, data }]);
+      // Restore next state
+      setColumns(nextState.columns);
+      setData(nextState.data);
+    }
+  };
+
+  const addColumn = (newColumn: { header: string; type: ColumnType; options?: string[] }, setNewColumn: any, setIsAddingColumn: any) => {
+    // Save current state for undo
+    saveStateToHistory();
+    
+    const key = newColumn.header.toLowerCase().replace(/\s+/g, '_');
+    
+    // Add new column to columns array
+    const newColumnDef: ColumnDef = {
+      key,
+      header: newColumn.header,
+      type: newColumn.type,
       editable: true,
-      options: newColumnInfo.options,
-      colors: newColumnInfo.colors,
-      width: 150 // Default width
+      options: newColumn.type === 'select' || newColumn.type === 'status' ? newColumn.options : undefined
     };
     
-    // Add the new column to the state
-    setColumns([...columns, newColumn]);
+    setColumns(prev => [...prev, newColumnDef]);
     
-    // Reset the new column info and close the dialog
-    setNewColumnInfo({
-      header: "",
-      type: "text"
-    });
+    // Add default values for new column to all rows
+    setData(prevData => prevData.map(row => {
+      return {
+        ...row,
+        [key]: newColumn.type === 'checkbox' ? false : ''
+      };
+    }));
+    
+    // Reset new column state
+    setNewColumn({ header: '', type: 'text' });
     setIsAddingColumn(false);
     
-    // Add the new column data to each row
-    setData((prevData) =>
-      prevData.map((row) => ({
-        ...row,
-        [newKey]: ""
-      }))
-    );
-    
-    toast.success(`Added column "${newColumnInfo.header}"`);
+    toast.success(`Column "${newColumn.header}" added successfully`);
   };
 
-  // Delete a column
-  const deleteColumn = (colKey: string) => {
-    // Save state for undo/redo
-    saveStateToHistory();
-    
-    // Check if it's the opportunity column which shouldn't be deleted
-    const column = columns.find((col) => col.key === colKey);
-    if (column?.key === "opportunity") {
-      toast.error("Cannot delete the Opportunity column");
+  const deleteColumn = (key: string) => {
+    // Don't allow deleting the opportunity column
+    if (key === "opportunity") {
+      toast.error("The Opportunity column cannot be deleted");
       return;
     }
     
-    // Remove the column from the columns state
-    setColumns(columns.filter((col) => col.key !== colKey));
-    
-    // Remove the column data from each row
-    setData((prevData) =>
-      prevData.map((row) => {
-        const newRow = { ...row };
-        delete newRow[colKey];
-        return newRow;
-      })
-    );
-    
-    toast.success(`Deleted column "${column?.header || colKey}"`);
-  };
-
-  // Duplicate a column
-  const duplicateColumn = (column: ColumnDef) => {
-    // Save state for undo/redo
+    // Save current state for undo
     saveStateToHistory();
     
-    // Generate a unique name for the duplicated column
-    const newHeader = `${column.header} (copy)`;
-    const newKey = generateSlug(newHeader);
+    // Remove column from columns array
+    setColumns(prev => prev.filter(col => col.key !== key));
     
-    // Create the duplicated column definition
-    const newColumn: ColumnDef = {
+    // Remove column data from all rows
+    setData(prev => prev.map(row => {
+      const { [key]: _, ...rest } = row;
+      return rest as RowData; // Explicitly cast to RowData to ensure id property exists
+    }));
+    
+    toast.success("Column deleted");
+  };
+
+  const duplicateColumn = (column: ColumnDef) => {
+    // Save current state for undo
+    saveStateToHistory();
+    
+    const newKey = `${column.key}_copy`;
+    const newHeader = `${column.header} (Copy)`;
+    
+    // Create duplicate column
+    const duplicatedColumn: ColumnDef = {
       ...column,
       key: newKey,
-      header: newHeader
+      header: newHeader,
+      frozen: false // Duplicated columns are never frozen
     };
     
-    // Add the new column to the state
-    setColumns([...columns, newColumn]);
+    // Add duplicate column to columns array
+    setColumns(prev => [...prev, duplicatedColumn]);
     
-    // Add the duplicated column data to each row
-    setData((prevData) =>
-      prevData.map((row) => ({
-        ...row,
-        [newKey]: row[column.key] || ""
-      }))
-    );
+    // Add duplicate data to all rows
+    setData(prev => prev.map(row => ({
+      ...row,
+      [newKey]: row[column.key]
+    })));
     
-    toast.success(`Duplicated column "${column.header}"`);
+    toast.success(`Column "${column.header}" duplicated`);
   };
 
-  // Rename a column
-  const renameColumn = (colKey: string, newName: string) => {
-    // Save state for undo/redo
+  const renameColumn = (key: string, newName: string) => {
+    // Don't allow renaming the opportunity column
+    if (key === "opportunity") {
+      toast.error("The Opportunity column cannot be renamed");
+      return;
+    }
+    
+    // Save current state for undo
     saveStateToHistory();
     
-    // Update the column header
-    setColumns(
-      columns.map((col) =>
-        col.key === colKey ? { ...col, header: newName } : col
-      )
-    );
+    // Update column header
+    setColumns(prev => prev.map(col => {
+      if (col.key === key) {
+        return {
+          ...col,
+          header: newName
+        };
+      }
+      return col;
+    }));
     
-    toast.success(`Renamed column to "${newName}"`);
+    toast.success(`Column renamed to "${newName}"`);
   };
 
-  // Sort a column
-  const sortColumn = (colKey: string, direction: "asc" | "desc") => {
-    // Save state for undo/redo
+  const sortColumn = (key: string, direction: 'asc' | 'desc') => {
+    // Save current state for undo
     saveStateToHistory();
     
-    // Sort the data based on the column values
-    const sortedData = [...data].sort((a, b) => {
-      let valueA = a[colKey];
-      let valueB = b[colKey];
+    const column = columns.find(col => col.key === key);
+    if (!column) return;
+    
+    // Sort data based on column type
+    setData(prev => [...prev].sort((a, b) => {
+      const aValue = a[key];
+      const bValue = b[key];
       
-      // Handle different data types
-      if (typeof valueA === "string" && typeof valueB === "string") {
-        // For currency, remove $ and commas
-        if (valueA.startsWith("$")) {
-          valueA = parseFloat(valueA.replace(/[$,]/g, ""));
-          valueB = parseFloat(valueB.replace(/[$,]/g, ""));
-        }
-        
-        // For strings, use localeCompare
-        if (isNaN(valueA)) {
-          return direction === "asc"
-            ? valueA.localeCompare(valueB)
-            : valueB.localeCompare(valueA);
-        }
+      if (column.type === 'number' || column.type === 'currency') {
+        // Convert to numbers for numeric comparison
+        const aNum = parseFloat(String(aValue).replace(/[^0-9.-]+/g, ''));
+        const bNum = parseFloat(String(bValue).replace(/[^0-9.-]+/g, ''));
+        return direction === 'asc' ? aNum - bNum : bNum - aNum;
       }
       
-      // For numbers and other types
-      if (direction === "asc") {
-        return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
-      } else {
-        return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
+      if (column.type === 'date') {
+        // Convert to dates for date comparison
+        const aDate = new Date(aValue);
+        const bDate = new Date(bValue);
+        return direction === 'asc' 
+          ? aDate.getTime() - bDate.getTime() 
+          : bDate.getTime() - aDate.getTime();
       }
-    });
+      
+      // Default to string comparison
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+      return direction === 'asc' 
+        ? aStr.localeCompare(bStr) 
+        : bStr.localeCompare(aStr);
+    }));
     
-    // Update the data state with the sorted rows
-    setData(sortedData);
-    
-    toast.success(
-      `Sorted by "${columns.find((col) => col.key === colKey)?.header || colKey}" (${
-        direction === "asc" ? "A-Z" : "Z-A"
-      })`
-    );
+    toast.success(`Sorted by ${column.header} (${direction === 'asc' ? 'Ascending' : 'Descending'})`);
   };
 
-  // Move a column left or right
-  const moveColumn = (colKey: string, direction: "left" | "right") => {
-    // Save state for undo/redo
+  const moveColumn = (key: string, direction: 'left' | 'right') => {
+    // Don't allow moving the opportunity column
+    if (key === "opportunity" && direction === "left") {
+      toast.error("The Opportunity column must remain first");
+      return;
+    }
+    
+    // Save current state for undo
     saveStateToHistory();
     
-    const columnIndex = columns.findIndex((col) => col.key === colKey);
+    const columnIndex = columns.findIndex(col => col.key === key);
     if (columnIndex === -1) return;
     
-    // Calculate the new index
-    let newIndex = direction === "left" ? columnIndex - 1 : columnIndex + 1;
+    // Calculate new index
+    const newIndex = direction === 'left' 
+      ? Math.max(0, columnIndex - 1)
+      : Math.min(columns.length - 1, columnIndex + 1);
     
-    // Ensure the index is within bounds and not moving into frozen columns
-    if (newIndex < 0 || newIndex >= columns.length) return;
+    // Don't do anything if we're already at the edge
+    if (newIndex === columnIndex) return;
     
-    // Can't move a non-frozen column before the frozen columns
-    const isFrozen = columns[columnIndex].frozen;
-    const targetIsFrozen = columns[newIndex].frozen;
-    
-    if (!isFrozen && targetIsFrozen && direction === "left") {
-      toast.error("Cannot move non-frozen columns before frozen columns");
+    // Don't allow other columns to move to the leftmost position if opportunity column exists
+    if (newIndex === 0 && columns.some(col => col.key === "opportunity")) {
+      toast.error("The Opportunity column must remain first");
       return;
     }
     
-    if (isFrozen && !targetIsFrozen && direction === "right") {
-      toast.error("Cannot move frozen columns after non-frozen columns");
-      return;
-    }
-    
-    // Create a new array with the column moved
+    // Create new columns array with moved column
     const newColumns = [...columns];
-    const [movedColumn] = newColumns.splice(columnIndex, 1);
-    newColumns.splice(newIndex, 0, movedColumn);
+    const [removed] = newColumns.splice(columnIndex, 1);
+    newColumns.splice(newIndex, 0, removed);
     
-    // Update the columns state
     setColumns(newColumns);
-    
-    toast.success(`Moved column "${movedColumn.header || colKey}" ${direction}`);
   };
 
-  // Handle drag start for column reordering
   const handleDragStart = (key: string) => {
+    // Don't allow dragging the opportunity column
+    if (key === "opportunity") {
+      toast.error("The Opportunity column cannot be reordered");
+      return;
+    }
+    
     setDraggedColumn(key);
   };
 
-  // Handle drag over for column reordering
   const handleDragOver = (e: React.DragEvent, key: string) => {
     e.preventDefault();
-    if (draggedColumn === key) {
+    // Don't allow dropping to the left of the opportunity column
+    if (key === "opportunity" && columns[0]?.key === "opportunity") {
       return;
     }
-    setDragOverColumn(key);
+    
+    if (draggedColumn && draggedColumn !== key) {
+      setDragOverColumn(key);
+    }
   };
 
-  // Handle drop for column reordering
   const handleDrop = (key: string) => {
     if (!draggedColumn || draggedColumn === key) {
       setDraggedColumn(null);
@@ -342,115 +352,48 @@ export function useGridActions({
       return;
     }
     
-    // Save state for undo/redo
+    // Don't allow dropping to the left of the opportunity column
+    if (key === "opportunity" && columns[0]?.key === "opportunity") {
+      setDraggedColumn(null);
+      setDragOverColumn(null);
+      return;
+    }
+    
+    // Save current state for undo
     saveStateToHistory();
     
-    const draggedColIndex = columns.findIndex((col) => col.key === draggedColumn);
-    const dropColIndex = columns.findIndex((col) => col.key === key);
+    const fromIndex = columns.findIndex(col => col.key === draggedColumn);
+    let toIndex = columns.findIndex(col => col.key === key);
     
-    if (draggedColIndex === -1 || dropColIndex === -1) {
-      setDraggedColumn(null);
-      setDragOverColumn(null);
-      return;
+    // Prevent moving to position 0 if opportunity column exists and is first
+    if (toIndex === 0 && columns[0]?.key === "opportunity") {
+      toIndex = 1;
     }
     
-    const draggedColIsFrozen = columns[draggedColIndex].frozen;
-    const dropColIsFrozen = columns[dropColIndex].frozen;
-    
-    // Don't allow dragging frozen columns to non-frozen and vice versa
-    if (draggedColIsFrozen !== dropColIsFrozen) {
-      toast.error("Cannot move between frozen and non-frozen columns");
-      setDraggedColumn(null);
-      setDragOverColumn(null);
-      return;
+    if (fromIndex !== -1 && toIndex !== -1) {
+      // Create new columns array with reordered columns
+      const newColumns = [...columns];
+      const [removed] = newColumns.splice(fromIndex, 1);
+      newColumns.splice(toIndex, 0, removed);
+      
+      setColumns(newColumns);
     }
     
-    // Create a new array with the column moved
-    const newColumns = [...columns];
-    const [movedColumn] = newColumns.splice(draggedColIndex, 1);
-    newColumns.splice(dropColIndex, 0, movedColumn);
-    
-    // Update the columns state
-    setColumns(newColumns);
-    
-    // Reset drag state
     setDraggedColumn(null);
     setDragOverColumn(null);
-    
-    toast.success(`Moved column "${movedColumn.header}"`);
   };
 
-  // Handle keyboard shortcuts
-  const handleKeyDown = (
-    e: React.KeyboardEvent,
-    undoStack: { columns: ColumnDef[]; data: { id: string; [key: string]: any }[] }[],
-    setUndoStack: React.Dispatch<React.SetStateAction<{ columns: ColumnDef[]; data: { id: string; [key: string]: any }[] }[]>>,
-    redoStack: { columns: ColumnDef[]; data: { id: string; [key: string]: any }[] }[],
-    setRedoStack: React.Dispatch<React.SetStateAction<{ columns: ColumnDef[]; data: { id: string; [key: string]: any }[] }[]>>
-  ) => {
-    // Handle Ctrl+Z for undo
-    if (e.ctrlKey && e.key === 'z') {
-      e.preventDefault();
-      
-      if (undoStack.length > 0) {
-        // Pop the last state off the undo stack
-        const newUndoStack = [...undoStack];
-        const prevState = newUndoStack.pop();
-        
-        if (prevState) {
-          // Save current state to redo stack
-          setRedoStack([...redoStack, { columns, data }]);
-          
-          // Restore previous state
-          setColumns(prevState.columns);
-          setData(prevState.data);
-          
-          // Update undo stack
-          setUndoStack(newUndoStack);
-        }
+  const handleKeyDown = (e: React.KeyboardEvent, undoStack: any, setUndoStack: any, redoStack: any, setRedoStack: any) => {
+    // Handle undo/redo
+    if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+      if (e.shiftKey) {
+        // Redo: Ctrl/Cmd + Shift + Z
+        redo(redoStack, setRedoStack, undoStack, setUndoStack);
+      } else {
+        // Undo: Ctrl/Cmd + Z
+        undo(undoStack, setUndoStack, redoStack, setRedoStack);
       }
     }
-    
-    // Handle Ctrl+Y for redo
-    if (e.ctrlKey && e.key === 'y') {
-      e.preventDefault();
-      
-      if (redoStack.length > 0) {
-        // Pop the last state off the redo stack
-        const newRedoStack = [...redoStack];
-        const nextState = newRedoStack.pop();
-        
-        if (nextState) {
-          // Save current state to undo stack
-          setUndoStack([...undoStack, { columns, data }]);
-          
-          // Restore next state
-          setColumns(nextState.columns);
-          setData(nextState.data);
-          
-          // Update redo stack
-          setRedoStack(newRedoStack);
-        }
-      }
-    }
-    
-    // Handle escape key to cancel editing
-    if (e.key === 'Escape' && activeCell) {
-      setActiveCell(null);
-    }
-  };
-
-  // Handle column resize
-  const handleColumnResize = (colKey: string, newWidth: number) => {
-    // Save state for undo/redo
-    saveStateToHistory();
-    
-    // Update the column width
-    setColumns(
-      columns.map((col) =>
-        col.key === colKey ? { ...col, width: newWidth } : col
-      )
-    );
   };
 
   return {
@@ -467,6 +410,8 @@ export function useGridActions({
     handleDragOver,
     handleDrop,
     handleKeyDown,
-    handleColumnResize
+    toggleCheckbox,
+    undo,
+    redo
   };
 }
