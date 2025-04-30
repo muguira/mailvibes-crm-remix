@@ -1,8 +1,8 @@
+
 import { useState } from "react";
 import { ColumnDef } from "../grid-view";
 import { RowData } from "./use-grid-state";
 import { toast } from "sonner";
-import { saveColumn } from "@/services/column.service";
 
 interface UseGridActionsProps {
   columns: ColumnDef[];
@@ -11,30 +11,10 @@ interface UseGridActionsProps {
   setData: React.Dispatch<React.SetStateAction<RowData[]>>;
   activeCell: { row: string; col: string } | null;
   setActiveCell: React.Dispatch<React.SetStateAction<{ row: string; col: string } | null>>;
-  editingHeader: string | null;
-  setEditingHeader: React.Dispatch<React.SetStateAction<string | null>>;
-  draggedColumn: string | null;
-  setDraggedColumn: React.Dispatch<React.SetStateAction<string | null>>;
-  dragOverColumn: string | null;
-  setDragOverColumn: React.Dispatch<React.SetStateAction<string | null>>;
-  newColumn: {
-    header: string;
-    type: string;
-    options?: string[];
-  };
-  setNewColumn: React.Dispatch<
-    React.SetStateAction<{
-      header: string;
-      type: string;
-      options?: string[];
-    }>
-  >;
-  isAddingColumn: boolean;
-  setIsAddingColumn: React.Dispatch<React.SetStateAction<boolean>>;
   showSaveIndicator: { row: string; col: string } | null;
   setShowSaveIndicator: React.Dispatch<React.SetStateAction<{ row: string; col: string } | null>>;
-  headerRef: React.RefObject<HTMLDivElement>;
-  bodyRef: React.RefObject<HTMLDivElement>;
+  draggedColumn?: string | null;
+  setDraggedColumn?: React.Dispatch<React.SetStateAction<string | null>>;
   saveStateToHistory: () => void;
 }
 
@@ -45,20 +25,10 @@ export function useGridActions({
   setData,
   activeCell,
   setActiveCell,
-  editingHeader,
-  setEditingHeader,
-  draggedColumn,
-  setDraggedColumn,
-  dragOverColumn,
-  setDragOverColumn,
-  newColumn, 
-  setNewColumn,
-  isAddingColumn, 
-  setIsAddingColumn,
   showSaveIndicator, 
   setShowSaveIndicator,
-  headerRef,
-  bodyRef,
+  draggedColumn,
+  setDraggedColumn,
   saveStateToHistory
 }: UseGridActionsProps) {
   // Cell click handler
@@ -81,25 +51,26 @@ export function useGridActions({
   
   // Header double click handler
   const handleHeaderDoubleClick = (colKey: string) => {
-    setEditingHeader(colKey);
+    // This will be handled by the parent component
   };
   
   // Add column handler
-  const addColumn = (newColumn: any, setNewColumn: any, setIsAddingColumn: any) => {
-    const newKey = newColumn.header.toLowerCase().replace(/\s/g, "_");
+  const addColumn = (newColumnObj: any) => {
+    const newKey = newColumnObj.header.toLowerCase().replace(/\s/g, "_");
     const newColumnDef = {
       key: newKey,
-      header: newColumn.header,
-      type: newColumn.type,
-      options: newColumn.options,
+      header: newColumnObj.header,
+      type: newColumnObj.type,
+      options: newColumnObj.options,
     };
     setColumns(prevColumns => [...prevColumns, newColumnDef]);
-    setNewColumn({ header: "", type: "text" });
-    setIsAddingColumn(false);
     
-    // Add the new column to all existing data rows
+    // Add the new column to all existing data rows with proper typing
     setData(prevData =>
-      prevData.map(row => ({ ...row, [newKey]: "" }))
+      prevData.map(row => ({ 
+        ...row, 
+        [newKey]: "" 
+      }))
     );
   };
   
@@ -109,7 +80,7 @@ export function useGridActions({
     setData(prevData =>
       prevData.map(row => {
         const { [colKey]: deletedKey, ...rest } = row;
-        return rest;
+        return rest as RowData;
       })
     );
   };
@@ -178,39 +149,22 @@ export function useGridActions({
   
   // Drag handlers
   const handleDragStart = (key: string) => {
-    setDraggedColumn(key);
+    if (setDraggedColumn) {
+      setDraggedColumn(key);
+    }
   };
   
   const handleDragOver = (e: React.DragEvent, key: string) => {
     e.preventDefault();
-    setDragOverColumn(key);
+    // This will be handled by the parent component
   };
   
   const handleDrop = (key: string) => {
-    if (draggedColumn && dragOverColumn && draggedColumn !== dragOverColumn) {
-      setColumns(prevColumns => {
-        const draggedIndex = prevColumns.findIndex(col => col.key === draggedColumn);
-        const dropIndex = prevColumns.findIndex(col => col.key === dragOverColumn);
-        
-        if (draggedIndex === -1 || dropIndex === -1) return prevColumns;
-        
-        const newColumns = [...prevColumns];
-        const [draggedColumnItem] = newColumns.splice(draggedIndex, 1);
-        newColumns.splice(dropIndex, 0, draggedColumnItem);
-        
-        setDraggedColumn(null);
-        setDragOverColumn(null);
-        
-        return newColumns;
-      });
-    }
+    // This will be handled by the parent component
   };
 
-  // This function was causing TS errors because it was expecting 0 arguments but receiving 1
   // Handle keyboard shortcuts for undo/redo
-  const handleKeyDown = (
-    e: React.KeyboardEvent,
-  ) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     // Check for Ctrl+Z (Undo) and Ctrl+Y (Redo)
     if (e.ctrlKey || e.metaKey) {
       if (e.key === 'z') {

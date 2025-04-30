@@ -146,7 +146,6 @@ export function GridHeaders({
                     id="column-name"
                     value={newColumn.header}
                     onChange={(e) => {
-                      // Fix #1: Create a new object with updated header
                       setNewColumn({
                         ...newColumn,
                         header: e.target.value
@@ -163,7 +162,6 @@ export function GridHeaders({
                   <Select
                     value={newColumn.type}
                     onValueChange={(value: ColumnType) => {
-                      // Fix #2: Create a new object with updated type
                       setNewColumn({
                         ...newColumn,
                         type: value
@@ -195,7 +193,6 @@ export function GridHeaders({
                       id="column-options"
                       className="w-full p-2 border border-slate-light/50 rounded h-24"
                       onChange={(e) => {
-                        // Fix #3: Create a new object with updated options
                         setNewColumn({
                           ...newColumn,
                           options: e.target.value.split('\n').filter(opt => opt.trim() !== '')

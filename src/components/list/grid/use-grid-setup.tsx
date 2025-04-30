@@ -71,10 +71,9 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     setActiveCell,
     showSaveIndicator,
     setShowSaveIndicator,
-    saveStateToHistory,
+    draggedColumn,
     setDraggedColumn,
-    setDragOverColumn,
-    draggedColumn
+    saveStateToHistory
   });
   
   // Setup scroll synchronization
@@ -109,7 +108,7 @@ export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }
     handleCellClick,
     handleHeaderDoubleClick,
     handleCellChange,
-    addColumn,
+    addColumn: () => addColumn(newColumn),
     deleteColumn,
     duplicateColumn,
     renameColumn,

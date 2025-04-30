@@ -82,7 +82,7 @@ export function GridView({ columns: initialColumns, data: initialData, listName,
         setIsAddingColumn={setIsAddingColumn}
         newColumn={newColumn}
         setNewColumn={setNewColumn}
-        addColumn={() => addColumn(newColumn, setNewColumn, setIsAddingColumn)}
+        addColumn={addColumn}
         onHeaderDoubleClick={handleHeaderDoubleClick}
         onRenameColumn={renameColumn}
         onDuplicateColumn={duplicateColumn}
