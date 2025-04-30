@@ -6,12 +6,6 @@ interface SheetMenuProps {
 }
 
 export function SheetMenu({ listName }: SheetMenuProps) {
-  return (
-    <div className="sheet-style-menu">
-      <div className="flex items-center gap-2">
-        <span className="font-medium text-navy-deep">{listName || "Untitled List"}</span>
-      </div>
-      <div className="flex-1"></div>
-    </div>
-  );
+  // Empty component since we're removing the sheet menu row entirely
+  return null;
 }

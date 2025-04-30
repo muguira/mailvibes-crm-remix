@@ -7,6 +7,13 @@ import { ViewModeSelector } from "./view-mode-selector";
 import { format } from "date-fns";
 import { PresenceUser } from "@/hooks/supabase";
 import { ListHeaderProps } from "./types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function ListHeader({ 
   listsLoading, 
@@ -17,8 +24,11 @@ export function ListHeader({
   setCurrentListId, 
   setIsCreateListOpen, 
   setIsHistoryOpen,
-  setViewMode 
-}: ListHeaderProps) {
+  setViewMode,
+  setIsAddOpportunityOpen
+}: ListHeaderProps & {
+  setIsAddOpportunityOpen?: (isOpen: boolean) => void;
+}) {
   // Format date for display
   const formatDate = (dateString: string) => {
     try {
@@ -38,29 +48,41 @@ export function ListHeader({
       .slice(0, 2);
   };
 
+  const handleAddOpportunity = () => {
+    if (setIsAddOpportunityOpen) {
+      setIsAddOpportunityOpen(true);
+    }
+  };
+
   return (
     <div className="bg-white border-b border-slate-light/30 p-4 flex items-center justify-between">
       <div className="flex items-center gap-4">
         {listsLoading ? (
-          <div>Loading lists...</div>
+          <div className="text-slate-500">Loading lists...</div>
         ) : lists.length > 0 ? (
-          <select 
-            className="px-3 py-2 border border-slate-light/30 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-primary"
-            value={currentListId || ""}
-            onChange={(e) => setCurrentListId(e.target.value)}
-          >
-            {lists.map(list => (
-              <option key={list.id} value={list.id}>{list.name}</option>
-            ))}
-          </select>
+          <div className="w-56">
+            <Select 
+              value={currentListId || ""}
+              onValueChange={(value) => setCurrentListId(value)}
+            >
+              <SelectTrigger className="w-full bg-white border border-slate-200 focus:ring-teal-primary focus:ring-opacity-50">
+                <SelectValue placeholder="Select a list" />
+              </SelectTrigger>
+              <SelectContent>
+                {lists.map(list => (
+                  <SelectItem key={list.id} value={list.id}>{list.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         ) : (
-          <div>No lists available</div>
+          <div className="text-slate-500">No lists available</div>
         )}
         
         <CustomButton
           variant="outline"
           size="sm"
-          className="flex items-center gap-1"
+          className="flex items-center gap-1 border border-slate-200 text-slate-600 hover:bg-slate-50"
           onClick={() => setIsCreateListOpen(true)}
         >
           <Plus size={14} />
@@ -72,11 +94,21 @@ export function ListHeader({
             <CustomButton
               variant="outline"
               size="sm"
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 border border-slate-200 text-slate-600 hover:bg-slate-50"
               onClick={() => setIsHistoryOpen(true)}
             >
               <History size={14} />
               <span>History</span>
+            </CustomButton>
+
+            <CustomButton
+              variant="default"
+              size="sm"
+              className="flex items-center gap-1 ml-auto"
+              onClick={handleAddOpportunity}
+            >
+              <Plus size={14} />
+              <span>Add Opportunity</span>
             </CustomButton>
             
             <Popover>
@@ -84,7 +116,7 @@ export function ListHeader({
                 <CustomButton
                   variant="outline"
                   size="sm"
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 border border-slate-200 text-slate-600 hover:bg-slate-50"
                 >
                   <Users size={14} />
                   <span>Users ({Object.keys(presentUsers).length})</span>

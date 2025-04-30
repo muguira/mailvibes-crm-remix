@@ -7,7 +7,6 @@ import { useGridSetup } from "./use-grid-setup";
 import { GridViewProps } from "./types";
 import { Pencil } from "lucide-react";
 import { PointsOfContactDialog } from "../dialogs/points-of-contact-dialog";
-import { SheetMenu } from "../sheet-menu";
 
 export function GridView({ 
   columns: initialColumns, 
@@ -145,9 +144,6 @@ export function GridView({
       onKeyDown={(e) => handleKeyDown(e)} 
       tabIndex={-1}
     >
-      {/* Simplified Sheet Menu */}
-      <SheetMenu listName={listName} />
-      
       {/* Grid Toolbar - Including filter options */}
       <GridToolbar 
         listType={listType} 

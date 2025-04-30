@@ -50,7 +50,7 @@ export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) 
           <CustomButton 
             variant="outline" 
             size="sm" 
-            className="flex items-center gap-1"
+            className="flex items-center gap-1 border border-slate-200 text-slate-600 hover:bg-slate-50"
             onClick={() => setFilterOpen(!filterOpen)}
           >
             <Filter size={14} />

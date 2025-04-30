@@ -34,22 +34,10 @@ const Lists = () => {
 
   return (
     <div className="flex flex-col h-screen bg-slate-light/20">
-      {/* Top Navigation - Replacing the sidebar */}
+      {/* Top Navigation */}
       <TopNavbar />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="salesiq-page-header">
-          <h1 className="salesiq-title">Opportunities</h1>
-          <div className="flex gap-2">
-            <button
-              className="px-3 py-1.5 bg-teal-primary text-white rounded hover:bg-teal-primary/90 text-sm"
-              onClick={() => setIsAddOpportunityOpen(true)}
-            >
-              Add Opportunity
-            </button>
-          </div>
-        </div>
-        
         {/* List Header with list selection and controls */}
         <ListHeader
           listsLoading={listsLoading}
@@ -61,6 +49,7 @@ const Lists = () => {
           setIsCreateListOpen={setIsCreateListOpen}
           setIsHistoryOpen={setIsHistoryOpen}
           setViewMode={setViewMode}
+          setIsAddOpportunityOpen={setIsAddOpportunityOpen}
         />
         
         {/* Full-screen list content */}
