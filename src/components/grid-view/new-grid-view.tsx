@@ -5,7 +5,7 @@ import { GridContainerProps, Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants';
 import { GridToolbar } from './grid-toolbar';
 import { GridHeader } from './grid-header';
-import { Check, Clipboard, Copy, Cut, Filter, Paste, Trash2, Eye, EyeOff, Resize } from 'lucide-react';
+import { Check, Clipboard, Copy, Scissors, Filter, Clipboard as Paste, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
 import './styles.css';
 import { v4 as uuidv4 } from 'uuid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
@@ -594,17 +594,17 @@ export function NewGridView({
       (listType === 'Opportunity' && column.id === 'opportunity')
     );
     
-    // Fix cell styles to eliminate gaps and ensure alignment
-    const cellStyle = {
+    // Fix cell styles to eliminate gaps and ensure alignment - fix type error
+    const cellStyle: React.CSSProperties = {
       ...style,
       borderTop: 'none',
       borderLeft: 'none',
       padding: isEditing ? 0 : '0.75rem',
       position: 'absolute',
       height: ROW_HEIGHT,
-      left: style.left,
-      top: style.top,
-      width: style.width
+      left: style.left as number | string,
+      top: style.top as number | string,
+      width: style.width as number | string
     };
     
     return (
@@ -673,7 +673,7 @@ export function NewGridView({
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56">
           <DropdownMenuItem onClick={() => handleCutColumn(column.id)}>
-            <Cut className="mr-2 h-4 w-4" />
+            <Scissors className="mr-2 h-4 w-4" />
             <span>Cut</span>
             <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
           </DropdownMenuItem>
@@ -683,7 +683,7 @@ export function NewGridView({
             <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handlePasteColumn(column.id)}>
-            <Paste className="mr-2 h-4 w-4" />
+            <Clipboard className="mr-2 h-4 w-4" />
             <span>Paste</span>
             <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
           </DropdownMenuItem>
@@ -734,7 +734,7 @@ export function NewGridView({
           </DropdownMenuItem>
           
           <DropdownMenuItem onClick={() => handleResizeColumn(column.id)}>
-            <Resize className="mr-2 h-4 w-4" />
+            <StretchHorizontal className="mr-2 h-4 w-4" />
             <span>Resize column</span>
           </DropdownMenuItem>
           

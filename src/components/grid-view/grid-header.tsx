@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Column } from './types';
 import { 
@@ -9,10 +8,10 @@ import {
   Plus, 
   Trash2,
   Copy,
-  Cut,
-  Paste,
+  Scissors,
+  Clipboard,
   Filter,
-  Resize
+  StretchHorizontal
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -281,7 +280,7 @@ export function GridHeader({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => handleCutColumn(columnId)}>
-                  <Cut size={14} className="mr-2" />
+                  <Scissors size={14} className="mr-2" />
                   Cut
                   <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
                 </DropdownMenuItem>
@@ -293,14 +292,14 @@ export function GridHeader({
                 </DropdownMenuItem>
                 
                 <DropdownMenuItem onClick={() => handlePasteColumn(columnId)}>
-                  <Paste size={14} className="mr-2" />
+                  <Clipboard size={14} className="mr-2" />
                   Paste
                   <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
                 </DropdownMenuItem>
                 
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
-                    <Paste size={14} className="mr-2" />
+                    <Clipboard size={14} className="mr-2" />
                     Paste special
                   </DropdownMenuSubTrigger>
                   <DropdownMenuPortal>
@@ -345,7 +344,7 @@ export function GridHeader({
                 </DropdownMenuItem>
                 
                 <DropdownMenuItem onClick={() => handleResizeColumnAction(columnId)}>
-                  <Resize size={14} className="mr-2" />
+                  <StretchHorizontal size={14} className="mr-2" />
                   Resize column
                 </DropdownMenuItem>
                 
