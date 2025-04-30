@@ -52,7 +52,7 @@ const Lists = () => {
           setViewMode={setViewMode}
         />
         
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden bg-white">
           <ListContent
             currentListId={currentListId}
             viewMode={viewMode}

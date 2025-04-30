@@ -28,15 +28,19 @@ export function ListContent({
 }: ListContentProps) {
   if (!currentListId) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <h2 className="text-lg font-medium text-slate-dark mb-2">
+      <div className="flex items-center justify-center h-full bg-white">
+        <div className="text-center max-w-md p-8 border border-slate-light/20 rounded-lg shadow-sm">
+          <h2 className="text-xl font-medium text-slate-dark mb-4">
             {listsLoading ? "Loading lists..." : "No lists available"}
           </h2>
+          <p className="text-slate-medium mb-6">
+            Lists are the backbone of your workflow and house all the data you want to track.
+            The grid looks and acts similarly to a spreadsheet.
+          </p>
           {!listsLoading && (
             <CustomButton
               onClick={() => setIsCreateListOpen(true)}
-              className="mt-2"
+              className="mt-2 bg-salesforce-mint hover:bg-salesforce-dark"
             >
               Create your first list
             </CustomButton>

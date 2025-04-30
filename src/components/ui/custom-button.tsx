@@ -5,16 +5,17 @@ import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-primary disabled:opacity-50 disabled:pointer-events-none",
+  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-salesforce-mint disabled:opacity-50 disabled:pointer-events-none",
   {
     variants: {
       variant: {
-        default: "bg-teal-primary text-white hover:bg-teal-dark",
+        default: "bg-salesforce-mint text-white hover:bg-salesforce-dark",
         destructive: "bg-coral text-white hover:bg-coral/90",
         outline: "border border-input bg-background hover:bg-slate-light/30",
         secondary: "bg-navy-deep text-white hover:bg-navy-dark",
         ghost: "hover:bg-slate-light/30",
-        link: "text-teal-primary underline-offset-4 hover:underline",
+        link: "text-salesforce-mint underline-offset-4 hover:underline",
+        salesforce: "bg-salesforce-mint text-white hover:bg-salesforce-dark shadow-sm",
       },
       size: {
         default: "h-10 px-4 py-2", // Medium (size1)

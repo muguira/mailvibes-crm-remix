@@ -63,11 +63,11 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// RelateIQ color palette
+				// RelateIQ color palette - with updated mint theme
 				teal: {
-					primary: '#67BBAA',
-					light: '#7FCBBC',
-					dark: '#55998D',
+					primary: '#8DC9B9', // Updated to the mint green color from images
+					light: '#A4D7C9', // Lighter mint green for hover states
+					dark: '#6BA493', // Darker mint green for active states
 				},
 				navy: {
 					deep: '#133340',
@@ -82,6 +82,11 @@ export default {
 					dark: '#4A5357',
 				},
 				'grey-light': '#DDDDDC',
+				'salesforce-mint': {
+					DEFAULT: '#8DC9B9', // Main mint green color from the Salesforce-like UI
+					light: '#A4D7C9',
+					dark: '#6BA493',
+				},
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

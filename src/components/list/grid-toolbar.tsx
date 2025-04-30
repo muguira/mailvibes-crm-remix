@@ -22,11 +22,6 @@ export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) 
           <input type="checkbox" className="mr-2" />
         </button>
         
-        {/* Download Button */}
-        <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-light/20 text-slate-medium">
-          <FileDown size={18} />
-        </button>
-        
         {/* Search Field */}
         <div className="flex items-center bg-white border border-slate-light/50 rounded px-2 py-1">
           <Search size={16} className="text-slate-medium" />
@@ -39,23 +34,28 @@ export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) 
           />
           <ChevronDown size={16} className="text-slate-medium" />
         </div>
+        
+        {/* Download Button */}
+        <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-light/20 text-slate-medium">
+          <FileDown size={18} />
+        </button>
       </div>
       
       <div className="flex items-center gap-4">
         {/* List Info */}
-        <span className="text-sm text-slate-medium">28 Opportunities • DEMO</span>
+        <span className="text-sm text-slate-medium">Opportunities • DEMO</span>
         
         {/* Filter Button */}
         <div className="relative">
           <CustomButton 
             variant="outline" 
             size="sm" 
-            className="flex items-center gap-1"
+            className="flex items-center gap-1 sf-button sf-button-secondary"
             onClick={() => setFilterOpen(!filterOpen)}
           >
             <Filter size={14} />
             <span>Filters</span>
-            <span className="text-xs bg-teal-primary text-white rounded-full px-1.5">2</span>
+            <span className="text-xs bg-salesforce-mint text-white rounded-full px-1.5">2</span>
           </CustomButton>
           
           {filterOpen && (
@@ -79,7 +79,7 @@ export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) 
                 <button className="px-3 py-1 text-sm border border-slate-light/50 rounded">
                   Close
                 </button>
-                <button className="px-3 py-1 text-sm bg-teal-primary text-white rounded">
+                <button className="px-3 py-1 text-sm bg-salesforce-mint text-white rounded">
                   Save
                 </button>
               </div>
@@ -91,7 +91,7 @@ export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) 
         <CustomButton 
           variant="default" 
           size="sm"
-          className="flex items-center gap-1"
+          className="flex items-center gap-1 bg-salesforce-mint hover:bg-salesforce-mint-dark"
           onClick={onAddItem}
         >
           <Plus size={14} />

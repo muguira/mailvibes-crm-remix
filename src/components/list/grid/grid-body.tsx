@@ -32,21 +32,30 @@ export function GridBody({
 }: GridBodyProps) {
   return (
     <div className="overflow-auto flex-1" ref={bodyRef}>
-      {data.map((row) => (
-        <GridRow
-          key={row.id}
-          rowData={row}
-          frozenColumns={frozenColumns}
-          scrollableColumns={scrollableColumns}
-          frozenColsTemplate={frozenColsTemplate}
-          scrollableColsTemplate={scrollableColsTemplate}
-          activeCell={activeCell}
-          showSaveIndicator={showSaveIndicator}
-          onCellClick={onCellClick}
-          onCellChange={onCellChange}
-          renderRowActions={renderRowActions}
-        />
-      ))}
+      {data.length === 0 ? (
+        <div className="flex items-center justify-center h-full p-8 text-center">
+          <div className="max-w-md">
+            <h3 className="text-lg font-medium text-slate-dark mb-2">No data available</h3>
+            <p className="text-slate-medium">Add your first item to get started with this list.</p>
+          </div>
+        </div>
+      ) : (
+        data.map((row) => (
+          <GridRow
+            key={row.id}
+            rowData={row}
+            frozenColumns={frozenColumns}
+            scrollableColumns={scrollableColumns}
+            frozenColsTemplate={frozenColsTemplate}
+            scrollableColsTemplate={scrollableColsTemplate}
+            activeCell={activeCell}
+            showSaveIndicator={showSaveIndicator}
+            onCellClick={onCellClick}
+            onCellChange={onCellChange}
+            renderRowActions={renderRowActions}
+          />
+        ))
+      )}
     </div>
   );
 }
