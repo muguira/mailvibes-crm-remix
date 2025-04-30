@@ -48,7 +48,6 @@ export function useRealtimePresence(listId?: string) {
           const presences = state[presenceId] as unknown[];
           if (presences.length > 0) {
             // Just use the first presence for this user
-            // TypeScript cast needed because the presence structure doesn't match our PresenceUser type exactly
             const presenceData = presences[0] as any;
             
             if (presenceData && presenceData.user_id) {

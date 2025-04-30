@@ -100,6 +100,47 @@ export type Database = {
           },
         ]
       }
+      grid_change_history: {
+        Row: {
+          changed_at: string
+          column_key: string
+          id: string
+          list_id: string
+          new_value: Json | null
+          old_value: Json | null
+          row_id: string
+          user_id: string
+        }
+        Insert: {
+          changed_at?: string
+          column_key: string
+          id?: string
+          list_id: string
+          new_value?: Json | null
+          old_value?: Json | null
+          row_id: string
+          user_id: string
+        }
+        Update: {
+          changed_at?: string
+          column_key?: string
+          id?: string
+          list_id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          row_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grid_change_history_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "user_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grid_data: {
         Row: {
           created_at: string
