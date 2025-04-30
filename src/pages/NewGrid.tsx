@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { NewGridView } from '@/components/grid-view/new-grid-view';
 import { Column, GridRow } from '@/components/grid-view/types';
-import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
+import { DEFAULT_COLUMN_WIDTH, INDEX_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { STATUS_COLORS } from '@/components/grid-view/grid-constants';
 import { useLocation } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';

@@ -5,28 +5,15 @@ import { GridContainerProps, Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants';
 import { GridToolbar } from './grid-toolbar';
 import { GridHeader } from './grid-header';
-import { Check, Clipboard, Copy, Scissors, Filter, Clipboard as Paste, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
+import { OuterElementWrapper } from './outer-element-wrapper';
+import { FilterPopover } from './filter-popover';
+import { Check, Clipboard, Copy, Scissors, Filter, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
 import './styles.css';
 import { v4 as uuidv4 } from 'uuid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 
 // Constants for minimum column width
 const MIN_COL_WIDTH = 100;
-
-// Forward ref for outer element to ensure proper height handling
-const OuterElementWrapper = React.forwardRef<HTMLDivElement, React.HTMLProps<HTMLDivElement>>(
-  ({ style, ...rest }, ref) => (
-    <div
-      ref={ref}
-      style={{
-        ...style,
-        height: '100%', // Ensure it takes full height
-        width: '100%',
-      }}
-      {...rest}
-    />
-  )
-);
 
 export function NewGridView({
   columns,
@@ -70,8 +57,16 @@ export function NewGridView({
     } catch (e) {
       console.error('Failed to load column widths from localStorage', e);
     }
+    // Set first column (index) to INDEX_COLUMN_WIDTH and mark it as non-resizable
     return [INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)];
   });
+
+  // Mark the index column as non-resizable
+  useEffect(() => {
+    if (columns.length > 0 && columns[0].id === 'opportunity') {
+      onColumnChange?.('opportunity', { resizable: false });
+    }
+  }, [columns, onColumnChange]);
 
   // Save column widths to localStorage when they change
   useEffect(() => {
@@ -188,6 +183,9 @@ export function NewGridView({
 
   // Fix for column resize with proper persistence
   const handleColumnResize = useCallback((columnIndex: number, newWidth: number) => {
+    // Don't allow resizing of index column (0)
+    if (columnIndex === 0) return;
+    
     console.log(`Resizing column ${columnIndex} to ${newWidth}px`);
     
     // Update column widths array with the new width
@@ -671,16 +669,19 @@ export function NewGridView({
     
     if (columnIndex === 0) {
       // Index column
+      const cellStyle: React.CSSProperties = {
+        ...style,
+        borderTop: 'none',
+        borderBottom: '1px solid #e5e7eb',
+        borderRight: '1px solid #e5e7eb',
+        zIndex: 5,
+        width: INDEX_COLUMN_WIDTH,
+      };
+      
       return (
         <div 
           className="index-column"
-          style={{
-            ...style,
-            borderTop: 'none',
-            borderBottom: '1px solid #e5e7eb',
-            borderRight: '1px solid #e5e7eb',
-            zIndex: 5
-          }}
+          style={cellStyle}
         >
           {dataRowIndex + 1}
         </div>
@@ -699,8 +700,9 @@ export function NewGridView({
       (listType === 'Contact' && column.id === 'email') ||
       (listType === 'Opportunity' && column.id === 'opportunity')
     );
+    const isHighlighted = contextMenuColumn === column.id;
     
-    // Fix cell styles to eliminate gaps and ensure alignment - fix type error
+    // Fix cell styles to eliminate gaps and ensure alignment
     const cellStyle: React.CSSProperties = {
       ...style,
       borderTop: 'none',
@@ -708,9 +710,9 @@ export function NewGridView({
       padding: isEditing ? 0 : '0.75rem',
       position: 'absolute',
       height: ROW_HEIGHT,
-      left: style.left as number | string,
-      top: style.top as number | string,
-      width: style.width as number | string
+      left: style.left,
+      top: style.top,
+      width: style.width
     };
     
     return (
@@ -721,7 +723,7 @@ export function NewGridView({
           ${isEditing ? 'grid-cell-editing' : ''} 
           ${column.type === 'currency' ? 'text-right' : ''}
           ${isFirstColumn ? 'grid-frozen-cell opportunity-cell' : ''}
-          ${contextMenuColumn === column.id ? 'highlight-column' : ''}
+          ${isHighlighted ? 'highlight-column' : ''}
           ${isFocused ? 'grid-cell-focused' : ''}
         `}
         style={cellStyle}
@@ -756,6 +758,7 @@ export function NewGridView({
         ref={ref}
         style={{
           ...style,
+          position: 'relative',
           borderCollapse: 'collapse',
           borderSpacing: 0,
           padding: 0,
@@ -766,6 +769,8 @@ export function NewGridView({
       />
     )
   );
+
+  innerElementType.displayName = "InnerElementType";
 
   // Render column context menu
   const renderColumnContextMenu = () => {
@@ -884,16 +889,28 @@ export function NewGridView({
 
   return (
     <div className={`grid-view ${className || ''}`} ref={containerRef}>
-      <GridToolbar 
-        listName={listName}
-        listType={listType}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        filterCount={activeFilters.columns.length}
-        columns={columns}
-        onApplyFilters={handleApplyFilters}
-        activeFilters={activeFilters}
-      />
+      <div className="grid-toolbar">
+        <div className="toolbar-left">
+          <h2 className="text-lg font-semibold">{listName}</h2>
+          <div className="flex items-center">
+            <FilterPopover
+              columns={columns}
+              activeFilters={activeFilters}
+              onApplyFilters={handleApplyFilters}
+              filterCount={activeFilters.columns.length}
+            />
+          </div>
+        </div>
+        <div className="toolbar-right">
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-3 py-1 border rounded-md text-sm w-48"
+          />
+        </div>
+      </div>
       
       <div className="header-wrapper" ref={headerRef}>
         <GridHeader 
@@ -932,6 +949,16 @@ export function NewGridView({
               innerElementType={innerElementType}
               outerElementType={OuterElementWrapper}
               onScroll={handleGridScroll}
+              itemKey={(data) => {
+                const { columnIndex, rowIndex } = data;
+                if (rowIndex === 0) return `header-${columnIndex}`;
+                if (columnIndex === 0) return `index-${rowIndex}`;
+                
+                const row = visibleData[rowIndex - 1];
+                if (!row) return `empty-${rowIndex}-${columnIndex}`;
+                
+                return `${row.id}-${columns[columnIndex - 1]?.id || columnIndex}`;
+              }}
             >
               {Cell}
             </Grid>

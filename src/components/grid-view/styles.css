@@ -141,6 +141,15 @@
   background-color: #2563eb;
 }
 
+.resize-guide {
+  position: absolute;
+  width: 2px;
+  background-color: #2563eb;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 100;
+}
+
 .add-column-button {
   min-width: 40px;
   height: 40px;
@@ -178,11 +187,20 @@
   height: 100%;
   position: relative;
   transform: none; /* Remove translate transform to fix alignment */
+  border-collapse: collapse;
 }
 
 .react-window-grid {
   border-top: none !important; /* Fix for white band */
   margin-top: 0 !important; /* Fix for white band */
+}
+
+.react-window-grid-inner {
+  position: relative;
+  border-collapse: collapse;
+  border-spacing: 0;
+  padding: 0;
+  margin: 0;
 }
 
 .grid-cell {
@@ -317,6 +335,56 @@
   text-align: center;
   color: #6b7280;
   font-size: 0.875rem;
+}
+
+/* Filter popover styles */
+.filter-popover {
+  width: 320px;
+  max-width: 90vw;
+}
+
+.filter-options {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.filter-column-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.filter-value-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.filter-date-range {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.filter-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+  position: sticky;
+  bottom: 0;
+  background-color: #fff;
+  padding: 0.75rem;
+  margin: 0 -0.75rem -0.75rem;
 }
 
 @media (max-width: 640px) {

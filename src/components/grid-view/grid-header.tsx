@@ -53,6 +53,7 @@ export function GridHeader({
   const [initialX, setInitialX] = useState(0);
   const [initialWidth, setInitialWidth] = useState(0);
   const [dragPreview, setDragPreview] = useState<HTMLDivElement | null>(null);
+  const [resizeGuide, setResizeGuide] = useState<{left: number, visible: boolean}>({left: 0, visible: false});
   
   // Handle column header edit (double click)
   const handleHeaderDoubleClick = (columnId: string) => {
@@ -169,14 +170,28 @@ export function GridHeader({
     setDraggedColumn(null);
   };
   
-  // Handle column resize start with improved live update
+  // Handle column resize start with improved live update and bidirectional resizing
   const handleResizeStart = useCallback((e: React.MouseEvent, columnId: string, initialWidth: number) => {
+    // Don't allow resizing the opportunity column if it's marked non-resizable
+    const column = columns.find(col => col.id === columnId);
+    if (column?.resizable === false) return;
+    
     e.preventDefault();
     e.stopPropagation();
     
     setResizingColumn(columnId);
     setInitialX(e.clientX);
     setInitialWidth(initialWidth);
+    
+    // Show resize guide at initial position
+    const headerCell = document.querySelector(`[data-column-id="${columnId}"]`);
+    if (headerCell) {
+      const rect = headerCell.getBoundingClientRect();
+      setResizeGuide({
+        left: rect.right,
+        visible: true
+      });
+    }
     
     const handleResizeMove = (moveEvent: MouseEvent) => {
       moveEvent.preventDefault();
@@ -185,6 +200,12 @@ export function GridHeader({
       
       const diffX = moveEvent.clientX - initialX;
       const newWidth = Math.max(100, initialWidth + diffX); // Minimum width of 100px
+      
+      // Update resize guide position
+      setResizeGuide({
+        left: initialX + diffX,
+        visible: true
+      });
       
       // Update column width during drag in real-time
       const columnIndex = columns.findIndex(col => col.id === columnId);
@@ -196,6 +217,9 @@ export function GridHeader({
     
     const handleResizeEnd = (upEvent: MouseEvent) => {
       upEvent.preventDefault();
+      
+      // Hide the resize guide
+      setResizeGuide({ left: 0, visible: false });
       
       // Final update to ensure persistence
       if (onColumnResize) {
@@ -223,6 +247,20 @@ export function GridHeader({
     
     // Get the position for the context menu
     const position = { x: e.clientX, y: e.clientY };
+    
+    if (onContextMenu) {
+      onContextMenu(columnId, position);
+    }
+  };
+  
+  // Open context menu from the menu icon
+  const handleMenuButtonClick = (e: React.MouseEvent, columnId: string) => {
+    e.stopPropagation();
+    
+    // Get the position for the context menu using the button location
+    const buttonElement = e.currentTarget as HTMLElement;
+    const rect = buttonElement.getBoundingClientRect();
+    const position = { x: rect.right, y: rect.bottom };
     
     if (onContextMenu) {
       onContextMenu(columnId, position);
@@ -318,7 +356,10 @@ export function GridHeader({
           // Render dropdown menu for column options
           const renderColumnMenu = (columnId: string) => (
             <DropdownMenu>
-              <DropdownMenuTrigger className="header-cell-menu-button">
+              <DropdownMenuTrigger 
+                className="header-cell-menu-button"
+                onClick={(e) => handleMenuButtonClick(e, columnId)} // Handle click to open context menu
+              >
                 <MoreVertical size={14} />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -416,6 +457,7 @@ export function GridHeader({
           return (
             <div
               key={column.id}
+              data-column-id={column.id}
               className={`
                 grid-header-cell 
                 ${column.id === 'opportunity' ? 'grid-frozen-header' : ''} 
@@ -445,10 +487,12 @@ export function GridHeader({
                   <span className="header-title">{displayTitle}</span>
                   <div className="header-cell-actions">
                     {renderColumnMenu(column.id)}
-                    <div
-                      className="resize-handle"
-                      onMouseDown={(e) => handleResizeStart(e, column.id, column.width)}
-                    />
+                    {column.resizable !== false && (
+                      <div
+                        className="resize-handle"
+                        onMouseDown={(e) => handleResizeStart(e, column.id, column.width)}
+                      />
+                    )}
                   </div>
                 </>
               )}
@@ -462,6 +506,14 @@ export function GridHeader({
           +
         </div>
       </div>
+      
+      {/* Resize guide - shows while dragging column resize handle */}
+      {resizeGuide.visible && (
+        <div 
+          className="resize-guide" 
+          style={{ left: `${resizeGuide.left}px` }}
+        />
+      )}
     </div>
   );
 }
