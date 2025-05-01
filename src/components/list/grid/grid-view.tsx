@@ -2,6 +2,7 @@
 import { SaveIndicatorProvider } from "./contexts/save-indicator-context";
 import { GridContainer, GridViewContent } from "./components";
 import { GridViewProps } from "./types";
+import { normalizeColumns } from "./utils/normalize-columns";
 import "./grid-view.css";
 
 // Main GridView wrapper with providers
@@ -12,9 +13,15 @@ export function GridView(props: GridViewProps & {
   onDeleteColumn?: (columnId: string) => void,
   onAddColumn?: (afterColumnId: string) => void
 }) {
+  // Normalize columns to match the expected type in GridContainer
+  const normalizedColumns = normalizeColumns(props.columns);
+  
   return (
     <SaveIndicatorProvider>
-      <GridContainer {...props}>
+      <GridContainer 
+        {...props} 
+        columns={normalizedColumns}
+      >
         <GridViewContent {...props} />
       </GridContainer>
     </SaveIndicatorProvider>

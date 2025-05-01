@@ -47,8 +47,8 @@ export function GridBody({
     emptyRowData[col.key] = "";
   });
 
-  console.log("GridBody rendering rows:", validRows.length);
-
+  console.log("GridBody rendering rows:", validRows.length, "first row:", validRows[0]);
+  
   return (
     <div className="overflow-auto flex-1 bg-white" ref={bodyRef}>
       {validRows.length > 0 ? (

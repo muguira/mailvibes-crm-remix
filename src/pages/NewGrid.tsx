@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { NewGridView } from '@/components/grid-view/new-grid-view';
@@ -109,7 +110,7 @@ const generateRow = (i: number): GridRow => ({
 // Generate datasets of different sizes
 const generateDataset = (count: number): GridRow[] => {
   console.log(`Generating ${count} rows of data...`);
-  return Array.from({ length: count }, (_, i) => generateRow(i));
+  return Array.from({ length: count }, (_, i) => generateRow(i + 1));
 };
 
 const NewGrid: React.FC = () => {
@@ -138,6 +139,7 @@ const NewGrid: React.FC = () => {
   
   // Handle cell value changes with retry logic for duplicate key errors
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
+    console.log("Cell change:", rowId, columnId, value);
     // Attempt to update the cell value
     try {
       setData(prev => 
@@ -187,16 +189,29 @@ const NewGrid: React.FC = () => {
   
   // Handle column deletion
   const handleDeleteColumn = (columnId: string) => {
-    // This is kept for TypeScript compatibility but implementation can remain the same
-    console.log("Column deletion disabled for stability");
+    console.log("Delete column:", columnId);
+    // This is kept simple for now
+    setColumns(prev => prev.filter(col => col.id !== columnId));
   };
   
   // Handle adding a new column
   const handleAddColumn = (afterColumnId: string) => {
-    // This is kept for TypeScript compatibility but implementation can remain the same
-    console.log("Column insertion disabled for stability");
+    console.log("Add column after:", afterColumnId);
+    const newColumnId = `column-${uuidv4().substring(0, 8)}`;
+    const newColumn: Column = {
+      id: newColumnId,
+      title: `New Column`,
+      type: 'text',
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true
+    };
+    
+    const afterIndex = columns.findIndex(col => col.id === afterColumnId);
+    const newColumns = [...columns];
+    newColumns.splice(afterIndex + 1, 0, newColumn);
+    setColumns(newColumns);
   };
-  
+
   return (
     <div className="flex flex-col h-screen">
       <TopNavbar />
