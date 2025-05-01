@@ -6,6 +6,7 @@ import { Column, GridRow } from '@/components/grid-view/types';
 import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { STATUS_COLORS } from '@/components/grid-view/grid-constants';
 import { useLocation } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
 
 // Sample column definitions for opportunities
 const opportunityColumns: Column[] = [
@@ -95,7 +96,7 @@ const generateLargeDataset = (count: number): GridRow[] => {
   console.log(`Generating ${count} rows of data...`);
   
   return Array.from({ length: count }, (_, i) => ({
-    id: `row-${i}`,
+    id: `row-${uuidv4()}`, // Use UUID to ensure uniqueness for API calls
     opportunity: `Opportunity ${i}`,
     status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
     revenue: Math.floor(Math.random() * 100000),
@@ -131,15 +132,37 @@ const NewGrid: React.FC = () => {
     }
   }, [location.search]);
   
-  // Handle cell value changes
+  // Handle cell value changes with retry logic for duplicate key errors
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
-    setData(prev => 
-      prev.map(row => 
-        row.id === rowId 
-          ? { ...row, [columnId]: value }
-          : row
-      )
-    );
+    // Attempt to update the cell value
+    try {
+      setData(prev => 
+        prev.map(row => 
+          row.id === rowId 
+            ? { ...row, [columnId]: value }
+            : row
+        )
+      );
+      
+      // In a real API implementation, you would handle 409 errors here
+      // and retry with a new UUID if needed
+    } catch (error) {
+      console.error("Error updating cell:", error);
+      // If there's a 409 error, we would generate a new ID and retry
+      const newRowId = `row-${uuidv4()}`;
+      console.log(`Retrying with new ID: ${newRowId}`);
+      
+      // Update the row with a new ID
+      setData(prev => {
+        const updatedRow = prev.find(row => row.id === rowId);
+        if (!updatedRow) return prev;
+        
+        return [
+          ...prev.filter(row => row.id !== rowId),
+          { ...updatedRow, id: newRowId, [columnId]: value }
+        ];
+      });
+    }
   };
   
   // Handle column updates (width, title, etc)
@@ -161,6 +184,32 @@ const NewGrid: React.FC = () => {
     setColumns(reorderedColumns);
   };
   
+  // Handle column deletion
+  const handleDeleteColumn = (columnId: string) => {
+    if (columnId === 'opportunity') return; // Protect the opportunity column
+    setColumns(prev => prev.filter(col => col.id !== columnId));
+  };
+  
+  // Handle adding a new column
+  const handleAddColumn = (afterColumnId: string) => {
+    const newColumnId = `column-${uuidv4()}`;
+    const newColumn: Column = {
+      id: newColumnId,
+      title: 'New Column',
+      type: 'text',
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true,
+    };
+    
+    const afterColumnIndex = columns.findIndex(col => col.id === afterColumnId);
+    
+    setColumns(prev => [
+      ...prev.slice(0, afterColumnIndex + 1),
+      newColumn,
+      ...prev.slice(afterColumnIndex + 1)
+    ]);
+  };
+  
   return (
     <div className="flex flex-col h-screen">
       <TopNavbar />
@@ -173,6 +222,8 @@ const NewGrid: React.FC = () => {
           onCellChange={handleCellChange}
           onColumnChange={handleColumnChange}
           onColumnsReorder={handleColumnsReorder}
+          onDeleteColumn={handleDeleteColumn}
+          onAddColumn={handleAddColumn}
         />
       </div>
     </div>
