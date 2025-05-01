@@ -1,32 +1,102 @@
 
-/* Base grid styles */
+/* Base grid layout styles */
 .full-screen-grid {
+  height: calc(100vh - 57px);
   display: flex;
   flex-direction: column;
-  height: 100%;
-  width: 100%;
   overflow: hidden;
+  width: 100%;
+  border-top: 1px solid #e0e5eb;
+  position: relative;
+}
+
+/* Row styles */
+.grid-row {
+  display: flex;
+  min-width: 100%;
+  position: relative;
+  height: var(--row-height, 32px);
+  border-bottom: 1px solid #e0e5eb;
+  width: fit-content;
+}
+
+/* Alternating row colors */
+.grid-row:nth-child(even) {
   background-color: #ffffff;
 }
 
-/* Updated search field styles */
-.search-field {
+.grid-row:nth-child(odd) {
+  background-color: #f8f9fa;
+}
+
+.grid-row:hover {
+  background-color: #edf3f8 !important;
+}
+
+/* Row number cell styling */
+.row-number-cell {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #e0e5eb;
-  padding-bottom: 2px;
-  margin-right: 8px;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #888;
+  width: 40px;
+  min-width: 40px;
+  flex-shrink: 0;
+  height: 100%;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background-color: inherit;
+  border-right: 1px solid #e0e5eb;
+  user-select: none;
+  pointer-events: none;
 }
 
-.search-field input {
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 0.875rem;
-  width: 200px;
-  padding: 4px 0;
+/* Edit column cell styling */
+.edit-column-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  flex-shrink: 0;
+  height: 100%;
+  position: sticky;
+  left: 40px;
+  z-index: 5;
+  background-color: inherit;
+  border-right: 1px solid #e0e5eb;
 }
 
-.search-field input:focus {
-  border-color: rgb(20, 184, 166);
+/* Grid drag indicator */
+.grid-drag-indicator {
+  position: absolute;
+  height: 100%;
+  width: 2px;
+  background-color: #0070d2;
+}
+
+/* Fix the dropdown positioning */
+.popover-element {
+  z-index: 1000 !important;
+}
+
+/* Ensure grid body is properly layered */
+.grid-body {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Force table layout to ensure column alignment */
+.grid-container {
+  display: table;
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
 }

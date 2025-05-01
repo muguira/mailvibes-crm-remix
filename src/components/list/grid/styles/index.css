@@ -4,4 +4,6 @@
 @import "./grid-header.css";
 @import "./grid-cell.css";
 @import "./status-pills.css";
+@import "./zoom-controls.css";
 @import "./save-indicator.css";
+
