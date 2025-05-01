@@ -1,5 +1,5 @@
 
-export type ColumnType = 'text' | 'number' | 'date' | 'currency' | 'status' | 'url';
+export type ColumnType = 'text' | 'number' | 'date' | 'currency' | 'status' | 'url' | 'select' | 'checkbox' | string;
 
 export interface Column {
   id: string;

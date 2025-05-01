@@ -13,15 +13,7 @@ interface GridContainerWrapperProps extends GridContainerProps {
 
 export function GridContainer({ children, ...props }: GridContainerWrapperProps) {
   return (
-    <div 
-      className="h-full flex flex-col full-screen-grid relative" 
-      style={{ 
-        position: 'relative',
-        height: 'calc(100vh - 120px)',
-        zIndex: 5,
-        overflow: 'hidden'
-      }}
-    >
+    <div className="h-full flex flex-col full-screen-grid">
       {children}
     </div>
   );

@@ -9,9 +9,7 @@ export const OuterElementWrapper = React.forwardRef<HTMLDivElement, React.HTMLPr
         ...style,
         height: '100%',
         width: '100%',
-        position: 'relative', 
-        overflow: 'auto',
-        zIndex: 7
+        position: 'relative'
       }}
       {...rest}
     />

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { NewGridView } from '@/components/grid-view/new-grid-view';
@@ -134,10 +133,13 @@ const NewGrid: React.FC = () => {
       generatedData = generateDataset(1000);
     } else {
       // Default to at least 10 rows for visibility testing
-      generatedData = generateDataset(100);
+      generatedData = generateDataset(10);
     }
     
-    console.log(`Generated ${generatedData.length} rows, first row:`, generatedData[0]);
+    // Sanity check for data
+    console.info('[GRID] Generated rows:', generatedData.length);
+    console.info('[GRID] First row:', generatedData[0]);
+    
     setData(generatedData);
   }, [location.search]);
   
