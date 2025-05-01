@@ -38,6 +38,7 @@ interface GridHeadersProps {
   onDragStart: (key: string) => void;
   onDragOver: (e: React.DragEvent, key: string) => void;
   onDrop: (key: string) => void;
+  onContextMenu?: (colKey: string, position: { x: number, y: number }) => void;
 }
 
 export function GridHeaders({
@@ -63,7 +64,8 @@ export function GridHeaders({
   onDeleteColumn,
   onDragStart,
   onDragOver,
-  onDrop
+  onDrop,
+  onContextMenu
 }: GridHeadersProps) {
   // Local ref to help with head cell visibility
   const localHeaderRef = useRef<HTMLDivElement>(null);
@@ -129,6 +131,7 @@ export function GridHeaders({
             onMoveColumn={onMoveColumn}
             onSortColumn={onSortColumn}
             onDeleteColumn={onDeleteColumn}
+            onContextMenu={onContextMenu}
             isFrozen={true}
             style={{
               boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)",
@@ -157,6 +160,7 @@ export function GridHeaders({
             onMoveColumn={onMoveColumn}
             onSortColumn={onSortColumn}
             onDeleteColumn={onDeleteColumn}
+            onContextMenu={onContextMenu}
             dragOverColumn={dragOverColumn}
             onDragStart={onDragStart}
             onDragOver={onDragOver}

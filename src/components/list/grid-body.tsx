@@ -15,6 +15,7 @@ interface GridBodyProps {
   bodyRef: RefObject<HTMLDivElement>;
   onCellClick: (rowId: string, colKey: string, colType?: string, options?: string[]) => void;
   onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
+  onCellContextMenu?: (colKey: string, position: { x: number, y: number }) => void;
   renderRowActions?: (rowId: string) => React.ReactNode;
 }
 
@@ -29,6 +30,7 @@ export function GridBody({
   bodyRef,
   onCellClick,
   onCellChange,
+  onCellContextMenu,
   renderRowActions
 }: GridBodyProps) {
   // Only include rows with valid IDs and filter out any potential duplicates
@@ -62,6 +64,7 @@ export function GridBody({
           showSaveIndicator={showSaveIndicator}
           onCellClick={onCellClick}
           onCellChange={onCellChange}
+          onCellContextMenu={onCellContextMenu}
           renderRowActions={renderRowActions}
         />
       ))}
@@ -78,6 +81,7 @@ export function GridBody({
         showSaveIndicator={showSaveIndicator}
         onCellClick={onCellClick}
         onCellChange={onCellChange}
+        onCellContextMenu={onCellContextMenu}
         renderRowActions={renderRowActions}
       />
     </div>

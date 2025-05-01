@@ -2,20 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Column } from './types';
 import { MIN_COLUMN_WIDTH } from './grid-constants';
-import {
-  MoreVertical,
-  Plus,
-  Trash2,
-  Copy,
-  Clipboard
-} from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
+import { MoreVertical } from 'lucide-react';
+import { ColumnContextMenu } from './column-context-menu';
 
 interface GridHeaderProps {
   columns: Column[];
@@ -223,59 +211,6 @@ export function GridHeader({
           const displayTitle = column.id === 'opportunity' ? 'Opportunity' : column.title;
           const isContextMenuOpen = activeContextMenu === column.id;
 
-          // Render dropdown menu for column options
-          const renderColumnMenu = (columnId: string) => (
-            <DropdownMenu>
-              <DropdownMenuTrigger className="header-cell-menu-button">
-                <MoreVertical size={14} />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleCopyColumn(columnId)}>
-                  <Copy size={14} className="mr-2" />
-                  Copy
-                  <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem onClick={() => handlePasteColumn(columnId)}>
-                  <Clipboard size={14} className="mr-2" />
-                  Paste
-                  <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem onClick={() => handleInsertColumnLeft(columnId)}>
-                  <Plus size={14} className="mr-2" />
-                  Insert column left
-                </DropdownMenuItem>
-
-                <DropdownMenuItem onClick={() => handleInsertColumnRight(columnId)}>
-                  <Plus size={14} className="mr-2" />
-                  Insert column right
-                </DropdownMenuItem>
-
-                {columnId !== 'opportunity' && (
-                  <DropdownMenuItem onClick={() => handleDeleteColumnAction(columnId)}>
-                    <Trash2 size={14} className="mr-2" />
-                    Delete column
-                  </DropdownMenuItem>
-                )}
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem onClick={() => handleSortAZ(columnId)}>
-                  <span className="mr-2">A→Z</span>
-                  Sort sheet A to Z
-                </DropdownMenuItem>
-
-                <DropdownMenuItem onClick={() => handleSortZA(columnId)}>
-                  <span className="mr-2">Z→A</span>
-                  Sort sheet Z to A
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-
           return (
             <div
               key={column.id}
@@ -307,7 +242,18 @@ export function GridHeader({
                 <>
                   <span className="header-title">{displayTitle}</span>
                   <div className="header-cell-actions">
-                    {renderColumnMenu(column.id)}
+                    <ColumnContextMenu
+                      columnId={column.id}
+                      isOpportunity={column.id === 'opportunity'}
+                      trigger={<button className="header-cell-menu-button"><MoreVertical size={14} /></button>}
+                      onCopyColumn={handleCopyColumn}
+                      onPasteColumn={handlePasteColumn}
+                      onInsertColumnLeft={handleInsertColumnLeft}
+                      onInsertColumnRight={handleInsertColumnRight}
+                      onDeleteColumn={handleDeleteColumnAction}
+                      onSortAZ={handleSortAZ}
+                      onSortZA={handleSortZA}
+                    />
                   </div>
                 </>
               )}
@@ -324,3 +270,26 @@ export function GridHeader({
     </div>
   );
 }
+
+// Export this function to be used by the grid cell component too
+export const useColumnContextMenu = () => {
+  return {
+    openColumnContextMenu: (
+      columnId: string, 
+      position: { x: number, y: number },
+      callbacks: {
+        onCopyColumn?: (columnId: string) => void,
+        onPasteColumn?: (columnId: string) => void,
+        onInsertColumnLeft?: (columnId: string) => void,
+        onInsertColumnRight?: (columnId: string) => void,
+        onDeleteColumn?: (columnId: string) => void,
+        onSortAZ?: (columnId: string) => void,
+        onSortZA?: (columnId: string) => void,
+      }
+    ) => {
+      // This function can be expanded with more functionality if needed
+      console.log(`Opening context menu for column ${columnId} at position ${position.x},${position.y}`);
+      return { columnId, position };
+    }
+  };
+};

@@ -8,6 +8,7 @@ import { useCellClickHandler } from "./cell-types/cell-click-handler";
 import { useCellKeyHandler } from "./cell-types/cell-key-handler";
 import { CellPopovers } from "./cell-types/cell-popovers";
 import { CheckboxCell, UrlCell, StatusCell, TextCell, EditCell } from "./cell-types";
+import { ColumnContextMenu } from "@/components/grid-view/column-context-menu";
 
 interface GridCellProps {
   rowId: string;
@@ -20,6 +21,7 @@ interface GridCellProps {
   onClick: () => void;
   onChange: (value: any) => void;
   showSaveIndicator?: boolean;
+  onContextMenu?: (colKey: string, position: { x: number, y: number }) => void;
 }
 
 export function GridCell({
@@ -32,7 +34,8 @@ export function GridCell({
   isActive,
   onClick,
   onChange,
-  showSaveIndicator = false
+  showSaveIndicator = false,
+  onContextMenu
 }: GridCellProps) {
   // Store original value for reverting on cancel
   const [originalValue, setOriginalValue] = useState(value);
@@ -102,6 +105,14 @@ export function GridCell({
     }
     closePopover();
   };
+  
+  // Handle right-click to open column context menu
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (onContextMenu) {
+      onContextMenu(colKey, { x: e.clientX, y: e.clientY });
+    }
+  };
 
   const renderCellContent = () => {
     if (isActive) {
@@ -141,6 +152,7 @@ export function GridCell({
         e.stopPropagation();
         handleClick(e);
       }}
+      onContextMenu={handleContextMenu}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       data-cell={`${rowId}-${colKey}`}
