@@ -28,7 +28,7 @@
 }
 
 .index-header {
-  width: 50px;
+  width: 48px;
   padding: 0.5rem;
   font-weight: 600;
   background-color: #f9fafb;
@@ -63,9 +63,8 @@
 .grid-frozen-header {
   background-color: #f9fafb;
   position: sticky;
-  left: 0; /* Align with left edge */
+  left: 0;
   z-index: 5;
-  margin-left: -60px; /* Shift opportunity column 60px left */
 }
 
 .header-title {
@@ -81,22 +80,6 @@
   border-radius: 0.25rem;
   outline: none;
   font-size: 0.875rem;
-}
-
-/* Improved resize handle for better visibility and usability */
-.resize-handle {
-  position: absolute;
-  right: -2px;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  cursor: col-resize;
-  background-color: transparent;
-  z-index: 20;
-}
-
-.resize-handle:hover {
-  background-color: #0ea5e9;
 }
 
 .add-column-button {
@@ -181,7 +164,6 @@
 .opportunity-cell {
   color: #0ea5e9;
   font-weight: 500;
-  margin-left: -60px; /* Shift opportunity cells left to match header */
 }
 
 .text-right {
@@ -192,16 +174,6 @@
   background-color: #fef08a;
   padding: 0 2px;
   border-radius: 2px;
-}
-
-/* Drag and Drop */
-.dragging {
-  opacity: 0.5;
-}
-
-.drop-placeholder {
-  background-color: #f0f0f0;
-  border: 1px dashed #ccc;
 }
 
 /* Grid Toolbar */
@@ -237,7 +209,6 @@
   border-collapse: collapse !important;
   border-spacing: 0 !important;
   padding: 0 !important;
-  transform: translateY(-30px); /* Shift grid up to eliminate gap */
 }
 
 /* Critical fix: remove any gap between cells and ensure perfect alignment */
@@ -407,3 +378,36 @@
   color: #000;
 }
 
+/* Pagination styling */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+  background-color: #fff;
+}
+
+.pagination-button {
+  padding: 0.5rem 1rem;
+  margin: 0 0.25rem;
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.pagination-button:hover:not(:disabled) {
+  color: #0ea5e9;
+}
+
+.pagination-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pagination-info {
+  margin: 0 1rem;
+  color: #6b7280;
+}

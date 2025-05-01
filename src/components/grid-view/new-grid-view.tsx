@@ -1,13 +1,14 @@
-
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
-import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants';
+import { ROW_HEIGHT, HEADER_HEIGHT } from './grid-constants';
 import { GridToolbar } from './grid-toolbar';
 import { GridHeader } from './grid-header';
 import { Check } from 'lucide-react';
 import './styles.css';
-import { v4 as uuidv4 } from 'uuid';
+
+// Index column width constant
+const INDEX_COLUMN_WIDTH = 48;
 
 export function NewGridView({
   columns,
@@ -16,9 +17,6 @@ export function NewGridView({
   listType = '',
   onCellChange,
   onColumnChange,
-  onColumnsReorder,
-  onDeleteColumn,
-  onAddColumn,
   className
 }: GridContainerProps) {
   const gridRef = useRef<any>(null);
@@ -32,7 +30,7 @@ export function NewGridView({
   const [statusDropdownPosition, setStatusDropdownPosition] = useState<{ top: number; left: number; rowId: string; columnId: string } | null>(null);
   const [visibleData, setVisibleData] = useState<GridRow[]>([]);
 
-  // Column widths state
+  // Column widths state - fixed widths without resize capability
   const [columnWidths, setColumnWidths] = useState<number[]>(
     [INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]
   );
@@ -44,6 +42,7 @@ export function NewGridView({
 
   // Set visible data on initial load
   useEffect(() => {
+    console.info('[GRID] Setting visible data with', data.length, 'rows');
     setVisibleData(data);
   }, [data]);
 
@@ -138,29 +137,6 @@ export function NewGridView({
       resizeObserver.disconnect();
     };
   }, []);
-
-  // Fix for column resize with proper persistence
-  const handleColumnResize = useCallback((columnIndex: number, newWidth: number) => {
-    console.log(`Resizing column ${columnIndex} to ${newWidth}px`);
-    
-    // Update column widths array with the new width
-    setColumnWidths(prevWidths => {
-      const newWidths = [...prevWidths];
-      newWidths[columnIndex] = newWidth;
-      return newWidths;
-    });
-    
-    // Critical fix: Reset grid after column index with remeasure=true
-    if (gridRef.current) {
-      gridRef.current.resetAfterColumnIndex(columnIndex, true);
-    }
-    
-    // If it's not the index column, update the column in the columns array
-    if (columnIndex > 0 && onColumnChange) {
-      const columnId = columns[columnIndex - 1].id;
-      onColumnChange(columnId, { width: newWidth });
-    }
-  }, [columns, onColumnChange]);
 
   // Handle cell click for editing
   const handleCellClick = (rowId: string, columnId: string) => {
@@ -271,7 +247,7 @@ export function NewGridView({
     handleCellChange(rowId, columnId, value);
   };
 
-  // Column width getter for grid - using callback to ensure it's stable
+  // Column width getter for grid - using stable callback for column widths
   const getColumnWidth = useCallback((index: number) => {
     return columnWidths[index] || 150;
   }, [columnWidths]);
@@ -279,7 +255,7 @@ export function NewGridView({
   // Row height callback for VariableSizeGrid
   const getRowHeight = useCallback(() => ROW_HEIGHT, []);
 
-  // Handle filter changes with enhanced functionality
+  // Handle filter changes
   const handleApplyFilters = (filters: {columns: string[], values: Record<string, any>}) => {
     console.log("Applying filters:", filters);
     setActiveFilters(filters);
@@ -327,70 +303,6 @@ export function NewGridView({
         )}
       </>
     );
-  };
-
-  // Handle adding a column after another column
-  const handleAddColumn = (afterColumnId: string) => {
-    if (onAddColumn) {
-      onAddColumn(afterColumnId);
-    }
-  };
-
-  // Handle deleting a column
-  const handleDeleteColumn = (columnId: string) => {
-    if (onDeleteColumn && columnId !== 'opportunity') {
-      onDeleteColumn(columnId);
-    }
-  };
-
-  // Render edit input based on column type with enhanced UX
-  const renderEditInput = (row: GridRow, column: Column) => {
-    const value = row[column.id];
-    
-    // Add autofocus with selection for improved UX
-    const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-      e.target.select();
-    };
-    
-    switch (column.type) {
-      case 'number':
-      case 'currency':
-        return (
-          <input
-            type="number"
-            className={`grid-cell-input ${column.type === 'currency' ? 'text-right' : ''}`}
-            defaultValue={value as number}
-            autoFocus
-            onFocus={handleInputFocus}
-            onBlur={(e) => handleBlur(row.id, column.id, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, row.id, column.id, e.currentTarget.value)}
-          />
-        );
-      case 'date':
-        return (
-          <input
-            type="date"
-            className="grid-cell-input"
-            defaultValue={value as string}
-            autoFocus
-            onFocus={handleInputFocus}
-            onBlur={(e) => handleBlur(row.id, column.id, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, row.id, column.id, e.currentTarget.value)}
-          />
-        );
-      default:
-        return (
-          <input
-            type="text"
-            className="grid-cell-input"
-            defaultValue={value as string}
-            autoFocus
-            onFocus={handleInputFocus}
-            onBlur={(e) => handleBlur(row.id, column.id, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, row.id, column.id, e.currentTarget.value)}
-          />
-        );
-    }
   };
 
   // Format cell value based on column type
@@ -456,7 +368,57 @@ export function NewGridView({
     return brightness > 128;
   };
 
-  // Cell renderer with fixes for borders and gaps
+  // Render edit input based on column type
+  const renderEditInput = (row: GridRow, column: Column) => {
+    const value = row[column.id];
+    
+    // Add autofocus with selection for improved UX
+    const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      e.target.select();
+    };
+    
+    switch (column.type) {
+      case 'number':
+      case 'currency':
+        return (
+          <input
+            type="number"
+            className={`grid-cell-input ${column.type === 'currency' ? 'text-right' : ''}`}
+            defaultValue={value as number}
+            autoFocus
+            onFocus={handleInputFocus}
+            onBlur={(e) => handleBlur(row.id, column.id, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, row.id, column.id, e.currentTarget.value)}
+          />
+        );
+      case 'date':
+        return (
+          <input
+            type="date"
+            className="grid-cell-input"
+            defaultValue={value as string}
+            autoFocus
+            onFocus={handleInputFocus}
+            onBlur={(e) => handleBlur(row.id, column.id, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, row.id, column.id, e.currentTarget.value)}
+          />
+        );
+      default:
+        return (
+          <input
+            type="text"
+            className="grid-cell-input"
+            defaultValue={value as string}
+            autoFocus
+            onFocus={handleInputFocus}
+            onBlur={(e) => handleBlur(row.id, column.id, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, row.id, column.id, e.currentTarget.value)}
+          />
+        );
+    }
+  };
+
+  // Cell renderer with fixed alignment
   const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
     if (rowIndex === 0) {
       return null; // Header is rendered separately
@@ -473,9 +435,14 @@ export function NewGridView({
           className="index-column"
           style={{
             ...style,
+            width: INDEX_COLUMN_WIDTH,
             borderTop: 'none',
             borderBottom: '1px solid #e5e7eb',
-            borderRight: '1px solid #e5e7eb'
+            borderRight: '1px solid #e5e7eb',
+            position: 'sticky',
+            left: 0,
+            zIndex: 2,
+            background: '#fff'
           }}
         >
           {dataRowIndex + 1}
@@ -495,13 +462,24 @@ export function NewGridView({
       (listType === 'Opportunity' && column.id === 'opportunity')
     );
     
-    // Fix cell styles to eliminate gaps
+    // Fix cell styles for perfect alignment
     const cellStyle = {
       ...style,
+      width: column.width,
       borderTop: 'none',
       borderLeft: 'none',
       padding: isEditing ? 0 : '0.75rem',
+      overflow: 'hidden',
     };
+    
+    if (isFirstColumn && column.frozen) {
+      Object.assign(cellStyle, {
+        position: 'sticky',
+        left: INDEX_COLUMN_WIDTH,
+        zIndex: 2,
+        background: '#fff'
+      });
+    }
     
     return (
       <div
@@ -567,10 +545,9 @@ export function NewGridView({
         <GridHeader 
           columns={columns}
           onColumnChange={onColumnChange}
-          onColumnsReorder={onColumnsReorder}
-          onColumnResize={handleColumnResize}
-          onAddColumn={handleAddColumn}
-          onDeleteColumn={handleDeleteColumn}
+          // Removed resize capability
+          showResizeHandles={false}
+          indexColumnWidth={INDEX_COLUMN_WIDTH}
         />
       </div>
       
@@ -580,7 +557,7 @@ export function NewGridView({
             ref={gridRef}
             columnCount={columns.length + 1} // +1 for index column
             columnWidth={getColumnWidth}
-            height={containerHeight - HEADER_HEIGHT + 10} // Add 10px to remove the gap
+            height={containerHeight - HEADER_HEIGHT} // Adjusted for perfect alignment
             rowCount={visibleData.length + 1} // +1 for header placeholder
             rowHeight={getRowHeight}
             width={containerWidth}

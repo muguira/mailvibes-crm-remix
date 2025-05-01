@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { NewGridView } from '@/components/grid-view/new-grid-view';
-import { Column, GridRow } from '@/components/grid-view/types';
+import { Column, GridRow, PaginationState } from '@/components/grid-view/types';
 import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { STATUS_COLORS } from '@/components/grid-view/grid-constants';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 
 // Sample column definitions for opportunities
@@ -91,12 +91,12 @@ const opportunityColumns: Column[] = [
   }
 ];
 
-// Generate a large dataset for performance testing
-const generateLargeDataset = (count: number): GridRow[] => {
+// Generate a dataset with specified size
+const generateDataset = (count: number): GridRow[] => {
   console.log(`Generating ${count} rows of data...`);
   
   return Array.from({ length: count }, (_, i) => ({
-    id: `row-${uuidv4()}`, // Use UUID to ensure uniqueness for API calls
+    id: `row-${uuidv4()}`,
     opportunity: `Opportunity ${i}`,
     status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
     revenue: Math.floor(Math.random() * 100000),
@@ -110,59 +110,74 @@ const generateLargeDataset = (count: number): GridRow[] => {
   }));
 };
 
+const ROWS_PER_PAGE = 100;
+
 const NewGrid: React.FC = () => {
   const [columns, setColumns] = useState<Column[]>(opportunityColumns);
-  const [data, setData] = useState<GridRow[]>([]);
-  const location = useLocation();
+  const [allData, setAllData] = useState<GridRow[]>([]);
+  const [paginatedData, setPaginatedData] = useState<GridRow[]>([]);
+  const [searchParams] = useSearchParams();
+  const [pagination, setPagination] = useState<PaginationState>({
+    currentPage: 1,
+    rowsPerPage: ROWS_PER_PAGE,
+    totalPages: 1
+  });
   
   // Generate dataset based on URL parameter
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const demo = params.get('demo');
+    const demo = searchParams.get('demo');
     
-    // Generate full 10k rows when demo=10k is in URL
-    if (demo === '10k') {
-      console.log("Generating 10,000 rows for performance testing");
-      const largeDataset = generateLargeDataset(10000);
-      console.log(`Generated ${largeDataset.length} rows`);
-      setData(largeDataset);
-    } else {
-      // Default to 100 rows for normal use
-      setData(generateLargeDataset(100));
-    }
-  }, [location.search]);
+    console.info('[GRID] Initializing grid with demo parameter:', demo);
+    
+    // Generate 1000 rows when demo=1k is in URL
+    let rowCount = 100; // Default row count
+    if (demo === '1k') {
+      console.log("Generating 1000 rows for pagination demo");
+      rowCount = 1000;
+    } 
+    
+    const dataset = generateDataset(rowCount);
+    setAllData(dataset);
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(rowCount / ROWS_PER_PAGE);
+    setPagination(prev => ({
+      ...prev,
+      totalPages
+    }));
+    
+    console.info('[GRID] cols', columns.length);
+    console.info('[GRID] rows', rowCount);
+  }, [searchParams, columns.length]);
+
+  // Update paginated data whenever pagination state or all data changes
+  useEffect(() => {
+    const startIndex = (pagination.currentPage - 1) * pagination.rowsPerPage;
+    const endIndex = startIndex + pagination.rowsPerPage;
+    const slicedData = allData.slice(startIndex, endIndex);
+    
+    console.log(`Showing page ${pagination.currentPage} (rows ${startIndex + 1}-${endIndex})`);
+    setPaginatedData(slicedData);
+  }, [pagination.currentPage, pagination.rowsPerPage, allData]);
   
-  // Handle cell value changes with retry logic for duplicate key errors
+  // Handle cell value changes
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
-    // Attempt to update the cell value
-    try {
-      setData(prev => 
-        prev.map(row => 
-          row.id === rowId 
-            ? { ...row, [columnId]: value }
-            : row
-        )
-      );
-      
-      // In a real API implementation, you would handle 409 errors here
-      // and retry with a new UUID if needed
-    } catch (error) {
-      console.error("Error updating cell:", error);
-      // If there's a 409 error, we would generate a new ID and retry
-      const newRowId = `row-${uuidv4()}`;
-      console.log(`Retrying with new ID: ${newRowId}`);
-      
-      // Update the row with a new ID
-      setData(prev => {
-        const updatedRow = prev.find(row => row.id === rowId);
-        if (!updatedRow) return prev;
-        
-        return [
-          ...prev.filter(row => row.id !== rowId),
-          { ...updatedRow, id: newRowId, [columnId]: value }
-        ];
-      });
-    }
+    setAllData(prev => 
+      prev.map(row => 
+        row.id === rowId 
+          ? { ...row, [columnId]: value }
+          : row
+      )
+    );
+    
+    // Also update in the paginated view
+    setPaginatedData(prev => 
+      prev.map(row => 
+        row.id === rowId 
+          ? { ...row, [columnId]: value }
+          : row
+      )
+    );
   };
   
   // Handle column updates (width, title, etc)
@@ -176,38 +191,25 @@ const NewGrid: React.FC = () => {
     );
   };
   
-  // Handle column reordering
-  const handleColumnsReorder = (columnIds: string[]) => {
-    const reorderedColumns: Column[] = columnIds.map(
-      id => columns.find(col => col.id === id)!
-    );
-    setColumns(reorderedColumns);
-  };
-  
-  // Handle column deletion
-  const handleDeleteColumn = (columnId: string) => {
-    if (columnId === 'opportunity') return; // Protect the opportunity column
-    setColumns(prev => prev.filter(col => col.id !== columnId));
-  };
-  
-  // Handle adding a new column
-  const handleAddColumn = (afterColumnId: string) => {
-    const newColumnId = `column-${uuidv4()}`;
-    const newColumn: Column = {
-      id: newColumnId,
-      title: 'New Column',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    };
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    // Ensure page is within valid range
+    const validPage = Math.max(1, Math.min(newPage, pagination.totalPages));
     
-    const afterColumnIndex = columns.findIndex(col => col.id === afterColumnId);
-    
-    setColumns(prev => [
-      ...prev.slice(0, afterColumnIndex + 1),
-      newColumn,
-      ...prev.slice(afterColumnIndex + 1)
-    ]);
+    // Only update if page actually changed
+    if (validPage !== pagination.currentPage) {
+      setPagination(prev => ({
+        ...prev,
+        currentPage: validPage
+      }));
+      
+      // Reset scroll position to top
+      window.scrollTo(0, 0);
+      const gridBody = document.querySelector('.grid-body');
+      if (gridBody) {
+        gridBody.scrollTop = 0;
+      }
+    }
   };
   
   return (
@@ -216,15 +218,35 @@ const NewGrid: React.FC = () => {
       <div className="flex-1 overflow-hidden">
         <NewGridView 
           columns={columns} 
-          data={data}
+          data={paginatedData}
           listName="All Opportunities"
           listType="Opportunity"
           onCellChange={handleCellChange}
           onColumnChange={handleColumnChange}
-          onColumnsReorder={handleColumnsReorder}
-          onDeleteColumn={handleDeleteColumn}
-          onAddColumn={handleAddColumn}
         />
+        
+        {/* Pagination controls */}
+        {pagination.totalPages > 1 && (
+          <div className="flex justify-center items-center py-2 border-t border-gray-200">
+            <button 
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              onClick={() => handlePageChange(pagination.currentPage - 1)}
+              disabled={pagination.currentPage === 1}
+            >
+              « Prev
+            </button>
+            <span className="mx-4 text-sm text-gray-700">
+              Page {pagination.currentPage} of {pagination.totalPages}
+            </span>
+            <button 
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              onClick={() => handlePageChange(pagination.currentPage + 1)}
+              disabled={pagination.currentPage === pagination.totalPages}
+            >
+              Next »
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

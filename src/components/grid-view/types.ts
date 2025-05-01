@@ -1,6 +1,8 @@
 
 export type CellType = 'text' | 'number' | 'date' | 'status' | 'currency' | 'url' | 'select' | 'multi-select';
 
+export type ColumnType = CellType;
+
 export interface Column {
   id: string;
   title: string;
@@ -32,4 +34,10 @@ export interface GridProps {
 
 export interface GridContainerProps extends GridProps {
   className?: string;
+}
+
+export interface PaginationState {
+  currentPage: number;
+  rowsPerPage: number;
+  totalPages: number;
 }
