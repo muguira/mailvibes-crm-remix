@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
@@ -185,31 +184,6 @@ export function NewGridView({
       resizeObserver.disconnect();
     };
   }, []);
-
-  // Fix for column resize with proper persistence
-  const handleColumnResize = useCallback((columnIndex: number, newWidth: number) => {
-    console.log(`Resizing column ${columnIndex} to ${newWidth}px`);
-
-    // Update column widths array with the new width
-    setColumnWidths(prevWidths => {
-      const newWidths = [...prevWidths];
-      newWidths[columnIndex] = Math.max(MIN_COL_WIDTH, newWidth);
-      return newWidths;
-    });
-
-    // Critical fix: Reset grid after column index with remeasure=true
-    // This ensures that both header and body cells are updated
-    if (gridRef.current) {
-      gridRef.current.resetAfterColumnIndex(columnIndex, true);
-    }
-
-    // If it's not the index column, update the column in the columns array
-    if (columnIndex > 0 && onColumnChange) {
-      const actualColumnIndex = columnIndex - 1; // Adjust for index column offset
-      const columnId = columns[actualColumnIndex].id;
-      onColumnChange(columnId, { width: newWidth });
-    }
-  }, [columns, onColumnChange]);
 
   // Handle cell click for editing
   const handleCellClick = (rowId: string, columnId: string) => {
@@ -900,9 +874,8 @@ export function NewGridView({
           columns={columns}
           onColumnChange={onColumnChange}
           onColumnsReorder={onColumnsReorder}
-          onColumnResize={handleColumnResize}
-          onAddColumn={handleAddColumn}
-          onDeleteColumn={handleDeleteColumn}
+          onAddColumn={onAddColumn}
+          onDeleteColumn={onDeleteColumn}
           onContextMenu={handleContextMenu}
           activeContextMenu={contextMenuColumn}
         />
