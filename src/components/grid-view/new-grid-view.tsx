@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
@@ -564,7 +563,7 @@ export function NewGridView({
   );
 
   return (
-    <div className={`grid-view ${className || ''}`} ref={containerRef}>
+    <div className="grid-view ${className || ''}" ref={containerRef}>
       <GridToolbar 
         listName={listName}
         listType={listType}
@@ -575,6 +574,17 @@ export function NewGridView({
         onApplyFilters={handleApplyFilters}
         activeFilters={activeFilters}
       />
+      
+      {/* Header placed at the top */}
+      <div ref={headerRef} className="grid-header-wrapper sticky top-0 z-20">
+        <GridHeader 
+          columns={columns}
+          onColumnChange={onColumnChange}
+          onColumnsReorder={onColumnsReorder}
+          onAddColumn={handleAddColumn}
+          onDeleteColumn={handleDeleteColumn}
+        />
+      </div>
 
       <div className="grid-body">
         {containerWidth > 0 && containerHeight > 0 && (
@@ -582,8 +592,8 @@ export function NewGridView({
             ref={gridRef}
             columnCount={columns.length + 1} // +1 for index column
             columnWidth={getColumnWidth}
-            height={containerHeight - 0} // Remove HEADER_HEIGHT subtraction to move header into grid
-            rowCount={visibleData.length + 1} // +1 for header placeholder
+            height={containerHeight - HEADER_HEIGHT} // Subtract header height to account for it being above
+            rowCount={visibleData.length + 1} // +1 for header placeholder (but not rendered)
             rowHeight={getRowHeight}
             width={containerWidth}
             className="react-window-grid"
@@ -602,16 +612,6 @@ export function NewGridView({
             {Cell}
           </Grid>
         )}
-      </div>
-      
-      <div ref={headerRef} className="sticky top-0 z-20">
-        <GridHeader 
-          columns={columns}
-          onColumnChange={onColumnChange}
-          onColumnsReorder={onColumnsReorder}
-          onAddColumn={handleAddColumn}
-          onDeleteColumn={handleDeleteColumn}
-        />
       </div>
       
       {/* Status Dropdown */}
