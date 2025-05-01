@@ -1,3 +1,4 @@
+
 /* Grid container */
 .grid-view {
   display: flex;
@@ -130,19 +131,7 @@
   color: #111827;
 }
 
-.resize-handle {
-  width: 4px;
-  height: 100%;
-  cursor: col-resize;
-  position: absolute;
-  right: 0;
-  top: 0;
-}
-
-.resize-handle:hover,
-.resize-handle:active {
-  background-color: #2563eb;
-}
+/* Removed resize-handle styles */
 
 .add-column-button {
   min-width: 40px;

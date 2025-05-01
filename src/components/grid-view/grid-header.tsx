@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Column } from './types';
 import { MIN_COLUMN_WIDTH } from './grid-constants';
 import {
   MoreVertical,
-  ArrowUpDown,
   Eye,
   EyeOff,
   Plus,
@@ -30,7 +30,6 @@ interface GridHeaderProps {
   columns: Column[];
   onColumnChange?: (columnId: string, updates: Partial<Column>) => void;
   onColumnsReorder?: (columnIds: string[]) => void;
-  onColumnResize?: (columnIndex: number, newWidth: number) => void;
   onAddColumn?: (afterColumnId: string) => void;
   onDeleteColumn?: (columnId: string) => void;
   onContextMenu?: (columnId: string | null, position?: { x: number, y: number }) => void;
@@ -41,7 +40,6 @@ export function GridHeader({
   columns,
   onColumnChange,
   onColumnsReorder,
-  onColumnResize,
   onAddColumn,
   onDeleteColumn,
   onContextMenu,
@@ -49,9 +47,6 @@ export function GridHeader({
 }: GridHeaderProps) {
   const [editingHeader, setEditingHeader] = useState<string | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
-  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
-  const [initialX, setInitialX] = useState(0);
-  const [initialWidth, setInitialWidth] = useState(0);
   const [dragPreview, setDragPreview] = useState<HTMLDivElement | null>(null);
 
   // Handle column header edit (double click)
@@ -168,54 +163,6 @@ export function GridHeader({
     onColumnsReorder(newColumns.map(col => col.id));
     setDraggedColumn(null);
   };
-
-  // Handle column resize start with improved live update
-  const handleResizeStart = useCallback((e: React.MouseEvent, columnId: string, initialWidth: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    setResizingColumn(columnId);
-    setInitialX(e.clientX);
-    setInitialWidth(initialWidth);
-
-    const handleResizeMove = (moveEvent: MouseEvent) => {
-      moveEvent.preventDefault();
-
-      if (resizingColumn === null) return;
-
-      const diffX = moveEvent.clientX - initialX;
-      const newWidth = Math.max(100, initialWidth + diffX); // Minimum width of 100px
-
-      // Update column width during drag in real-time
-      const columnIndex = columns.findIndex(col => col.id === columnId);
-
-      if (columnIndex >= 0 && onColumnResize) {
-        onColumnResize(columnIndex, newWidth);
-      }
-    };
-
-    const handleResizeEnd = (upEvent: MouseEvent) => {
-      upEvent.preventDefault();
-
-      // Final update to ensure persistence
-      if (onColumnResize) {
-        const columnIndex = columns.findIndex(col => col.id === columnId);
-        if (columnIndex >= 0) {
-          const diffX = upEvent.clientX - initialX;
-          const newWidth = Math.max(100, initialWidth + diffX);
-          onColumnResize(columnIndex, newWidth);
-        }
-      }
-
-      setResizingColumn(null);
-      document.removeEventListener('mousemove', handleResizeMove);
-      document.removeEventListener('mouseup', handleResizeEnd);
-    };
-
-    // Add event listeners for mousemove and mouseup
-    document.addEventListener('mousemove', handleResizeMove);
-    document.addEventListener('mouseup', handleResizeEnd);
-  }, [columns, onColumnResize, initialX, initialWidth, resizingColumn]);
 
   // Handler for the context menu - now with position
   const handleHeaderContextMenu = (e: React.MouseEvent, columnId: string) => {
@@ -445,10 +392,6 @@ export function GridHeader({
                   <span className="header-title">{displayTitle}</span>
                   <div className="header-cell-actions">
                     {renderColumnMenu(column.id)}
-                    <div
-                      className="resize-handle"
-                      onMouseDown={(e) => handleResizeStart(e, column.id, column.width)}
-                    />
                   </div>
                 </>
               )}
