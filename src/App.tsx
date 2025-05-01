@@ -1,11 +1,12 @@
 
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "@/pages/Index";
 import Lists from "@/pages/Lists";
-import NewGrid from "@/pages/NewGrid"; // Add the new grid page
+import NewGrid from "@/pages/NewGrid";
+import Leads from "@/pages/Leads"; // Import the new Leads page
 import Reports from "@/pages/Reports";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
@@ -31,8 +32,9 @@ function App() {
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<Index />} />
-              <Route path="/lists" element={<Lists />} />
-              <Route path="/new-grid" element={<NewGrid />} /> {/* Add route for the new grid */}
+              <Route path="/lists" element={<Navigate to="/leads" replace />} />
+              <Route path="/new-grid" element={<Navigate to="/leads" replace />} />
+              <Route path="/leads" element={<Leads />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/contact/:id" element={<ContactProfile />} />

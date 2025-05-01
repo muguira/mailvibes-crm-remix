@@ -23,15 +23,15 @@ export function TopNavbar() {
           <NavLink to="/reports" className="px-4 h-12 flex items-center hover:bg-[#2D7289]/50">
             Reports
           </NavLink>
-          <NavLink to="/leads" className="px-4 h-12 flex items-center hover:bg-[#2D7289]/50">
-            Leads
-          </NavLink>
           <NavLink 
-            to="/lists" 
+            to="/leads" 
             className={({ isActive }) => 
               `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 ${isActive ? 'bg-[#2D7289]/50' : ''}`
             }
           >
+            Leads
+          </NavLink>
+          <NavLink to="/lists" className="px-4 h-12 flex items-center hover:bg-[#2D7289]/50">
             Opportunities
           </NavLink>
           <NavLink to="/customers" className="px-4 h-12 flex items-center hover:bg-[#2D7289]/50">
