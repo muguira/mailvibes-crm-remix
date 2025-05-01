@@ -15,7 +15,7 @@ interface GridCellProps {
   value: any;
   type: ColumnType;
   options?: string[];
-  colors?: Record<string, string>;
+  colors?: Record<string, string>; // Added colors prop to the interface
   isActive: boolean;
   onClick: () => void;
   onChange: (value: any) => void;
@@ -28,7 +28,7 @@ export function GridCell({
   value,
   type,
   options,
-  colors,
+  colors, // Pass colors to the component
   isActive,
   onClick,
   onChange,
@@ -147,16 +147,6 @@ export function GridCell({
       data-row={rowId}
       data-col={colKey}
       aria-selected={isActive}
-      style={{
-        padding: isActive ? 0 : '0.5rem',
-        borderRight: '1px solid #e5e7eb',
-        minWidth: '150px',
-        flexGrow: 1,
-        position: 'relative',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap'
-      }}
     >
       {renderCellContent()}
       

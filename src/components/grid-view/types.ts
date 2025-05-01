@@ -1,5 +1,5 @@
 
-export type ColumnType = 'text' | 'number' | 'date' | 'currency' | 'status' | 'url' | 'select' | 'checkbox' | string;
+export type ColumnType = 'text' | 'number' | 'date' | 'currency' | 'status' | 'url';
 
 export interface Column {
   id: string;
@@ -8,7 +8,6 @@ export interface Column {
   width: number;
   editable?: boolean;
   frozen?: boolean;
-  resizable?: boolean;
   options?: string[];
   colors?: Record<string, string>;
 }

@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { NewGridView } from '@/components/grid-view/new-grid-view';
 import { Column, GridRow } from '@/components/grid-view/types';
-import { DEFAULT_COLUMN_WIDTH, INDEX_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
+import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { STATUS_COLORS } from '@/components/grid-view/grid-constants';
 import { useLocation } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,7 +17,6 @@ const opportunityColumns: Column[] = [
     width: DEFAULT_COLUMN_WIDTH,
     editable: true,
     frozen: true,
-    resizable: false, // Don't allow resizing the opportunity column
   },
   {
     id: 'status',
@@ -106,10 +106,12 @@ const generateRow = (i: number): GridRow => ({
   lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
 });
 
-// Generate datasets of different sizes
-const generateDataset = (count: number): GridRow[] => {
+// Generate a large dataset for performance testing
+const generateLargeDataset = (count: number): GridRow[] => {
   console.log(`Generating ${count} rows of data...`);
-  return Array.from({ length: count }, (_, i) => generateRow(i + 1));
+  
+  // Use Array.from for better performance with large datasets
+  return Array.from({ length: count }, (_, i) => generateRow(i));
 };
 
 const NewGrid: React.FC = () => {
@@ -122,30 +124,21 @@ const NewGrid: React.FC = () => {
     const searchParams = new URLSearchParams(location.search);
     const demo = searchParams.get('demo');
     
-    // Always generate at least 10 rows for testing
-    let generatedData;
-    
+    // Generate full 10k rows when demo=10k is in URL
     if (demo === '10k') {
       console.log("Generating 10,000 rows for performance testing");
-      generatedData = generateDataset(10000);
-    } else if (demo === '1k') {
-      console.log("Generating 1,000 rows for pagination testing");
-      generatedData = generateDataset(1000);
+      // Generate 10k rows efficiently
+      const largeDataset = Array.from({ length: 10000 }, (_, i) => generateRow(i));
+      console.log(`Generated ${largeDataset.length} rows`);
+      setData(largeDataset);
     } else {
-      // Default to at least 10 rows for visibility testing
-      generatedData = generateDataset(10);
+      // Default to 100 rows for normal use
+      setData(generateLargeDataset(100));
     }
-    
-    // Sanity check for data
-    console.info('[GRID] Generated rows:', generatedData.length);
-    console.info('[GRID] First row:', generatedData[0]);
-    
-    setData(generatedData);
   }, [location.search]);
   
   // Handle cell value changes with retry logic for duplicate key errors
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
-    console.log("Cell change:", rowId, columnId, value);
     // Attempt to update the cell value
     try {
       setData(prev => 
@@ -155,6 +148,9 @@ const NewGrid: React.FC = () => {
             : row
         )
       );
+      
+      // In a real API implementation, you would handle 409 errors here
+      // and retry with a new UUID if needed
     } catch (error) {
       console.error("Error updating cell:", error);
       // If there's a 409 error, generate a new ID and retry
@@ -195,29 +191,30 @@ const NewGrid: React.FC = () => {
   
   // Handle column deletion
   const handleDeleteColumn = (columnId: string) => {
-    console.log("Delete column:", columnId);
-    // This is kept simple for now
+    if (columnId === 'opportunity') return; // Protect the opportunity column
     setColumns(prev => prev.filter(col => col.id !== columnId));
   };
   
   // Handle adding a new column
   const handleAddColumn = (afterColumnId: string) => {
-    console.log("Add column after:", afterColumnId);
-    const newColumnId = `column-${uuidv4().substring(0, 8)}`;
+    const newColumnId = `column-${uuidv4()}`;
     const newColumn: Column = {
       id: newColumnId,
-      title: `New Column`,
+      title: 'New Column',
       type: 'text',
       width: DEFAULT_COLUMN_WIDTH,
-      editable: true
+      editable: true,
     };
     
-    const afterIndex = columns.findIndex(col => col.id === afterColumnId);
-    const newColumns = [...columns];
-    newColumns.splice(afterIndex + 1, 0, newColumn);
-    setColumns(newColumns);
+    const afterColumnIndex = columns.findIndex(col => col.id === afterColumnId);
+    
+    setColumns(prev => [
+      ...prev.slice(0, afterColumnIndex + 1),
+      newColumn,
+      ...prev.slice(afterColumnIndex + 1)
+    ]);
   };
-
+  
   return (
     <div className="flex flex-col h-screen">
       <TopNavbar />

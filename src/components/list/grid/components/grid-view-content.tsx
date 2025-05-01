@@ -13,8 +13,6 @@ interface GridViewContentProps extends GridViewProps {
   listId?: string;
   onCellChange?: (rowId: string, colKey: string, value: any) => void;
   onAddItem?: (() => void) | null;
-  onDeleteColumn?: (columnId: string) => void;
-  onAddColumn?: (afterColumnId: string) => void;
 }
 
 export function GridViewContent({ 
@@ -24,9 +22,7 @@ export function GridViewContent({
   listType,
   listId,
   onCellChange,
-  onAddItem,
-  onDeleteColumn,
-  onAddColumn
+  onAddItem
 }: GridViewContentProps) {
   // Container references for sync scrolling
   const headerRef = useRef<HTMLDivElement>(null);
@@ -74,9 +70,7 @@ export function GridViewContent({
     initialColumns,
     initialData,
     headerRef,
-    bodyRef,
-    onAddColumn,
-    onDeleteColumn
+    bodyRef
   });
 
   // Debug log to verify columns data

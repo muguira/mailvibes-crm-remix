@@ -1,17 +1,11 @@
 
 import { ReactNode } from "react";
-import { GridContainerProps } from "@/components/grid-view/types";
 
-interface GridContainerWrapperProps extends GridContainerProps {
+interface GridContainerProps {
   children: ReactNode;
-  listId?: string;
-  onCellChange?: (rowId: string, colKey: string, value: any) => void;
-  onAddItem?: (() => void) | null;
-  onDeleteColumn?: (columnId: string) => void;
-  onAddColumn?: (afterColumnId: string) => void;
 }
 
-export function GridContainer({ children, ...props }: GridContainerWrapperProps) {
+export function GridContainer({ children }: GridContainerProps) {
   return (
     <div className="h-full flex flex-col full-screen-grid">
       {children}
