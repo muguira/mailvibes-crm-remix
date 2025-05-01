@@ -45,11 +45,7 @@ export function GridRow({
               onClick={() => onCellClick(rowId, column.id)}
               onChange={(value) => onCellChange(rowId, column.id, value)}
               showSaveIndicator={showIndicator}
-              onContextMenu={(e) => {
-                if (onCellContextMenu) {
-                  onCellContextMenu(e, column.id);
-                }
-              }}
+              onContextMenu={onCellContextMenu}
             />
           );
         })}

@@ -15,7 +15,7 @@ interface GridBodyProps {
   bodyRef: RefObject<HTMLDivElement>;
   onCellClick: (rowId: string, colKey: string, colType?: string, options?: string[]) => void;
   onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
-  onCellContextMenu?: (colKey: string, position: { x: number, y: number }) => void;
+  onCellContextMenu?: (e: React.MouseEvent<HTMLDivElement>, colKey: string) => void;
   renderRowActions?: (rowId: string) => React.ReactNode;
 }
 

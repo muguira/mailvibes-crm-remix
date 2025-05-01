@@ -13,7 +13,7 @@ interface GridHeadersSectionProps {
   onMoveColumn: (colKey: string, direction: 'left' | 'right') => void;
   onSortColumn: (colKey: string, direction: 'asc' | 'desc') => void;
   onDeleteColumn: (colKey: string) => void;
-  onContextMenu?: (colKey: string, position: { x: number, y: number }) => void;
+  onContextMenu?: (e: React.MouseEvent, colKey: string) => void;
   dragOverColumn?: string | null;
   onDragStart?: (key: string) => void;
   onDragOver?: (e: React.DragEvent, key: string) => void;

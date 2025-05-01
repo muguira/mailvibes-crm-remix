@@ -2,7 +2,7 @@
 import React from 'react';
 import {
   Copy,
-  Clipboard,
+  Paste,
   Plus,
   Trash2,
   ArrowUpAZ,
@@ -60,7 +60,7 @@ export const ColumnContextMenu: React.FC<ColumnContextMenuProps> = ({
         </DropdownMenuItem>
 
         <DropdownMenuItem onClick={handleAction(onPasteColumn)}>
-          <Clipboard size={14} className="mr-2" />
+          <Paste size={14} className="mr-2" />
           Paste
           <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
         </DropdownMenuItem>
@@ -100,7 +100,7 @@ export const ColumnContextMenu: React.FC<ColumnContextMenuProps> = ({
   );
 };
 
-// Export this context menu helper to be used globally
+// Export this function to be used by both header and body cells
 export const openColumnContextMenu = (
   columnId: string,
   position: { x: number, y: number },
@@ -114,7 +114,7 @@ export const openColumnContextMenu = (
     onSortZA?: (columnId: string) => void,
   }
 ) => {
-  // This is a helper that components can use to trigger the context menu
-  console.log(`Opening context menu for column ${columnId} at position ${position.x},${position.y}`);
+  // This is a helper function that can be imported and used by both header and body components
+  console.log(`Opening column menu for ${columnId} at position ${position.x},${position.y}`);
   return { columnId, position, callbacks };
 };

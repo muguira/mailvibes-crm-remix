@@ -59,11 +59,7 @@ export function GridRow({
           onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
           onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
           showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
-          onContextMenu={(e) => {
-            if (onCellContextMenu) {
-              onCellContextMenu(e, column.key);
-            }
-          }}
+          onContextMenu={onCellContextMenu}
         />
       ))}
 
@@ -81,11 +77,7 @@ export function GridRow({
           onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
           onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
           showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
-          onContextMenu={(e) => {
-            if (onCellContextMenu) {
-              onCellContextMenu(e, column.key);
-            }
-          }}
+          onContextMenu={onCellContextMenu}
         />
       ))}
 

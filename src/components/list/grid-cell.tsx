@@ -8,7 +8,6 @@ import { useCellClickHandler } from "./cell-types/cell-click-handler";
 import { useCellKeyHandler } from "./cell-types/cell-key-handler";
 import { CellPopovers } from "./cell-types/cell-popovers";
 import { CheckboxCell, UrlCell, StatusCell, TextCell, EditCell } from "./cell-types";
-import { ColumnContextMenu } from "@/components/grid-view/column-context-menu";
 
 interface GridCellProps {
   rowId: string;
@@ -16,12 +15,12 @@ interface GridCellProps {
   value: any;
   type: ColumnType;
   options?: string[];
-  colors?: Record<string, string>; // Added colors prop to the interface
+  colors?: Record<string, string>;
   isActive: boolean;
   onClick: () => void;
   onChange: (value: any) => void;
   showSaveIndicator?: boolean;
-  onContextMenu?: (colKey: string, position: { x: number, y: number }) => void;
+  onContextMenu?: (e: React.MouseEvent<HTMLDivElement>, colKey: string) => void;
 }
 
 export function GridCell({
@@ -30,7 +29,7 @@ export function GridCell({
   value,
   type,
   options,
-  colors, // Pass colors to the component
+  colors,
   isActive,
   onClick,
   onChange,
@@ -106,11 +105,11 @@ export function GridCell({
     closePopover();
   };
   
-  // Handle right-click to open column context menu
-  const handleContextMenu = (e: React.MouseEvent) => {
+  // Handle right-click to open column context menu with correct parameter order
+  const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (onContextMenu) {
-      onContextMenu(colKey, { x: e.clientX, y: e.clientY });
+      onContextMenu(e, colKey);
     }
   };
 

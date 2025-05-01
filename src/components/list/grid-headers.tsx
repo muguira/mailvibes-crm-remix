@@ -38,7 +38,7 @@ interface GridHeadersProps {
   onDragStart: (key: string) => void;
   onDragOver: (e: React.DragEvent, key: string) => void;
   onDrop: (key: string) => void;
-  onContextMenu?: (colKey: string, position: { x: number, y: number }) => void;
+  onContextMenu?: (e: React.MouseEvent, colKey: string) => void;
 }
 
 export function GridHeaders({
