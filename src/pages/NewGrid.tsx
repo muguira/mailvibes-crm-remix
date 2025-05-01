@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { NewGridView } from '@/components/grid-view/new-grid-view';
-import { Column, GridRow } from '@/components/grid-view/types';
-import { DEFAULT_COLUMN_WIDTH, INDEX_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
+import { Column, GridRow, PaginationState } from '@/components/grid-view/types';
+import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { STATUS_COLORS } from '@/components/grid-view/grid-constants';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 
 // Sample column definitions for opportunities
@@ -16,7 +17,6 @@ const opportunityColumns: Column[] = [
     width: DEFAULT_COLUMN_WIDTH,
     editable: true,
     frozen: true,
-    resizable: false, // Don't allow resizing the opportunity column
   },
   {
     id: 'status',
@@ -91,79 +91,93 @@ const opportunityColumns: Column[] = [
   }
 ];
 
-// Generate sample row data
-const generateRow = (i: number): GridRow => ({
-  id: `row-${uuidv4()}`, // Use UUID to ensure uniqueness for API calls
-  opportunity: `Opportunity ${i}`,
-  status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-  revenue: Math.floor(Math.random() * 100000),
-  closeDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-  owner: ['John Doe', 'Jane Smith', 'Robert Johnson'][Math.floor(Math.random() * 3)],
-  website: 'https://example.com',
-  companyName: `Company ${i}`,
-  linkedIn: 'https://linkedin.com/company/example',
-  employees: Math.floor(Math.random() * 1000),
-  lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-});
-
-// Generate datasets of different sizes
+// Generate a dataset with specified size
 const generateDataset = (count: number): GridRow[] => {
   console.log(`Generating ${count} rows of data...`);
-  return Array.from({ length: count }, (_, i) => generateRow(i));
+  
+  return Array.from({ length: count }, (_, i) => ({
+    id: `row-${uuidv4()}`,
+    opportunity: `Opportunity ${i}`,
+    status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+    revenue: Math.floor(Math.random() * 100000),
+    closeDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    owner: ['John Doe', 'Jane Smith', 'Robert Johnson'][Math.floor(Math.random() * 3)],
+    website: 'https://example.com',
+    companyName: `Company ${i}`,
+    linkedIn: 'https://linkedin.com/company/example',
+    employees: Math.floor(Math.random() * 1000),
+    lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  }));
 };
+
+const ROWS_PER_PAGE = 100;
 
 const NewGrid: React.FC = () => {
   const [columns, setColumns] = useState<Column[]>(opportunityColumns);
-  const [data, setData] = useState<GridRow[]>([]);
-  const location = useLocation();
+  const [allData, setAllData] = useState<GridRow[]>([]);
+  const [paginatedData, setPaginatedData] = useState<GridRow[]>([]);
+  const [searchParams] = useSearchParams();
+  const [pagination, setPagination] = useState<PaginationState>({
+    currentPage: 1,
+    rowsPerPage: ROWS_PER_PAGE,
+    totalPages: 1
+  });
   
   // Generate dataset based on URL parameter
   useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
     const demo = searchParams.get('demo');
     
-    if (demo === '10k') {
-      console.log("Generating 10,000 rows for performance testing");
-      // Generate 10k rows efficiently
-      setData(generateDataset(10000));
-    } else if (demo === '1k') {
-      console.log("Generating 1,000 rows for pagination testing");
-      // Generate 1k rows for pagination testing
-      setData(generateDataset(1000));
-    } else {
-      // Default to 100 rows for normal use
-      setData(generateDataset(100));
-    }
-  }, [location.search]);
+    console.info('[GRID] Initializing grid with demo parameter:', demo);
+    
+    // Generate 1000 rows when demo=1k is in URL
+    let rowCount = 100; // Default row count
+    if (demo === '1k') {
+      console.log("Generating 1000 rows for pagination demo");
+      rowCount = 1000;
+    } 
+    
+    const dataset = generateDataset(rowCount);
+    setAllData(dataset);
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(rowCount / ROWS_PER_PAGE);
+    setPagination(prev => ({
+      ...prev,
+      totalPages
+    }));
+    
+    console.info('[GRID] cols', columns.length);
+    console.info('[GRID] rows', rowCount);
+  }, [searchParams, columns.length]);
+
+  // Update paginated data whenever pagination state or all data changes
+  useEffect(() => {
+    const startIndex = (pagination.currentPage - 1) * pagination.rowsPerPage;
+    const endIndex = startIndex + pagination.rowsPerPage;
+    const slicedData = allData.slice(startIndex, endIndex);
+    
+    console.log(`Showing page ${pagination.currentPage} (rows ${startIndex + 1}-${endIndex})`);
+    setPaginatedData(slicedData);
+  }, [pagination.currentPage, pagination.rowsPerPage, allData]);
   
-  // Handle cell value changes with retry logic for duplicate key errors
+  // Handle cell value changes
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
-    // Attempt to update the cell value
-    try {
-      setData(prev => 
-        prev.map(row => 
-          row.id === rowId 
-            ? { ...row, [columnId]: value }
-            : row
-        )
-      );
-    } catch (error) {
-      console.error("Error updating cell:", error);
-      // If there's a 409 error, generate a new ID and retry
-      const newRowId = `row-${uuidv4()}`;
-      console.log(`Retrying with new ID: ${newRowId}`);
-      
-      // Update the row with a new ID
-      setData(prev => {
-        const updatedRow = prev.find(row => row.id === rowId);
-        if (!updatedRow) return prev;
-        
-        return [
-          ...prev.filter(row => row.id !== rowId),
-          { ...updatedRow, id: newRowId, [columnId]: value }
-        ];
-      });
-    }
+    setAllData(prev => 
+      prev.map(row => 
+        row.id === rowId 
+          ? { ...row, [columnId]: value }
+          : row
+      )
+    );
+    
+    // Also update in the paginated view
+    setPaginatedData(prev => 
+      prev.map(row => 
+        row.id === rowId 
+          ? { ...row, [columnId]: value }
+          : row
+      )
+    );
   };
   
   // Handle column updates (width, title, etc)
@@ -177,24 +191,25 @@ const NewGrid: React.FC = () => {
     );
   };
   
-  // Handle column reordering
-  const handleColumnsReorder = (columnIds: string[]) => {
-    const reorderedColumns: Column[] = columnIds.map(
-      id => columns.find(col => col.id === id)!
-    );
-    setColumns(reorderedColumns);
-  };
-  
-  // Handle column deletion
-  const handleDeleteColumn = (columnId: string) => {
-    // This is kept for TypeScript compatibility but implementation can remain the same
-    console.log("Column deletion disabled for stability");
-  };
-  
-  // Handle adding a new column
-  const handleAddColumn = (afterColumnId: string) => {
-    // This is kept for TypeScript compatibility but implementation can remain the same
-    console.log("Column insertion disabled for stability");
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    // Ensure page is within valid range
+    const validPage = Math.max(1, Math.min(newPage, pagination.totalPages));
+    
+    // Only update if page actually changed
+    if (validPage !== pagination.currentPage) {
+      setPagination(prev => ({
+        ...prev,
+        currentPage: validPage
+      }));
+      
+      // Reset scroll position to top
+      window.scrollTo(0, 0);
+      const gridBody = document.querySelector('.grid-body');
+      if (gridBody) {
+        gridBody.scrollTop = 0;
+      }
+    }
   };
   
   return (
@@ -203,16 +218,35 @@ const NewGrid: React.FC = () => {
       <div className="flex-1 overflow-hidden">
         <NewGridView 
           columns={columns} 
-          data={data}
+          data={paginatedData}
           listName="All Opportunities"
           listType="Opportunity"
-          listId="opportunities-grid"
           onCellChange={handleCellChange}
           onColumnChange={handleColumnChange}
-          onColumnsReorder={handleColumnsReorder}
-          onDeleteColumn={handleDeleteColumn}
-          onAddColumn={handleAddColumn}
         />
+        
+        {/* Pagination controls */}
+        {pagination.totalPages > 1 && (
+          <div className="flex justify-center items-center py-2 border-t border-gray-200">
+            <button 
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              onClick={() => handlePageChange(pagination.currentPage - 1)}
+              disabled={pagination.currentPage === 1}
+            >
+              « Prev
+            </button>
+            <span className="mx-4 text-sm text-gray-700">
+              Page {pagination.currentPage} of {pagination.totalPages}
+            </span>
+            <button 
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              onClick={() => handlePageChange(pagination.currentPage + 1)}
+              disabled={pagination.currentPage === pagination.totalPages}
+            >
+              Next »
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
