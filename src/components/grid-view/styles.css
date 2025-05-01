@@ -9,10 +9,17 @@
   overflow: hidden;
 }
 
+.grid-wrapper {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
 .grid-body {
   flex: 1;
   overflow: hidden;
   position: relative;
+  transform: none;
 }
 
 /* Grid Header */
@@ -20,7 +27,7 @@
   display: flex;
   border-bottom: 1px solid #e5e7eb;
   background-color: #f9fafb;
-  height: 40px;
+  height: 30px;
   position: relative;
   user-select: none;
   overflow: visible;
@@ -29,7 +36,7 @@
 
 .index-header {
   width: 50px;
-  padding: 0.75rem;
+  padding: 0.5rem;
   font-weight: 600;
   background-color: #f9fafb;
   border-right: 1px solid #e5e7eb;
@@ -39,6 +46,7 @@
   position: sticky;
   left: 0;
   z-index: 10;
+  height: 30px;
 }
 
 .columns-header {
@@ -48,7 +56,7 @@
 }
 
 .grid-header-cell {
-  padding: 0.75rem;
+  padding: 0.5rem;
   font-weight: 600;
   border-right: 1px solid #e5e7eb;
   white-space: nowrap;
@@ -56,13 +64,15 @@
   display: flex;
   align-items: center;
   min-width: 120px;
+  height: 30px;
 }
 
 .grid-frozen-header {
   background-color: #f9fafb;
   position: sticky;
-  left: 50px; /* Width of index column */
+  left: 0px;
   z-index: 5;
+  margin-left: -60px;
 }
 
 .header-title {
@@ -83,7 +93,7 @@
 /* Improved resize handle for better visibility and usability */
 .resize-handle {
   position: absolute;
-  right: -2px; /* Position it exactly on the border */
+  right: -2px;
   top: 0;
   bottom: 0;
   width: 4px;
@@ -97,7 +107,7 @@
 }
 
 .add-column-button {
-  padding: 0.75rem;
+  padding: 0.5rem;
   font-weight: 600;
   background-color: transparent;
   color: #0ea5e9;
@@ -106,6 +116,7 @@
   align-items: center;
   justify-content: center;
   width: 40px;
+  height: 30px;
 }
 
 .add-column-button:hover {
@@ -120,6 +131,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: cell;
 }
 
 .grid-cell-editable {
@@ -158,6 +170,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background-color: #fff;
 }
 
 .grid-frozen-cell {
@@ -165,6 +181,8 @@
   position: sticky;
   left: 0;
   z-index: 2;
+  margin-left: -60px;
+  border-left: none !important;
 }
 
 .opportunity-cell {
@@ -185,6 +203,16 @@
 /* Drag and Drop */
 .dragging {
   opacity: 0.5;
+}
+
+.drop-placeholder {
+  background-color: #f0f0f0;
+  border: 1px dashed #ccc;
+}
+
+/* Highlighted column for context menu */
+.highlight-column {
+  background-color: rgba(14, 165, 233, 0.1);
 }
 
 /* Grid Toolbar */
@@ -213,6 +241,32 @@
   font-size: 0.875rem;
 }
 
+/* Fix the white strip issue between header and grid */
+.react-window-grid {
+  border-top: none !important;
+  margin-top: 0 !important;
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  padding: 0 !important;
+}
+
+/* Critical fix: remove any gap between cells and ensure perfect alignment */
+.ReactVirtualized__Grid__innerScrollContainer,
+.ReactVirtualized__Grid,
+.react-window-grid-inner {
+  border-spacing: 0 !important;
+  border-collapse: collapse !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  outline: none !important;
+}
+
+/* Header wrapper and grid wrapper alignment */
+.header-wrapper {
+  overflow: hidden;
+  z-index: 10;
+}
+
 /* Status Dropdown Styling */
 .status-dropdown {
   position: absolute;
@@ -229,7 +283,6 @@
 .status-option {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 8px 12px;
   cursor: pointer;
 }
@@ -246,32 +299,60 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
 }
 
-/* Filter Drawer */
-.filter-drawer {
-  width: 320px;
-  padding: 1rem;
+/* Filter Popover */
+.filter-popover-container {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  width: 280px;
+  max-width: 280px;
+  max-height: 70vh;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px -1px rgba(0, 0, 0, 0.1), 0 2px 10px -1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  overflow-y: auto;
 }
 
-.filter-drawer-header {
-  margin-bottom: 1rem;
+.filter-popover {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.filter-popover-content {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .filter-section {
-  margin-bottom: 1.5rem;
+  margin-bottom: 8px;
 }
 
 .filter-section-title {
   font-weight: 500;
   margin-bottom: 0.5rem;
+  font-size: 0.875rem;
 }
 
 .filter-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  margin-top: 1rem;
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  position: sticky;
+  bottom: 0;
+  background-color: white;
+  z-index: 1;
 }
 
 /* Badge for filter count */
@@ -279,7 +360,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
+  min-width: 20px;
   height: 20px;
   background-color: #0ea5e9;
   color: white;
@@ -287,4 +368,57 @@
   font-size: 0.75rem;
   margin-left: 4px;
   padding: 0 6px;
+}
+
+.filter-option-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+/* Filter value selectors */
+.filter-value-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.filter-values-list {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.date-range-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.date-range-input {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+/* Header cell action menu */
+.header-cell-actions {
+  display: flex;
+  align-items: center;
+}
+
+.header-cell-menu-button {
+  padding: 2px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  border-radius: 4px;
+}
+
+.header-cell-menu-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #000;
 }

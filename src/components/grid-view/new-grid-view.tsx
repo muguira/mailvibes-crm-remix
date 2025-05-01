@@ -1,11 +1,32 @@
+
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants';
 import { GridToolbar } from './grid-toolbar';
 import { GridHeader } from './grid-header';
-import { Check } from 'lucide-react';
+import { Check, Clipboard, Copy, Scissors, Filter, Clipboard as Paste, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
 import './styles.css';
+import { v4 as uuidv4 } from 'uuid';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
+
+// Constants for minimum column width
+const MIN_COL_WIDTH = 100;
+
+// Forward ref for outer element to fix height issues
+const OuterElementWrapper = React.forwardRef<HTMLDivElement, React.HTMLProps<HTMLDivElement>>(
+  ({ style, ...rest }, ref) => (
+    <div
+      ref={ref}
+      style={{
+        ...style,
+        height: '100%',
+        width: '100%',
+      }}
+      {...rest}
+    />
+  )
+);
 
 export function NewGridView({
   columns,
@@ -15,45 +36,133 @@ export function NewGridView({
   onCellChange,
   onColumnChange,
   onColumnsReorder,
+  onDeleteColumn,
+  onAddColumn,
   className
 }: GridContainerProps) {
   const gridRef = useRef<any>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCell, setEditingCell] = useState<{rowId: string, columnId: string} | null>(null);
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [activeFilters, setActiveFilters] = useState<{columns: string[], values: Record<string, any>}>({ columns: [], values: {} });
   const [statusDropdownPosition, setStatusDropdownPosition] = useState<{ top: number; left: number; rowId: string; columnId: string } | null>(null);
+  const [visibleData, setVisibleData] = useState<GridRow[]>([]);
+  const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
 
-  // Column widths state
-  const [columnWidths, setColumnWidths] = useState<number[]>(
-    [INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]
-  );
+  // Load saved column widths from localStorage
+  const [columnWidths, setColumnWidths] = useState<number[]>(() => {
+    try {
+      const savedWidths = localStorage.getItem('grid-column-widths');
+      if (savedWidths) {
+        const parsed = JSON.parse(savedWidths);
+        if (Array.isArray(parsed) && parsed.length >= columns.length + 1) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load column widths from localStorage', e);
+    }
+    return [INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)];
+  });
+
+  // Save column widths to localStorage when they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('grid-column-widths', JSON.stringify(columnWidths));
+    } catch (e) {
+      console.error('Failed to save column widths to localStorage', e);
+    }
+  }, [columnWidths]);
 
   // Update column widths when columns change
   useEffect(() => {
-    setColumnWidths([INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]);
-  }, [columns]);
+    // Only update if columns length is different to avoid resetting widths
+    if (columnWidths.length !== columns.length + 1) {
+      console.log('Updating column widths due to columns change', columns.length);
+      setColumnWidths([INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]);
+    }
+  }, [columns.length]);
+
+  // Set visible data on initial load
+  useEffect(() => {
+    setVisibleData(data);
+  }, [data]);
 
   // Calculate total width of columns
   const totalWidth = useMemo(() => {
     return columnWidths.reduce((acc, width) => acc + width, 0);
   }, [columnWidths]);
 
-  // Filter data based on search term
-  const filteredData = useMemo(() => {
-    if (!searchTerm) return data;
+  // Filter data based on search term and active filters
+  const applyFilters = useCallback(() => {
+    let result = data;
     
-    const term = searchTerm.toLowerCase();
-    return data.filter(row => {
-      return columns.some(column => {
-        const value = row[column.id];
-        if (value === null || value === undefined) return false;
-        return String(value).toLowerCase().includes(term);
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(row => {
+        return columns.some(column => {
+          const value = row[column.id];
+          if (value === null || value === undefined) return false;
+          return String(value).toLowerCase().includes(term);
+        });
       });
-    });
-  }, [data, columns, searchTerm]);
+    }
+    
+    // Apply column filters with improved logic
+    if (activeFilters.columns.length > 0) {
+      result = result.filter(row => {
+        return activeFilters.columns.every(columnId => {
+          const value = row[columnId];
+          const filterValue = activeFilters.values[columnId];
+          const column = columns.find(col => col.id === columnId);
+          
+          if (!column) return true;
+          
+          // Different filter logic based on column type
+          switch (column.type) {
+            case 'status':
+              if (!filterValue || filterValue.length === 0) {
+                return value !== null && value !== undefined && value !== '';
+              }
+              return filterValue.includes(value);
+              
+            case 'date':
+              if (!filterValue) return value !== null && value !== undefined && value !== '';
+              
+              const dateValue = value ? new Date(value) : null;
+              if (!dateValue) return false;
+              
+              const startDate = filterValue.start ? new Date(filterValue.start) : null;
+              const endDate = filterValue.end ? new Date(filterValue.end) : null;
+              
+              if (startDate && endDate) {
+                return dateValue >= startDate && dateValue <= endDate;
+              } else if (startDate) {
+                return dateValue >= startDate;
+              } else if (endDate) {
+                return dateValue <= endDate;
+              }
+              return true;
+              
+            default:
+              return value !== null && value !== undefined && value !== '';
+          }
+        });
+      });
+    }
+    
+    return result;
+  }, [data, columns, searchTerm, activeFilters]);
+
+  // Apply filters whenever filter conditions change
+  useEffect(() => {
+    const filteredData = applyFilters();
+    setVisibleData(filteredData);
+  }, [applyFilters]);
 
   // Resize observer for container
   useEffect(() => {
@@ -72,16 +181,20 @@ export function NewGridView({
     };
   }, []);
 
-  // Handle column resize
-  const handleColumnResize = (columnIndex: number, newWidth: number) => {
-    // Update column widths array
-    const newWidths = [...columnWidths];
-    newWidths[columnIndex] = newWidth;
-    setColumnWidths(newWidths);
+  // Fix for column resize with proper persistence
+  const handleColumnResize = useCallback((columnIndex: number, newWidth: number) => {
+    console.log(`Resizing column ${columnIndex} to ${newWidth}px`);
     
-    // Reset after column resize to re-render grid with new widths
+    // Update column widths array with the new width
+    setColumnWidths(prevWidths => {
+      const newWidths = [...prevWidths];
+      newWidths[columnIndex] = Math.max(MIN_COL_WIDTH, newWidth);
+      return newWidths;
+    });
+    
+    // Critical fix: Reset grid after column index with remeasure=true
     if (gridRef.current) {
-      gridRef.current.resetAfterColumnIndex(0);
+      gridRef.current.resetAfterColumnIndex(columnIndex, true);
     }
     
     // If it's not the index column, update the column in the columns array
@@ -89,18 +202,15 @@ export function NewGridView({
       const columnId = columns[columnIndex - 1].id;
       onColumnChange(columnId, { width: newWidth });
     }
-  };
+  }, [columns, onColumnChange]);
 
   // Handle cell click for editing
   const handleCellClick = (rowId: string, columnId: string) => {
     const column = columns.find(col => col.id === columnId);
     
-    // Don't allow editing non-editable cells
     if (!column?.editable) return;
     
-    // If it's a status column, show dropdown instead
     if (column.type === 'status' && column.options) {
-      // Find the cell element to position the dropdown
       const cellElement = document.querySelector(`[data-cell="${rowId}-${columnId}"]`);
       if (cellElement) {
         const rect = cellElement.getBoundingClientRect();
@@ -137,53 +247,43 @@ export function NewGridView({
 
   // Handle key press in editing cell
   const handleKeyDown = (e: React.KeyboardEvent, rowId: string, columnId: string, value: any) => {
-    const rowIndex = filteredData.findIndex(row => row.id === rowId);
+    const rowIndex = visibleData.findIndex(row => row.id === rowId);
     const colIndex = columns.findIndex(col => col.id === columnId);
     
     if (e.key === 'Enter') {
       e.preventDefault();
-      
-      // Save the current cell value
       handleCellChange(rowId, columnId, value);
       
       if (e.shiftKey) {
-        // Move to the cell above if not at the top
         if (rowIndex > 0) {
-          const prevRow = filteredData[rowIndex - 1];
+          const prevRow = visibleData[rowIndex - 1];
           setEditingCell({ rowId: prevRow.id, columnId });
         }
       } else {
-        // Move to the cell below if not at the bottom
-        if (rowIndex < filteredData.length - 1) {
-          const nextRow = filteredData[rowIndex + 1];
+        if (rowIndex < visibleData.length - 1) {
+          const nextRow = visibleData[rowIndex + 1];
           setEditingCell({ rowId: nextRow.id, columnId });
         }
       }
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      
-      // Save the current cell value
       handleCellChange(rowId, columnId, value);
       
       if (e.shiftKey) {
-        // Move to the previous cell if not at the start
         if (colIndex > 0) {
           setEditingCell({ rowId, columnId: columns[colIndex - 1].id });
         } else if (rowIndex > 0) {
-          // Move to the end of the previous row
-          const prevRow = filteredData[rowIndex - 1];
+          const prevRow = visibleData[rowIndex - 1];
           setEditingCell({ 
             rowId: prevRow.id, 
             columnId: columns[columns.length - 1].id 
           });
         }
       } else {
-        // Move to the next cell if not at the end
         if (colIndex < columns.length - 1) {
           setEditingCell({ rowId, columnId: columns[colIndex + 1].id });
-        } else if (rowIndex < filteredData.length - 1) {
-          // Move to the start of the next row
-          const nextRow = filteredData[rowIndex + 1];
+        } else if (rowIndex < visibleData.length - 1) {
+          const nextRow = visibleData[rowIndex + 1];
           setEditingCell({ 
             rowId: nextRow.id, 
             columnId: columns[0].id 
@@ -200,13 +300,26 @@ export function NewGridView({
     handleCellChange(rowId, columnId, value);
   };
 
-  // Column width getter for grid
+  // Column width getter for grid - using callback to ensure it's stable
   const getColumnWidth = useCallback((index: number) => {
     return columnWidths[index] || 150;
   }, [columnWidths]);
 
   // Row height callback for VariableSizeGrid
   const getRowHeight = useCallback(() => ROW_HEIGHT, []);
+
+  // Handle filter changes with enhanced functionality
+  const handleApplyFilters = (filters: {columns: string[], values: Record<string, any>}) => {
+    console.log("Applying filters:", filters);
+    setActiveFilters(filters);
+  };
+
+  // Sync header scrolling with grid body
+  const handleGridScroll = useCallback(({ scrollLeft }: { scrollLeft: number; scrollTop: number }) => {
+    if (headerRef.current) {
+      headerRef.current.scrollLeft = scrollLeft;
+    }
+  }, []);
 
   // Close status dropdown when clicking outside
   useEffect(() => {
@@ -243,6 +356,89 @@ export function NewGridView({
         )}
       </>
     );
+  };
+
+  // Handle adding a column after another column
+  const handleAddColumn = (afterColumnId: string) => {
+    if (onAddColumn) {
+      onAddColumn(afterColumnId);
+    }
+  };
+
+  // Handle deleting a column
+  const handleDeleteColumn = (columnId: string) => {
+    if (onDeleteColumn && columnId !== 'opportunity') {
+      onDeleteColumn(columnId);
+    }
+  };
+
+  // Context menu handlers
+  const handleCutColumn = (columnId: string) => {
+    console.log(`Cut column: ${columnId}`);
+    setContextMenuColumn(null);
+  };
+
+  const handleCopyColumn = (columnId: string) => {
+    console.log(`Copy column: ${columnId}`);
+    setContextMenuColumn(null);
+  };
+
+  const handlePasteColumn = (columnId: string) => {
+    console.log(`Paste into column: ${columnId}`);
+    setContextMenuColumn(null);
+  };
+
+  const handlePasteSpecial = (columnId: string, type: string) => {
+    console.log(`Paste special (${type}) into column: ${columnId}`);
+    setContextMenuColumn(null);
+  };
+
+  const handleInsertColumnLeft = (columnId: string) => {
+    console.log(`Insert column left of: ${columnId}`);
+    const columnIndex = columns.findIndex(col => col.id === columnId);
+    if (columnIndex > 0) {
+      const prevColumnId = columns[columnIndex - 1].id;
+      handleAddColumn(prevColumnId);
+    } else {
+      handleAddColumn(columnId);
+    }
+    setContextMenuColumn(null);
+  };
+
+  const handleInsertColumnRight = (columnId: string) => {
+    console.log(`Insert column right of: ${columnId}`);
+    handleAddColumn(columnId);
+    setContextMenuColumn(null);
+  };
+
+  const handleClearColumn = (columnId: string) => {
+    console.log(`Clear column: ${columnId}`);
+    setContextMenuColumn(null);
+  };
+
+  const handleHideColumn = (columnId: string) => {
+    console.log(`Hide column: ${columnId}`);
+    setContextMenuColumn(null);
+  };
+
+  const handleResizeColumn = (columnId: string) => {
+    console.log(`Resize column: ${columnId}`);
+    setContextMenuColumn(null);
+  };
+
+  const handleCreateFilter = (columnId: string) => {
+    console.log(`Create filter for column: ${columnId}`);
+    setContextMenuColumn(null);
+  };
+
+  const handleSortAZ = (columnId: string) => {
+    console.log(`Sort sheet A-Z by column: ${columnId}`);
+    setContextMenuColumn(null);
+  };
+
+  const handleSortZA = (columnId: string) => {
+    console.log(`Sort sheet Z-A by column: ${columnId}`);
+    setContextMenuColumn(null);
   };
 
   // Render edit input based on column type with enhanced UX
@@ -358,22 +554,28 @@ export function NewGridView({
     return brightness > 128;
   };
 
-  // Cell renderer
+  // Cell renderer with fixes for borders and alignment
   const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
     if (rowIndex === 0) {
       return null; // Header is rendered separately
     }
     
     const dataRowIndex = rowIndex - 1;
-    const row = filteredData[dataRowIndex];
+    const row = visibleData[dataRowIndex];
     
     if (!row) return null;
     
     if (columnIndex === 0) {
       return (
         <div 
-          className="index-column grid-frozen-cell"
-          style={style}
+          className="index-column"
+          style={{
+            ...style,
+            borderTop: 'none',
+            borderBottom: '1px solid #e5e7eb',
+            borderRight: '1px solid #e5e7eb',
+            zIndex: 5
+          }}
         >
           {dataRowIndex + 1}
         </div>
@@ -392,6 +594,19 @@ export function NewGridView({
       (listType === 'Opportunity' && column.id === 'opportunity')
     );
     
+    // Fix cell styles to eliminate gaps and ensure alignment - fix type error
+    const cellStyle: React.CSSProperties = {
+      ...style,
+      borderTop: 'none',
+      borderLeft: 'none',
+      padding: isEditing ? 0 : '0.75rem',
+      position: 'absolute',
+      height: ROW_HEIGHT,
+      left: style.left as number | string,
+      top: style.top as number | string,
+      width: style.width as number | string
+    };
+    
     return (
       <div
         className={`
@@ -400,8 +615,9 @@ export function NewGridView({
           ${isEditing ? 'grid-cell-editing' : ''} 
           ${column.type === 'currency' ? 'text-right' : ''}
           ${isFirstColumn ? 'grid-frozen-cell opportunity-cell' : ''}
+          ${contextMenuColumn === column.id ? 'highlight-column' : ''}
         `}
-        style={style}
+        style={cellStyle}
         data-cell={`${row.id}-${column.id}`}
         onClick={() => {
           if (shouldLinkToStream) {
@@ -410,6 +626,10 @@ export function NewGridView({
           } else {
             handleCellClick(row.id, column.id);
           }
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setContextMenuColumn(column.id);
         }}
       >
         {isEditing ? (
@@ -421,6 +641,126 @@ export function NewGridView({
     );
   };
 
+  // Custom inner element for grid with perfect alignment
+  const innerElementType = React.forwardRef<HTMLDivElement, React.HTMLProps<HTMLDivElement>>(
+    ({ style, ...rest }, ref) => (
+      <div
+        ref={ref}
+        style={{
+          ...style,
+          borderCollapse: 'collapse',
+          borderSpacing: 0,
+          padding: 0,
+          margin: 0
+        }}
+        className="react-window-grid-inner"
+        {...rest}
+      />
+    )
+  );
+
+  // Render column context menu
+  const renderColumnContextMenu = () => {
+    if (!contextMenuColumn) return null;
+    
+    const column = columns.find(col => col.id === contextMenuColumn);
+    if (!column) return null;
+    
+    return (
+      <DropdownMenu open={!!contextMenuColumn} onOpenChange={(open) => !open && setContextMenuColumn(null)}>
+        <DropdownMenuTrigger asChild>
+          <div style={{ display: 'none' }} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56">
+          <DropdownMenuItem onClick={() => handleCutColumn(column.id)}>
+            <Scissors className="mr-2 h-4 w-4" />
+            <span>Cut</span>
+            <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleCopyColumn(column.id)}>
+            <Copy className="mr-2 h-4 w-4" />
+            <span>Copy</span>
+            <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handlePasteColumn(column.id)}>
+            <Clipboard className="mr-2 h-4 w-4" />
+            <span>Paste</span>
+            <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Clipboard className="mr-2 h-4 w-4" />
+              <span>Paste special</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={() => handlePasteSpecial(column.id, 'values')}>
+                  Values only
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePasteSpecial(column.id, 'format')}>
+                  Format only
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuItem onClick={() => handleInsertColumnLeft(column.id)}>
+            <span className="mr-2">+</span>
+            <span>Insert column left</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleInsertColumnRight(column.id)}>
+            <span className="mr-2">+</span>
+            <span>Insert column right</span>
+          </DropdownMenuItem>
+          
+          {column.id !== 'opportunity' && (
+            <DropdownMenuItem onClick={() => handleDeleteColumn(column.id)}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              <span>Delete column</span>
+            </DropdownMenuItem>
+          )}
+          
+          <DropdownMenuItem onClick={() => handleClearColumn(column.id)}>
+            <span className="mr-2">×</span>
+            <span>Clear column</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem onClick={() => handleHideColumn(column.id)}>
+            <EyeOff className="mr-2 h-4 w-4" />
+            <span>Hide column</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem onClick={() => handleResizeColumn(column.id)}>
+            <StretchHorizontal className="mr-2 h-4 w-4" />
+            <span>Resize column</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuItem onClick={() => handleCreateFilter(column.id)}>
+            <Filter className="mr-2 h-4 w-4" />
+            <span>Create a filter</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuItem onClick={() => handleSortAZ(column.id)}>
+            <span className="mr-2">A→Z</span>
+            <span>Sort sheet A to Z</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem onClick={() => handleSortZA(column.id)}>
+            <span className="mr-2">Z→A</span>
+            <span>Sort sheet Z to A</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
   return (
     <div className={`grid-view ${className || ''}`} ref={containerRef}>
       <GridToolbar 
@@ -428,30 +768,54 @@ export function NewGridView({
         listType={listType}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        filterCount={activeFilters.length}
-      />
-      
-      <GridHeader 
+        filterCount={activeFilters.columns.length}
         columns={columns}
-        onColumnChange={onColumnChange}
-        onColumnsReorder={onColumnsReorder}
-        onColumnResize={handleColumnResize}
+        onApplyFilters={handleApplyFilters}
+        activeFilters={activeFilters}
       />
       
-      <div className="grid-body">
-        {containerWidth > 0 && containerHeight > 0 && (
-          <Grid
-            ref={gridRef}
-            columnCount={columns.length + 1} // +1 for index column
-            columnWidth={getColumnWidth}
-            height={containerHeight - HEADER_HEIGHT}
-            rowCount={filteredData.length + 1} // +1 for header placeholder
-            rowHeight={getRowHeight} // Using callback function instead of constant
-            width={containerWidth}
-          >
-            {Cell}
-          </Grid>
-        )}
+      <div className="header-wrapper" ref={headerRef}>
+        <GridHeader 
+          columns={columns}
+          onColumnChange={onColumnChange}
+          onColumnsReorder={onColumnsReorder}
+          onColumnResize={handleColumnResize}
+          onAddColumn={handleAddColumn}
+          onDeleteColumn={handleDeleteColumn}
+          onContextMenu={setContextMenuColumn}
+          activeContextMenu={contextMenuColumn}
+        />
+      </div>
+      
+      <div className="grid-wrapper">
+        <div className="grid-body">
+          {containerWidth > 0 && containerHeight > 0 && (
+            <Grid
+              ref={gridRef}
+              columnCount={columns.length + 1} // +1 for index column
+              columnWidth={getColumnWidth}
+              height={containerHeight - HEADER_HEIGHT}
+              rowCount={visibleData.length + 1} // +1 for header placeholder
+              rowHeight={getRowHeight}
+              width={containerWidth}
+              className="react-window-grid"
+              style={{ 
+                overflowX: 'auto', 
+                overflowY: 'auto', 
+                margin: 0, 
+                padding: 0,
+                borderTop: 0,
+                borderCollapse: 'collapse',
+                borderSpacing: 0
+              }}
+              innerElementType={innerElementType}
+              outerElementType={OuterElementWrapper}
+              onScroll={handleGridScroll}
+            >
+              {Cell}
+            </Grid>
+          )}
+        </div>
       </div>
       
       {/* Status Dropdown */}
@@ -465,7 +829,7 @@ export function NewGridView({
         >
           {(() => {
             const column = columns.find(col => col.id === statusDropdownPosition.columnId);
-            const row = filteredData.find(r => r.id === statusDropdownPosition.rowId);
+            const row = visibleData.find(r => r.id === statusDropdownPosition.rowId);
             const currentValue = row ? row[statusDropdownPosition.columnId] : '';
             
             return column?.options?.map((option) => (
@@ -480,7 +844,6 @@ export function NewGridView({
               >
                 <div className="status-option-label">
                   {renderStatusPill(option, column.colors || {})}
-                  <span>{option}</span>
                 </div>
                 {currentValue === option && <Check size={16} />}
               </div>
@@ -488,6 +851,9 @@ export function NewGridView({
           })()}
         </div>
       )}
+      
+      {/* Column Context Menu */}
+      {renderColumnContextMenu()}
     </div>
   );
 }
