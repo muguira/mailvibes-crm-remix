@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
@@ -576,7 +575,7 @@ export function NewGridView({
         activeFilters={activeFilters}
       />
       
-      {/* Header placed above the grid and snapped to the top */}
+      {/* Header positioned between toolbar and grid */}
       <div ref={headerRef} className="grid-header-wrapper">
         <GridHeader 
           columns={columns}
@@ -593,7 +592,7 @@ export function NewGridView({
             ref={gridRef}
             columnCount={columns.length + 1} // +1 for index column
             columnWidth={getColumnWidth}
-            height={containerHeight - HEADER_HEIGHT} // Subtract header height to account for it being above
+            height={containerHeight - HEADER_HEIGHT} // Account for header height
             rowCount={visibleData.length + 1} // +1 for header placeholder (but not rendered)
             rowHeight={getRowHeight}
             width={containerWidth}

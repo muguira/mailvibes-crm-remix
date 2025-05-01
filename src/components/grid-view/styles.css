@@ -30,8 +30,8 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   z-index: 30;
   background-color: #f9fafb;
-  position: sticky;
-  top: 0; /* Make header stick to the very top */
+  position: relative;
+  width: 100%;
 }
 
 .index-header {
@@ -239,7 +239,7 @@
   font-size: 0.875rem;
 }
 
-/* Fix the white strip issue between header and grid */
+/* Fix overlaps between grid components */
 .react-window-grid {
   border-top: none !important;
   margin-top: 0 !important;
@@ -248,7 +248,7 @@
   padding: 0 !important;
 }
 
-/* Fix the gap between header and grid - make header snap to top row */
+/* Ensure grid body connects properly with header */
 .grid-body {
   margin-top: 0;
   padding-top: 0;
