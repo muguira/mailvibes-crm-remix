@@ -39,13 +39,13 @@ export function AddColumnButton({
         'position: sticky; right: 0; z-index: 20; display: flex; justify-content: center; ' +
         'align-items: center; min-width: 40px; width: 40px; height: var(--row-height, 32px); ' + 
         'padding: 0; background: #f8f9fa; border-left: 1px solid #e0e5eb; ' +
-        'box-shadow: -2px 0 4px -2px rgba(0,0,0,0.05); visibility: visible !important; opacity: 1;');
+        'box-shadow: -2px 0 4px -2px rgba(0,0,0,0.05); visibility: visible; opacity: 1;');
       
       // Also ensure the button itself is visible
       const button = buttonCellRef.current.querySelector('button');
       if (button) {
         button.setAttribute('style', 
-          'visibility: visible !important; opacity: 1; display: flex;');
+          'visibility: visible; opacity: 1; display: flex;');
       }
     }
   }, []);
@@ -54,23 +54,6 @@ export function AddColumnButton({
     <div 
       className="add-column-cell"
       ref={buttonCellRef}
-      style={{
-        position: 'sticky',
-        right: 0,
-        zIndex: 20,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minWidth: '40px',
-        width: '40px',
-        height: 'var(--row-height, 32px)',
-        padding: 0,
-        background: '#f8f9fa',
-        borderLeft: '1px solid #e0e5eb',
-        boxShadow: '-2px 0 4px -2px rgba(0,0,0,0.05)',
-        visibility: 'visible',
-        opacity: 1
-      }}
     >
       <Button
         type="button"
@@ -80,11 +63,6 @@ export function AddColumnButton({
         onClick={() => setIsAddingColumn(true)}
         title="Add new column"
         aria-label="Add new column"
-        style={{
-          visibility: 'visible',
-          opacity: 1,
-          display: 'flex'
-        }}
       >
         <Plus size={14} className="text-teal-primary" />
       </Button>
