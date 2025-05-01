@@ -1,4 +1,3 @@
-
 /* Grid container */
 .grid-view {
   display: flex;
@@ -18,7 +17,8 @@
   justify-content: space-between;
 }
 
-.toolbar-left, .toolbar-right {
+.toolbar-left,
+.toolbar-right {
   display: flex;
   align-items: center;
 }
@@ -46,6 +46,7 @@
 .index-header {
   min-width: 40px;
   flex: 0 0 40px;
+  padding-inline: 24px;
   border-right: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
@@ -74,6 +75,7 @@
   position: relative;
   background-color: #f9fafb;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .grid-header-cell:hover {
@@ -137,7 +139,8 @@
   top: 0;
 }
 
-.resize-handle:hover, .resize-handle:active {
+.resize-handle:hover,
+.resize-handle:active {
   background-color: #2563eb;
 }
 
@@ -177,12 +180,11 @@
 .grid-body {
   height: 100%;
   position: relative;
-  transform: none; /* Remove translate transform to fix alignment */
 }
 
 .react-window-grid {
-  border-top: none !important; /* Fix for white band */
-  margin-top: 0 !important; /* Fix for white band */
+  border-top: none !important;
+  margin-top: 0 !important;
 }
 
 .grid-cell {
@@ -196,6 +198,7 @@
   display: flex;
   align-items: center;
   background-color: #ffffff;
+  box-sizing: border-box;
 }
 
 .grid-cell.grid-frozen-cell {
@@ -326,7 +329,8 @@
     align-items: flex-start;
   }
 
-  .toolbar-left, .toolbar-right {
+  .toolbar-left,
+  .toolbar-right {
     width: 100%;
   }
 }
