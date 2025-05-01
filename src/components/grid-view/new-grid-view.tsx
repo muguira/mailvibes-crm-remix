@@ -576,13 +576,24 @@ export function NewGridView({
         activeFilters={activeFilters}
       />
       
+      {/* Header placed above the grid and snapped to the top */}
+      <div ref={headerRef} className="grid-header-wrapper">
+        <GridHeader 
+          columns={columns}
+          onColumnChange={onColumnChange}
+          onColumnsReorder={onColumnsReorder}
+          onAddColumn={handleAddColumn}
+          onDeleteColumn={handleDeleteColumn}
+        />
+      </div>
+      
       <div className="grid-body">
         {containerWidth > 0 && containerHeight > 0 && (
           <Grid
             ref={gridRef}
             columnCount={columns.length + 1} // +1 for index column
             columnWidth={getColumnWidth}
-            height={containerHeight}
+            height={containerHeight - HEADER_HEIGHT} // Subtract header height to account for it being above
             rowCount={visibleData.length + 1} // +1 for header placeholder (but not rendered)
             rowHeight={getRowHeight}
             width={containerWidth}
@@ -602,17 +613,6 @@ export function NewGridView({
             {Cell}
           </Grid>
         )}
-      </div>
-      
-      {/* Header placed floating over the grid */}
-      <div ref={headerRef} className="grid-header-wrapper">
-        <GridHeader 
-          columns={columns}
-          onColumnChange={onColumnChange}
-          onColumnsReorder={onColumnsReorder}
-          onAddColumn={handleAddColumn}
-          onDeleteColumn={handleDeleteColumn}
-        />
       </div>
       
       {/* Status Dropdown */}

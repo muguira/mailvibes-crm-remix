@@ -31,7 +31,7 @@
   z-index: 30;
   background-color: #f9fafb;
   position: sticky;
-  top: 50px; /* Place header 50px from the top */
+  top: 0; /* Make header stick to the very top */
 }
 
 .index-header {
@@ -239,7 +239,7 @@
   font-size: 0.875rem;
 }
 
-/* Fix the white strip issue between header and grid - CRITICAL CHANGE */
+/* Fix the white strip issue between header and grid */
 .react-window-grid {
   border-top: none !important;
   margin-top: 0 !important;
@@ -248,10 +248,10 @@
   padding: 0 !important;
 }
 
-/* Fix a gap between header and first row */
+/* Fix the gap between header and grid - make header snap to top row */
 .grid-body {
-  margin-top: -30px; /* Pull up the grid to remove gap below header */
-  padding-top: 30px; /* Add padding to ensure first row content is visible */
+  margin-top: 0;
+  padding-top: 0;
 }
 
 /* Critical fix: remove any gap between cells and ensure perfect alignment */
