@@ -50,7 +50,15 @@ export function GridBody({
   console.log("GridBody rendering rows:", validRows.length, "first row:", validRows[0]);
   
   return (
-    <div className="overflow-auto flex-1 bg-white" ref={bodyRef}>
+    <div 
+      className="overflow-auto flex-1 bg-white relative" 
+      style={{ 
+        position: 'relative',
+        zIndex: 6,
+        minHeight: '200px' 
+      }}
+      ref={bodyRef}
+    >
       {validRows.length > 0 ? (
         validRows.map((row, index) => (
           <GridRow

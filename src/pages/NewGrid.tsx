@@ -123,18 +123,22 @@ const NewGrid: React.FC = () => {
     const searchParams = new URLSearchParams(location.search);
     const demo = searchParams.get('demo');
     
+    // Always generate at least 10 rows for testing
+    let generatedData;
+    
     if (demo === '10k') {
       console.log("Generating 10,000 rows for performance testing");
-      // Generate 10k rows efficiently
-      setData(generateDataset(10000));
+      generatedData = generateDataset(10000);
     } else if (demo === '1k') {
       console.log("Generating 1,000 rows for pagination testing");
-      // Generate 1k rows for pagination testing
-      setData(generateDataset(1000));
+      generatedData = generateDataset(1000);
     } else {
-      // Default to 100 rows for normal use
-      setData(generateDataset(100));
+      // Default to at least 10 rows for visibility testing
+      generatedData = generateDataset(100);
     }
+    
+    console.log(`Generated ${generatedData.length} rows, first row:`, generatedData[0]);
+    setData(generatedData);
   }, [location.search]);
   
   // Handle cell value changes with retry logic for duplicate key errors

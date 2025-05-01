@@ -16,6 +16,8 @@ export function GridView(props: GridViewProps & {
   // Normalize columns to match the expected type in GridContainer
   const normalizedColumns = normalizeColumns(props.columns);
   
+  console.log("GridView render - columns:", normalizedColumns.length, "data rows:", props.data?.length || 0);
+  
   return (
     <SaveIndicatorProvider>
       <GridContainer 

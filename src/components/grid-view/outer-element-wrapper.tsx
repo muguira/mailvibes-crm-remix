@@ -7,10 +7,11 @@ export const OuterElementWrapper = React.forwardRef<HTMLDivElement, React.HTMLPr
       ref={ref}
       style={{
         ...style,
-        height: '100%', // Ensure it takes full height
+        height: '100%',
         width: '100%',
-        position: 'relative',
-        overflow: 'auto'
+        position: 'relative', 
+        overflow: 'auto',
+        zIndex: 7
       }}
       {...rest}
     />
