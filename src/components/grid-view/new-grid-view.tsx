@@ -13,14 +13,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 // Constants for minimum column width
 const MIN_COL_WIDTH = 100;
 
-// Forward ref for outer element to fix height issues
+// Forward ref for outer element to ensure proper height handling
 const OuterElementWrapper = React.forwardRef<HTMLDivElement, React.HTMLProps<HTMLDivElement>>(
   ({ style, ...rest }, ref) => (
     <div
       ref={ref}
       style={{
         ...style,
-        height: '100%',
+        height: '100%', // Ensure it takes full height
         width: '100%',
       }}
       {...rest}
@@ -32,6 +32,7 @@ export function NewGridView({
   columns,
   data,
   listName = '',
+  listId = '',
   listType = '',
   onCellChange,
   onColumnChange,
@@ -47,15 +48,19 @@ export function NewGridView({
   const [containerHeight, setContainerHeight] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCell, setEditingCell] = useState<{rowId: string, columnId: string} | null>(null);
+  const [focusedCell, setFocusedCell] = useState<{rowIndex: number, columnIndex: number} | null>(null);
   const [activeFilters, setActiveFilters] = useState<{columns: string[], values: Record<string, any>}>({ columns: [], values: {} });
   const [statusDropdownPosition, setStatusDropdownPosition] = useState<{ top: number; left: number; rowId: string; columnId: string } | null>(null);
   const [visibleData, setVisibleData] = useState<GridRow[]>([]);
   const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{x: number, y: number} | null>(null);
 
-  // Load saved column widths from localStorage
+  // Load saved column widths from localStorage based on listId
+  const localStorageKey = `grid-column-widths-${listId || 'default'}`;
+
   const [columnWidths, setColumnWidths] = useState<number[]>(() => {
     try {
-      const savedWidths = localStorage.getItem('grid-column-widths');
+      const savedWidths = localStorage.getItem(localStorageKey);
       if (savedWidths) {
         const parsed = JSON.parse(savedWidths);
         if (Array.isArray(parsed) && parsed.length >= columns.length + 1) {
@@ -71,11 +76,11 @@ export function NewGridView({
   // Save column widths to localStorage when they change
   useEffect(() => {
     try {
-      localStorage.setItem('grid-column-widths', JSON.stringify(columnWidths));
+      localStorage.setItem(localStorageKey, JSON.stringify(columnWidths));
     } catch (e) {
       console.error('Failed to save column widths to localStorage', e);
     }
-  }, [columnWidths]);
+  }, [columnWidths, localStorageKey]);
 
   // Update column widths when columns change
   useEffect(() => {
@@ -193,13 +198,15 @@ export function NewGridView({
     });
     
     // Critical fix: Reset grid after column index with remeasure=true
+    // This ensures that both header and body cells are updated
     if (gridRef.current) {
       gridRef.current.resetAfterColumnIndex(columnIndex, true);
     }
     
     // If it's not the index column, update the column in the columns array
     if (columnIndex > 0 && onColumnChange) {
-      const columnId = columns[columnIndex - 1].id;
+      const actualColumnIndex = columnIndex - 1; // Adjust for index column offset
+      const columnId = columns[actualColumnIndex].id;
       onColumnChange(columnId, { width: newWidth });
     }
   }, [columns, onColumnChange]);
@@ -209,6 +216,14 @@ export function NewGridView({
     const column = columns.find(col => col.id === columnId);
     
     if (!column?.editable) return;
+
+    // Set focused cell for keyboard navigation
+    const rowIndex = visibleData.findIndex(row => row.id === rowId);
+    const columnIndex = columns.findIndex(col => col.id === columnId) + 1; // +1 for index column
+    
+    if (rowIndex >= 0 && columnIndex >= 0) {
+      setFocusedCell({ rowIndex: rowIndex + 1, columnIndex }); // +1 for header row
+    }
     
     if (column.type === 'status' && column.options) {
       const cellElement = document.querySelector(`[data-cell="${rowId}-${columnId}"]`);
@@ -336,6 +351,87 @@ export function NewGridView({
     }
   }, [statusDropdownPosition]);
 
+  // Handle keyboard navigation
+  useEffect(() => {
+    if (!focusedCell) return;
+    
+    const handleGridKeyDown = (e: KeyboardEvent) => {
+      if (editingCell) return; // Don't navigate while editing
+      
+      let { rowIndex, columnIndex } = focusedCell;
+      let handled = true;
+      
+      const maxRow = visibleData.length;
+      const maxColumn = columns.length + 1; // +1 for index column
+      
+      switch (e.key) {
+        case 'ArrowUp':
+          rowIndex = Math.max(1, rowIndex - 1); // Minimum is 1 (first data row)
+          break;
+        case 'ArrowDown':
+          rowIndex = Math.min(maxRow, rowIndex + 1);
+          break;
+        case 'ArrowLeft':
+          columnIndex = Math.max(1, columnIndex - 1); // Minimum is 1 (first real column, not index)
+          break;
+        case 'ArrowRight':
+          columnIndex = Math.min(maxColumn, columnIndex + 1);
+          break;
+        case 'Home':
+        case 'End':
+          if (e.ctrlKey || e.metaKey) {
+            if (e.key === 'Home') {
+              rowIndex = 1; // First data row
+            } else {
+              rowIndex = maxRow; // Last row
+            }
+          } else {
+            if (e.key === 'Home') {
+              columnIndex = 1; // First column
+            } else {
+              columnIndex = maxColumn; // Last column
+            }
+          }
+          break;
+        default:
+          handled = false;
+      }
+      
+      if (handled) {
+        e.preventDefault();
+        setFocusedCell({ rowIndex, columnIndex });
+        
+        // Scroll to the focused cell
+        if (gridRef.current) {
+          gridRef.current.scrollToItem({
+            rowIndex: Math.max(0, rowIndex - 1), // Adjust for header row
+            columnIndex: columnIndex
+          });
+        }
+        
+        // Set focus to the cell when using arrow keys
+        if (rowIndex >= 1 && columnIndex >= 1) {
+          const actualRowIndex = rowIndex - 1; // Adjust for header row
+          const actualColumnIndex = columnIndex - 1; // Adjust for index column
+          
+          if (actualRowIndex < visibleData.length && actualColumnIndex < columns.length) {
+            const rowId = visibleData[actualRowIndex].id;
+            const columnId = columns[actualColumnIndex].id;
+            
+            // Focus the cell without going into edit mode
+            const cellElement = document.querySelector(`[data-cell="${rowId}-${columnId}"]`);
+            if (cellElement instanceof HTMLElement) {
+              cellElement.focus();
+            }
+          }
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleGridKeyDown);
+    return () => window.removeEventListener('keydown', handleGridKeyDown);
+  }, [focusedCell, visibleData, columns, editingCell]);
+
   // Highlight search term in text
   const highlightSearchTerm = (text: string) => {
     if (!searchTerm || !text) return text;
@@ -372,7 +468,15 @@ export function NewGridView({
     }
   };
 
-  // Context menu handlers
+  // Context menu handlers with position
+  const handleContextMenu = (columnId: string | null, position?: { x: number, y: number }) => {
+    setContextMenuColumn(columnId);
+    if (position) {
+      setContextMenuPosition(position);
+    }
+  };
+
+  // Context menu actions
   const handleCutColumn = (columnId: string) => {
     console.log(`Cut column: ${columnId}`);
     setContextMenuColumn(null);
@@ -566,6 +670,7 @@ export function NewGridView({
     if (!row) return null;
     
     if (columnIndex === 0) {
+      // Index column
       return (
         <div 
           className="index-column"
@@ -589,6 +694,7 @@ export function NewGridView({
     
     const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
     const isFirstColumn = columnIdx === 0;
+    const isFocused = focusedCell?.rowIndex === rowIndex && focusedCell?.columnIndex === columnIndex;
     const shouldLinkToStream = isFirstColumn && (
       (listType === 'Contact' && column.id === 'email') ||
       (listType === 'Opportunity' && column.id === 'opportunity')
@@ -616,9 +722,11 @@ export function NewGridView({
           ${column.type === 'currency' ? 'text-right' : ''}
           ${isFirstColumn ? 'grid-frozen-cell opportunity-cell' : ''}
           ${contextMenuColumn === column.id ? 'highlight-column' : ''}
+          ${isFocused ? 'grid-cell-focused' : ''}
         `}
         style={cellStyle}
         data-cell={`${row.id}-${column.id}`}
+        tabIndex={0}
         onClick={() => {
           if (shouldLinkToStream) {
             // Placeholder for navigation
@@ -629,7 +737,7 @@ export function NewGridView({
         }}
         onContextMenu={(e) => {
           e.preventDefault();
-          setContextMenuColumn(column.id);
+          handleContextMenu(column.id, { x: e.clientX, y: e.clientY });
         }}
       >
         {isEditing ? (
@@ -666,12 +774,25 @@ export function NewGridView({
     const column = columns.find(col => col.id === contextMenuColumn);
     if (!column) return null;
     
+    // Calculate position for the context menu
+    const menuStyle: React.CSSProperties = contextMenuPosition 
+      ? {
+          position: 'fixed',
+          top: `${contextMenuPosition.y}px`,
+          left: `${contextMenuPosition.x}px`,
+          zIndex: 1000,
+        }
+      : {};
+    
     return (
-      <DropdownMenu open={!!contextMenuColumn} onOpenChange={(open) => !open && setContextMenuColumn(null)}>
+      <DropdownMenu 
+        open={!!contextMenuColumn} 
+        onOpenChange={(open) => !open && setContextMenuColumn(null)}
+      >
         <DropdownMenuTrigger asChild>
           <div style={{ display: 'none' }} />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56">
+        <DropdownMenuContent className="w-56" style={menuStyle}>
           <DropdownMenuItem onClick={() => handleCutColumn(column.id)}>
             <Scissors className="mr-2 h-4 w-4" />
             <span>Cut</span>
@@ -782,7 +903,7 @@ export function NewGridView({
           onColumnResize={handleColumnResize}
           onAddColumn={handleAddColumn}
           onDeleteColumn={handleDeleteColumn}
-          onContextMenu={setContextMenuColumn}
+          onContextMenu={handleContextMenu}
           activeContextMenu={contextMenuColumn}
         />
       </div>
