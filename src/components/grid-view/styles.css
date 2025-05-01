@@ -1,3 +1,4 @@
+
 /* Grid View */
 .grid-view {
   display: flex;
@@ -20,7 +21,8 @@
   border-bottom: 1px solid #e5e7eb;
   background-color: #f9fafb;
   height: 30px;
-  position: relative;
+  position: sticky;
+  top: 0;
   user-select: none;
   overflow: visible;
   z-index: 10;
@@ -211,6 +213,9 @@
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid #e5e7eb;
   background-color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .search-field {
@@ -236,8 +241,6 @@
   border-collapse: collapse !important;
   border-spacing: 0 !important;
   padding: 0 !important;
-  /* Remove this transform that was causing misalignment */
-  /* transform: translateY(-30px); */
 }
 
 /* Critical fix: remove any gap between cells and ensure perfect alignment */

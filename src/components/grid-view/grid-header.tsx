@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Column } from './types';
 import { MoreVertical, ArrowUpDown, Eye, Plus, Trash2 } from 'lucide-react';
 import { 
