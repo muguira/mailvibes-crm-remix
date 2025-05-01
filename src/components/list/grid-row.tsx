@@ -15,7 +15,7 @@ interface GridRowProps {
   showSaveIndicator: { row: string; col: string } | null;
   onCellClick: (rowId: string, colKey: string, colType?: string, options?: string[]) => void;
   onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
-  onCellContextMenu?: (colKey: string, position: { x: number, y: number }) => void;
+  onCellContextMenu?: (e: React.MouseEvent<HTMLDivElement>, colKey: string) => void;
   renderRowActions?: (rowId: string) => React.ReactNode;
 }
 
@@ -61,8 +61,7 @@ export function GridRow({
           showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
           onContextMenu={(e) => {
             if (onCellContextMenu) {
-              e.preventDefault();
-              onCellContextMenu(column.key, { x: e.clientX, y: e.clientY });
+              onCellContextMenu(e, column.key);
             }
           }}
         />
@@ -84,8 +83,7 @@ export function GridRow({
           showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
           onContextMenu={(e) => {
             if (onCellContextMenu) {
-              e.preventDefault();
-              onCellContextMenu(column.key, { x: e.clientX, y: e.clientY });
+              onCellContextMenu(e, column.key);
             }
           }}
         />

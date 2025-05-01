@@ -9,7 +9,7 @@ interface GridRowProps {
   rowData: Record<string, any>;
   onCellClick: (rowId: string, columnId: string) => void;
   onCellChange: (rowId: string, columnId: string, value: any) => void;
-  onCellContextMenu?: (columnId: string, position: { x: number, y: number }) => void;
+  onCellContextMenu?: (e: React.MouseEvent<HTMLDivElement>, columnId: string) => void;
   activeCell?: { row: string, col: string } | null;
   showSaveIndicator?: { row: string, col: string } | null;
 }
@@ -47,8 +47,7 @@ export function GridRow({
               showSaveIndicator={showIndicator}
               onContextMenu={(e) => {
                 if (onCellContextMenu) {
-                  e.preventDefault();
-                  onCellContextMenu(column.id, { x: e.clientX, y: e.clientY });
+                  onCellContextMenu(e, column.id);
                 }
               }}
             />

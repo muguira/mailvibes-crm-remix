@@ -12,7 +12,7 @@ interface GridHeaderCellProps {
   onMoveColumn: (colKey: string, direction: 'left' | 'right') => void;
   onSortColumn: (colKey: string, direction: 'asc' | 'desc') => void;
   onDeleteColumn: (colKey: string) => void;
-  onContextMenu?: (colKey: string, position: { x: number, y: number }) => void;
+  onContextMenu?: (e: React.MouseEvent, colKey: string) => void;
   editingHeader: string | null;
   setEditingHeader: (key: string | null) => void;
   dragOverColumn?: string | null;
@@ -87,7 +87,7 @@ export function GridHeaderCell({
   const handleHeaderContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     if (onContextMenu) {
-      onContextMenu(column.key, { x: e.clientX, y: e.clientY });
+      onContextMenu(e, column.key);
     }
   };
 
