@@ -1,4 +1,3 @@
-
 /* Grid View */
 .grid-view {
   display: flex;
@@ -442,4 +441,11 @@
   left: 0;
   position: sticky;
   background: #fff;
+}
+
+.gridHeaderRow {
+  border-bottom: 1px solid #e2e8f0;
+}
+.gridBody .gridRow:first-child {
+  border-top: none !important;
 }
