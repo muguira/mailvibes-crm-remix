@@ -33,6 +33,7 @@
   background-color: #f9fafb;
   position: relative;
   width: 100%;
+  padding-top: 5px; /* Added 5px of top padding to the header */
 }
 
 .index-header {
