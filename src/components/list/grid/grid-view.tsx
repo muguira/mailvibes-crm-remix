@@ -8,11 +8,13 @@ import "./grid-view.css";
 export function GridView(props: GridViewProps & { 
   listId?: string,
   onCellChange?: (rowId: string, colKey: string, value: any) => void,
-  onAddItem?: (() => void) | null
+  onAddItem?: (() => void) | null,
+  onDeleteColumn?: (columnId: string) => void,
+  onAddColumn?: (afterColumnId: string) => void
 }) {
   return (
     <SaveIndicatorProvider>
-      <GridContainer>
+      <GridContainer {...props}>
         <GridViewContent {...props} />
       </GridContainer>
     </SaveIndicatorProvider>

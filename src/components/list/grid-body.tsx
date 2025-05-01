@@ -47,24 +47,30 @@ export function GridBody({
     emptyRowData[col.key] = "";
   });
 
+  console.log("GridBody rendering rows:", validRows.length);
+
   return (
     <div className="overflow-auto flex-1 bg-white" ref={bodyRef}>
-      {validRows.map((row, index) => (
-        <GridRow
-          key={row.id}
-          rowData={row}
-          rowNumber={index + 1}
-          frozenColumns={frozenColumns}
-          scrollableColumns={scrollableColumns}
-          frozenColsTemplate={frozenColsTemplate}
-          scrollableColsTemplate={scrollableColsTemplate}
-          activeCell={activeCell}
-          showSaveIndicator={showSaveIndicator}
-          onCellClick={onCellClick}
-          onCellChange={onCellChange}
-          renderRowActions={renderRowActions}
-        />
-      ))}
+      {validRows.length > 0 ? (
+        validRows.map((row, index) => (
+          <GridRow
+            key={row.id}
+            rowData={row}
+            rowNumber={index + 1}
+            frozenColumns={frozenColumns}
+            scrollableColumns={scrollableColumns}
+            frozenColsTemplate={frozenColsTemplate}
+            scrollableColsTemplate={scrollableColsTemplate}
+            activeCell={activeCell}
+            showSaveIndicator={showSaveIndicator}
+            onCellClick={onCellClick}
+            onCellChange={onCellChange}
+            renderRowActions={renderRowActions}
+          />
+        ))
+      ) : (
+        <div className="p-4 text-center text-gray-500">No data available</div>
+      )}
 
       <GridRow
         key={emptyRowId}

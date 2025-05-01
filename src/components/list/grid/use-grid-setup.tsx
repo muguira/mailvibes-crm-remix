@@ -1,4 +1,3 @@
-
 import { RefObject } from "react";
 import { 
   useGridColumns, 
@@ -16,13 +15,17 @@ interface GridSetupProps {
   initialData: any[];
   headerRef: React.RefObject<HTMLDivElement>;
   bodyRef: React.RefObject<HTMLDivElement>;
+  onAddColumn?: (afterColumnId: string) => void;
+  onDeleteColumn?: (columnId: string) => void;
 }
 
 export function useGridSetup({ 
   initialColumns, 
   initialData,
   headerRef,
-  bodyRef
+  bodyRef,
+  onAddColumn,
+  onDeleteColumn
 }: GridSetupProps) {
   // Use our modular hooks
   const {
@@ -88,7 +91,7 @@ export function useGridSetup({
   // Create the final handleDrop function with necessary context
   const handleDrop = createHandleDrop(draggedColumn, columns, setColumns);
 
-  // Add column handler
+  // Add column handler with callback integration
   const addColumn = () => {
     if (!newColumn.header) return;
     
@@ -112,6 +115,11 @@ export function useGridSetup({
         [newKey]: "" 
       }))
     );
+    
+    // Call the external callback if provided
+    if (onAddColumn) {
+      onAddColumn(newKey);
+    }
     
     // Reset new column form
     setNewColumn({
