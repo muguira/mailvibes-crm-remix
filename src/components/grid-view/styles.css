@@ -411,3 +411,35 @@
   margin: 0 1rem;
   color: #6b7280;
 }
+
+/* New alignment fixes */
+.gridWrapper { 
+  overflow: hidden; 
+}
+
+.gridHeader, .gridBody {
+  box-sizing: border-box;
+  border-collapse: collapse;
+}
+
+.gridHeaderCell,
+.gridCell {
+  padding: 4px 8px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.gridHeaderRow,
+.gridRow { 
+  height: 32px; 
+}
+
+/* freeze index column (first col) */
+.gridIndexHeader,
+.gridIndexCell {
+  width: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+  left: 0;
+  position: sticky;
+  background: #fff;
+}
