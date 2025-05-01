@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
@@ -456,7 +455,7 @@ export function NewGridView({
     return brightness > 128;
   };
 
-  // Cell renderer with fixes for borders and gaps
+  // Cell renderer with perfect alignment with header cells
   const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
     if (rowIndex === 0) {
       return null; // Header is rendered separately
@@ -473,9 +472,14 @@ export function NewGridView({
           className="index-column"
           style={{
             ...style,
+            width: 48,
+            minWidth: 48,
+            maxWidth: 48,
             borderTop: 'none',
             borderBottom: '1px solid #e5e7eb',
-            borderRight: '1px solid #e5e7eb'
+            borderRight: '1px solid #e5e7eb',
+            boxSizing: 'border-box',
+            height: ROW_HEIGHT
           }}
         >
           {dataRowIndex + 1}
@@ -495,12 +499,20 @@ export function NewGridView({
       (listType === 'Opportunity' && column.id === 'opportunity')
     );
     
-    // Fix cell styles to eliminate gaps
+    // Fix cell styles to perfectly align with headers
     const cellStyle = {
       ...style,
+      width: column.width,
+      minWidth: column.width,
+      maxWidth: column.width,
       borderTop: 'none',
       borderLeft: 'none',
-      padding: isEditing ? 0 : '0.75rem',
+      borderBottom: '1px solid #e5e7eb',
+      borderRight: '1px solid #e5e7eb',
+      padding: isEditing ? 0 : '0.5rem',
+      height: ROW_HEIGHT,
+      boxSizing: 'border-box',
+      overflow: 'hidden'
     };
     
     return (
@@ -542,7 +554,7 @@ export function NewGridView({
           borderCollapse: 'collapse',
           borderSpacing: 0,
           padding: 0,
-          margin: 0,
+          margin: 0
         }}
         className="react-window-grid-inner"
         {...rest}
@@ -568,7 +580,6 @@ export function NewGridView({
           columns={columns}
           onColumnChange={onColumnChange}
           onColumnsReorder={onColumnsReorder}
-          onColumnResize={handleColumnResize}
           onAddColumn={handleAddColumn}
           onDeleteColumn={handleDeleteColumn}
         />
@@ -580,7 +591,7 @@ export function NewGridView({
             ref={gridRef}
             columnCount={columns.length + 1} // +1 for index column
             columnWidth={getColumnWidth}
-            height={containerHeight - HEADER_HEIGHT + 10} // Add 10px to remove the gap
+            height={containerHeight - HEADER_HEIGHT}
             rowCount={visibleData.length + 1} // +1 for header placeholder
             rowHeight={getRowHeight}
             width={containerWidth}

@@ -1,7 +1,7 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Column } from './types';
-import { Check, MoreVertical, ArrowUpDown, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
+import { MoreVertical, ArrowUpDown, Eye, Plus, Trash2 } from 'lucide-react';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -14,7 +14,6 @@ interface GridHeaderProps {
   columns: Column[];
   onColumnChange?: (columnId: string, updates: Partial<Column>) => void;
   onColumnsReorder?: (columnIds: string[]) => void;
-  onColumnResize?: (columnIndex: number, newWidth: number) => void;
   onAddColumn?: (afterColumnId: string) => void;
   onDeleteColumn?: (columnId: string) => void;
 }
@@ -23,15 +22,11 @@ export function GridHeader({
   columns, 
   onColumnChange, 
   onColumnsReorder, 
-  onColumnResize,
   onAddColumn,
   onDeleteColumn
 }: GridHeaderProps) {
   const [editingHeader, setEditingHeader] = useState<string | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
-  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
-  const [initialX, setInitialX] = useState(0);
-  const [initialWidth, setInitialWidth] = useState(0);
   
   // Handle column header edit (double click)
   const handleHeaderDoubleClick = (columnId: string) => {
@@ -112,65 +107,6 @@ export function GridHeader({
     onColumnsReorder(newColumns.map(col => col.id));
     setDraggedColumn(null);
   };
-  
-  // Handle column resize start
-  const handleResizeStart = useCallback((e: React.MouseEvent, columnId: string, initialWidth: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    setResizingColumn(columnId);
-    setInitialX(e.clientX);
-    setInitialWidth(initialWidth);
-    
-    // Add event listeners for mousemove and mouseup
-    document.addEventListener('mousemove', handleResizeMove);
-    document.addEventListener('mouseup', handleResizeEnd);
-  }, []);
-  
-  // Handle column resize move with improved live updating
-  const handleResizeMove = useCallback((e: MouseEvent) => {
-    e.preventDefault();
-    
-    if (!resizingColumn) return;
-    
-    const diffX = e.clientX - initialX;
-    const newWidth = Math.max(100, initialWidth + diffX); // Minimum width of 100px
-    
-    // Update column width during drag in real-time
-    const columnIndex = columns.findIndex(col => col.id === resizingColumn);
-    
-    if (columnIndex >= 0 && onColumnResize) {
-      onColumnResize(columnIndex + 1, newWidth);
-    }
-  }, [resizingColumn, initialX, initialWidth, columns, onColumnResize]);
-  
-  // Handle column resize end with explicit update to ensure persistence
-  const handleResizeEnd = useCallback((e: MouseEvent) => {
-    e.preventDefault();
-    
-    if (resizingColumn && onColumnResize) {
-      const columnIndex = columns.findIndex(col => col.id === resizingColumn);
-      if (columnIndex >= 0) {
-        const diffX = e.clientX - initialX;
-        const newWidth = Math.max(100, initialWidth + diffX);
-        onColumnResize(columnIndex + 1, newWidth);
-      }
-    }
-    
-    setResizingColumn(null);
-    
-    // Remove event listeners
-    document.removeEventListener('mousemove', handleResizeMove);
-    document.removeEventListener('mouseup', handleResizeEnd);
-  }, [resizingColumn, onColumnResize, columns, initialX, initialWidth, handleResizeMove]);
-  
-  // Clean up event listeners on unmount
-  useEffect(() => {
-    return () => {
-      document.removeEventListener('mousemove', handleResizeMove);
-      document.removeEventListener('mouseup', handleResizeEnd);
-    };
-  }, [handleResizeMove, handleResizeEnd]);
 
   const handleAddColumnAfter = (columnId: string) => {
     if (onAddColumn) {
@@ -188,7 +124,7 @@ export function GridHeader({
     <div className="grid-header">
       <div className="index-header">#</div>
       <div className="columns-header">
-        {columns.map((column, index) => {
+        {columns.map((column) => {
           // Fix for first column display name
           const displayTitle = column.id === 'opportunity' ? 'Opportunity' : column.title;
           
@@ -206,7 +142,12 @@ export function GridHeader({
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, column.id)}
               onDoubleClick={() => handleHeaderDoubleClick(column.id)}
-              style={{ width: column.width }}
+              style={{ 
+                width: column.width,
+                minWidth: column.width,
+                maxWidth: column.width,
+                boxSizing: 'border-box'
+              }}
             >
               {editingHeader === column.id ? (
                 <input
@@ -261,10 +202,6 @@ export function GridHeader({
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
-                    <div
-                      className="resize-handle"
-                      onMouseDown={(e) => handleResizeStart(e, column.id, column.width)}
-                    />
                   </div>
                 </>
               )}

@@ -7,6 +7,7 @@
   width: 100%;
   overflow: hidden;
   background-color: #ffffff;
+  box-sizing: border-box;
 }
 
 /* Updated search field styles */
@@ -29,4 +30,14 @@
 
 .search-field input:focus {
   border-color: rgb(20, 184, 166);
+}
+
+/* Fix for consistent box sizing */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Fix for first row to eliminate the gap */
+.grid-body :first-child {
+  border-top: none !important;
 }

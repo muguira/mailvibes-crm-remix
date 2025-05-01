@@ -25,10 +25,13 @@
   user-select: none;
   overflow: visible;
   z-index: 10;
+  box-sizing: border-box;
 }
 
 .index-header {
-  width: 50px;
+  width: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
   padding: 0.5rem;
   font-weight: 600;
   background-color: #f9fafb;
@@ -40,12 +43,14 @@
   left: 0;
   z-index: 10;
   height: 30px;
+  box-sizing: border-box;
 }
 
 .columns-header {
   display: flex;
   overflow-x: auto;
   flex: 1;
+  box-sizing: border-box;
 }
 
 .grid-header-cell {
@@ -58,14 +63,15 @@
   align-items: center;
   min-width: 120px;
   height: 30px;
+  box-sizing: border-box;
 }
 
 .grid-frozen-header {
   background-color: #f9fafb;
   position: sticky;
-  left: 0; /* Align with left edge */
+  left: 0;
   z-index: 5;
-  margin-left: -60px; /* Shift opportunity column 60px left */
+  border-right: 1px solid #e5e7eb;
 }
 
 .header-title {
@@ -81,24 +87,10 @@
   border-radius: 0.25rem;
   outline: none;
   font-size: 0.875rem;
+  box-sizing: border-box;
 }
 
-/* Improved resize handle for better visibility and usability */
-.resize-handle {
-  position: absolute;
-  right: -2px;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  cursor: col-resize;
-  background-color: transparent;
-  z-index: 20;
-}
-
-.resize-handle:hover {
-  background-color: #0ea5e9;
-}
-
+/* Remove resize handle to prevent misalignments */
 .add-column-button {
   padding: 0.5rem;
   font-weight: 600;
@@ -110,6 +102,7 @@
   justify-content: center;
   width: 40px;
   height: 30px;
+  box-sizing: border-box;
 }
 
 .add-column-button:hover {
@@ -118,13 +111,15 @@
 
 /* Grid Cells */
 .grid-cell {
-  padding: 0.75rem;
+  padding: 0.5rem;
   border-right: 1px solid #e5e7eb;
   border-bottom: 1px solid #e5e7eb;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: cell;
+  box-sizing: border-box;
+  height: 30px;
 }
 
 .grid-cell-editable {
@@ -147,15 +142,19 @@
 .grid-cell-input {
   width: 100%;
   height: 100%;
-  padding: 0.75rem;
+  padding: 0.5rem;
   border: none;
   outline: none;
   font-family: inherit;
   font-size: inherit;
+  box-sizing: border-box;
 }
 
 .index-column {
-  padding: 0.75rem;
+  width: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+  padding: 0.5rem;
   font-size: 0.75rem;
   color: #6b7280;
   border-right: 1px solid #e5e7eb;
@@ -167,6 +166,8 @@
   left: 0;
   z-index: 2;
   background-color: #fff;
+  box-sizing: border-box;
+  height: 30px;
 }
 
 .grid-frozen-cell {
@@ -174,14 +175,13 @@
   position: sticky;
   left: 0;
   z-index: 2;
-  margin-left: 0 !important;
-  border-left: none !important;
+  border-right: 1px solid #e5e7eb;
+  box-sizing: border-box;
 }
 
 .opportunity-cell {
   color: #0ea5e9;
   font-weight: 500;
-  margin-left: -60px; /* Shift opportunity cells left to match header */
 }
 
 .text-right {
@@ -230,14 +230,15 @@
   font-size: 0.875rem;
 }
 
-/* Fix the white strip issue between header and grid */
+/* Fix the white strip issue between header and grid - CRITICAL CHANGE */
 .react-window-grid {
   border-top: none !important;
   margin-top: 0 !important;
   border-collapse: collapse !important;
   border-spacing: 0 !important;
   padding: 0 !important;
-  transform: translateY(-30px); /* Shift grid up to eliminate gap */
+  /* Remove this transform that was causing misalignment */
+  /* transform: translateY(-30px); */
 }
 
 /* Critical fix: remove any gap between cells and ensure perfect alignment */
@@ -407,3 +408,17 @@
   color: #000;
 }
 
+/* Fix for first row to eliminate white gap */
+.grid-body .ReactWindow__Row:first-child {
+  border-top: none !important;
+}
+
+/* Fix for consistent widths between header and cells */
+.grid-header-cell,
+.grid-cell {
+  width: var(--cell-width, 120px);
+  min-width: var(--cell-width, 120px);
+  max-width: var(--cell-width, 120px);
+  overflow: hidden;
+  box-sizing: border-box;
+}
