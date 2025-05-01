@@ -7,7 +7,6 @@
   width: 100%;
   overflow: hidden;
   background-color: #ffffff;
-  box-sizing: border-box;
 }
 
 /* Updated search field styles */
@@ -30,29 +29,4 @@
 
 .search-field input:focus {
   border-color: rgb(20, 184, 166);
-}
-
-/* Fix for consistent box sizing */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-/* Fix for first row to eliminate the gap */
-.grid-body :first-child {
-  border-top: none !important;
-}
-
-/* More specific selector for React Window first row */
-.react-window-grid [style*="top: 0px"] {
-  border-top: none !important;
-}
-
-/* Additional fix for the first row in React Window grid */
-.ReactVirtualized__Grid__cell:first-of-type {
-  border-top: none !important;
-}
-
-/* Fix for the first visible row */
-.react-window-grid-inner > div:first-of-type > div {
-  border-top: none !important;
 }

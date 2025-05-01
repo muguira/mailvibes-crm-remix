@@ -1,3 +1,4 @@
+
 /* Grid View */
 .grid-view {
   display: flex;
@@ -20,24 +21,14 @@
   border-bottom: 1px solid #e5e7eb;
   background-color: #f9fafb;
   height: 30px;
+  position: relative;
   user-select: none;
   overflow: visible;
-  z-index: 20;
-  box-sizing: border-box;
-}
-
-.grid-header-wrapper {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  z-index: 30;
-  background-color: #f9fafb;
-  position: sticky;
-  top: 0; /* Make header stick to the very top */
+  z-index: 10;
 }
 
 .index-header {
-  width: 48px !important;
-  min-width: 48px !important;
-  max-width: 48px !important;
+  width: 50px;
   padding: 0.5rem;
   font-weight: 600;
   background-color: #f9fafb;
@@ -47,16 +38,14 @@
   justify-content: center;
   position: sticky;
   left: 0;
-  z-index: 25;
+  z-index: 10;
   height: 30px;
-  box-sizing: border-box;
 }
 
 .columns-header {
   display: flex;
   overflow-x: auto;
   flex: 1;
-  box-sizing: border-box;
 }
 
 .grid-header-cell {
@@ -69,15 +58,14 @@
   align-items: center;
   min-width: 120px;
   height: 30px;
-  box-sizing: border-box;
 }
 
 .grid-frozen-header {
   background-color: #f9fafb;
   position: sticky;
-  left: 0;
+  left: 0; /* Align with left edge */
   z-index: 5;
-  border-right: 1px solid #e5e7eb;
+  margin-left: -60px; /* Shift opportunity column 60px left */
 }
 
 .header-title {
@@ -93,10 +81,24 @@
   border-radius: 0.25rem;
   outline: none;
   font-size: 0.875rem;
-  box-sizing: border-box;
 }
 
-/* Remove resize handle to prevent misalignments */
+/* Improved resize handle for better visibility and usability */
+.resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  background-color: transparent;
+  z-index: 20;
+}
+
+.resize-handle:hover {
+  background-color: #0ea5e9;
+}
+
 .add-column-button {
   padding: 0.5rem;
   font-weight: 600;
@@ -108,7 +110,6 @@
   justify-content: center;
   width: 40px;
   height: 30px;
-  box-sizing: border-box;
 }
 
 .add-column-button:hover {
@@ -117,15 +118,13 @@
 
 /* Grid Cells */
 .grid-cell {
-  padding: 0.5rem;
+  padding: 0.75rem;
   border-right: 1px solid #e5e7eb;
   border-bottom: 1px solid #e5e7eb;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: cell;
-  box-sizing: border-box;
-  height: 30px;
 }
 
 .grid-cell-editable {
@@ -148,19 +147,15 @@
 .grid-cell-input {
   width: 100%;
   height: 100%;
-  padding: 0.5rem;
+  padding: 0.75rem;
   border: none;
   outline: none;
   font-family: inherit;
   font-size: inherit;
-  box-sizing: border-box;
 }
 
 .index-column {
-  width: 48px !important;
-  min-width: 48px !important;
-  max-width: 48px !important;
-  padding: 0.5rem;
+  padding: 0.75rem;
   font-size: 0.75rem;
   color: #6b7280;
   border-right: 1px solid #e5e7eb;
@@ -172,8 +167,6 @@
   left: 0;
   z-index: 2;
   background-color: #fff;
-  box-sizing: border-box;
-  height: 30px;
 }
 
 .grid-frozen-cell {
@@ -181,13 +174,14 @@
   position: sticky;
   left: 0;
   z-index: 2;
-  border-right: 1px solid #e5e7eb;
-  box-sizing: border-box;
+  margin-left: 0 !important;
+  border-left: none !important;
 }
 
 .opportunity-cell {
   color: #0ea5e9;
   font-weight: 500;
+  margin-left: -60px; /* Shift opportunity cells left to match header */
 }
 
 .text-right {
@@ -218,9 +212,6 @@
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid #e5e7eb;
   background-color: #fff;
-  position: sticky;
-  top: 0;
-  z-index: 40; /* Higher z-index than header */
 }
 
 .search-field {
@@ -246,12 +237,7 @@
   border-collapse: collapse !important;
   border-spacing: 0 !important;
   padding: 0 !important;
-}
-
-/* Fix the gap between header and grid - make header snap to top row */
-.grid-body {
-  margin-top: 0;
-  padding-top: 0;
+  transform: translateY(-30px); /* Shift grid up to eliminate gap */
 }
 
 /* Critical fix: remove any gap between cells and ensure perfect alignment */
@@ -263,16 +249,6 @@
   padding: 0 !important;
   margin: 0 !important;
   outline: none !important;
-}
-
-.react-window-grid div[style*="top: 0px"],
-.react-window-grid div[style*="top:0px"] {
-  border-top: none !important;
-  margin-top: 0 !important;
-}
-
-.react-window-grid > div > div > div:first-child > div {
-  border-top: none !important;
 }
 
 /* Status Dropdown Styling */
@@ -431,17 +407,3 @@
   color: #000;
 }
 
-/* Fix for first row to eliminate white gap */
-.grid-body .ReactWindow__Row:first-child {
-  border-top: none !important;
-}
-
-/* Fix for consistent widths between header and cells */
-.grid-header-cell,
-.grid-cell {
-  width: var(--cell-width, 120px);
-  min-width: var(--cell-width, 120px);
-  max-width: var(--cell-width, 120px);
-  overflow: hidden;
-  box-sizing: border-box;
-}

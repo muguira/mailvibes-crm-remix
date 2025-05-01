@@ -7,12 +7,7 @@ interface GridContainerProps {
 
 export function GridContainer({ children }: GridContainerProps) {
   return (
-    <div className="h-full flex flex-col full-screen-grid" style={{ 
-      boxSizing: 'border-box',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden'
-    }}>
+    <div className="h-full flex flex-col full-screen-grid">
       {children}
     </div>
   );
