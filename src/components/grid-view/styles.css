@@ -1,3 +1,4 @@
+
 /* Grid View */
 .grid-view {
   display: flex;
@@ -130,6 +131,17 @@
   height: 30px;
 }
 
+/* Add special rule for first data row */
+.index-column[style*="rowIndex: 1"],
+.grid-cell[style*="rowIndex: 1"] {
+  border-top: 2px solid #9b87f5;
+}
+
+/* For react-window implementation */
+.react-window-grid [style*="top: 30px"] > div {
+  border-top: 2px solid #9b87f5 !important;
+}
+
 .grid-cell-editable {
   cursor: pointer;
 }
@@ -176,6 +188,12 @@
   background-color: #fff;
   box-sizing: border-box;
   height: 30px;
+}
+
+/* Add specific selector for first data row */
+.grid-row:nth-child(1) .index-column,
+.grid-row:nth-child(1) .grid-cell {
+  border-top: 2px solid #9b87f5;
 }
 
 .grid-frozen-cell {
@@ -447,3 +465,4 @@
   overflow: hidden;
   box-sizing: border-box;
 }
+
