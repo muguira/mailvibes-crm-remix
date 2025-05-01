@@ -27,7 +27,10 @@ const FilterPopover: React.FC<FilterPopoverProps> = ({
   const handleToggleFilter = (columnId: string) => {
     if (selectedFilters.includes(columnId)) {
       setSelectedFilters(prev => prev.filter(id => id !== columnId));
-      setSelectedField(null);
+      // Only clear selected field if it was this column
+      if (selectedField === columnId) {
+        setSelectedField(null);
+      }
     } else {
       setSelectedFilters(prev => [...prev, columnId]);
       setSelectedField(columnId);
@@ -166,7 +169,13 @@ const FilterPopover: React.FC<FilterPopoverProps> = ({
         );
       
       default:
-        return null;
+        return (
+          <div className="filter-value-section">
+            <p className="text-sm text-gray-500">
+              Filter will include all non-empty values for this column.
+            </p>
+          </div>
+        );
     }
   };
   
@@ -264,6 +273,19 @@ export function GridToolbar({
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const filterPopoverRef = useRef<HTMLDivElement>(null);
   
+  // Calculate filter button position
+  const [filterButtonPos, setFilterButtonPos] = useState({ top: 0, left: 0 });
+  
+  useEffect(() => {
+    if (filterButtonRef.current) {
+      const rect = filterButtonRef.current.getBoundingClientRect();
+      setFilterButtonPos({ 
+        top: rect.bottom, 
+        left: rect.left 
+      });
+    }
+  }, [showFilters]);
+  
   // Close filter popover when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -334,7 +356,7 @@ export function GridToolbar({
           {showFilters && (
             <AbsolutePopoverContent 
               ref={filterPopoverRef}
-              position={{ top: 40, left: 0 }}
+              position={{ top: filterButtonPos.top, left: filterButtonPos.left }}
               className="filter-popover-container"
             >
               <FilterPopover 
