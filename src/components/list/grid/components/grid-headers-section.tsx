@@ -13,7 +13,6 @@ interface GridHeadersSectionProps {
   onMoveColumn: (colKey: string, direction: 'left' | 'right') => void;
   onSortColumn: (colKey: string, direction: 'asc' | 'desc') => void;
   onDeleteColumn: (colKey: string) => void;
-  onContextMenu?: (e: React.MouseEvent, colKey: string) => void;
   dragOverColumn?: string | null;
   onDragStart?: (key: string) => void;
   onDragOver?: (e: React.DragEvent, key: string) => void;
@@ -33,7 +32,6 @@ export function GridHeadersSection({
   onMoveColumn,
   onSortColumn,
   onDeleteColumn,
-  onContextMenu,
   dragOverColumn,
   onDragStart,
   onDragOver,
@@ -111,7 +109,6 @@ export function GridHeadersSection({
           onMoveColumn={onMoveColumn}
           onSortColumn={onSortColumn}
           onDeleteColumn={onDeleteColumn}
-          onContextMenu={onContextMenu}
           dragOverColumn={dragOverColumn}
           onDragStart={!isFrozen ? onDragStart : undefined}
           onDragOver={!isFrozen ? onDragOver : undefined}

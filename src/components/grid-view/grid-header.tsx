@@ -2,8 +2,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Column } from './types';
 import { MIN_COLUMN_WIDTH } from './grid-constants';
-import { MoreVertical } from 'lucide-react';
-import { ColumnContextMenu } from './column-context-menu';
+import {
+  MoreVertical,
+  Eye,
+  EyeOff,
+  Plus,
+  Trash2,
+  Copy,
+  Scissors,
+  Clipboard,
+  Filter,
+  StretchHorizontal
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuSub,
+  DropdownMenuPortal
+} from '@/components/ui/dropdown-menu';
 
 interface GridHeaderProps {
   columns: Column[];
@@ -155,7 +176,12 @@ export function GridHeader({
     }
   };
 
-  // Clipboard operations
+  // Clipboard operations stubs
+  const handleCutColumn = (columnId: string) => {
+    console.log(`Cut column: ${columnId}`);
+    if (onContextMenu) onContextMenu(null);
+  };
+
   const handleCopyColumn = (columnId: string) => {
     console.log(`Copy column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
@@ -163,6 +189,11 @@ export function GridHeader({
 
   const handlePasteColumn = (columnId: string) => {
     console.log(`Paste into column: ${columnId}`);
+    if (onContextMenu) onContextMenu(null);
+  };
+
+  const handlePasteSpecial = (columnId: string, type: string) => {
+    console.log(`Paste special (${type}) into column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
   };
 
@@ -191,7 +222,27 @@ export function GridHeader({
     if (onContextMenu) onContextMenu(null);
   };
 
-  // Sort operations
+  const handleClearColumn = (columnId: string) => {
+    console.log(`Clear column: ${columnId}`);
+    if (onContextMenu) onContextMenu(null);
+  };
+
+  const handleHideColumn = (columnId: string) => {
+    console.log(`Hide column: ${columnId}`);
+    if (onContextMenu) onContextMenu(null);
+  };
+
+  const handleResizeColumnAction = (columnId: string) => {
+    console.log(`Resize column: ${columnId}`);
+    if (onContextMenu) onContextMenu(null);
+  };
+
+  // Sort and filter
+  const handleCreateFilter = (columnId: string) => {
+    console.log(`Create filter for column: ${columnId}`);
+    if (onContextMenu) onContextMenu(null);
+  };
+
   const handleSortAZ = (columnId: string) => {
     console.log(`Sort sheet A-Z by column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
@@ -210,6 +261,104 @@ export function GridHeader({
           // Fix for first column display name
           const displayTitle = column.id === 'opportunity' ? 'Opportunity' : column.title;
           const isContextMenuOpen = activeContextMenu === column.id;
+
+          // Render dropdown menu for column options
+          const renderColumnMenu = (columnId: string) => (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="header-cell-menu-button">
+                <MoreVertical size={14} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleCutColumn(columnId)}>
+                  <Scissors size={14} className="mr-2" />
+                  Cut
+                  <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => handleCopyColumn(columnId)}>
+                  <Copy size={14} className="mr-2" />
+                  Copy
+                  <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => handlePasteColumn(columnId)}>
+                  <Clipboard size={14} className="mr-2" />
+                  Paste
+                  <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Clipboard size={14} className="mr-2" />
+                    Paste special
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem onClick={() => handlePasteSpecial(columnId, 'values')}>
+                        Values only
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handlePasteSpecial(columnId, 'format')}>
+                        Format only
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem onClick={() => handleInsertColumnLeft(columnId)}>
+                  <Plus size={14} className="mr-2" />
+                  Insert column left
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => handleInsertColumnRight(columnId)}>
+                  <Plus size={14} className="mr-2" />
+                  Insert column right
+                </DropdownMenuItem>
+
+                {columnId !== 'opportunity' && (
+                  <DropdownMenuItem onClick={() => handleDeleteColumnAction(columnId)}>
+                    <Trash2 size={14} className="mr-2" />
+                    Delete column
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuItem onClick={() => handleClearColumn(columnId)}>
+                  <span className="mr-2">×</span>
+                  Clear column
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => handleHideColumn(columnId)}>
+                  <EyeOff size={14} className="mr-2" />
+                  Hide column
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => handleResizeColumnAction(columnId)}>
+                  <StretchHorizontal size={14} className="mr-2" />
+                  Resize column
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem onClick={() => handleCreateFilter(columnId)}>
+                  <Filter size={14} className="mr-2" />
+                  Create a filter
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem onClick={() => handleSortAZ(columnId)}>
+                  <span className="mr-2">A→Z</span>
+                  Sort sheet A to Z
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => handleSortZA(columnId)}>
+                  <span className="mr-2">Z→A</span>
+                  Sort sheet Z to A
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
 
           return (
             <div
@@ -242,18 +391,7 @@ export function GridHeader({
                 <>
                   <span className="header-title">{displayTitle}</span>
                   <div className="header-cell-actions">
-                    <ColumnContextMenu
-                      columnId={column.id}
-                      isOpportunity={column.id === 'opportunity'}
-                      trigger={<button className="header-cell-menu-button"><MoreVertical size={14} /></button>}
-                      onCopyColumn={handleCopyColumn}
-                      onPasteColumn={handlePasteColumn}
-                      onInsertColumnLeft={handleInsertColumnLeft}
-                      onInsertColumnRight={handleInsertColumnRight}
-                      onDeleteColumn={handleDeleteColumnAction}
-                      onSortAZ={handleSortAZ}
-                      onSortZA={handleSortZA}
-                    />
+                    {renderColumnMenu(column.id)}
                   </div>
                 </>
               )}
@@ -270,26 +408,3 @@ export function GridHeader({
     </div>
   );
 }
-
-// Export this function to be used by the grid cell component too
-export const useColumnContextMenu = () => {
-  return {
-    openColumnContextMenu: (
-      columnId: string, 
-      position: { x: number, y: number },
-      callbacks: {
-        onCopyColumn?: (columnId: string) => void,
-        onPasteColumn?: (columnId: string) => void,
-        onInsertColumnLeft?: (columnId: string) => void,
-        onInsertColumnRight?: (columnId: string) => void,
-        onDeleteColumn?: (columnId: string) => void,
-        onSortAZ?: (columnId: string) => void,
-        onSortZA?: (columnId: string) => void,
-      }
-    ) => {
-      // This function can be expanded with more functionality if needed
-      console.log(`Opening context menu for column ${columnId} at position ${position.x},${position.y}`);
-      return { columnId, position };
-    }
-  };
-};

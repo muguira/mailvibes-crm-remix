@@ -15,12 +15,11 @@ interface GridCellProps {
   value: any;
   type: ColumnType;
   options?: string[];
-  colors?: Record<string, string>;
+  colors?: Record<string, string>; // Added colors prop to the interface
   isActive: boolean;
   onClick: () => void;
   onChange: (value: any) => void;
   showSaveIndicator?: boolean;
-  onContextMenu?: (e: React.MouseEvent<HTMLDivElement>, colKey: string) => void;
 }
 
 export function GridCell({
@@ -29,12 +28,11 @@ export function GridCell({
   value,
   type,
   options,
-  colors,
+  colors, // Pass colors to the component
   isActive,
   onClick,
   onChange,
-  showSaveIndicator = false,
-  onContextMenu
+  showSaveIndicator = false
 }: GridCellProps) {
   // Store original value for reverting on cancel
   const [originalValue, setOriginalValue] = useState(value);
@@ -104,14 +102,6 @@ export function GridCell({
     }
     closePopover();
   };
-  
-  // Handle right-click to open column context menu with correct parameter order
-  const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    if (onContextMenu) {
-      onContextMenu(e, colKey);
-    }
-  };
 
   const renderCellContent = () => {
     if (isActive) {
@@ -151,7 +141,6 @@ export function GridCell({
         e.stopPropagation();
         handleClick(e);
       }}
-      onContextMenu={handleContextMenu}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       data-cell={`${rowId}-${colKey}`}

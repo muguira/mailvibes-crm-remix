@@ -15,7 +15,6 @@ interface GridRowProps {
   showSaveIndicator: { row: string; col: string } | null;
   onCellClick: (rowId: string, colKey: string, colType?: string, options?: string[]) => void;
   onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
-  onCellContextMenu?: (e: React.MouseEvent<HTMLDivElement>, colKey: string) => void;
   renderRowActions?: (rowId: string) => React.ReactNode;
 }
 
@@ -30,7 +29,6 @@ export function GridRow({
   showSaveIndicator,
   onCellClick,
   onCellChange,
-  onCellContextMenu,
   renderRowActions
 }: GridRowProps) {
   const isActive = activeCell?.row === rowData.id;
@@ -59,7 +57,6 @@ export function GridRow({
           onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
           onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
           showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
-          onContextMenu={onCellContextMenu}
         />
       ))}
 
@@ -77,7 +74,6 @@ export function GridRow({
           onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
           onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
           showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
-          onContextMenu={onCellContextMenu}
         />
       ))}
 

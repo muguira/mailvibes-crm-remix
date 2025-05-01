@@ -29,10 +29,6 @@ export function GridViewContent({
   const bodyRef = useRef<HTMLDivElement>(null);
   const [headerVisible, setHeaderVisible] = useState(false);
   
-  // Context menu state
-  const [activeColumnMenu, setActiveColumnMenu] = useState<string | null>(null);
-  const [menuPosition, setMenuPosition] = useState<{ x: number, y: number } | null>(null);
-  
   // Setup points of contact functionality
   const { setOpenPointsOfContactFn, renderRowActions } = usePointsOfContact();
   
@@ -76,18 +72,6 @@ export function GridViewContent({
     headerRef,
     bodyRef
   });
-  
-  // Unified column context menu handler
-  const handleColumnContextMenu = (colKey: string, position: { x: number, y: number }) => {
-    setActiveColumnMenu(colKey);
-    setMenuPosition(position);
-  };
-  
-  // Close context menu
-  const closeContextMenu = () => {
-    setActiveColumnMenu(null);
-    setMenuPosition(null);
-  };
 
   // Debug log to verify columns data
   useEffect(() => {
@@ -154,51 +138,6 @@ export function GridViewContent({
     }
   };
   
-  // Menu action handlers
-  const handleCopyColumn = (colKey: string) => {
-    console.log(`Copy column: ${colKey}`);
-    closeContextMenu();
-  };
-  
-  const handlePasteColumn = (colKey: string) => {
-    console.log(`Paste into column: ${colKey}`);
-    closeContextMenu();
-  };
-  
-  const handleInsertColumnLeft = (colKey: string) => {
-    // Find previous column
-    const currentIndex = columns.findIndex(col => col.key === colKey);
-    if (currentIndex > 0) {
-      const prevColKey = columns[currentIndex - 1].key;
-      addColumn();
-    } else {
-      addColumn();
-    }
-    closeContextMenu();
-  };
-  
-  const handleInsertColumnRight = (colKey: string) => {
-    addColumn();
-    closeContextMenu();
-  };
-  
-  const handleDeleteColumnAction = (colKey: string) => {
-    if (colKey !== 'opportunity') {
-      deleteColumn(colKey);
-    }
-    closeContextMenu();
-  };
-  
-  const handleSortAZ = (colKey: string) => {
-    sortColumn(colKey, 'asc');
-    closeContextMenu();
-  };
-  
-  const handleSortZA = (colKey: string) => {
-    sortColumn(colKey, 'desc');
-    closeContextMenu();
-  };
-  
   return (
     <div 
       className="h-full flex flex-col full-screen-grid" 
@@ -237,7 +176,6 @@ export function GridViewContent({
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        onContextMenu={handleColumnContextMenu}
       />
       
       {/* Grid Content */}
@@ -252,7 +190,6 @@ export function GridViewContent({
         bodyRef={bodyRef}
         onCellClick={handleCellClick}
         onCellChange={handleCellChangeAndSave}
-        onCellContextMenu={handleColumnContextMenu}
         renderRowActions={(rowId) => renderRowActions(rowId, data.find(r => r.id === rowId))}
       />
       
@@ -262,20 +199,6 @@ export function GridViewContent({
         onCellChange={onCellChange} 
         ref={setOpenPointsOfContactFn} 
       />
-      
-      {/* Column Context Menu (rendered conditionally) */}
-      {activeColumnMenu && menuPosition && (
-        <div 
-          style={{
-            position: 'absolute',
-            left: `${menuPosition.x}px`,
-            top: `${menuPosition.y}px`,
-            zIndex: 1000
-          }}
-        >
-          {/* Using the shared context menu component */}
-        </div>
-      )}
     </div>
   );
 }

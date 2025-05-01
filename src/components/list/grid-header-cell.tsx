@@ -1,8 +1,8 @@
 
-import { ChevronDown, PencilLine } from "lucide-react";
+import { ChevronDown, PencilLine, Copy, ArrowLeft, ArrowRight, SortAsc, SortDesc, Trash2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ColumnDef } from "./grid/types";
 import { useState, useEffect, useRef } from "react";
-import { ColumnContextMenu } from "@/components/grid-view/column-context-menu";
 
 interface GridHeaderCellProps {
   column: ColumnDef;
@@ -12,7 +12,6 @@ interface GridHeaderCellProps {
   onMoveColumn: (colKey: string, direction: 'left' | 'right') => void;
   onSortColumn: (colKey: string, direction: 'asc' | 'desc') => void;
   onDeleteColumn: (colKey: string) => void;
-  onContextMenu?: (e: React.MouseEvent, colKey: string) => void;
   editingHeader: string | null;
   setEditingHeader: (key: string | null) => void;
   dragOverColumn?: string | null;
@@ -30,7 +29,6 @@ export function GridHeaderCell({
   onMoveColumn,
   onSortColumn,
   onDeleteColumn,
-  onContextMenu,
   editingHeader,
   setEditingHeader,
   dragOverColumn,
@@ -83,48 +81,12 @@ export function GridHeaderCell({
   const handleDragStartEvent = () => {
     if (onDragStart) onDragStart(column.key);
   };
-  
-  const handleHeaderContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (onContextMenu) {
-      onContextMenu(e, column.key);
-    }
-  };
-
-  const handleCopyColumn = () => {
-    console.log("Copy column:", column.key);
-  };
-
-  const handlePasteColumn = () => {
-    console.log("Paste into column:", column.key);
-  };
-
-  const handleInsertColumnLeft = () => {
-    onMoveColumn(column.key, 'left');
-  };
-
-  const handleInsertColumnRight = () => {
-    onMoveColumn(column.key, 'right');
-  };
-
-  const handleDeleteColumnAction = () => {
-    onDeleteColumn(column.key);
-  };
-
-  const handleSortAZ = () => {
-    onSortColumn(column.key, 'asc');
-  };
-
-  const handleSortZA = () => {
-    onSortColumn(column.key, 'desc');
-  };
 
   return (
     <div 
       ref={headerRef}
       className={`grid-header-cell ${dragOverColumn === column.key ? 'border-l-2 border-r-2 border-teal-primary' : ''}`}
       onDoubleClick={() => onHeaderDoubleClick(column.key)}
-      onContextMenu={handleHeaderContextMenu}
       draggable={draggable}
       onDragStart={draggable ? handleDragStartEvent : undefined}
       onDragOver={draggable ? handleDragOverEvent : undefined}
@@ -171,18 +133,56 @@ export function GridHeaderCell({
       )}
       
       <div className="flex items-center">
-        <ColumnContextMenu
-          columnId={column.key}
-          isOpportunity={column.key === "opportunity"}
-          trigger={<button className="p-1 rounded hover:bg-slate-light/20"><ChevronDown size={14} /></button>}
-          onCopyColumn={handleCopyColumn}
-          onPasteColumn={handlePasteColumn}
-          onInsertColumnLeft={handleInsertColumnLeft}
-          onInsertColumnRight={handleInsertColumnRight}
-          onDeleteColumn={handleDeleteColumnAction}
-          onSortAZ={handleSortAZ}
-          onSortZA={handleSortZA}
-        />
+        <DropdownMenu>
+          <DropdownMenuTrigger className="p-1 rounded hover:bg-slate-light/20">
+            <ChevronDown size={14} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            {column.key !== "opportunity" && (
+              <DropdownMenuItem onClick={() => {
+                setEditingHeader(column.key);
+              }}>
+                <PencilLine size={14} className="mr-2" />
+                Rename
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={() => onDuplicateColumn(column)}>
+              <Copy size={14} className="mr-2" />
+              Duplicate
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {column.key !== "opportunity" && (
+              <>
+                <DropdownMenuItem onClick={() => onMoveColumn(column.key, 'left')}>
+                  <ArrowLeft size={14} className="mr-2" />
+                  Move Left
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onMoveColumn(column.key, 'right')}>
+                  <ArrowRight size={14} className="mr-2" />
+                  Move Right
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem onClick={() => onSortColumn(column.key, 'asc')}>
+              <SortAsc size={14} className="mr-2" />
+              Sort A-Z
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onSortColumn(column.key, 'desc')}>
+              <SortDesc size={14} className="mr-2" />
+              Sort Z-A
+            </DropdownMenuItem>
+            {column.key !== "opportunity" && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onDeleteColumn(column.key)} className="text-red-500">
+                  <Trash2 size={14} className="mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
