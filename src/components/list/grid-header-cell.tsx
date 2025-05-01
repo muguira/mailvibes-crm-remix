@@ -1,9 +1,8 @@
 
-import { ChevronDown, PencilLine, Copy, ArrowLeft, ArrowRight, SortAsc, SortDesc, Trash2 } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { ColumnContextMenu } from "@/components/grid-view/column-context-menu";
+import { ChevronDown, PencilLine } from "lucide-react";
 import { ColumnDef } from "./grid/types";
 import { useState, useEffect, useRef } from "react";
+import { ColumnContextMenu } from "@/components/grid-view/column-context-menu";
 
 interface GridHeaderCellProps {
   column: ColumnDef;

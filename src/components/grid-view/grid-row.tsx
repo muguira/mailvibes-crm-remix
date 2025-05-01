@@ -45,7 +45,12 @@ export function GridRow({
               onClick={() => onCellClick(rowId, column.id)}
               onChange={(value) => onCellChange(rowId, column.id, value)}
               showSaveIndicator={showIndicator}
-              onContextMenu={onCellContextMenu}
+              onContextMenu={(e) => {
+                if (onCellContextMenu) {
+                  e.preventDefault();
+                  onCellContextMenu(column.id, { x: e.clientX, y: e.clientY });
+                }
+              }}
             />
           );
         })}

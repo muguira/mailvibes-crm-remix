@@ -5,6 +5,8 @@ import {
   Clipboard,
   Plus,
   Trash2,
+  ArrowUpAZ,
+  ArrowDownAZ,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -85,15 +87,34 @@ export const ColumnContextMenu: React.FC<ColumnContextMenuProps> = ({
         <DropdownMenuSeparator />
 
         <DropdownMenuItem onClick={handleAction(onSortAZ)}>
-          <span className="mr-2">A→Z</span>
+          <ArrowUpAZ size={14} className="mr-2" />
           Sort sheet A to Z
         </DropdownMenuItem>
 
         <DropdownMenuItem onClick={handleAction(onSortZA)}>
-          <span className="mr-2">Z→A</span>
+          <ArrowDownAZ size={14} className="mr-2" />
           Sort sheet Z to A
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
+};
+
+// Export this context menu helper to be used globally
+export const openColumnContextMenu = (
+  columnId: string,
+  position: { x: number, y: number },
+  callbacks: {
+    onCopyColumn?: (columnId: string) => void,
+    onPasteColumn?: (columnId: string) => void,
+    onInsertColumnLeft?: (columnId: string) => void,
+    onInsertColumnRight?: (columnId: string) => void,
+    onDeleteColumn?: (columnId: string) => void,
+    onSortAZ?: (columnId: string) => void,
+    onSortZA?: (columnId: string) => void,
+  }
+) => {
+  // This is a helper that components can use to trigger the context menu
+  console.log(`Opening context menu for column ${columnId} at position ${position.x},${position.y}`);
+  return { columnId, position, callbacks };
 };
