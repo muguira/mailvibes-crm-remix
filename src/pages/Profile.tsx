@@ -1,8 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Header } from "@/components/layout/header";
-import { Sidebar } from "@/components/layout/sidebar";
+import { TopNavbar } from "@/components/layout/top-navbar";
 import { CustomButton } from "@/components/ui/custom-button";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +17,7 @@ export default function Profile() {
   useEffect(() => {
     async function fetchProfile() {
       if (!user) return;
-      
+
       try {
         setIsFetching(true);
         const { data, error } = await supabase
@@ -26,9 +25,9 @@ export default function Profile() {
           .select("first_name, last_name")
           .eq("id", user.id)
           .single();
-          
+
         if (error) throw error;
-        
+
         if (data) {
           setFirstName(data.first_name || "");
           setLastName(data.last_name || "");
@@ -44,17 +43,17 @@ export default function Profile() {
         setIsFetching(false);
       }
     }
-    
+
     fetchProfile();
   }, [user]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) return;
-    
+
     setIsLoading(true);
-    
+
     try {
       const { error } = await supabase
         .from("profiles")
@@ -64,9 +63,9 @@ export default function Profile() {
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id);
-        
+
       if (error) throw error;
-      
+
       toast({
         title: "Profile updated",
         description: "Your profile has been successfully updated",
@@ -84,20 +83,19 @@ export default function Profile() {
 
   return (
     <div className="flex h-screen bg-slate-light/20">
-      <Sidebar />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title="Profile" />
-        
+        <TopNavbar />
+
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-sm">
             <h1 className="text-2xl font-bold text-navy-deep mb-6">Your Profile</h1>
-            
+
             <div className="mb-6">
               <p className="text-slate-medium">Email</p>
               <p className="font-semibold">{user?.email}</p>
             </div>
-            
+
             {isFetching ? (
               <div className="p-4 text-center">Loading profile data...</div>
             ) : (
@@ -115,7 +113,7 @@ export default function Profile() {
                       className="w-full p-2 border border-slate-light rounded focus:outline-none focus:ring-2 focus:ring-teal-primary"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <label htmlFor="lastName" className="text-sm font-medium text-slate-dark">
                       Last Name
@@ -129,7 +127,7 @@ export default function Profile() {
                     />
                   </div>
                 </div>
-                
+
                 <div className="pt-4">
                   <CustomButton
                     type="submit"

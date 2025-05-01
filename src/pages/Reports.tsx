@@ -1,7 +1,6 @@
 
 import { useState } from "react";
-import { Header } from "@/components/layout/header";
-import { Sidebar } from "@/components/layout/sidebar";
+import { TopNavbar } from "@/components/layout/top-navbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Download } from "lucide-react";
 import { CustomButton } from "@/components/ui/custom-button";
@@ -42,14 +41,13 @@ const salesData = [
 
 const Reports = () => {
   const [dateRange, setDateRange] = useState("May 1, 2023 - Aug 31, 2023");
-  
+
   return (
     <div className="flex h-screen bg-slate-light/20">
-      <Sidebar />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title="SalesIQ Reports" />
-        
+        <TopNavbar />
+
         <div className="flex-1 overflow-auto p-6">
           <div className="bg-white rounded-lg shadow-relate overflow-hidden">
             <Tabs defaultValue="activity">
@@ -59,15 +57,15 @@ const Reports = () => {
                   <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
                   <TabsTrigger value="sales">Sales</TabsTrigger>
                 </TabsList>
-                
+
                 <div className="flex items-center gap-3">
                   <button className="flex items-center gap-2 text-sm px-3 py-1.5 border border-slate-light/50 rounded hover:bg-slate-light/10">
                     <Calendar size={14} />
                     <span>{dateRange}</span>
                   </button>
-                  
-                  <CustomButton 
-                    variant="outline" 
+
+                  <CustomButton
+                    variant="outline"
                     size="sm"
                     className="flex items-center gap-2"
                   >
@@ -76,7 +74,7 @@ const Reports = () => {
                   </CustomButton>
                 </div>
               </div>
-              
+
               <TabsContent value="activity" className="p-4">
                 <h2 className="text-lg font-semibold mb-4">Activity Leaderboard</h2>
                 <div className="h-80 mb-6">
@@ -97,7 +95,7 @@ const Reports = () => {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
@@ -128,7 +126,7 @@ const Reports = () => {
                   </table>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="pipeline" className="p-4">
                 <h2 className="text-lg font-semibold mb-4">Pipeline Value</h2>
                 <div className="h-80 mb-6">
@@ -145,7 +143,7 @@ const Reports = () => {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
@@ -176,7 +174,7 @@ const Reports = () => {
                   </table>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="sales" className="p-4">
                 <h2 className="text-lg font-semibold mb-4">Sales Performance</h2>
                 <div className="h-80 mb-6">
@@ -195,7 +193,7 @@ const Reports = () => {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
@@ -229,8 +227,8 @@ const Reports = () => {
                           ${salesData.reduce((sum, item) => sum + item.forecast, 0).toLocaleString()}
                         </td>
                         <td className="py-3 px-4 text-right font-semibold">
-                          ${(salesData.reduce((sum, item) => sum + item.actual, 0) - 
-                             salesData.reduce((sum, item) => sum + item.forecast, 0)).toLocaleString()}
+                          ${(salesData.reduce((sum, item) => sum + item.actual, 0) -
+                            salesData.reduce((sum, item) => sum + item.forecast, 0)).toLocaleString()}
                         </td>
                       </tr>
                     </tbody>
