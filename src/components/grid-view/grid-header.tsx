@@ -4,26 +4,17 @@ import { Column } from './types';
 import { MIN_COLUMN_WIDTH } from './grid-constants';
 import {
   MoreVertical,
-  Eye,
-  EyeOff,
   Plus,
   Trash2,
   Copy,
-  Scissors,
-  Clipboard,
-  Filter,
-  StretchHorizontal
+  Clipboard
 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuSub,
-  DropdownMenuPortal
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 
 interface GridHeaderProps {
@@ -176,12 +167,7 @@ export function GridHeader({
     }
   };
 
-  // Clipboard operations stubs
-  const handleCutColumn = (columnId: string) => {
-    console.log(`Cut column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
+  // Clipboard operations
   const handleCopyColumn = (columnId: string) => {
     console.log(`Copy column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
@@ -189,11 +175,6 @@ export function GridHeader({
 
   const handlePasteColumn = (columnId: string) => {
     console.log(`Paste into column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  const handlePasteSpecial = (columnId: string, type: string) => {
-    console.log(`Paste special (${type}) into column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
   };
 
@@ -222,27 +203,7 @@ export function GridHeader({
     if (onContextMenu) onContextMenu(null);
   };
 
-  const handleClearColumn = (columnId: string) => {
-    console.log(`Clear column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  const handleHideColumn = (columnId: string) => {
-    console.log(`Hide column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  const handleResizeColumnAction = (columnId: string) => {
-    console.log(`Resize column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  // Sort and filter
-  const handleCreateFilter = (columnId: string) => {
-    console.log(`Create filter for column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
+  // Sort operations
   const handleSortAZ = (columnId: string) => {
     console.log(`Sort sheet A-Z by column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
@@ -269,12 +230,6 @@ export function GridHeader({
                 <MoreVertical size={14} />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleCutColumn(columnId)}>
-                  <Scissors size={14} className="mr-2" />
-                  Cut
-                  <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
-                </DropdownMenuItem>
-
                 <DropdownMenuItem onClick={() => handleCopyColumn(columnId)}>
                   <Copy size={14} className="mr-2" />
                   Copy
@@ -286,23 +241,6 @@ export function GridHeader({
                   Paste
                   <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
                 </DropdownMenuItem>
-
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <Clipboard size={14} className="mr-2" />
-                    Paste special
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuSubContent>
-                      <DropdownMenuItem onClick={() => handlePasteSpecial(columnId, 'values')}>
-                        Values only
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handlePasteSpecial(columnId, 'format')}>
-                        Format only
-                      </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-                </DropdownMenuSub>
 
                 <DropdownMenuSeparator />
 
@@ -322,28 +260,6 @@ export function GridHeader({
                     Delete column
                   </DropdownMenuItem>
                 )}
-
-                <DropdownMenuItem onClick={() => handleClearColumn(columnId)}>
-                  <span className="mr-2">×</span>
-                  Clear column
-                </DropdownMenuItem>
-
-                <DropdownMenuItem onClick={() => handleHideColumn(columnId)}>
-                  <EyeOff size={14} className="mr-2" />
-                  Hide column
-                </DropdownMenuItem>
-
-                <DropdownMenuItem onClick={() => handleResizeColumnAction(columnId)}>
-                  <StretchHorizontal size={14} className="mr-2" />
-                  Resize column
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem onClick={() => handleCreateFilter(columnId)}>
-                  <Filter size={14} className="mr-2" />
-                  Create a filter
-                </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
 
