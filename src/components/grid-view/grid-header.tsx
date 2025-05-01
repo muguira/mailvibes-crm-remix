@@ -1,32 +1,16 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Column } from './types';
-import { Check, MoreVertical, ArrowUpDown, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
+import { Check } from 'lucide-react';
 
 interface GridHeaderProps {
   columns: Column[];
   onColumnChange?: (columnId: string, updates: Partial<Column>) => void;
   onColumnsReorder?: (columnIds: string[]) => void;
   onColumnResize?: (columnIndex: number, newWidth: number) => void;
-  onAddColumn?: (afterColumnId: string) => void;
-  onDeleteColumn?: (columnId: string) => void;
 }
 
-export function GridHeader({ 
-  columns, 
-  onColumnChange, 
-  onColumnsReorder, 
-  onColumnResize,
-  onAddColumn,
-  onDeleteColumn
-}: GridHeaderProps) {
+export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumnResize }: GridHeaderProps) {
   const [editingHeader, setEditingHeader] = useState<string | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
@@ -35,7 +19,6 @@ export function GridHeader({
   
   // Handle column header edit (double click)
   const handleHeaderDoubleClick = (columnId: string) => {
-    if (columnId === 'opportunity') return; // Don't allow editing the opportunity column
     setEditingHeader(columnId);
   };
   
@@ -59,26 +42,13 @@ export function GridHeader({
   
   // Handle column drag start
   const handleDragStart = (e: React.DragEvent, columnId: string) => {
-    if (columnId === 'opportunity') return; // Don't allow dragging the opportunity column
     setDraggedColumn(columnId);
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', columnId);
-    
-    // Create a drag preview
-    const dragPreview = document.createElement('div');
-    dragPreview.className = 'drop-placeholder';
-    dragPreview.style.width = '100px';
-    dragPreview.style.height = '30px';
-    dragPreview.style.position = 'absolute';
-    dragPreview.style.left = '-1000px';
-    document.body.appendChild(dragPreview);
-    e.dataTransfer.setDragImage(dragPreview, 50, 15);
   };
   
   // Handle column drag over
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
   };
   
   // Handle column drop for reordering
@@ -86,12 +56,6 @@ export function GridHeader({
     e.preventDefault();
     
     if (!draggedColumn || !onColumnsReorder || draggedColumn === targetColumnId) {
-      setDraggedColumn(null);
-      return;
-    }
-    
-    // Don't allow dropping onto the opportunity column
-    if (targetColumnId === 'opportunity') {
       setDraggedColumn(null);
       return;
     }
@@ -127,7 +91,7 @@ export function GridHeader({
     document.addEventListener('mouseup', handleResizeEnd);
   }, []);
   
-  // Handle column resize move with improved live updating
+  // Handle column resize move - improved to update in real-time
   const handleResizeMove = useCallback((e: MouseEvent) => {
     e.preventDefault();
     
@@ -140,6 +104,7 @@ export function GridHeader({
     const columnIndex = columns.findIndex(col => col.id === resizingColumn);
     
     if (columnIndex >= 0 && onColumnResize) {
+      // Add 1 for the index column and ensure remeasure is true
       onColumnResize(columnIndex + 1, newWidth);
     }
   }, [resizingColumn, initialX, initialWidth, columns, onColumnResize]);
@@ -148,6 +113,7 @@ export function GridHeader({
   const handleResizeEnd = useCallback((e: MouseEvent) => {
     e.preventDefault();
     
+    // Final update of column width
     if (resizingColumn && onColumnResize) {
       const columnIndex = columns.findIndex(col => col.id === resizingColumn);
       if (columnIndex >= 0) {
@@ -172,21 +138,11 @@ export function GridHeader({
     };
   }, [handleResizeMove, handleResizeEnd]);
 
-  const handleAddColumnAfter = (columnId: string) => {
-    if (onAddColumn) {
-      onAddColumn(columnId);
-    }
-  };
-
-  const handleDeleteColumn = (columnId: string) => {
-    if (onDeleteColumn && columnId !== 'opportunity') {
-      onDeleteColumn(columnId);
-    }
-  };
-
   return (
     <div className="grid-header">
-      <div className="index-header">#</div>
+      <div className="index-header">
+        #
+      </div>
       <div className="columns-header">
         {columns.map((column, index) => {
           // Fix for first column display name
@@ -197,11 +153,11 @@ export function GridHeader({
               key={column.id}
               className={`
                 grid-header-cell 
-                ${column.id === 'opportunity' ? 'grid-frozen-header' : ''} 
+                ${column.frozen ? 'grid-frozen-header' : ''} 
                 ${draggedColumn === column.id ? 'dragging' : ''}
                 ${column.type === 'currency' ? 'text-right' : ''}
               `}
-              draggable={column.id !== 'opportunity'}
+              draggable
               onDragStart={(e) => handleDragStart(e, column.id)}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, column.id)}
@@ -220,63 +176,16 @@ export function GridHeader({
               ) : (
                 <>
                   <span className="header-title">{displayTitle}</span>
-                  <div className="header-cell-actions">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className="header-cell-menu-button">
-                        <MoreVertical size={14} />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {column.id !== 'opportunity' && (
-                          <>
-                            <DropdownMenuItem onClick={() => handleHeaderDoubleClick(column.id)}>
-                              Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                          </>
-                        )}
-                        <DropdownMenuItem onClick={() => {}}>
-                          <ArrowUpDown size={14} className="mr-2" />
-                          Sort
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {}}>
-                          <Eye size={14} className="mr-2" />
-                          Hide
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleAddColumnAfter(column.id)}>
-                          <Plus size={14} className="mr-2" />
-                          Add Column After
-                        </DropdownMenuItem>
-                        {column.id !== 'opportunity' && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteColumn(column.id)}
-                              className="text-red-500"
-                            >
-                              <Trash2 size={14} className="mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <div
-                      className="resize-handle"
-                      onMouseDown={(e) => handleResizeStart(e, column.id, column.width)}
-                    />
-                  </div>
+                  <div
+                    className="resize-handle"
+                    onMouseDown={(e) => handleResizeStart(e, column.id, column.width)}
+                  />
                 </>
               )}
             </div>
           );
         })}
-        <div 
-          className="add-column-button"
-          onClick={() => onAddColumn && onAddColumn(columns[columns.length - 1].id)}  
-        >
-          +
-        </div>
+        <div className="add-column-button">+</div>
       </div>
     </div>
   );

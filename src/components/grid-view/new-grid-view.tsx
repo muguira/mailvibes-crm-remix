@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
@@ -7,7 +6,6 @@ import { GridToolbar } from './grid-toolbar';
 import { GridHeader } from './grid-header';
 import { Check } from 'lucide-react';
 import './styles.css';
-import { v4 as uuidv4 } from 'uuid';
 
 export function NewGridView({
   columns,
@@ -17,8 +15,6 @@ export function NewGridView({
   onCellChange,
   onColumnChange,
   onColumnsReorder,
-  onDeleteColumn,
-  onAddColumn,
   className
 }: GridContainerProps) {
   const gridRef = useRef<any>(null);
@@ -30,7 +26,6 @@ export function NewGridView({
   const [editingCell, setEditingCell] = useState<{rowId: string, columnId: string} | null>(null);
   const [activeFilters, setActiveFilters] = useState<{columns: string[], values: Record<string, any>}>({ columns: [], values: {} });
   const [statusDropdownPosition, setStatusDropdownPosition] = useState<{ top: number; left: number; rowId: string; columnId: string } | null>(null);
-  const [visibleData, setVisibleData] = useState<GridRow[]>([]);
 
   // Column widths state
   const [columnWidths, setColumnWidths] = useState<number[]>(
@@ -42,18 +37,13 @@ export function NewGridView({
     setColumnWidths([INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]);
   }, [columns]);
 
-  // Set visible data on initial load
-  useEffect(() => {
-    setVisibleData(data);
-  }, [data]);
-
   // Calculate total width of columns
   const totalWidth = useMemo(() => {
     return columnWidths.reduce((acc, width) => acc + width, 0);
   }, [columnWidths]);
 
   // Filter data based on search term and active filters
-  const applyFilters = useCallback(() => {
+  const filteredData = useMemo(() => {
     let result = data;
     
     // Apply search filter
@@ -116,12 +106,6 @@ export function NewGridView({
     return result;
   }, [data, columns, searchTerm, activeFilters]);
 
-  // Apply filters whenever filter conditions change
-  useEffect(() => {
-    const filteredData = applyFilters();
-    setVisibleData(filteredData);
-  }, [applyFilters]);
-
   // Resize observer for container
   useEffect(() => {
     if (!containerRef.current) return;
@@ -139,7 +123,7 @@ export function NewGridView({
     };
   }, []);
 
-  // Fix for column resize with proper persistence
+  // Fix for column resize - ensure proper grid refresh
   const handleColumnResize = useCallback((columnIndex: number, newWidth: number) => {
     console.log(`Resizing column ${columnIndex} to ${newWidth}px`);
     
@@ -208,7 +192,7 @@ export function NewGridView({
 
   // Handle key press in editing cell
   const handleKeyDown = (e: React.KeyboardEvent, rowId: string, columnId: string, value: any) => {
-    const rowIndex = visibleData.findIndex(row => row.id === rowId);
+    const rowIndex = filteredData.findIndex(row => row.id === rowId);
     const colIndex = columns.findIndex(col => col.id === columnId);
     
     if (e.key === 'Enter') {
@@ -220,13 +204,13 @@ export function NewGridView({
       if (e.shiftKey) {
         // Move to the cell above if not at the top
         if (rowIndex > 0) {
-          const prevRow = visibleData[rowIndex - 1];
+          const prevRow = filteredData[rowIndex - 1];
           setEditingCell({ rowId: prevRow.id, columnId });
         }
       } else {
         // Move to the cell below if not at the bottom
-        if (rowIndex < visibleData.length - 1) {
-          const nextRow = visibleData[rowIndex + 1];
+        if (rowIndex < filteredData.length - 1) {
+          const nextRow = filteredData[rowIndex + 1];
           setEditingCell({ rowId: nextRow.id, columnId });
         }
       }
@@ -242,7 +226,7 @@ export function NewGridView({
           setEditingCell({ rowId, columnId: columns[colIndex - 1].id });
         } else if (rowIndex > 0) {
           // Move to the end of the previous row
-          const prevRow = visibleData[rowIndex - 1];
+          const prevRow = filteredData[rowIndex - 1];
           setEditingCell({ 
             rowId: prevRow.id, 
             columnId: columns[columns.length - 1].id 
@@ -252,9 +236,9 @@ export function NewGridView({
         // Move to the next cell if not at the end
         if (colIndex < columns.length - 1) {
           setEditingCell({ rowId, columnId: columns[colIndex + 1].id });
-        } else if (rowIndex < visibleData.length - 1) {
+        } else if (rowIndex < filteredData.length - 1) {
           // Move to the start of the next row
-          const nextRow = visibleData[rowIndex + 1];
+          const nextRow = filteredData[rowIndex + 1];
           setEditingCell({ 
             rowId: nextRow.id, 
             columnId: columns[0].id 
@@ -327,20 +311,6 @@ export function NewGridView({
         )}
       </>
     );
-  };
-
-  // Handle adding a column after another column
-  const handleAddColumn = (afterColumnId: string) => {
-    if (onAddColumn) {
-      onAddColumn(afterColumnId);
-    }
-  };
-
-  // Handle deleting a column
-  const handleDeleteColumn = (columnId: string) => {
-    if (onDeleteColumn && columnId !== 'opportunity') {
-      onDeleteColumn(columnId);
-    }
   };
 
   // Render edit input based on column type with enhanced UX
@@ -463,7 +433,7 @@ export function NewGridView({
     }
     
     const dataRowIndex = rowIndex - 1;
-    const row = visibleData[dataRowIndex];
+    const row = filteredData[dataRowIndex];
     
     if (!row) return null;
     
@@ -473,7 +443,7 @@ export function NewGridView({
           className="index-column"
           style={{
             ...style,
-            borderTop: 'none',
+            borderTop: 'none', // Fix for removing gaps
             borderBottom: '1px solid #e5e7eb',
             borderRight: '1px solid #e5e7eb'
           }}
@@ -498,9 +468,9 @@ export function NewGridView({
     // Fix cell styles to eliminate gaps
     const cellStyle = {
       ...style,
-      borderTop: 'none',
-      borderLeft: 'none',
-      padding: isEditing ? 0 : '0.75rem',
+      borderTop: 'none', // Remove top border to fix gap
+      borderLeft: 'none', // Remove left border to fix gap
+      padding: isEditing ? 0 : '0.75rem', // Keep consistent padding
     };
     
     return (
@@ -569,8 +539,6 @@ export function NewGridView({
           onColumnChange={onColumnChange}
           onColumnsReorder={onColumnsReorder}
           onColumnResize={handleColumnResize}
-          onAddColumn={handleAddColumn}
-          onDeleteColumn={handleDeleteColumn}
         />
       </div>
       
@@ -581,7 +549,7 @@ export function NewGridView({
             columnCount={columns.length + 1} // +1 for index column
             columnWidth={getColumnWidth}
             height={containerHeight - HEADER_HEIGHT + 10} // Add 10px to remove the gap
-            rowCount={visibleData.length + 1} // +1 for header placeholder
+            rowCount={filteredData.length + 1} // +1 for header placeholder
             rowHeight={getRowHeight}
             width={containerWidth}
             className="react-window-grid"
@@ -613,7 +581,7 @@ export function NewGridView({
         >
           {(() => {
             const column = columns.find(col => col.id === statusDropdownPosition.columnId);
-            const row = visibleData.find(r => r.id === statusDropdownPosition.rowId);
+            const row = filteredData.find(r => r.id === statusDropdownPosition.rowId);
             const currentValue = row ? row[statusDropdownPosition.columnId] : '';
             
             return column?.options?.map((option) => (
