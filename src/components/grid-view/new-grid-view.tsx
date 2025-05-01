@@ -478,7 +478,7 @@ export function NewGridView({
             borderTop: 'none',
             borderBottom: '1px solid #e5e7eb',
             borderRight: '1px solid #e5e7eb',
-            boxSizing: 'border-box',
+            boxSizing: 'border-box' as 'border-box',
             height: ROW_HEIGHT
           }}
         >
@@ -511,7 +511,7 @@ export function NewGridView({
       borderRight: '1px solid #e5e7eb',
       padding: isEditing ? 0 : '0.5rem',
       height: ROW_HEIGHT,
-      boxSizing: 'border-box',
+      boxSizing: 'border-box' as 'border-box',
       overflow: 'hidden'
     };
     

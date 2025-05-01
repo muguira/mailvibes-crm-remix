@@ -1,4 +1,3 @@
-
 /* Grid View */
 .grid-view {
   display: flex;
@@ -250,6 +249,16 @@
   padding: 0 !important;
   margin: 0 !important;
   outline: none !important;
+}
+
+.react-window-grid div[style*="top: 0px"],
+.react-window-grid div[style*="top:0px"] {
+  border-top: none !important;
+  margin-top: 0 !important;
+}
+
+.react-window-grid > div > div > div:first-child > div {
+  border-top: none !important;
 }
 
 /* Status Dropdown Styling */

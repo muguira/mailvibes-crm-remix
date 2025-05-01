@@ -41,3 +41,18 @@
 .grid-body :first-child {
   border-top: none !important;
 }
+
+/* More specific selector for React Window first row */
+.react-window-grid [style*="top: 0px"] {
+  border-top: none !important;
+}
+
+/* Additional fix for the first row in React Window grid */
+.ReactVirtualized__Grid__cell:first-of-type {
+  border-top: none !important;
+}
+
+/* Fix for the first visible row */
+.react-window-grid-inner > div:first-of-type > div {
+  border-top: none !important;
+}
