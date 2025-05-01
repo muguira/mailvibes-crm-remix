@@ -1,28 +1,13 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Column } from './types';
-import { 
-  MoreVertical, 
-  ArrowUpDown, 
-  Eye, 
-  EyeOff, 
-  Plus, 
-  Trash2,
-  Clipboard,
-  ClipboardCopy,
-  Scissors,
-  StretchHorizontal,
-  Filter
-} from 'lucide-react';
+import { Check, MoreVertical, ArrowUpDown, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuSeparator, 
-  DropdownMenuTrigger,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuSub,
-  DropdownMenuPortal
+  DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 
 interface GridHeaderProps {
@@ -32,8 +17,6 @@ interface GridHeaderProps {
   onColumnResize?: (columnIndex: number, newWidth: number) => void;
   onAddColumn?: (afterColumnId: string) => void;
   onDeleteColumn?: (columnId: string) => void;
-  onContextMenu?: (columnId: string | null, position?: { x: number, y: number }) => void;
-  activeContextMenu?: string | null;
 }
 
 export function GridHeader({ 
@@ -42,17 +25,13 @@ export function GridHeader({
   onColumnsReorder, 
   onColumnResize,
   onAddColumn,
-  onDeleteColumn,
-  onContextMenu,
-  activeContextMenu
+  onDeleteColumn
 }: GridHeaderProps) {
   const [editingHeader, setEditingHeader] = useState<string | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [initialX, setInitialX] = useState(0);
   const [initialWidth, setInitialWidth] = useState(0);
-  const [dragPreview, setDragPreview] = useState<HTMLDivElement | null>(null);
-  const [resizeGuide, setResizeGuide] = useState<{left: number, visible: boolean}>({left: 0, visible: false});
   
   // Handle column header edit (double click)
   const handleHeaderDoubleClick = (columnId: string) => {
@@ -78,58 +57,23 @@ export function GridHeader({
     }
   };
   
-  // Handle column drag start - improved with better drag preview
+  // Handle column drag start
   const handleDragStart = (e: React.DragEvent, columnId: string) => {
     if (columnId === 'opportunity') return; // Don't allow dragging the opportunity column
-    
     setDraggedColumn(columnId);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', columnId);
     
-    // Create a more visible drag preview
-    const column = columns.find(col => col.id === columnId);
-    if (!column) return;
-    
+    // Create a drag preview
     const dragPreview = document.createElement('div');
-    dragPreview.className = 'drag-preview-column';
-    dragPreview.textContent = column.title;
+    dragPreview.className = 'drop-placeholder';
+    dragPreview.style.width = '100px';
+    dragPreview.style.height = '30px';
     dragPreview.style.position = 'absolute';
-    dragPreview.style.top = '-1000px';
-    dragPreview.style.backgroundColor = '#d4e6ff';
-    dragPreview.style.border = '2px dashed #2684ff';
-    dragPreview.style.padding = '8px 12px';
-    dragPreview.style.borderRadius = '4px';
-    dragPreview.style.width = `${column.width}px`;
-    dragPreview.style.zIndex = '1000';
-    dragPreview.style.opacity = '0.8';
-    
+    dragPreview.style.left = '-1000px';
     document.body.appendChild(dragPreview);
-    setDragPreview(dragPreview);
     e.dataTransfer.setDragImage(dragPreview, 50, 15);
   };
-  
-  // Clean up drag preview when dragging ends
-  useEffect(() => {
-    const handleDragEnd = () => {
-      if (dragPreview) {
-        document.body.removeChild(dragPreview);
-        setDragPreview(null);
-      }
-      setDraggedColumn(null);
-    };
-    
-    window.addEventListener('dragend', handleDragEnd);
-    return () => {
-      window.removeEventListener('dragend', handleDragEnd);
-      if (dragPreview) {
-        try {
-          document.body.removeChild(dragPreview);
-        } catch (e) {
-          // Preview may have been removed already
-        }
-      }
-    };
-  }, [dragPreview]);
   
   // Handle column drag over
   const handleDragOver = (e: React.DragEvent) => {
@@ -137,7 +81,7 @@ export function GridHeader({
     e.dataTransfer.dropEffect = 'move';
   };
   
-  // Handle column drop for reordering - with improved visual feedback
+  // Handle column drop for reordering
   const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
     
@@ -146,8 +90,8 @@ export function GridHeader({
       return;
     }
     
-    // Don't allow dropping onto the opportunity column if it's first
-    if (targetColumnId === 'opportunity' && columns[0].id === 'opportunity') {
+    // Don't allow dropping onto the opportunity column
+    if (targetColumnId === 'opportunity') {
       setDraggedColumn(null);
       return;
     }
@@ -169,12 +113,8 @@ export function GridHeader({
     setDraggedColumn(null);
   };
   
-  // Handle column resize start with improved live update and bidirectional resizing
+  // Handle column resize start
   const handleResizeStart = useCallback((e: React.MouseEvent, columnId: string, initialWidth: number) => {
-    // Don't allow resizing if the column is marked non-resizable
-    const column = columns.find(col => col.id === columnId);
-    if (column?.resizable === false) return;
-    
     e.preventDefault();
     e.stopPropagation();
     
@@ -182,165 +122,66 @@ export function GridHeader({
     setInitialX(e.clientX);
     setInitialWidth(initialWidth);
     
-    // Show resize guide at initial position
-    const headerCell = document.querySelector(`[data-column-id="${columnId}"]`);
-    if (headerCell) {
-      const rect = headerCell.getBoundingClientRect();
-      setResizeGuide({
-        left: rect.right,
-        visible: true
-      });
-    }
-    
-    const handleResizeMove = (moveEvent: MouseEvent) => {
-      moveEvent.preventDefault();
-      
-      if (resizingColumn === null) return;
-      
-      const diffX = moveEvent.clientX - initialX;
-      const newWidth = Math.max(100, initialWidth + diffX); // Minimum width of 100px
-      
-      // Update resize guide position
-      setResizeGuide({
-        left: initialX + diffX,
-        visible: true
-      });
-      
-      // Update column width during drag in real-time
-      const columnIndex = columns.findIndex(col => col.id === columnId);
-      
-      if (columnIndex >= 0 && onColumnResize) {
-        onColumnResize(columnIndex, newWidth);
-      }
-    };
-    
-    const handleResizeEnd = (upEvent: MouseEvent) => {
-      upEvent.preventDefault();
-      
-      // Hide the resize guide
-      setResizeGuide({ left: 0, visible: false });
-      
-      // Final update to ensure persistence
-      if (onColumnResize) {
-        const columnIndex = columns.findIndex(col => col.id === columnId);
-        if (columnIndex >= 0) {
-          const diffX = upEvent.clientX - initialX;
-          const newWidth = Math.max(100, initialWidth + diffX);
-          onColumnResize(columnIndex, newWidth);
-        }
-      }
-      
-      setResizingColumn(null);
-      document.removeEventListener('mousemove', handleResizeMove);
-      document.removeEventListener('mouseup', handleResizeEnd);
-    };
-    
     // Add event listeners for mousemove and mouseup
     document.addEventListener('mousemove', handleResizeMove);
     document.addEventListener('mouseup', handleResizeEnd);
-  }, [columns, onColumnResize, initialX, initialWidth, resizingColumn]);
-
-  // Handler for the context menu - now with position
-  const handleHeaderContextMenu = (e: React.MouseEvent, columnId: string) => {
+  }, []);
+  
+  // Handle column resize move with improved live updating
+  const handleResizeMove = useCallback((e: MouseEvent) => {
     e.preventDefault();
     
-    // Get the position for the context menu
-    const position = { x: e.clientX, y: e.clientY };
+    if (!resizingColumn) return;
     
-    if (onContextMenu) {
-      onContextMenu(columnId, position);
+    const diffX = e.clientX - initialX;
+    const newWidth = Math.max(100, initialWidth + diffX); // Minimum width of 100px
+    
+    // Update column width during drag in real-time
+    const columnIndex = columns.findIndex(col => col.id === resizingColumn);
+    
+    if (columnIndex >= 0 && onColumnResize) {
+      onColumnResize(columnIndex + 1, newWidth);
     }
-  };
+  }, [resizingColumn, initialX, initialWidth, columns, onColumnResize]);
   
-  // Open context menu from the menu icon
-  const handleMenuButtonClick = (e: React.MouseEvent, columnId: string) => {
-    e.stopPropagation();
+  // Handle column resize end with explicit update to ensure persistence
+  const handleResizeEnd = useCallback((e: MouseEvent) => {
+    e.preventDefault();
     
-    // Get the position for the context menu using the button location
-    const buttonElement = e.currentTarget as HTMLElement;
-    const rect = buttonElement.getBoundingClientRect();
-    const position = { x: rect.right, y: rect.bottom };
-    
-    if (onContextMenu) {
-      onContextMenu(columnId, position);
+    if (resizingColumn && onColumnResize) {
+      const columnIndex = columns.findIndex(col => col.id === resizingColumn);
+      if (columnIndex >= 0) {
+        const diffX = e.clientX - initialX;
+        const newWidth = Math.max(100, initialWidth + diffX);
+        onColumnResize(columnIndex + 1, newWidth);
+      }
     }
-  };
+    
+    setResizingColumn(null);
+    
+    // Remove event listeners
+    document.removeEventListener('mousemove', handleResizeMove);
+    document.removeEventListener('mouseup', handleResizeEnd);
+  }, [resizingColumn, onColumnResize, columns, initialX, initialWidth, handleResizeMove]);
   
-  // Clipboard operations stubs
-  const handleCutColumn = (columnId: string) => {
-    console.log(`Cut column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
+  // Clean up event listeners on unmount
+  useEffect(() => {
+    return () => {
+      document.removeEventListener('mousemove', handleResizeMove);
+      document.removeEventListener('mouseup', handleResizeEnd);
+    };
+  }, [handleResizeMove, handleResizeEnd]);
 
-  const handleCopyColumn = (columnId: string) => {
-    console.log(`Copy column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  const handlePasteColumn = (columnId: string) => {
-    console.log(`Paste into column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  const handlePasteSpecial = (columnId: string, type: string) => {
-    console.log(`Paste special (${type}) into column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  // Column operations
-  const handleInsertColumnLeft = (columnId: string) => {
-    console.log(`Insert column left of: ${columnId}`);
-    const columnIndex = columns.findIndex(col => col.id === columnId);
-    if (columnIndex > 0) {
-      const prevColumnId = columns[columnIndex - 1].id;
-      if (onAddColumn) onAddColumn(prevColumnId);
-    } else {
-      if (onAddColumn) onAddColumn(columnId);
+  const handleAddColumnAfter = (columnId: string) => {
+    if (onAddColumn) {
+      onAddColumn(columnId);
     }
-    if (onContextMenu) onContextMenu(null);
   };
 
-  const handleInsertColumnRight = (columnId: string) => {
-    console.log(`Insert column right of: ${columnId}`);
-    if (onAddColumn) onAddColumn(columnId);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  const handleDeleteColumnAction = (columnId: string) => {
-    console.log(`Delete column: ${columnId}`);
-    if (onDeleteColumn && columnId !== 'opportunity') onDeleteColumn(columnId);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  const handleClearColumn = (columnId: string) => {
-    console.log(`Clear column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  const handleHideColumn = (columnId: string) => {
-    console.log(`Hide column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  const handleResizeColumnAction = (columnId: string) => {
-    console.log(`Resize column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  // Sort and filter
-  const handleCreateFilter = (columnId: string) => {
-    console.log(`Create filter for column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  const handleSortAZ = (columnId: string) => {
-    console.log(`Sort sheet A-Z by column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-
-  const handleSortZA = (columnId: string) => {
-    console.log(`Sort sheet Z-A by column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
+  const handleDeleteColumn = (columnId: string) => {
+    if (onDeleteColumn && columnId !== 'opportunity') {
+      onDeleteColumn(columnId);
+    }
   };
 
   return (
@@ -350,126 +191,21 @@ export function GridHeader({
         {columns.map((column, index) => {
           // Fix for first column display name
           const displayTitle = column.id === 'opportunity' ? 'Opportunity' : column.title;
-          const isContextMenuOpen = activeContextMenu === column.id;
-          
-          // Render dropdown menu for column options
-          const renderColumnMenu = (columnId: string) => (
-            <DropdownMenu>
-              <DropdownMenuTrigger 
-                className="header-cell-menu-button"
-                onClick={(e) => handleMenuButtonClick(e, columnId)} // Handle click to open context menu
-              >
-                <MoreVertical size={14} />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleCutColumn(columnId)}>
-                  <Scissors size={14} className="mr-2" />
-                  Cut
-                  <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
-                </DropdownMenuItem>
-                
-                <DropdownMenuItem onClick={() => handleCopyColumn(columnId)}>
-                  <ClipboardCopy size={14} className="mr-2" />
-                  Copy
-                  <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
-                </DropdownMenuItem>
-                
-                <DropdownMenuItem onClick={() => handlePasteColumn(columnId)}>
-                  <Clipboard size={14} className="mr-2" />
-                  Paste
-                  <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
-                </DropdownMenuItem>
-                
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <Clipboard size={14} className="mr-2" />
-                    Paste special
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuSubContent>
-                      <DropdownMenuItem onClick={() => handlePasteSpecial(columnId, 'values')}>
-                        Values only
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handlePasteSpecial(columnId, 'format')}>
-                        Format only
-                      </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-                </DropdownMenuSub>
-                
-                <DropdownMenuSeparator />
-                
-                <DropdownMenuItem onClick={() => handleInsertColumnLeft(columnId)}>
-                  <Plus size={14} className="mr-2" />
-                  Insert column left
-                </DropdownMenuItem>
-                
-                <DropdownMenuItem onClick={() => handleInsertColumnRight(columnId)}>
-                  <Plus size={14} className="mr-2" />
-                  Insert column right
-                </DropdownMenuItem>
-                
-                {columnId !== 'opportunity' && (
-                  <DropdownMenuItem onClick={() => handleDeleteColumnAction(columnId)}>
-                    <Trash2 size={14} className="mr-2" />
-                    Delete column
-                  </DropdownMenuItem>
-                )}
-                
-                <DropdownMenuItem onClick={() => handleClearColumn(columnId)}>
-                  <span className="mr-2">×</span>
-                  Clear column
-                </DropdownMenuItem>
-                
-                <DropdownMenuItem onClick={() => handleHideColumn(columnId)}>
-                  <EyeOff size={14} className="mr-2" />
-                  Hide column
-                </DropdownMenuItem>
-                
-                <DropdownMenuItem onClick={() => handleResizeColumnAction(columnId)}>
-                  <StretchHorizontal size={14} className="mr-2" />
-                  Resize column
-                </DropdownMenuItem>
-                
-                <DropdownMenuSeparator />
-                
-                <DropdownMenuItem onClick={() => handleCreateFilter(columnId)}>
-                  <Filter size={14} className="mr-2" />
-                  Create a filter
-                </DropdownMenuItem>
-                
-                <DropdownMenuSeparator />
-                
-                <DropdownMenuItem onClick={() => handleSortAZ(columnId)}>
-                  <span className="mr-2">A→Z</span>
-                  Sort sheet A to Z
-                </DropdownMenuItem>
-                
-                <DropdownMenuItem onClick={() => handleSortZA(columnId)}>
-                  <span className="mr-2">Z→A</span>
-                  Sort sheet Z to A
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
           
           return (
             <div
               key={column.id}
-              data-column-id={column.id}
               className={`
                 grid-header-cell 
                 ${column.id === 'opportunity' ? 'grid-frozen-header' : ''} 
                 ${draggedColumn === column.id ? 'dragging' : ''}
                 ${column.type === 'currency' ? 'text-right' : ''}
-                ${isContextMenuOpen ? 'highlight-column' : ''}
               `}
               draggable={column.id !== 'opportunity'}
               onDragStart={(e) => handleDragStart(e, column.id)}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, column.id)}
               onDoubleClick={() => handleHeaderDoubleClick(column.id)}
-              onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
               style={{ width: column.width }}
             >
               {editingHeader === column.id ? (
@@ -485,13 +221,50 @@ export function GridHeader({
                 <>
                   <span className="header-title">{displayTitle}</span>
                   <div className="header-cell-actions">
-                    {renderColumnMenu(column.id)}
-                    {column.resizable !== false && (
-                      <div
-                        className="resize-handle"
-                        onMouseDown={(e) => handleResizeStart(e, column.id, column.width)}
-                      />
-                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className="header-cell-menu-button">
+                        <MoreVertical size={14} />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {column.id !== 'opportunity' && (
+                          <>
+                            <DropdownMenuItem onClick={() => handleHeaderDoubleClick(column.id)}>
+                              Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
+                        <DropdownMenuItem onClick={() => {}}>
+                          <ArrowUpDown size={14} className="mr-2" />
+                          Sort
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {}}>
+                          <Eye size={14} className="mr-2" />
+                          Hide
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleAddColumnAfter(column.id)}>
+                          <Plus size={14} className="mr-2" />
+                          Add Column After
+                        </DropdownMenuItem>
+                        {column.id !== 'opportunity' && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteColumn(column.id)}
+                              className="text-red-500"
+                            >
+                              <Trash2 size={14} className="mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <div
+                      className="resize-handle"
+                      onMouseDown={(e) => handleResizeStart(e, column.id, column.width)}
+                    />
                   </div>
                 </>
               )}
@@ -505,14 +278,6 @@ export function GridHeader({
           +
         </div>
       </div>
-      
-      {/* Resize guide - shows while dragging column resize handle */}
-      {resizeGuide.visible && (
-        <div 
-          className="resize-guide" 
-          style={{ left: `${resizeGuide.left}px` }}
-        />
-      )}
     </div>
   );
 }

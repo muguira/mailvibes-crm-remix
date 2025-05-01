@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { NewGridView } from '@/components/grid-view/new-grid-view';
 import { Column, GridRow } from '@/components/grid-view/types';
-import { DEFAULT_COLUMN_WIDTH, INDEX_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
+import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { STATUS_COLORS } from '@/components/grid-view/grid-constants';
 import { useLocation } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,7 +17,6 @@ const opportunityColumns: Column[] = [
     width: DEFAULT_COLUMN_WIDTH,
     editable: true,
     frozen: true,
-    resizable: false, // Don't allow resizing the opportunity column
   },
   {
     id: 'status',
@@ -91,25 +91,23 @@ const opportunityColumns: Column[] = [
   }
 ];
 
-// Generate sample row data
-const generateRow = (i: number): GridRow => ({
-  id: `row-${uuidv4()}`, // Use UUID to ensure uniqueness for API calls
-  opportunity: `Opportunity ${i}`,
-  status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-  revenue: Math.floor(Math.random() * 100000),
-  closeDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-  owner: ['John Doe', 'Jane Smith', 'Robert Johnson'][Math.floor(Math.random() * 3)],
-  website: 'https://example.com',
-  companyName: `Company ${i}`,
-  linkedIn: 'https://linkedin.com/company/example',
-  employees: Math.floor(Math.random() * 1000),
-  lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-});
-
-// Generate datasets of different sizes
-const generateDataset = (count: number): GridRow[] => {
+// Generate a large dataset for performance testing
+const generateLargeDataset = (count: number): GridRow[] => {
   console.log(`Generating ${count} rows of data...`);
-  return Array.from({ length: count }, (_, i) => generateRow(i));
+  
+  return Array.from({ length: count }, (_, i) => ({
+    id: `row-${uuidv4()}`, // Use UUID to ensure uniqueness for API calls
+    opportunity: `Opportunity ${i}`,
+    status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+    revenue: Math.floor(Math.random() * 100000),
+    closeDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    owner: ['John Doe', 'Jane Smith', 'Robert Johnson'][Math.floor(Math.random() * 3)],
+    website: 'https://example.com',
+    companyName: `Company ${i}`,
+    linkedIn: 'https://linkedin.com/company/example',
+    employees: Math.floor(Math.random() * 1000),
+    lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  }));
 };
 
 const NewGrid: React.FC = () => {
@@ -119,20 +117,18 @@ const NewGrid: React.FC = () => {
   
   // Generate dataset based on URL parameter
   useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const demo = searchParams.get('demo');
+    const params = new URLSearchParams(location.search);
+    const demo = params.get('demo');
     
+    // Generate full 10k rows when demo=10k is in URL
     if (demo === '10k') {
       console.log("Generating 10,000 rows for performance testing");
-      // Generate 10k rows efficiently
-      setData(generateDataset(10000));
-    } else if (demo === '1k') {
-      console.log("Generating 1,000 rows for pagination testing");
-      // Generate 1k rows for pagination testing
-      setData(generateDataset(1000));
+      const largeDataset = generateLargeDataset(10000);
+      console.log(`Generated ${largeDataset.length} rows`);
+      setData(largeDataset);
     } else {
       // Default to 100 rows for normal use
-      setData(generateDataset(100));
+      setData(generateLargeDataset(100));
     }
   }, [location.search]);
   
@@ -147,9 +143,12 @@ const NewGrid: React.FC = () => {
             : row
         )
       );
+      
+      // In a real API implementation, you would handle 409 errors here
+      // and retry with a new UUID if needed
     } catch (error) {
       console.error("Error updating cell:", error);
-      // If there's a 409 error, generate a new ID and retry
+      // If there's a 409 error, we would generate a new ID and retry
       const newRowId = `row-${uuidv4()}`;
       console.log(`Retrying with new ID: ${newRowId}`);
       
@@ -187,14 +186,28 @@ const NewGrid: React.FC = () => {
   
   // Handle column deletion
   const handleDeleteColumn = (columnId: string) => {
-    // This is kept for TypeScript compatibility but implementation can remain the same
-    console.log("Column deletion disabled for stability");
+    if (columnId === 'opportunity') return; // Protect the opportunity column
+    setColumns(prev => prev.filter(col => col.id !== columnId));
   };
   
   // Handle adding a new column
   const handleAddColumn = (afterColumnId: string) => {
-    // This is kept for TypeScript compatibility but implementation can remain the same
-    console.log("Column insertion disabled for stability");
+    const newColumnId = `column-${uuidv4()}`;
+    const newColumn: Column = {
+      id: newColumnId,
+      title: 'New Column',
+      type: 'text',
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true,
+    };
+    
+    const afterColumnIndex = columns.findIndex(col => col.id === afterColumnId);
+    
+    setColumns(prev => [
+      ...prev.slice(0, afterColumnIndex + 1),
+      newColumn,
+      ...prev.slice(afterColumnIndex + 1)
+    ]);
   };
   
   return (
@@ -206,7 +219,6 @@ const NewGrid: React.FC = () => {
           data={data}
           listName="All Opportunities"
           listType="Opportunity"
-          listId="opportunities-grid"
           onCellChange={handleCellChange}
           onColumnChange={handleColumnChange}
           onColumnsReorder={handleColumnsReorder}
