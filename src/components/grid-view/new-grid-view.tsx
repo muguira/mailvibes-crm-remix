@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
@@ -575,24 +576,13 @@ export function NewGridView({
         activeFilters={activeFilters}
       />
       
-      {/* Header placed at the top */}
-      <div ref={headerRef} className="grid-header-wrapper sticky top-0 z-20">
-        <GridHeader 
-          columns={columns}
-          onColumnChange={onColumnChange}
-          onColumnsReorder={onColumnsReorder}
-          onAddColumn={handleAddColumn}
-          onDeleteColumn={handleDeleteColumn}
-        />
-      </div>
-
       <div className="grid-body">
         {containerWidth > 0 && containerHeight > 0 && (
           <Grid
             ref={gridRef}
             columnCount={columns.length + 1} // +1 for index column
             columnWidth={getColumnWidth}
-            height={containerHeight - HEADER_HEIGHT} // Subtract header height to account for it being above
+            height={containerHeight}
             rowCount={visibleData.length + 1} // +1 for header placeholder (but not rendered)
             rowHeight={getRowHeight}
             width={containerWidth}
@@ -612,6 +602,17 @@ export function NewGridView({
             {Cell}
           </Grid>
         )}
+      </div>
+      
+      {/* Header placed floating over the grid */}
+      <div ref={headerRef} className="grid-header-wrapper">
+        <GridHeader 
+          columns={columns}
+          onColumnChange={onColumnChange}
+          onColumnsReorder={onColumnsReorder}
+          onAddColumn={handleAddColumn}
+          onDeleteColumn={handleDeleteColumn}
+        />
       </div>
       
       {/* Status Dropdown */}

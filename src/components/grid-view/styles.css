@@ -31,7 +31,7 @@
   z-index: 30;
   background-color: #f9fafb;
   position: sticky;
-  top: 0;
+  top: 50px; /* Place header 50px from the top */
 }
 
 .index-header {
@@ -246,6 +246,12 @@
   border-collapse: collapse !important;
   border-spacing: 0 !important;
   padding: 0 !important;
+}
+
+/* Fix a gap between header and first row */
+.grid-body {
+  margin-top: -30px; /* Pull up the grid to remove gap below header */
+  padding-top: 30px; /* Add padding to ensure first row content is visible */
 }
 
 /* Critical fix: remove any gap between cells and ensure perfect alignment */
