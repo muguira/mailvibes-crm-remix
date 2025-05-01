@@ -5,28 +5,9 @@ import { GridContainerProps, Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants';
 import { GridToolbar } from './grid-toolbar';
 import { GridHeader } from './grid-header';
-import { Check, Clipboard, Copy, Cut, Filter, Paste, Trash2, Eye, EyeOff, Resize } from 'lucide-react';
+import { Check } from 'lucide-react';
 import './styles.css';
 import { v4 as uuidv4 } from 'uuid';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
-
-// Constants for minimum column width
-const MIN_COL_WIDTH = 100;
-
-// Forward ref for outer element to fix height issues
-const OuterElementWrapper = React.forwardRef<HTMLDivElement, React.HTMLProps<HTMLDivElement>>(
-  ({ style, ...rest }, ref) => (
-    <div
-      ref={ref}
-      style={{
-        ...style,
-        height: '100%',
-        width: '100%',
-      }}
-      {...rest}
-    />
-  )
-);
 
 export function NewGridView({
   columns,
@@ -50,41 +31,16 @@ export function NewGridView({
   const [activeFilters, setActiveFilters] = useState<{columns: string[], values: Record<string, any>}>({ columns: [], values: {} });
   const [statusDropdownPosition, setStatusDropdownPosition] = useState<{ top: number; left: number; rowId: string; columnId: string } | null>(null);
   const [visibleData, setVisibleData] = useState<GridRow[]>([]);
-  const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
 
-  // Load saved column widths from localStorage
-  const [columnWidths, setColumnWidths] = useState<number[]>(() => {
-    try {
-      const savedWidths = localStorage.getItem('grid-column-widths');
-      if (savedWidths) {
-        const parsed = JSON.parse(savedWidths);
-        if (Array.isArray(parsed) && parsed.length >= columns.length + 1) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load column widths from localStorage', e);
-    }
-    return [INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)];
-  });
-
-  // Save column widths to localStorage when they change
-  useEffect(() => {
-    try {
-      localStorage.setItem('grid-column-widths', JSON.stringify(columnWidths));
-    } catch (e) {
-      console.error('Failed to save column widths to localStorage', e);
-    }
-  }, [columnWidths]);
+  // Column widths state
+  const [columnWidths, setColumnWidths] = useState<number[]>(
+    [INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]
+  );
 
   // Update column widths when columns change
   useEffect(() => {
-    // Only update if columns length is different to avoid resetting widths
-    if (columnWidths.length !== columns.length + 1) {
-      console.log('Updating column widths due to columns change', columns.length);
-      setColumnWidths([INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]);
-    }
-  }, [columns.length]);
+    setColumnWidths([INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]);
+  }, [columns]);
 
   // Set visible data on initial load
   useEffect(() => {
@@ -125,9 +81,11 @@ export function NewGridView({
           // Different filter logic based on column type
           switch (column.type) {
             case 'status':
+              // If no specific values selected, just check if field has any value
               if (!filterValue || filterValue.length === 0) {
                 return value !== null && value !== undefined && value !== '';
               }
+              // Otherwise check if value is in the selected options
               return filterValue.includes(value);
               
             case 'date':
@@ -188,7 +146,7 @@ export function NewGridView({
     // Update column widths array with the new width
     setColumnWidths(prevWidths => {
       const newWidths = [...prevWidths];
-      newWidths[columnIndex] = Math.max(MIN_COL_WIDTH, newWidth);
+      newWidths[columnIndex] = newWidth;
       return newWidths;
     });
     
@@ -208,9 +166,12 @@ export function NewGridView({
   const handleCellClick = (rowId: string, columnId: string) => {
     const column = columns.find(col => col.id === columnId);
     
+    // Don't allow editing non-editable cells
     if (!column?.editable) return;
     
+    // If it's a status column, show dropdown instead
     if (column.type === 'status' && column.options) {
+      // Find the cell element to position the dropdown
       const cellElement = document.querySelector(`[data-cell="${rowId}-${columnId}"]`);
       if (cellElement) {
         const rect = cellElement.getBoundingClientRect();
@@ -252,14 +213,18 @@ export function NewGridView({
     
     if (e.key === 'Enter') {
       e.preventDefault();
+      
+      // Save the current cell value
       handleCellChange(rowId, columnId, value);
       
       if (e.shiftKey) {
+        // Move to the cell above if not at the top
         if (rowIndex > 0) {
           const prevRow = visibleData[rowIndex - 1];
           setEditingCell({ rowId: prevRow.id, columnId });
         }
       } else {
+        // Move to the cell below if not at the bottom
         if (rowIndex < visibleData.length - 1) {
           const nextRow = visibleData[rowIndex + 1];
           setEditingCell({ rowId: nextRow.id, columnId });
@@ -267,12 +232,16 @@ export function NewGridView({
       }
     } else if (e.key === 'Tab') {
       e.preventDefault();
+      
+      // Save the current cell value
       handleCellChange(rowId, columnId, value);
       
       if (e.shiftKey) {
+        // Move to the previous cell if not at the start
         if (colIndex > 0) {
           setEditingCell({ rowId, columnId: columns[colIndex - 1].id });
         } else if (rowIndex > 0) {
+          // Move to the end of the previous row
           const prevRow = visibleData[rowIndex - 1];
           setEditingCell({ 
             rowId: prevRow.id, 
@@ -280,9 +249,11 @@ export function NewGridView({
           });
         }
       } else {
+        // Move to the next cell if not at the end
         if (colIndex < columns.length - 1) {
           setEditingCell({ rowId, columnId: columns[colIndex + 1].id });
         } else if (rowIndex < visibleData.length - 1) {
+          // Move to the start of the next row
           const nextRow = visibleData[rowIndex + 1];
           setEditingCell({ 
             rowId: nextRow.id, 
@@ -370,75 +341,6 @@ export function NewGridView({
     if (onDeleteColumn && columnId !== 'opportunity') {
       onDeleteColumn(columnId);
     }
-  };
-
-  // Context menu handlers
-  const handleCutColumn = (columnId: string) => {
-    console.log(`Cut column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleCopyColumn = (columnId: string) => {
-    console.log(`Copy column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handlePasteColumn = (columnId: string) => {
-    console.log(`Paste into column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handlePasteSpecial = (columnId: string, type: string) => {
-    console.log(`Paste special (${type}) into column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleInsertColumnLeft = (columnId: string) => {
-    console.log(`Insert column left of: ${columnId}`);
-    const columnIndex = columns.findIndex(col => col.id === columnId);
-    if (columnIndex > 0) {
-      const prevColumnId = columns[columnIndex - 1].id;
-      handleAddColumn(prevColumnId);
-    } else {
-      handleAddColumn(columnId);
-    }
-    setContextMenuColumn(null);
-  };
-
-  const handleInsertColumnRight = (columnId: string) => {
-    console.log(`Insert column right of: ${columnId}`);
-    handleAddColumn(columnId);
-    setContextMenuColumn(null);
-  };
-
-  const handleClearColumn = (columnId: string) => {
-    console.log(`Clear column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleHideColumn = (columnId: string) => {
-    console.log(`Hide column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleResizeColumn = (columnId: string) => {
-    console.log(`Resize column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleCreateFilter = (columnId: string) => {
-    console.log(`Create filter for column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleSortAZ = (columnId: string) => {
-    console.log(`Sort sheet A-Z by column: ${columnId}`);
-    setContextMenuColumn(null);
-  };
-
-  const handleSortZA = (columnId: string) => {
-    console.log(`Sort sheet Z-A by column: ${columnId}`);
-    setContextMenuColumn(null);
   };
 
   // Render edit input based on column type with enhanced UX
@@ -554,7 +456,7 @@ export function NewGridView({
     return brightness > 128;
   };
 
-  // Cell renderer with fixes for borders and alignment
+  // Cell renderer with fixes for borders and gaps
   const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
     if (rowIndex === 0) {
       return null; // Header is rendered separately
@@ -573,8 +475,7 @@ export function NewGridView({
             ...style,
             borderTop: 'none',
             borderBottom: '1px solid #e5e7eb',
-            borderRight: '1px solid #e5e7eb',
-            zIndex: 5
+            borderRight: '1px solid #e5e7eb'
           }}
         >
           {dataRowIndex + 1}
@@ -594,17 +495,12 @@ export function NewGridView({
       (listType === 'Opportunity' && column.id === 'opportunity')
     );
     
-    // Fix cell styles to eliminate gaps and ensure alignment
+    // Fix cell styles to eliminate gaps
     const cellStyle = {
       ...style,
       borderTop: 'none',
       borderLeft: 'none',
       padding: isEditing ? 0 : '0.75rem',
-      position: 'absolute',
-      height: ROW_HEIGHT,
-      left: style.left,
-      top: style.top,
-      width: style.width
     };
     
     return (
@@ -615,7 +511,6 @@ export function NewGridView({
           ${isEditing ? 'grid-cell-editing' : ''} 
           ${column.type === 'currency' ? 'text-right' : ''}
           ${isFirstColumn ? 'grid-frozen-cell opportunity-cell' : ''}
-          ${contextMenuColumn === column.id ? 'highlight-column' : ''}
         `}
         style={cellStyle}
         data-cell={`${row.id}-${column.id}`}
@@ -627,10 +522,6 @@ export function NewGridView({
             handleCellClick(row.id, column.id);
           }
         }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          setContextMenuColumn(column.id);
-        }}
       >
         {isEditing ? (
           renderEditInput(row, column)
@@ -641,7 +532,7 @@ export function NewGridView({
     );
   };
 
-  // Custom inner element for grid with perfect alignment
+  // Custom inner element to remove border spacing and gaps
   const innerElementType = React.forwardRef<HTMLDivElement, React.HTMLProps<HTMLDivElement>>(
     ({ style, ...rest }, ref) => (
       <div
@@ -651,115 +542,13 @@ export function NewGridView({
           borderCollapse: 'collapse',
           borderSpacing: 0,
           padding: 0,
-          margin: 0
+          margin: 0,
         }}
         className="react-window-grid-inner"
         {...rest}
       />
     )
   );
-
-  // Render column context menu
-  const renderColumnContextMenu = () => {
-    if (!contextMenuColumn) return null;
-    
-    const column = columns.find(col => col.id === contextMenuColumn);
-    if (!column) return null;
-    
-    return (
-      <DropdownMenu open={!!contextMenuColumn} onOpenChange={(open) => !open && setContextMenuColumn(null)}>
-        <DropdownMenuTrigger asChild>
-          <div style={{ display: 'none' }} />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56">
-          <DropdownMenuItem onClick={() => handleCutColumn(column.id)}>
-            <Cut className="mr-2 h-4 w-4" />
-            <span>Cut</span>
-            <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleCopyColumn(column.id)}>
-            <Copy className="mr-2 h-4 w-4" />
-            <span>Copy</span>
-            <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handlePasteColumn(column.id)}>
-            <Paste className="mr-2 h-4 w-4" />
-            <span>Paste</span>
-            <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <Clipboard className="mr-2 h-4 w-4" />
-              <span>Paste special</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuSubContent>
-                <DropdownMenuItem onClick={() => handlePasteSpecial(column.id, 'values')}>
-                  Values only
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePasteSpecial(column.id, 'format')}>
-                  Format only
-                </DropdownMenuItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuPortal>
-          </DropdownMenuSub>
-          
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem onClick={() => handleInsertColumnLeft(column.id)}>
-            <span className="mr-2">+</span>
-            <span>Insert column left</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleInsertColumnRight(column.id)}>
-            <span className="mr-2">+</span>
-            <span>Insert column right</span>
-          </DropdownMenuItem>
-          
-          {column.id !== 'opportunity' && (
-            <DropdownMenuItem onClick={() => handleDeleteColumn(column.id)}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete column</span>
-            </DropdownMenuItem>
-          )}
-          
-          <DropdownMenuItem onClick={() => handleClearColumn(column.id)}>
-            <span className="mr-2">×</span>
-            <span>Clear column</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleHideColumn(column.id)}>
-            <EyeOff className="mr-2 h-4 w-4" />
-            <span>Hide column</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleResizeColumn(column.id)}>
-            <Resize className="mr-2 h-4 w-4" />
-            <span>Resize column</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem onClick={() => handleCreateFilter(column.id)}>
-            <Filter className="mr-2 h-4 w-4" />
-            <span>Create a filter</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem onClick={() => handleSortAZ(column.id)}>
-            <span className="mr-2">A→Z</span>
-            <span>Sort sheet A to Z</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleSortZA(column.id)}>
-            <span className="mr-2">Z→A</span>
-            <span>Sort sheet Z to A</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
-  };
 
   return (
     <div className={`grid-view ${className || ''}`} ref={containerRef}>
@@ -774,7 +563,7 @@ export function NewGridView({
         activeFilters={activeFilters}
       />
       
-      <div className="header-wrapper" ref={headerRef}>
+      <div ref={headerRef} style={{ overflow: 'hidden' }}>
         <GridHeader 
           columns={columns}
           onColumnChange={onColumnChange}
@@ -782,40 +571,35 @@ export function NewGridView({
           onColumnResize={handleColumnResize}
           onAddColumn={handleAddColumn}
           onDeleteColumn={handleDeleteColumn}
-          onContextMenu={setContextMenuColumn}
-          activeContextMenu={contextMenuColumn}
         />
       </div>
       
-      <div className="grid-wrapper">
-        <div className="grid-body">
-          {containerWidth > 0 && containerHeight > 0 && (
-            <Grid
-              ref={gridRef}
-              columnCount={columns.length + 1} // +1 for index column
-              columnWidth={getColumnWidth}
-              height={containerHeight - HEADER_HEIGHT}
-              rowCount={visibleData.length + 1} // +1 for header placeholder
-              rowHeight={getRowHeight}
-              width={containerWidth}
-              className="react-window-grid"
-              style={{ 
-                overflowX: 'auto', 
-                overflowY: 'auto', 
-                margin: 0, 
-                padding: 0,
-                borderTop: 0,
-                borderCollapse: 'collapse',
-                borderSpacing: 0
-              }}
-              innerElementType={innerElementType}
-              outerElementType={OuterElementWrapper}
-              onScroll={handleGridScroll}
-            >
-              {Cell}
-            </Grid>
-          )}
-        </div>
+      <div className="grid-body">
+        {containerWidth > 0 && containerHeight > 0 && (
+          <Grid
+            ref={gridRef}
+            columnCount={columns.length + 1} // +1 for index column
+            columnWidth={getColumnWidth}
+            height={containerHeight - HEADER_HEIGHT + 10} // Add 10px to remove the gap
+            rowCount={visibleData.length + 1} // +1 for header placeholder
+            rowHeight={getRowHeight}
+            width={containerWidth}
+            className="react-window-grid"
+            style={{ 
+              overflowX: 'auto', 
+              overflowY: 'auto', 
+              margin: 0, 
+              padding: 0,
+              borderTop: 0,
+              borderCollapse: 'collapse',
+              borderSpacing: 0
+            }}
+            innerElementType={innerElementType}
+            onScroll={handleGridScroll}
+          >
+            {Cell}
+          </Grid>
+        )}
       </div>
       
       {/* Status Dropdown */}
@@ -851,9 +635,6 @@ export function NewGridView({
           })()}
         </div>
       )}
-      
-      {/* Column Context Menu */}
-      {renderColumnContextMenu()}
     </div>
   );
 }

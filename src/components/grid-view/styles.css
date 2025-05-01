@@ -9,17 +9,10 @@
   overflow: hidden;
 }
 
-.grid-wrapper {
-  flex: 1;
-  overflow: hidden;
-  position: relative;
-}
-
 .grid-body {
   flex: 1;
   overflow: hidden;
   position: relative;
-  transform: none;
 }
 
 /* Grid Header */
@@ -70,9 +63,9 @@
 .grid-frozen-header {
   background-color: #f9fafb;
   position: sticky;
-  left: 0px;
+  left: 0; /* Align with left edge */
   z-index: 5;
-  margin-left: -60px;
+  margin-left: -60px; /* Shift opportunity column 60px left */
 }
 
 .header-title {
@@ -181,13 +174,14 @@
   position: sticky;
   left: 0;
   z-index: 2;
-  margin-left: -60px;
+  margin-left: 0 !important;
   border-left: none !important;
 }
 
 .opportunity-cell {
   color: #0ea5e9;
   font-weight: 500;
+  margin-left: -60px; /* Shift opportunity cells left to match header */
 }
 
 .text-right {
@@ -208,11 +202,6 @@
 .drop-placeholder {
   background-color: #f0f0f0;
   border: 1px dashed #ccc;
-}
-
-/* Highlighted column for context menu */
-.highlight-column {
-  background-color: rgba(14, 165, 233, 0.1);
 }
 
 /* Grid Toolbar */
@@ -248,6 +237,7 @@
   border-collapse: collapse !important;
   border-spacing: 0 !important;
   padding: 0 !important;
+  transform: translateY(-30px); /* Shift grid up to eliminate gap */
 }
 
 /* Critical fix: remove any gap between cells and ensure perfect alignment */
@@ -259,12 +249,6 @@
   padding: 0 !important;
   margin: 0 !important;
   outline: none !important;
-}
-
-/* Header wrapper and grid wrapper alignment */
-.header-wrapper {
-  overflow: hidden;
-  z-index: 10;
 }
 
 /* Status Dropdown Styling */
@@ -422,3 +406,4 @@
   background-color: rgba(0, 0, 0, 0.05);
   color: #000;
 }
+
