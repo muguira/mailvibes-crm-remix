@@ -47,13 +47,13 @@ export function NewGridView({
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingCell, setEditingCell] = useState<{rowId: string, columnId: string} | null>(null);
-  const [focusedCell, setFocusedCell] = useState<{rowIndex: number, columnIndex: number} | null>(null);
-  const [activeFilters, setActiveFilters] = useState<{columns: string[], values: Record<string, any>}>({ columns: [], values: {} });
+  const [editingCell, setEditingCell] = useState<{ rowId: string, columnId: string } | null>(null);
+  const [focusedCell, setFocusedCell] = useState<{ rowIndex: number, columnIndex: number } | null>(null);
+  const [activeFilters, setActiveFilters] = useState<{ columns: string[], values: Record<string, any> }>({ columns: [], values: {} });
   const [statusDropdownPosition, setStatusDropdownPosition] = useState<{ top: number; left: number; rowId: string; columnId: string } | null>(null);
   const [visibleData, setVisibleData] = useState<GridRow[]>([]);
   const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
-  const [contextMenuPosition, setContextMenuPosition] = useState<{x: number, y: number} | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null);
 
   // Load saved column widths from localStorage based on listId
   const localStorageKey = `grid-column-widths-${listId || 'default'}`;
@@ -104,7 +104,7 @@ export function NewGridView({
   // Filter data based on search term and active filters
   const applyFilters = useCallback(() => {
     let result = data;
-    
+
     // Apply search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -116,7 +116,7 @@ export function NewGridView({
         });
       });
     }
-    
+
     // Apply column filters with improved logic
     if (activeFilters.columns.length > 0) {
       result = result.filter(row => {
@@ -124,9 +124,9 @@ export function NewGridView({
           const value = row[columnId];
           const filterValue = activeFilters.values[columnId];
           const column = columns.find(col => col.id === columnId);
-          
+
           if (!column) return true;
-          
+
           // Different filter logic based on column type
           switch (column.type) {
             case 'status':
@@ -134,16 +134,16 @@ export function NewGridView({
                 return value !== null && value !== undefined && value !== '';
               }
               return filterValue.includes(value);
-              
+
             case 'date':
               if (!filterValue) return value !== null && value !== undefined && value !== '';
-              
+
               const dateValue = value ? new Date(value) : null;
               if (!dateValue) return false;
-              
+
               const startDate = filterValue.start ? new Date(filterValue.start) : null;
               const endDate = filterValue.end ? new Date(filterValue.end) : null;
-              
+
               if (startDate && endDate) {
                 return dateValue >= startDate && dateValue <= endDate;
               } else if (startDate) {
@@ -152,14 +152,14 @@ export function NewGridView({
                 return dateValue <= endDate;
               }
               return true;
-              
+
             default:
               return value !== null && value !== undefined && value !== '';
           }
         });
       });
     }
-    
+
     return result;
   }, [data, columns, searchTerm, activeFilters]);
 
@@ -172,15 +172,15 @@ export function NewGridView({
   // Resize observer for container
   useEffect(() => {
     if (!containerRef.current) return;
-    
+
     const resizeObserver = new ResizeObserver(entries => {
       const { width, height } = entries[0].contentRect;
       setContainerWidth(width);
       setContainerHeight(height);
     });
-    
+
     resizeObserver.observe(containerRef.current);
-    
+
     return () => {
       resizeObserver.disconnect();
     };
@@ -189,20 +189,20 @@ export function NewGridView({
   // Fix for column resize with proper persistence
   const handleColumnResize = useCallback((columnIndex: number, newWidth: number) => {
     console.log(`Resizing column ${columnIndex} to ${newWidth}px`);
-    
+
     // Update column widths array with the new width
     setColumnWidths(prevWidths => {
       const newWidths = [...prevWidths];
       newWidths[columnIndex] = Math.max(MIN_COL_WIDTH, newWidth);
       return newWidths;
     });
-    
+
     // Critical fix: Reset grid after column index with remeasure=true
     // This ensures that both header and body cells are updated
     if (gridRef.current) {
       gridRef.current.resetAfterColumnIndex(columnIndex, true);
     }
-    
+
     // If it's not the index column, update the column in the columns array
     if (columnIndex > 0 && onColumnChange) {
       const actualColumnIndex = columnIndex - 1; // Adjust for index column offset
@@ -214,17 +214,17 @@ export function NewGridView({
   // Handle cell click for editing
   const handleCellClick = (rowId: string, columnId: string) => {
     const column = columns.find(col => col.id === columnId);
-    
+
     if (!column?.editable) return;
 
     // Set focused cell for keyboard navigation
     const rowIndex = visibleData.findIndex(row => row.id === rowId);
     const columnIndex = columns.findIndex(col => col.id === columnId) + 1; // +1 for index column
-    
+
     if (rowIndex >= 0 && columnIndex >= 0) {
       setFocusedCell({ rowIndex: rowIndex + 1, columnIndex }); // +1 for header row
     }
-    
+
     if (column.type === 'status' && column.options) {
       const cellElement = document.querySelector(`[data-cell="${rowId}-${columnId}"]`);
       if (cellElement) {
@@ -238,14 +238,14 @@ export function NewGridView({
       }
       return;
     }
-    
+
     setEditingCell({ rowId, columnId });
   };
 
   // Handle cell value change
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
     setEditingCell(null);
-    
+
     if (onCellChange) {
       onCellChange(rowId, columnId, value);
     }
@@ -254,7 +254,7 @@ export function NewGridView({
   // Handle status selection
   const handleStatusSelect = (rowId: string, columnId: string, value: string) => {
     setStatusDropdownPosition(null);
-    
+
     if (onCellChange) {
       onCellChange(rowId, columnId, value);
     }
@@ -264,11 +264,11 @@ export function NewGridView({
   const handleKeyDown = (e: React.KeyboardEvent, rowId: string, columnId: string, value: any) => {
     const rowIndex = visibleData.findIndex(row => row.id === rowId);
     const colIndex = columns.findIndex(col => col.id === columnId);
-    
+
     if (e.key === 'Enter') {
       e.preventDefault();
       handleCellChange(rowId, columnId, value);
-      
+
       if (e.shiftKey) {
         if (rowIndex > 0) {
           const prevRow = visibleData[rowIndex - 1];
@@ -283,15 +283,15 @@ export function NewGridView({
     } else if (e.key === 'Tab') {
       e.preventDefault();
       handleCellChange(rowId, columnId, value);
-      
+
       if (e.shiftKey) {
         if (colIndex > 0) {
           setEditingCell({ rowId, columnId: columns[colIndex - 1].id });
         } else if (rowIndex > 0) {
           const prevRow = visibleData[rowIndex - 1];
-          setEditingCell({ 
-            rowId: prevRow.id, 
-            columnId: columns[columns.length - 1].id 
+          setEditingCell({
+            rowId: prevRow.id,
+            columnId: columns[columns.length - 1].id
           });
         }
       } else {
@@ -299,9 +299,9 @@ export function NewGridView({
           setEditingCell({ rowId, columnId: columns[colIndex + 1].id });
         } else if (rowIndex < visibleData.length - 1) {
           const nextRow = visibleData[rowIndex + 1];
-          setEditingCell({ 
-            rowId: nextRow.id, 
-            columnId: columns[0].id 
+          setEditingCell({
+            rowId: nextRow.id,
+            columnId: columns[0].id
           });
         }
       }
@@ -324,7 +324,7 @@ export function NewGridView({
   const getRowHeight = useCallback(() => ROW_HEIGHT, []);
 
   // Handle filter changes with enhanced functionality
-  const handleApplyFilters = (filters: {columns: string[], values: Record<string, any>}) => {
+  const handleApplyFilters = (filters: { columns: string[], values: Record<string, any> }) => {
     console.log("Applying filters:", filters);
     setActiveFilters(filters);
   };
@@ -345,7 +345,7 @@ export function NewGridView({
           setStatusDropdownPosition(null);
         }
       };
-      
+
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
@@ -354,16 +354,16 @@ export function NewGridView({
   // Handle keyboard navigation
   useEffect(() => {
     if (!focusedCell) return;
-    
+
     const handleGridKeyDown = (e: KeyboardEvent) => {
       if (editingCell) return; // Don't navigate while editing
-      
+
       let { rowIndex, columnIndex } = focusedCell;
       let handled = true;
-      
+
       const maxRow = visibleData.length;
       const maxColumn = columns.length + 1; // +1 for index column
-      
+
       switch (e.key) {
         case 'ArrowUp':
           rowIndex = Math.max(1, rowIndex - 1); // Minimum is 1 (first data row)
@@ -396,11 +396,11 @@ export function NewGridView({
         default:
           handled = false;
       }
-      
+
       if (handled) {
         e.preventDefault();
         setFocusedCell({ rowIndex, columnIndex });
-        
+
         // Scroll to the focused cell
         if (gridRef.current) {
           gridRef.current.scrollToItem({
@@ -408,16 +408,16 @@ export function NewGridView({
             columnIndex: columnIndex
           });
         }
-        
+
         // Set focus to the cell when using arrow keys
         if (rowIndex >= 1 && columnIndex >= 1) {
           const actualRowIndex = rowIndex - 1; // Adjust for header row
           const actualColumnIndex = columnIndex - 1; // Adjust for index column
-          
+
           if (actualRowIndex < visibleData.length && actualColumnIndex < columns.length) {
             const rowId = visibleData[actualRowIndex].id;
             const columnId = columns[actualColumnIndex].id;
-            
+
             // Focus the cell without going into edit mode
             const cellElement = document.querySelector(`[data-cell="${rowId}-${columnId}"]`);
             if (cellElement instanceof HTMLElement) {
@@ -427,7 +427,7 @@ export function NewGridView({
         }
       }
     };
-    
+
     window.addEventListener('keydown', handleGridKeyDown);
     return () => window.removeEventListener('keydown', handleGridKeyDown);
   }, [focusedCell, visibleData, columns, editingCell]);
@@ -435,19 +435,19 @@ export function NewGridView({
   // Highlight search term in text
   const highlightSearchTerm = (text: string) => {
     if (!searchTerm || !text) return text;
-    
+
     const lowerText = text.toLowerCase();
     const lowerSearchTerm = searchTerm.toLowerCase();
-    
+
     if (!lowerText.includes(lowerSearchTerm)) return text;
-    
+
     const parts = text.split(new RegExp(`(${searchTerm})`, 'gi'));
-    
+
     return (
       <>
-        {parts.map((part, i) => 
-          part.toLowerCase() === lowerSearchTerm 
-            ? <span key={i} className="search-highlight">{part}</span> 
+        {parts.map((part, i) =>
+          part.toLowerCase() === lowerSearchTerm
+            ? <span key={i} className="search-highlight">{part}</span>
             : part
         )}
       </>
@@ -548,12 +548,12 @@ export function NewGridView({
   // Render edit input based on column type with enhanced UX
   const renderEditInput = (row: GridRow, column: Column) => {
     const value = row[column.id];
-    
+
     // Add autofocus with selection for improved UX
     const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
       e.target.select();
     };
-    
+
     switch (column.type) {
       case 'number':
       case 'currency':
@@ -598,7 +598,7 @@ export function NewGridView({
   // Format cell value based on column type
   const formatCellValue = (value: any, column: Column) => {
     if (value === undefined || value === null) return '';
-    
+
     switch (column.type) {
       case 'currency':
         return new Intl.NumberFormat('en-US', {
@@ -617,14 +617,14 @@ export function NewGridView({
   // Render status pill
   const renderStatusPill = (value: string, colors: Record<string, string>) => {
     if (!value) return null;
-    
+
     const backgroundColor = colors[value] || '#f3f4f6';
     const isLightColor = isColorLight(backgroundColor);
     const textColor = isLightColor ? '#000000' : '#ffffff';
-    
+
     return (
-      <span 
-        className="px-2 py-0.5 rounded-full text-xs font-medium" 
+      <span
+        className="px-2 py-0.5 rounded-full text-xs font-medium"
         style={{ backgroundColor, color: textColor }}
       >
         {value}
@@ -636,7 +636,7 @@ export function NewGridView({
   const isColorLight = (color: string): boolean => {
     // Handle hex color
     let r = 0, g = 0, b = 0;
-    
+
     if (color.startsWith('#')) {
       const hex = color.slice(1);
       r = parseInt(hex.slice(0, 2), 16);
@@ -652,7 +652,7 @@ export function NewGridView({
         b = parseInt(rgb[2]);
       }
     }
-    
+
     // Calculate brightness
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
     return brightness > 128;
@@ -663,16 +663,16 @@ export function NewGridView({
     if (rowIndex === 0) {
       return null; // Header is rendered separately
     }
-    
+
     const dataRowIndex = rowIndex - 1;
     const row = visibleData[dataRowIndex];
-    
+
     if (!row) return null;
-    
+
     if (columnIndex === 0) {
       // Index column
       return (
-        <div 
+        <div
           className="index-column"
           style={{
             ...style,
@@ -686,12 +686,12 @@ export function NewGridView({
         </div>
       );
     }
-    
+
     const columnIdx = columnIndex - 1;
     const column = columns[columnIdx];
-    
+
     if (!column) return null;
-    
+
     const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
     const isFirstColumn = columnIdx === 0;
     const isFocused = focusedCell?.rowIndex === rowIndex && focusedCell?.columnIndex === columnIndex;
@@ -699,7 +699,7 @@ export function NewGridView({
       (listType === 'Contact' && column.id === 'email') ||
       (listType === 'Opportunity' && column.id === 'opportunity')
     );
-    
+
     // Fix cell styles to eliminate gaps and ensure alignment - fix type error
     const cellStyle: React.CSSProperties = {
       ...style,
@@ -712,7 +712,7 @@ export function NewGridView({
       top: style.top as number | string,
       width: style.width as number | string
     };
-    
+
     return (
       <div
         className={`
@@ -770,23 +770,23 @@ export function NewGridView({
   // Render column context menu
   const renderColumnContextMenu = () => {
     if (!contextMenuColumn) return null;
-    
+
     const column = columns.find(col => col.id === contextMenuColumn);
     if (!column) return null;
-    
+
     // Calculate position for the context menu
-    const menuStyle: React.CSSProperties = contextMenuPosition 
+    const menuStyle: React.CSSProperties = contextMenuPosition
       ? {
-          position: 'fixed',
-          top: `${contextMenuPosition.y}px`,
-          left: `${contextMenuPosition.x}px`,
-          zIndex: 1000,
-        }
+        position: 'fixed',
+        top: `${contextMenuPosition.y}px`,
+        left: `${contextMenuPosition.x}px`,
+        zIndex: 1000,
+      }
       : {};
-    
+
     return (
-      <DropdownMenu 
-        open={!!contextMenuColumn} 
+      <DropdownMenu
+        open={!!contextMenuColumn}
         onOpenChange={(open) => !open && setContextMenuColumn(null)}
       >
         <DropdownMenuTrigger asChild>
@@ -808,7 +808,7 @@ export function NewGridView({
             <span>Paste</span>
             <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
           </DropdownMenuItem>
-          
+
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Clipboard className="mr-2 h-4 w-4" />
@@ -825,9 +825,9 @@ export function NewGridView({
               </DropdownMenuSubContent>
             </DropdownMenuPortal>
           </DropdownMenuSub>
-          
+
           <DropdownMenuSeparator />
-          
+
           <DropdownMenuItem onClick={() => handleInsertColumnLeft(column.id)}>
             <span className="mr-2">+</span>
             <span>Insert column left</span>
@@ -836,43 +836,43 @@ export function NewGridView({
             <span className="mr-2">+</span>
             <span>Insert column right</span>
           </DropdownMenuItem>
-          
+
           {column.id !== 'opportunity' && (
             <DropdownMenuItem onClick={() => handleDeleteColumn(column.id)}>
               <Trash2 className="mr-2 h-4 w-4" />
               <span>Delete column</span>
             </DropdownMenuItem>
           )}
-          
+
           <DropdownMenuItem onClick={() => handleClearColumn(column.id)}>
             <span className="mr-2">×</span>
             <span>Clear column</span>
           </DropdownMenuItem>
-          
+
           <DropdownMenuItem onClick={() => handleHideColumn(column.id)}>
             <EyeOff className="mr-2 h-4 w-4" />
             <span>Hide column</span>
           </DropdownMenuItem>
-          
+
           <DropdownMenuItem onClick={() => handleResizeColumn(column.id)}>
             <StretchHorizontal className="mr-2 h-4 w-4" />
             <span>Resize column</span>
           </DropdownMenuItem>
-          
+
           <DropdownMenuSeparator />
-          
+
           <DropdownMenuItem onClick={() => handleCreateFilter(column.id)}>
             <Filter className="mr-2 h-4 w-4" />
             <span>Create a filter</span>
           </DropdownMenuItem>
-          
+
           <DropdownMenuSeparator />
-          
+
           <DropdownMenuItem onClick={() => handleSortAZ(column.id)}>
             <span className="mr-2">A→Z</span>
             <span>Sort sheet A to Z</span>
           </DropdownMenuItem>
-          
+
           <DropdownMenuItem onClick={() => handleSortZA(column.id)}>
             <span className="mr-2">Z→A</span>
             <span>Sort sheet Z to A</span>
@@ -884,7 +884,7 @@ export function NewGridView({
 
   return (
     <div className={`grid-view ${className || ''}`} ref={containerRef}>
-      <GridToolbar 
+      <GridToolbar
         listName={listName}
         listType={listType}
         searchTerm={searchTerm}
@@ -894,9 +894,9 @@ export function NewGridView({
         onApplyFilters={handleApplyFilters}
         activeFilters={activeFilters}
       />
-      
+
       <div className="header-wrapper" ref={headerRef}>
-        <GridHeader 
+        <GridHeader
           columns={columns}
           onColumnChange={onColumnChange}
           onColumnsReorder={onColumnsReorder}
@@ -907,9 +907,9 @@ export function NewGridView({
           activeContextMenu={contextMenuColumn}
         />
       </div>
-      
+
       <div className="grid-wrapper">
-        <div className="grid-body">
+        <div className="grid-body mt-[-30px]">
           {containerWidth > 0 && containerHeight > 0 && (
             <Grid
               ref={gridRef}
@@ -920,10 +920,10 @@ export function NewGridView({
               rowHeight={getRowHeight}
               width={containerWidth}
               className="react-window-grid"
-              style={{ 
-                overflowX: 'auto', 
-                overflowY: 'auto', 
-                margin: 0, 
+              style={{
+                overflowX: 'auto',
+                overflowY: 'auto',
+                margin: 0,
                 padding: 0,
                 borderTop: 0,
                 borderCollapse: 'collapse',
@@ -938,10 +938,10 @@ export function NewGridView({
           )}
         </div>
       </div>
-      
+
       {/* Status Dropdown */}
       {statusDropdownPosition && (
-        <div 
+        <div
           className="status-dropdown"
           style={{
             top: statusDropdownPosition.top + 'px',
@@ -952,7 +952,7 @@ export function NewGridView({
             const column = columns.find(col => col.id === statusDropdownPosition.columnId);
             const row = visibleData.find(r => r.id === statusDropdownPosition.rowId);
             const currentValue = row ? row[statusDropdownPosition.columnId] : '';
-            
+
             return column?.options?.map((option) => (
               <div
                 key={option}
@@ -972,7 +972,7 @@ export function NewGridView({
           })()}
         </div>
       )}
-      
+
       {/* Column Context Menu */}
       {renderColumnContextMenu()}
     </div>
