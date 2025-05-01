@@ -6,6 +6,7 @@
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   overflow: hidden;
+  margin-top: -5px; /* Move the entire grid up by 5 pixels */
 }
 
 .grid-body {
