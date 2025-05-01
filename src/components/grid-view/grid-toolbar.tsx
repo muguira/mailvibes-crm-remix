@@ -1,357 +1,117 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, Plus, X, Calendar } from 'lucide-react';
+import React from 'react';
+import { Search, Filter, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { AbsolutePopoverContent } from '@/components/ui/popover';
-import { Badge } from '@/components/ui/badge';
-import { Column } from './types';
-
-interface FilterPopoverProps {
-  columns: Column[];
-  onApplyFilters: (filters: any) => void;
-  onClose: () => void;
-  activeFilters: any;
-}
-
-const FilterPopover: React.FC<FilterPopoverProps> = ({ 
-  columns, 
-  onApplyFilters, 
-  onClose,
-  activeFilters: initialActiveFilters 
-}) => {
-  const [selectedFilters, setSelectedFilters] = useState<string[]>(initialActiveFilters.columns || []);
-  const [selectedField, setSelectedField] = useState<string | null>(null);
-  const [filterValues, setFilterValues] = useState<Record<string, any>>(initialActiveFilters.values || {});
-  
-  // Handle toggle column filter
-  const handleToggleFilter = (columnId: string) => {
-    if (selectedFilters.includes(columnId)) {
-      setSelectedFilters(prev => prev.filter(id => id !== columnId));
-      setSelectedField(null);
-    } else {
-      setSelectedFilters(prev => [...prev, columnId]);
-      setSelectedField(columnId);
-    }
-  };
-
-  // Handle setting filter values
-  const handleSetFilterValue = (columnId: string, value: any) => {
-    setFilterValues(prev => ({
-      ...prev,
-      [columnId]: value
-    }));
-  };
-  
-  // Handle status option toggle
-  const handleToggleStatusOption = (columnId: string, option: string) => {
-    setFilterValues(prev => {
-      const currentValues = prev[columnId] || [];
-      const newValues = currentValues.includes(option)
-        ? currentValues.filter((val: string) => val !== option)
-        : [...currentValues, option];
-      
-      return {
-        ...prev,
-        [columnId]: newValues
-      };
-    });
-  };
-  
-  // Handle date range
-  const handleDateRangeChange = (columnId: string, field: 'start' | 'end', value: string) => {
-    setFilterValues(prev => ({
-      ...prev,
-      [columnId]: {
-        ...prev[columnId] || {},
-        [field]: value
-      }
-    }));
-  };
-  
-  // Apply filters
-  const handleApply = () => {
-    console.log("Applying filters:", {
-      columns: selectedFilters,
-      values: filterValues
-    });
-    
-    onApplyFilters({
-      columns: selectedFilters,
-      values: filterValues
-    });
-    
-    onClose();
-  };
-  
-  // Clear filters
-  const handleClear = () => {
-    setSelectedFilters([]);
-    setFilterValues({});
-    setSelectedField(null);
-    onApplyFilters({ columns: [], values: {} });
-    onClose();
-  };
-
-  // Render filter values section based on column type
-  const renderFilterValueSelector = (column: Column) => {
-    if (!column) return null;
-    
-    switch (column.type) {
-      case 'status':
-        return (
-          <div className="filter-value-section">
-            <h4 className="filter-section-title">Select Status Values</h4>
-            <div className="filter-values-list">
-              {column.options?.map(option => (
-                <div key={option} className="filter-option-label">
-                  <input
-                    type="checkbox"
-                    id={`filter-value-${column.id}-${option}`}
-                    checked={
-                      filterValues[column.id] ? 
-                      filterValues[column.id].includes(option) : 
-                      false
-                    }
-                    onChange={() => handleToggleStatusOption(column.id, option)}
-                    className="mr-2"
-                  />
-                  <label htmlFor={`filter-value-${column.id}-${option}`}>
-                    <span 
-                      className="px-2 py-0.5 rounded-full text-xs font-medium"
-                      style={{ 
-                        backgroundColor: column.colors?.[option] || '#f3f4f6',
-                        color: isColorLight(column.colors?.[option] || '#f3f4f6') ? '#000000' : '#ffffff'
-                      }}
-                    >
-                      {option}
-                    </span>
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      
-      case 'date':
-        return (
-          <div className="filter-value-section">
-            <h4 className="filter-section-title">Select Date Range</h4>
-            <div className="date-range-inputs">
-              <div>
-                <label htmlFor={`filter-date-start-${column.id}`} className="text-xs text-gray-500">
-                  From
-                </label>
-                <input
-                  type="date"
-                  id={`filter-date-start-${column.id}`}
-                  className="date-range-input"
-                  value={filterValues[column.id]?.start || ''}
-                  onChange={(e) => handleDateRangeChange(column.id, 'start', e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor={`filter-date-end-${column.id}`} className="text-xs text-gray-500">
-                  To
-                </label>
-                <input
-                  type="date"
-                  id={`filter-date-end-${column.id}`}
-                  className="date-range-input"
-                  value={filterValues[column.id]?.end || ''}
-                  onChange={(e) => handleDateRangeChange(column.id, 'end', e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-        );
-      
-      default:
-        return null;
-    }
-  };
-  
-  // Helper function to determine if color is light
-  const isColorLight = (color: string): boolean => {
-    // Handle hex color
-    let r = 0, g = 0, b = 0;
-    
-    if (color.startsWith('#')) {
-      const hex = color.slice(1);
-      r = parseInt(hex.slice(0, 2), 16);
-      g = parseInt(hex.slice(2, 4), 16);
-      b = parseInt(hex.slice(4, 6), 16);
-    }
-    // Handle rgb color
-    else if (color.startsWith('rgb')) {
-      const rgb = color.match(/\d+/g);
-      if (rgb && rgb.length >= 3) {
-        r = parseInt(rgb[0]);
-        g = parseInt(rgb[1]);
-        b = parseInt(rgb[2]);
-      }
-    }
-    
-    // Calculate brightness
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness > 128;
-  };
-  
-  return (
-    <div className="filter-popover">
-      <div className="filter-popover-content">
-        <div className="filter-section">
-          <h3 className="filter-section-title">Filter by Column</h3>
-          {columns.map(column => (
-            <div key={column.id} className="filter-option-label">
-              <input
-                type="checkbox"
-                id={`filter-${column.id}`}
-                checked={selectedFilters.includes(column.id)}
-                onChange={() => handleToggleFilter(column.id)}
-                className="mr-2"
-              />
-              <label htmlFor={`filter-${column.id}`}>{column.title}</label>
-            </div>
-          ))}
-        </div>
-        
-        {selectedField && renderFilterValueSelector(
-          columns.find(col => col.id === selectedField)!
-        )}
-      </div>
-      <div className="filter-actions">
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={handleClear}
-        >
-          Clear
-        </Button>
-        <Button 
-          onClick={handleApply} 
-          size="sm"
-          className="bg-teal-500 hover:bg-teal-600 text-white"
-        >
-          Apply
-        </Button>
-      </div>
-    </div>
-  );
-};
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface GridToolbarProps {
-  columns: Column[];
   listName?: string;
   listType?: string;
   searchTerm: string;
   onSearchChange: (term: string) => void;
-  filterCount: number;
-  onApplyFilters: (filters: any) => void;
-  activeFilters: any;
+  filterCount?: number;
 }
 
 export function GridToolbar({ 
-  columns, 
-  listName,
-  listType,
+  listName = 'All Opportunities', 
+  listType = 'Opportunity', 
   searchTerm,
   onSearchChange,
-  filterCount,
-  onApplyFilters,
-  activeFilters
+  filterCount = 0
 }: GridToolbarProps) {
-  const [showFilters, setShowFilters] = useState(false);
-  const filterButtonRef = useRef<HTMLButtonElement>(null);
-  const filterPopoverRef = useRef<HTMLDivElement>(null);
-  
-  // Close filter popover when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        showFilters &&
-        filterPopoverRef.current && 
-        filterButtonRef.current &&
-        !filterPopoverRef.current.contains(e.target as Node) &&
-        !filterButtonRef.current.contains(e.target as Node)
-      ) {
-        setShowFilters(false);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showFilters]);
-  
-  // Close filter popover on ESC key
-  useEffect(() => {
-    const handleEscKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && showFilters) {
-        setShowFilters(false);
-      }
-    };
-    
-    document.addEventListener('keydown', handleEscKey);
-    return () => document.removeEventListener('keydown', handleEscKey);
-  }, [showFilters]);
-  
+  const [isFilterOpen, setIsFilterOpen] = React.useState(false);
+
   return (
-    <div className="grid-toolbar">
-      <div className="flex items-center space-x-2">
-        <div className="search-field">
-          <Search className="text-gray-400 h-4 w-4" />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="search-input"
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
-          {searchTerm && (
-            <button
-              onClick={() => onSearchChange('')}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+    <>
+      <div className="grid-toolbar">
+        <div className="flex items-center space-x-3">
+          {/* Search Field - Inline with magnifying glass */}
+          <div className="search-field">
+            <Search size={16} className="text-slate-400 mr-2" />
+            <input 
+              type="text"
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search Field Values" 
+              className="search-input"
+            />
+          </div>
+          
+          {/* Filter Button with Count Badge */}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center text-xs font-normal px-2 text-slate-dark hover:text-slate-darker"
+            onClick={() => setIsFilterOpen(true)}
+          >
+            <Filter size={14} className="mr-1" />
+            Filters {filterCount > 0 && <span className="filter-badge">{filterCount}</span>}
+          </Button>
         </div>
         
-        <div className="relative">
-          <Button
-            ref={filterButtonRef}
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center"
-          >
-            <Filter className="text-gray-500 h-4 w-4 mr-1" />
-            <span>Filters</span>
-            {filterCount > 0 && (
-              <span className="filter-badge">{filterCount}</span>
-            )}
-          </Button>
+        <div className="flex items-center space-x-4">
+          {/* List Info */}
+          <span className="text-sm text-slate-600">
+            {listType}: {listName}
+          </span>
           
-          {showFilters && (
-            <AbsolutePopoverContent 
-              ref={filterPopoverRef}
-              position={{ top: 40, left: 0 }}
-              className="filter-popover-container"
-            >
-              <FilterPopover 
-                columns={columns}
-                onApplyFilters={onApplyFilters}
-                onClose={() => setShowFilters(false)}
-                activeFilters={activeFilters}
-              />
-            </AbsolutePopoverContent>
-          )}
+          {/* Add Item Button */}
+          <Button 
+            size="sm"
+            className="bg-teal-500 hover:bg-teal-600 text-white text-xs px-3 py-1.5"
+          >
+            <Plus size={14} className="mr-1" />
+            Add {listType}
+          </Button>
         </div>
       </div>
-      
-      <div className="flex items-center text-sm text-gray-500">
-        <span>{listName || ''}</span>
-        {listType && <span className="ml-1">• {listType}</span>}
-      </div>
-    </div>
+
+      {/* Filter Drawer */}
+      <Drawer open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+        <DrawerContent className="h-5/6">
+          <div className="filter-drawer">
+            <DrawerHeader className="filter-drawer-header">
+              <DrawerTitle>Filters</DrawerTitle>
+            </DrawerHeader>
+            
+            {/* Field Selection */}
+            <div className="filter-section">
+              <div className="filter-section-title">Select Fields</div>
+              <div className="space-y-2">
+                {['Opportunity', 'Status', 'Revenue', 'Close Date', 'Owner'].map((field) => (
+                  <div className="flex items-center space-x-2" key={field}>
+                    <Checkbox id={`field-${field}`} />
+                    <label htmlFor={`field-${field}`} className="text-sm">{field}</label>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Condition Builder */}
+            <div className="filter-section">
+              <div className="filter-section-title">Conditions</div>
+              <div className="bg-gray-50 p-2 border rounded-md">
+                <div className="text-sm text-gray-500 italic">
+                  Add conditions to filter your data
+                </div>
+              </div>
+            </div>
+            
+            <DrawerFooter className="filter-actions">
+              <Button variant="outline" size="sm" onClick={() => setIsFilterOpen(false)}>
+                Clear
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setIsFilterOpen(false)}>
+                Save View
+              </Button>
+              <Button size="sm" onClick={() => setIsFilterOpen(false)}>
+                Apply
+              </Button>
+            </DrawerFooter>
+          </div>
+        </DrawerContent>
+      </Drawer>
+    </>
   );
 }

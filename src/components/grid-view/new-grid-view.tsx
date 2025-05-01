@@ -18,13 +18,12 @@ export function NewGridView({
   className
 }: GridContainerProps) {
   const gridRef = useRef<any>(null);
-  const headerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCell, setEditingCell] = useState<{rowId: string, columnId: string} | null>(null);
-  const [activeFilters, setActiveFilters] = useState<{columns: string[], values: Record<string, any>}>({ columns: [], values: {} });
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [statusDropdownPosition, setStatusDropdownPosition] = useState<{ top: number; left: number; rowId: string; columnId: string } | null>(null);
 
   // Column widths state
@@ -42,69 +41,19 @@ export function NewGridView({
     return columnWidths.reduce((acc, width) => acc + width, 0);
   }, [columnWidths]);
 
-  // Filter data based on search term and active filters
+  // Filter data based on search term
   const filteredData = useMemo(() => {
-    let result = data;
+    if (!searchTerm) return data;
     
-    // Apply search filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(row => {
-        return columns.some(column => {
-          const value = row[column.id];
-          if (value === null || value === undefined) return false;
-          return String(value).toLowerCase().includes(term);
-        });
+    const term = searchTerm.toLowerCase();
+    return data.filter(row => {
+      return columns.some(column => {
+        const value = row[column.id];
+        if (value === null || value === undefined) return false;
+        return String(value).toLowerCase().includes(term);
       });
-    }
-    
-    // Apply column filters with improved logic
-    if (activeFilters.columns.length > 0) {
-      result = result.filter(row => {
-        return activeFilters.columns.every(columnId => {
-          const value = row[columnId];
-          const filterValue = activeFilters.values[columnId];
-          const column = columns.find(col => col.id === columnId);
-          
-          if (!column) return true;
-          
-          // Different filter logic based on column type
-          switch (column.type) {
-            case 'status':
-              // If no specific values selected, just check if field has any value
-              if (!filterValue || filterValue.length === 0) {
-                return value !== null && value !== undefined && value !== '';
-              }
-              // Otherwise check if value is in the selected options
-              return filterValue.includes(value);
-              
-            case 'date':
-              if (!filterValue) return value !== null && value !== undefined && value !== '';
-              
-              const dateValue = value ? new Date(value) : null;
-              if (!dateValue) return false;
-              
-              const startDate = filterValue.start ? new Date(filterValue.start) : null;
-              const endDate = filterValue.end ? new Date(filterValue.end) : null;
-              
-              if (startDate && endDate) {
-                return dateValue >= startDate && dateValue <= endDate;
-              } else if (startDate) {
-                return dateValue >= startDate;
-              } else if (endDate) {
-                return dateValue <= endDate;
-              }
-              return true;
-              
-            default:
-              return value !== null && value !== undefined && value !== '';
-          }
-        });
-      });
-    }
-    
-    return result;
-  }, [data, columns, searchTerm, activeFilters]);
+    });
+  }, [data, columns, searchTerm]);
 
   // Resize observer for container
   useEffect(() => {
@@ -123,20 +72,16 @@ export function NewGridView({
     };
   }, []);
 
-  // Fix for column resize - ensure proper grid refresh
-  const handleColumnResize = useCallback((columnIndex: number, newWidth: number) => {
-    console.log(`Resizing column ${columnIndex} to ${newWidth}px`);
+  // Handle column resize
+  const handleColumnResize = (columnIndex: number, newWidth: number) => {
+    // Update column widths array
+    const newWidths = [...columnWidths];
+    newWidths[columnIndex] = newWidth;
+    setColumnWidths(newWidths);
     
-    // Update column widths array with the new width
-    setColumnWidths(prevWidths => {
-      const newWidths = [...prevWidths];
-      newWidths[columnIndex] = newWidth;
-      return newWidths;
-    });
-    
-    // Critical fix: Reset grid after column index with remeasure=true
+    // Reset after column resize to re-render grid with new widths
     if (gridRef.current) {
-      gridRef.current.resetAfterColumnIndex(columnIndex, true);
+      gridRef.current.resetAfterColumnIndex(0);
     }
     
     // If it's not the index column, update the column in the columns array
@@ -144,7 +89,7 @@ export function NewGridView({
       const columnId = columns[columnIndex - 1].id;
       onColumnChange(columnId, { width: newWidth });
     }
-  }, [columns, onColumnChange]);
+  };
 
   // Handle cell click for editing
   const handleCellClick = (rowId: string, columnId: string) => {
@@ -255,26 +200,13 @@ export function NewGridView({
     handleCellChange(rowId, columnId, value);
   };
 
-  // Column width getter for grid - using callback to ensure it's stable
+  // Column width getter for grid
   const getColumnWidth = useCallback((index: number) => {
     return columnWidths[index] || 150;
   }, [columnWidths]);
 
   // Row height callback for VariableSizeGrid
   const getRowHeight = useCallback(() => ROW_HEIGHT, []);
-
-  // Handle filter changes with enhanced functionality
-  const handleApplyFilters = (filters: {columns: string[], values: Record<string, any>}) => {
-    console.log("Applying filters:", filters);
-    setActiveFilters(filters);
-  };
-
-  // Sync header scrolling with grid body
-  const handleGridScroll = useCallback(({ scrollLeft }: { scrollLeft: number; scrollTop: number }) => {
-    if (headerRef.current) {
-      headerRef.current.scrollLeft = scrollLeft;
-    }
-  }, []);
 
   // Close status dropdown when clicking outside
   useEffect(() => {
@@ -426,7 +358,7 @@ export function NewGridView({
     return brightness > 128;
   };
 
-  // Cell renderer with fixes for borders and gaps
+  // Cell renderer
   const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
     if (rowIndex === 0) {
       return null; // Header is rendered separately
@@ -440,13 +372,8 @@ export function NewGridView({
     if (columnIndex === 0) {
       return (
         <div 
-          className="index-column"
-          style={{
-            ...style,
-            borderTop: 'none', // Fix for removing gaps
-            borderBottom: '1px solid #e5e7eb',
-            borderRight: '1px solid #e5e7eb'
-          }}
+          className="index-column grid-frozen-cell"
+          style={style}
         >
           {dataRowIndex + 1}
         </div>
@@ -465,14 +392,6 @@ export function NewGridView({
       (listType === 'Opportunity' && column.id === 'opportunity')
     );
     
-    // Fix cell styles to eliminate gaps
-    const cellStyle = {
-      ...style,
-      borderTop: 'none', // Remove top border to fix gap
-      borderLeft: 'none', // Remove left border to fix gap
-      padding: isEditing ? 0 : '0.75rem', // Keep consistent padding
-    };
-    
     return (
       <div
         className={`
@@ -482,7 +401,7 @@ export function NewGridView({
           ${column.type === 'currency' ? 'text-right' : ''}
           ${isFirstColumn ? 'grid-frozen-cell opportunity-cell' : ''}
         `}
-        style={cellStyle}
+        style={style}
         data-cell={`${row.id}-${column.id}`}
         onClick={() => {
           if (shouldLinkToStream) {
@@ -502,24 +421,6 @@ export function NewGridView({
     );
   };
 
-  // Custom inner element to remove border spacing and gaps
-  const innerElementType = React.forwardRef<HTMLDivElement, React.HTMLProps<HTMLDivElement>>(
-    ({ style, ...rest }, ref) => (
-      <div
-        ref={ref}
-        style={{
-          ...style,
-          borderCollapse: 'collapse',
-          borderSpacing: 0,
-          padding: 0,
-          margin: 0,
-        }}
-        className="react-window-grid-inner"
-        {...rest}
-      />
-    )
-  );
-
   return (
     <div className={`grid-view ${className || ''}`} ref={containerRef}>
       <GridToolbar 
@@ -527,20 +428,15 @@ export function NewGridView({
         listType={listType}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        filterCount={activeFilters.columns.length}
-        columns={columns}
-        onApplyFilters={handleApplyFilters}
-        activeFilters={activeFilters}
+        filterCount={activeFilters.length}
       />
       
-      <div ref={headerRef} style={{ overflow: 'hidden' }}>
-        <GridHeader 
-          columns={columns}
-          onColumnChange={onColumnChange}
-          onColumnsReorder={onColumnsReorder}
-          onColumnResize={handleColumnResize}
-        />
-      </div>
+      <GridHeader 
+        columns={columns}
+        onColumnChange={onColumnChange}
+        onColumnsReorder={onColumnsReorder}
+        onColumnResize={handleColumnResize}
+      />
       
       <div className="grid-body">
         {containerWidth > 0 && containerHeight > 0 && (
@@ -548,22 +444,10 @@ export function NewGridView({
             ref={gridRef}
             columnCount={columns.length + 1} // +1 for index column
             columnWidth={getColumnWidth}
-            height={containerHeight - HEADER_HEIGHT + 10} // Add 10px to remove the gap
+            height={containerHeight - HEADER_HEIGHT}
             rowCount={filteredData.length + 1} // +1 for header placeholder
-            rowHeight={getRowHeight}
+            rowHeight={getRowHeight} // Using callback function instead of constant
             width={containerWidth}
-            className="react-window-grid"
-            style={{ 
-              overflowX: 'auto', 
-              overflowY: 'auto', 
-              margin: 0, 
-              padding: 0,
-              borderTop: 0,
-              borderCollapse: 'collapse',
-              borderSpacing: 0
-            }}
-            innerElementType={innerElementType}
-            onScroll={handleGridScroll}
           >
             {Cell}
           </Grid>
@@ -596,6 +480,7 @@ export function NewGridView({
               >
                 <div className="status-option-label">
                   {renderStatusPill(option, column.colors || {})}
+                  <span>{option}</span>
                 </div>
                 {currentValue === option && <Check size={16} />}
               </div>

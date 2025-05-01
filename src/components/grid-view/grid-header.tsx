@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Column } from './types';
 import { Check } from 'lucide-react';
 
@@ -26,7 +26,7 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
   const handleHeaderSave = (columnId: string, newTitle: string) => {
     setEditingHeader(null);
     
-    if (onColumnChange && newTitle.trim()) {
+    if (onColumnChange) {
       onColumnChange(columnId, { title: newTitle });
     }
   };
@@ -78,7 +78,7 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
   };
   
   // Handle column resize start
-  const handleResizeStart = useCallback((e: React.MouseEvent, columnId: string, initialWidth: number) => {
+  const handleResizeStart = (e: React.MouseEvent, columnId: string, initialWidth: number) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -89,10 +89,10 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
     // Add event listeners for mousemove and mouseup
     document.addEventListener('mousemove', handleResizeMove);
     document.addEventListener('mouseup', handleResizeEnd);
-  }, []);
+  };
   
-  // Handle column resize move - improved to update in real-time
-  const handleResizeMove = useCallback((e: MouseEvent) => {
+  // Handle column resize move
+  const handleResizeMove = (e: MouseEvent) => {
     e.preventDefault();
     
     if (!resizingColumn) return;
@@ -100,43 +100,25 @@ export function GridHeader({ columns, onColumnChange, onColumnsReorder, onColumn
     const diffX = e.clientX - initialX;
     const newWidth = Math.max(100, initialWidth + diffX); // Minimum width of 100px
     
-    // Update column width during drag in real-time
+    // Update column width visually during drag
     const columnIndex = columns.findIndex(col => col.id === resizingColumn);
     
     if (columnIndex >= 0 && onColumnResize) {
-      // Add 1 for the index column and ensure remeasure is true
+      // Add 1 for the index column
       onColumnResize(columnIndex + 1, newWidth);
     }
-  }, [resizingColumn, initialX, initialWidth, columns, onColumnResize]);
+  };
   
-  // Handle column resize end with explicit update to ensure persistence
-  const handleResizeEnd = useCallback((e: MouseEvent) => {
+  // Handle column resize end
+  const handleResizeEnd = (e: MouseEvent) => {
     e.preventDefault();
-    
-    // Final update of column width
-    if (resizingColumn && onColumnResize) {
-      const columnIndex = columns.findIndex(col => col.id === resizingColumn);
-      if (columnIndex >= 0) {
-        const diffX = e.clientX - initialX;
-        const newWidth = Math.max(100, initialWidth + diffX);
-        onColumnResize(columnIndex + 1, newWidth);
-      }
-    }
     
     setResizingColumn(null);
     
     // Remove event listeners
     document.removeEventListener('mousemove', handleResizeMove);
     document.removeEventListener('mouseup', handleResizeEnd);
-  }, [resizingColumn, onColumnResize, columns, initialX, initialWidth, handleResizeMove]);
-  
-  // Clean up event listeners on unmount
-  useEffect(() => {
-    return () => {
-      document.removeEventListener('mousemove', handleResizeMove);
-      document.removeEventListener('mouseup', handleResizeEnd);
-    };
-  }, [handleResizeMove, handleResizeEnd]);
+  };
 
   return (
     <div className="grid-header">

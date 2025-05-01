@@ -20,7 +20,7 @@
   display: flex;
   border-bottom: 1px solid #e5e7eb;
   background-color: #f9fafb;
-  height: 30px; /* Reduced from 40px to 30px */
+  height: 40px;
   position: relative;
   user-select: none;
   overflow: visible;
@@ -39,7 +39,6 @@
   position: sticky;
   left: 0;
   z-index: 10;
-  height: 30px; /* Reduced from 40px to 30px */
 }
 
 .columns-header {
@@ -57,7 +56,6 @@
   display: flex;
   align-items: center;
   min-width: 120px;
-  height: 30px; /* Reduced from 40px to 30px */
 }
 
 .grid-frozen-header {
@@ -108,7 +106,6 @@
   align-items: center;
   justify-content: center;
   width: 40px;
-  height: 30px; /* Reduced from 40px to 30px */
 }
 
 .add-column-button:hover {
@@ -123,7 +120,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: cell;
 }
 
 .grid-cell-editable {
@@ -162,19 +158,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  background-color: #fff;
 }
 
 .grid-frozen-cell {
   background-color: #fff;
   position: sticky;
-  left: 0; /* Align with left edge instead of 50px offset */
+  left: 0;
   z-index: 2;
-  margin-left: 0 !important;
-  border-left: none !important;
 }
 
 .opportunity-cell {
@@ -223,26 +213,6 @@
   font-size: 0.875rem;
 }
 
-/* Fix the white strip issue between header and grid */
-.react-window-grid {
-  border-top: none !important;
-  margin-top: 0 !important;
-  border-collapse: collapse !important;
-  border-spacing: 0 !important;
-  padding: 0 !important;
-}
-
-/* Critical fix: remove any gap between cells and ensure perfect alignment */
-.ReactVirtualized__Grid__innerScrollContainer,
-.ReactVirtualized__Grid,
-.react-window-grid-inner {
-  border-spacing: 0 !important;
-  border-collapse: collapse !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  outline: none !important;
-}
-
 /* Status Dropdown Styling */
 .status-dropdown {
   position: absolute;
@@ -259,6 +229,7 @@
 .status-option {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 8px 12px;
   cursor: pointer;
 }
@@ -275,55 +246,32 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
 }
 
-/* Filter Popover */
-.filter-popover-container {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 50;
-  width: 280px; /* Compact width */
-  max-width: 280px;
-  max-height: 70vh; /* Maximum height */
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px -1px rgba(0, 0, 0, 0.1), 0 2px 10px -1px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
+/* Filter Drawer */
+.filter-drawer {
+  width: 320px;
+  padding: 1rem;
 }
 
-.filter-popover {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-}
-
-.filter-popover-content {
-  padding: 16px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px; /* Spacing between sections */
+.filter-drawer-header {
+  margin-bottom: 1rem;
 }
 
 .filter-section {
-  margin-bottom: 8px;
+  margin-bottom: 1.5rem;
 }
 
 .filter-section-title {
   font-weight: 500;
   margin-bottom: 0.5rem;
-  font-size: 0.875rem;
 }
 
 .filter-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  padding: 12px 16px;
-  border-top: 1px solid #e5e7eb;
+  margin-top: 1rem;
 }
 
 /* Badge for filter count */
@@ -331,7 +279,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 20px;
+  width: 20px;
   height: 20px;
   background-color: #0ea5e9;
   color: white;
@@ -340,37 +288,3 @@
   margin-left: 4px;
   padding: 0 6px;
 }
-
-.filter-option-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-/* Filter value selectors */
-.filter-value-section {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.filter-values-list {
-  max-height: 150px;
-  overflow-y: auto;
-}
-
-.date-range-inputs {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.date-range-input {
-  width: 100%;
-  padding: 6px;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  font-size: 0.875rem;
-}
-
