@@ -6,12 +6,13 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "@/pages/Index";
 import Lists from "@/pages/Lists";
 import NewGrid from "@/pages/NewGrid";
-import Leads from "@/pages/Leads"; // Import the new Leads page
+import Leads from "@/pages/Leads";
 import Reports from "@/pages/Reports";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
 import Auth from "@/pages/Auth";
 import ContactProfile from "@/pages/ContactProfile";
+import StreamView from "@/pages/StreamView"; // Import the new StreamView page
 
 // Create a client
 const queryClient = new QueryClient({
@@ -38,6 +39,7 @@ function App() {
               <Route path="/reports" element={<Reports />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/contact/:id" element={<ContactProfile />} />
+              <Route path="/stream-view/:recordId?" element={<StreamView />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <Toaster />
