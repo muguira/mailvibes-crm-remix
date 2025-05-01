@@ -1,22 +1,33 @@
+
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { GridContainerProps, Column, GridRow } from './types';
-import { ROW_HEIGHT, HEADER_HEIGHT } from './grid-constants';
+import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants';
 import { GridToolbar } from './grid-toolbar';
 import { GridHeader } from './grid-header';
-import { Check } from 'lucide-react';
+import { OuterElementWrapper } from './outer-element-wrapper';
+import { FilterPopover } from './filter-popover';
+import { Check, Clipboard, ClipboardCopy, Scissors, Filter, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
 import './styles.css';
+import { v4 as uuidv4 } from 'uuid';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 
-// Index column width constant
-const INDEX_COLUMN_WIDTH = 48;
+// Constants for minimum column width and index column width
+const MIN_COL_WIDTH = 100;
+const INDEX_WIDTH = 56; // Fixed width for index column
+const ROWS_PER_PAGE = 100;
 
 export function NewGridView({
   columns,
   data,
   listName = '',
+  listId = '',
   listType = '',
   onCellChange,
   onColumnChange,
+  onColumnsReorder,
+  onDeleteColumn,
+  onAddColumn,
   className
 }: GridContainerProps) {
   const gridRef = useRef<any>(null);
@@ -26,39 +37,54 @@ export function NewGridView({
   const [containerHeight, setContainerHeight] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCell, setEditingCell] = useState<{rowId: string, columnId: string} | null>(null);
+  const [focusedCell, setFocusedCell] = useState<{rowIndex: number, columnIndex: number} | null>(null);
   const [activeFilters, setActiveFilters] = useState<{columns: string[], values: Record<string, any>}>({ columns: [], values: {} });
   const [statusDropdownPosition, setStatusDropdownPosition] = useState<{ top: number; left: number; rowId: string; columnId: string } | null>(null);
   const [visibleData, setVisibleData] = useState<GridRow[]>([]);
+  const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{x: number, y: number} | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  // Column widths state - fixed widths without resize capability
-  const [columnWidths, setColumnWidths] = useState<number[]>(
-    [INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]
-  );
+  // Load saved column widths from localStorage based on listId
+  const localStorageKey = `grid-column-widths-${listId || 'default'}`;
+
+  const [columnWidths, setColumnWidths] = useState<number[]>(() => {
+    try {
+      const savedWidths = localStorage.getItem(localStorageKey);
+      if (savedWidths) {
+        const parsed = JSON.parse(savedWidths);
+        if (Array.isArray(parsed) && parsed.length >= columns.length + 1) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load column widths from localStorage', e);
+    }
+    // Set first column (index) to INDEX_COLUMN_WIDTH and mark it as non-resizable
+    return [INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)];
+  });
 
   // Update column widths when columns change
   useEffect(() => {
-    setColumnWidths([INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]);
-  }, [columns]);
+    // Only update if columns length is different to avoid resetting widths
+    if (columnWidths.length !== columns.length + 1) {
+      console.log('Updating column widths due to columns change', columns.length);
+      setColumnWidths([INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]);
+    }
+  }, [columns.length]);
 
-  // Set visible data on initial load
-  useEffect(() => {
-    console.info('[GRID] Setting visible data with', data.length, 'rows');
-    setVisibleData(data);
-  }, [data]);
-
-  // Calculate total width of columns
-  const totalWidth = useMemo(() => {
-    return columnWidths.reduce((acc, width) => acc + width, 0);
-  }, [columnWidths]);
-
-  // Filter data based on search term and active filters
-  const applyFilters = useCallback(() => {
-    let result = data;
+  // Calculate paginated data
+  const paginatedData = useMemo(() => {
+    // Apply filters and search first
+    let filteredData = data;
     
     // Apply search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      result = result.filter(row => {
+      filteredData = filteredData.filter(row => {
         return columns.some(column => {
           const value = row[column.id];
           if (value === null || value === undefined) return false;
@@ -67,9 +93,9 @@ export function NewGridView({
       });
     }
     
-    // Apply column filters with improved logic
+    // Apply column filters
     if (activeFilters.columns.length > 0) {
-      result = result.filter(row => {
+      filteredData = filteredData.filter(row => {
         return activeFilters.columns.every(columnId => {
           const value = row[columnId];
           const filterValue = activeFilters.values[columnId];
@@ -80,11 +106,9 @@ export function NewGridView({
           // Different filter logic based on column type
           switch (column.type) {
             case 'status':
-              // If no specific values selected, just check if field has any value
               if (!filterValue || filterValue.length === 0) {
                 return value !== null && value !== undefined && value !== '';
               }
-              // Otherwise check if value is in the selected options
               return filterValue.includes(value);
               
             case 'date':
@@ -112,14 +136,24 @@ export function NewGridView({
       });
     }
     
-    return result;
-  }, [data, columns, searchTerm, activeFilters]);
+    // Update total pages based on filtered data
+    const pages = Math.ceil(filteredData.length / ROWS_PER_PAGE);
+    setTotalPages(Math.max(1, pages));
+    
+    // Ensure current page is valid
+    if (currentPage > pages && pages > 0) {
+      setCurrentPage(pages);
+    }
+    
+    // Return paginated result
+    const start = (currentPage - 1) * ROWS_PER_PAGE;
+    return filteredData.slice(start, start + ROWS_PER_PAGE);
+  }, [data, columns, searchTerm, activeFilters, currentPage]);
 
-  // Apply filters whenever filter conditions change
+  // Update visible data when pagination or filters change
   useEffect(() => {
-    const filteredData = applyFilters();
-    setVisibleData(filteredData);
-  }, [applyFilters]);
+    setVisibleData(paginatedData);
+  }, [paginatedData]);
 
   // Resize observer for container
   useEffect(() => {
@@ -138,16 +172,26 @@ export function NewGridView({
     };
   }, []);
 
+  // Calculate total width of columns
+  const totalWidth = useMemo(() => {
+    return columnWidths.reduce((acc, width) => acc + width, 0);
+  }, [columnWidths]);
+
   // Handle cell click for editing
   const handleCellClick = (rowId: string, columnId: string) => {
     const column = columns.find(col => col.id === columnId);
     
-    // Don't allow editing non-editable cells
     if (!column?.editable) return;
+
+    // Set focused cell for keyboard navigation
+    const rowIndex = visibleData.findIndex(row => row.id === rowId);
+    const columnIndex = columns.findIndex(col => col.id === columnId) + 1; // +1 for index column
     
-    // If it's a status column, show dropdown instead
+    if (rowIndex >= 0 && columnIndex >= 0) {
+      setFocusedCell({ rowIndex: rowIndex + 1, columnIndex }); // +1 for header row
+    }
+    
     if (column.type === 'status' && column.options) {
-      // Find the cell element to position the dropdown
       const cellElement = document.querySelector(`[data-cell="${rowId}-${columnId}"]`);
       if (cellElement) {
         const rect = cellElement.getBoundingClientRect();
@@ -189,18 +233,14 @@ export function NewGridView({
     
     if (e.key === 'Enter') {
       e.preventDefault();
-      
-      // Save the current cell value
       handleCellChange(rowId, columnId, value);
       
       if (e.shiftKey) {
-        // Move to the cell above if not at the top
         if (rowIndex > 0) {
           const prevRow = visibleData[rowIndex - 1];
           setEditingCell({ rowId: prevRow.id, columnId });
         }
       } else {
-        // Move to the cell below if not at the bottom
         if (rowIndex < visibleData.length - 1) {
           const nextRow = visibleData[rowIndex + 1];
           setEditingCell({ rowId: nextRow.id, columnId });
@@ -208,16 +248,12 @@ export function NewGridView({
       }
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      
-      // Save the current cell value
       handleCellChange(rowId, columnId, value);
       
       if (e.shiftKey) {
-        // Move to the previous cell if not at the start
         if (colIndex > 0) {
           setEditingCell({ rowId, columnId: columns[colIndex - 1].id });
         } else if (rowIndex > 0) {
-          // Move to the end of the previous row
           const prevRow = visibleData[rowIndex - 1];
           setEditingCell({ 
             rowId: prevRow.id, 
@@ -225,11 +261,9 @@ export function NewGridView({
           });
         }
       } else {
-        // Move to the next cell if not at the end
         if (colIndex < columns.length - 1) {
           setEditingCell({ rowId, columnId: columns[colIndex + 1].id });
         } else if (rowIndex < visibleData.length - 1) {
-          // Move to the start of the next row
           const nextRow = visibleData[rowIndex + 1];
           setEditingCell({ 
             rowId: nextRow.id, 
@@ -247,15 +281,16 @@ export function NewGridView({
     handleCellChange(rowId, columnId, value);
   };
 
-  // Column width getter for grid - using stable callback for column widths
+  // Column width getter for grid - using callback to ensure it's stable
   const getColumnWidth = useCallback((index: number) => {
+    if (index === 0) return INDEX_WIDTH; // Fixed width for index column
     return columnWidths[index] || 150;
   }, [columnWidths]);
 
   // Row height callback for VariableSizeGrid
   const getRowHeight = useCallback(() => ROW_HEIGHT, []);
 
-  // Handle filter changes
+  // Handle filter changes with enhanced functionality
   const handleApplyFilters = (filters: {columns: string[], values: Record<string, any>}) => {
     console.log("Applying filters:", filters);
     setActiveFilters(filters);
@@ -283,6 +318,87 @@ export function NewGridView({
     }
   }, [statusDropdownPosition]);
 
+  // Handle keyboard navigation
+  useEffect(() => {
+    if (!focusedCell) return;
+    
+    const handleGridKeyDown = (e: KeyboardEvent) => {
+      if (editingCell) return; // Don't navigate while editing
+      
+      let { rowIndex, columnIndex } = focusedCell;
+      let handled = true;
+      
+      const maxRow = visibleData.length;
+      const maxColumn = columns.length + 1; // +1 for index column
+      
+      switch (e.key) {
+        case 'ArrowUp':
+          rowIndex = Math.max(1, rowIndex - 1); // Minimum is 1 (first data row)
+          break;
+        case 'ArrowDown':
+          rowIndex = Math.min(maxRow, rowIndex + 1);
+          break;
+        case 'ArrowLeft':
+          columnIndex = Math.max(1, columnIndex - 1); // Minimum is 1 (first real column, not index)
+          break;
+        case 'ArrowRight':
+          columnIndex = Math.min(maxColumn, columnIndex + 1);
+          break;
+        case 'Home':
+        case 'End':
+          if (e.ctrlKey || e.metaKey) {
+            if (e.key === 'Home') {
+              rowIndex = 1; // First data row
+            } else {
+              rowIndex = maxRow; // Last row
+            }
+          } else {
+            if (e.key === 'Home') {
+              columnIndex = 1; // First column
+            } else {
+              columnIndex = maxColumn; // Last column
+            }
+          }
+          break;
+        default:
+          handled = false;
+      }
+      
+      if (handled) {
+        e.preventDefault();
+        setFocusedCell({ rowIndex, columnIndex });
+        
+        // Scroll to the focused cell
+        if (gridRef.current) {
+          gridRef.current.scrollToItem({
+            rowIndex: Math.max(0, rowIndex - 1), // Adjust for header row
+            columnIndex: columnIndex
+          });
+        }
+        
+        // Set focus to the cell when using arrow keys
+        if (rowIndex >= 1 && columnIndex >= 1) {
+          const actualRowIndex = rowIndex - 1; // Adjust for header row
+          const actualColumnIndex = columnIndex - 1; // Adjust for index column
+          
+          if (actualRowIndex < visibleData.length && actualColumnIndex < columns.length) {
+            const rowId = visibleData[actualRowIndex].id;
+            const columnId = columns[actualColumnIndex].id;
+            
+            // Focus the cell without going into edit mode
+            const cellElement = document.querySelector(`[data-cell="${rowId}-${columnId}"]`);
+            if (cellElement instanceof HTMLElement) {
+              cellElement.focus();
+            }
+          }
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleGridKeyDown);
+    return () => window.removeEventListener('keydown', handleGridKeyDown);
+  }, [focusedCell, visibleData, columns, editingCell]);
+
   // Highlight search term in text
   const highlightSearchTerm = (text: string) => {
     if (!searchTerm || !text) return text;
@@ -303,6 +419,64 @@ export function NewGridView({
         )}
       </>
     );
+  };
+
+  // Context menu handlers with position
+  const handleContextMenu = (columnId: string | null, position?: { x: number, y: number }) => {
+    setContextMenuColumn(columnId);
+    if (position) {
+      setContextMenuPosition(position);
+    }
+  };
+
+  // Render edit input based on column type with enhanced UX
+  const renderEditInput = (row: GridRow, column: Column) => {
+    const value = row[column.id];
+    
+    // Add autofocus with selection for improved UX
+    const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      e.target.select();
+    };
+    
+    switch (column.type) {
+      case 'number':
+      case 'currency':
+        return (
+          <input
+            type="number"
+            className={`grid-cell-input ${column.type === 'currency' ? 'text-right' : ''}`}
+            defaultValue={value as number}
+            autoFocus
+            onFocus={handleInputFocus}
+            onBlur={(e) => handleBlur(row.id, column.id, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, row.id, column.id, e.currentTarget.value)}
+          />
+        );
+      case 'date':
+        return (
+          <input
+            type="date"
+            className="grid-cell-input"
+            defaultValue={value as string}
+            autoFocus
+            onFocus={handleInputFocus}
+            onBlur={(e) => handleBlur(row.id, column.id, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, row.id, column.id, e.currentTarget.value)}
+          />
+        );
+      default:
+        return (
+          <input
+            type="text"
+            className="grid-cell-input"
+            defaultValue={value as string}
+            autoFocus
+            onFocus={handleInputFocus}
+            onBlur={(e) => handleBlur(row.id, column.id, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, row.id, column.id, e.currentTarget.value)}
+          />
+        );
+    }
   };
 
   // Format cell value based on column type
@@ -368,57 +542,7 @@ export function NewGridView({
     return brightness > 128;
   };
 
-  // Render edit input based on column type
-  const renderEditInput = (row: GridRow, column: Column) => {
-    const value = row[column.id];
-    
-    // Add autofocus with selection for improved UX
-    const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-      e.target.select();
-    };
-    
-    switch (column.type) {
-      case 'number':
-      case 'currency':
-        return (
-          <input
-            type="number"
-            className={`grid-cell-input ${column.type === 'currency' ? 'text-right' : ''}`}
-            defaultValue={value as number}
-            autoFocus
-            onFocus={handleInputFocus}
-            onBlur={(e) => handleBlur(row.id, column.id, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, row.id, column.id, e.currentTarget.value)}
-          />
-        );
-      case 'date':
-        return (
-          <input
-            type="date"
-            className="grid-cell-input"
-            defaultValue={value as string}
-            autoFocus
-            onFocus={handleInputFocus}
-            onBlur={(e) => handleBlur(row.id, column.id, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, row.id, column.id, e.currentTarget.value)}
-          />
-        );
-      default:
-        return (
-          <input
-            type="text"
-            className="grid-cell-input"
-            defaultValue={value as string}
-            autoFocus
-            onFocus={handleInputFocus}
-            onBlur={(e) => handleBlur(row.id, column.id, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, row.id, column.id, e.currentTarget.value)}
-          />
-        );
-    }
-  };
-
-  // Cell renderer with fixed alignment
+  // Cell renderer with fixes for borders and alignment
   const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
     if (rowIndex === 0) {
       return null; // Header is rendered separately
@@ -430,22 +554,22 @@ export function NewGridView({
     if (!row) return null;
     
     if (columnIndex === 0) {
+      // Index column
+      const cellStyle: React.CSSProperties = {
+        ...style,
+        borderTop: 'none',
+        borderBottom: '1px solid #e5e7eb',
+        borderRight: '1px solid #e5e7eb',
+        zIndex: 5,
+        width: INDEX_WIDTH, // Use the same width as in the header
+      };
+      
       return (
         <div 
           className="index-column"
-          style={{
-            ...style,
-            width: INDEX_COLUMN_WIDTH,
-            borderTop: 'none',
-            borderBottom: '1px solid #e5e7eb',
-            borderRight: '1px solid #e5e7eb',
-            position: 'sticky',
-            left: 0,
-            zIndex: 2,
-            background: '#fff'
-          }}
+          style={cellStyle}
         >
-          {dataRowIndex + 1}
+          {dataRowIndex + 1 + ((currentPage - 1) * ROWS_PER_PAGE)}
         </div>
       );
     }
@@ -457,29 +581,25 @@ export function NewGridView({
     
     const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
     const isFirstColumn = columnIdx === 0;
+    const isFocused = focusedCell?.rowIndex === rowIndex && focusedCell?.columnIndex === columnIndex;
     const shouldLinkToStream = isFirstColumn && (
       (listType === 'Contact' && column.id === 'email') ||
       (listType === 'Opportunity' && column.id === 'opportunity')
     );
+    const isHighlighted = contextMenuColumn === column.id;
     
-    // Fix cell styles for perfect alignment
-    const cellStyle = {
+    // Fix cell styles to eliminate gaps and ensure alignment
+    const cellStyle: React.CSSProperties = {
       ...style,
-      width: column.width,
       borderTop: 'none',
       borderLeft: 'none',
       padding: isEditing ? 0 : '0.75rem',
-      overflow: 'hidden',
+      position: 'absolute',
+      height: ROW_HEIGHT,
+      left: style.left,
+      top: style.top,
+      width: style.width
     };
-    
-    if (isFirstColumn && column.frozen) {
-      Object.assign(cellStyle, {
-        position: 'sticky',
-        left: INDEX_COLUMN_WIDTH,
-        zIndex: 2,
-        background: '#fff'
-      });
-    }
     
     return (
       <div
@@ -489,9 +609,12 @@ export function NewGridView({
           ${isEditing ? 'grid-cell-editing' : ''} 
           ${column.type === 'currency' ? 'text-right' : ''}
           ${isFirstColumn ? 'grid-frozen-cell opportunity-cell' : ''}
+          ${isHighlighted ? 'highlight-column' : ''}
+          ${isFocused ? 'grid-cell-focused' : ''}
         `}
         style={cellStyle}
         data-cell={`${row.id}-${column.id}`}
+        tabIndex={0}
         onClick={() => {
           if (shouldLinkToStream) {
             // Placeholder for navigation
@@ -499,6 +622,10 @@ export function NewGridView({
           } else {
             handleCellClick(row.id, column.id);
           }
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          handleContextMenu(column.id, { x: e.clientX, y: e.clientY });
         }}
       >
         {isEditing ? (
@@ -510,17 +637,18 @@ export function NewGridView({
     );
   };
 
-  // Custom inner element to remove border spacing and gaps
+  // Custom inner element for grid with perfect alignment
   const innerElementType = React.forwardRef<HTMLDivElement, React.HTMLProps<HTMLDivElement>>(
     ({ style, ...rest }, ref) => (
       <div
         ref={ref}
         style={{
           ...style,
+          position: 'relative',
           borderCollapse: 'collapse',
           borderSpacing: 0,
           padding: 0,
-          margin: 0,
+          margin: 0
         }}
         className="react-window-grid-inner"
         {...rest}
@@ -528,55 +656,211 @@ export function NewGridView({
     )
   );
 
+  innerElementType.displayName = "InnerElementType";
+
+  // Render column context menu
+  const renderColumnContextMenu = () => {
+    if (!contextMenuColumn) return null;
+    
+    const column = columns.find(col => col.id === contextMenuColumn);
+    if (!column) return null;
+    
+    // Calculate position for the context menu
+    const menuStyle: React.CSSProperties = contextMenuPosition 
+      ? {
+          position: 'fixed',
+          top: `${contextMenuPosition.y}px`,
+          left: `${contextMenuPosition.x}px`,
+          zIndex: 1000,
+        }
+      : {};
+    
+    return (
+      <DropdownMenu 
+        open={!!contextMenuColumn} 
+        onOpenChange={(open) => !open && setContextMenuColumn(null)}
+      >
+        <DropdownMenuTrigger asChild>
+          <div style={{ display: 'none' }} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56" style={menuStyle}>
+          <DropdownMenuItem onClick={() => { setContextMenuColumn(null); }}>
+            <Scissors className="mr-2 h-4 w-4" />
+            <span>Cut</span>
+            <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => { setContextMenuColumn(null); }}>
+            <ClipboardCopy className="mr-2 h-4 w-4" />
+            <span>Copy</span>
+            <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => { setContextMenuColumn(null); }}>
+            <Clipboard className="mr-2 h-4 w-4" />
+            <span>Paste</span>
+            <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuItem disabled onClick={() => {}}>
+            <StretchHorizontal className="mr-2 h-4 w-4 text-gray-400" />
+            <span className="text-gray-400">Resize column</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuItem onClick={() => { setContextMenuColumn(null); }}>
+            <Filter className="mr-2 h-4 w-4" />
+            <span>Create a filter</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuItem onClick={() => { setContextMenuColumn(null); }}>
+            <span className="mr-2">A→Z</span>
+            <span>Sort sheet A to Z</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem onClick={() => { setContextMenuColumn(null); }}>
+            <span className="mr-2">Z→A</span>
+            <span>Sort sheet Z to A</span>
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem disabled={column.id === 'opportunity'} onClick={() => { setContextMenuColumn(null); }}>
+            <EyeOff className="mr-2 h-4 w-4" />
+            <span>Hide column</span>
+          </DropdownMenuItem>
+          
+          {column.id !== 'opportunity' && (
+            <DropdownMenuItem disabled onClick={() => {}}>
+              <Trash2 className="mr-2 h-4 w-4 text-gray-400" />
+              <span className="text-gray-400">Delete column</span>
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
+  // Pagination controls
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(prev => prev + 1);
+      // Reset scroll position when changing page
+      if (gridRef.current) {
+        gridRef.current.scrollTo({ scrollTop: 0 });
+      }
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+      // Reset scroll position when changing page
+      if (gridRef.current) {
+        gridRef.current.scrollTo({ scrollTop: 0 });
+      }
+    }
+  };
+
   return (
     <div className={`grid-view ${className || ''}`} ref={containerRef}>
-      <GridToolbar 
-        listName={listName}
-        listType={listType}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        filterCount={activeFilters.columns.length}
-        columns={columns}
-        onApplyFilters={handleApplyFilters}
-        activeFilters={activeFilters}
-      />
+      <div className="grid-toolbar">
+        <div className="toolbar-left">
+          <h2 className="text-lg font-semibold">{listName}</h2>
+          <div className="flex items-center">
+            <FilterPopover
+              columns={columns}
+              activeFilters={activeFilters}
+              onApplyFilters={handleApplyFilters}
+              filterCount={activeFilters.columns.length}
+            />
+          </div>
+        </div>
+        <div className="toolbar-right">
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-3 py-1 border rounded-md text-sm w-48"
+          />
+        </div>
+      </div>
       
-      <div ref={headerRef} style={{ overflow: 'hidden' }}>
+      <div className="header-wrapper" ref={headerRef}>
         <GridHeader 
           columns={columns}
           onColumnChange={onColumnChange}
-          // Removed resize capability
-          showResizeHandles={false}
-          indexColumnWidth={INDEX_COLUMN_WIDTH}
+          onColumnsReorder={onColumnsReorder}
+          activeContextMenu={contextMenuColumn}
+          onContextMenu={handleContextMenu}
         />
       </div>
       
-      <div className="grid-body">
-        {containerWidth > 0 && containerHeight > 0 && (
-          <Grid
-            ref={gridRef}
-            columnCount={columns.length + 1} // +1 for index column
-            columnWidth={getColumnWidth}
-            height={containerHeight - HEADER_HEIGHT} // Adjusted for perfect alignment
-            rowCount={visibleData.length + 1} // +1 for header placeholder
-            rowHeight={getRowHeight}
-            width={containerWidth}
-            className="react-window-grid"
-            style={{ 
-              overflowX: 'auto', 
-              overflowY: 'auto', 
-              margin: 0, 
-              padding: 0,
-              borderTop: 0,
-              borderCollapse: 'collapse',
-              borderSpacing: 0
-            }}
-            innerElementType={innerElementType}
-            onScroll={handleGridScroll}
-          >
-            {Cell}
-          </Grid>
-        )}
+      <div className="grid-wrapper">
+        <div className="grid-body">
+          {containerWidth > 0 && containerHeight > 0 && (
+            <Grid
+              ref={gridRef}
+              columnCount={columns.length + 1} // +1 for index column
+              columnWidth={getColumnWidth}
+              height={containerHeight - HEADER_HEIGHT - 40} // Leave space for pagination
+              rowCount={visibleData.length + 1} // +1 for header placeholder
+              rowHeight={getRowHeight}
+              width={containerWidth}
+              className="react-window-grid"
+              style={{ 
+                overflowX: 'auto', 
+                overflowY: 'auto', 
+                margin: 0, 
+                padding: 0,
+                borderTop: 0,
+                borderCollapse: 'collapse',
+                borderSpacing: 0
+              }}
+              innerElementType={innerElementType}
+              outerElementType={OuterElementWrapper}
+              onScroll={handleGridScroll}
+              itemKey={(data) => {
+                const { columnIndex, rowIndex } = data;
+                if (rowIndex === 0) return `header-${columnIndex}`;
+                if (columnIndex === 0) return `index-${rowIndex}`;
+                
+                const row = visibleData[rowIndex - 1];
+                if (!row) return `empty-${rowIndex}-${columnIndex}`;
+                
+                return `${row.id}-${columns[columnIndex - 1]?.id || columnIndex}`;
+              }}
+            >
+              {Cell}
+            </Grid>
+          )}
+        </div>
+        
+        {/* Pagination controls */}
+        <div className="grid-pagination">
+          <div className="pagination-controls">
+            <span>Page {currentPage} of {totalPages}</span>
+            <div className="pagination-buttons">
+              <button 
+                onClick={handlePrevPage} 
+                disabled={currentPage <= 1}
+                className={`pagination-button ${currentPage <= 1 ? 'disabled' : ''}`}
+              >
+                ‹ Prev
+              </button>
+              <span className="pagination-separator">|</span>
+              <button 
+                onClick={handleNextPage} 
+                disabled={currentPage >= totalPages}
+                className={`pagination-button ${currentPage >= totalPages ? 'disabled' : ''}`}
+              >
+                Next ›
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
       
       {/* Status Dropdown */}
@@ -612,6 +896,9 @@ export function NewGridView({
           })()}
         </div>
       )}
+      
+      {/* Column Context Menu */}
+      {renderColumnContextMenu()}
     </div>
   );
 }
