@@ -1,4 +1,3 @@
-
 import { NavLink } from "react-router-dom";
 import { Bell, Settings, HelpCircle, Search, User } from "lucide-react";
 import { ProfileMenu } from "./profile-menu";
@@ -17,24 +16,44 @@ export function TopNavbar() {
 
         {/* Navigation Items */}
         <div className="flex">
-          <NavLink to="/" className="px-4 h-12 flex items-center hover:bg-[#2D7289]/50">
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
+            }
+          >
             Home
           </NavLink>
-          <NavLink to="/reports" className="px-4 h-12 flex items-center hover:bg-[#2D7289]/50">
+          <NavLink
+            to="/reports"
+            className={({ isActive }) =>
+              `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
+            }
+          >
             Reports
           </NavLink>
-          <NavLink 
-            to="/leads" 
-            className={({ isActive }) => 
-              `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 ${isActive ? 'bg-[#2D7289]/50' : ''}`
+          <NavLink
+            to="/leads"
+            className={({ isActive }) =>
+              `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
             }
           >
             Leads
           </NavLink>
-          <NavLink to="/lists" className="px-4 h-12 flex items-center hover:bg-[#2D7289]/50">
+          <NavLink
+            to="/lists"
+            className={({ isActive }) =>
+              `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
+            }
+          >
             Opportunities
           </NavLink>
-          <NavLink to="/customers" className="px-4 h-12 flex items-center hover:bg-[#2D7289]/50">
+          <NavLink
+            to="/customers"
+            className={({ isActive }) =>
+              `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
+            }
+          >
             Customers
           </NavLink>
         </div>
