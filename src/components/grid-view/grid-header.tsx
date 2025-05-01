@@ -9,10 +9,10 @@ import {
   Plus, 
   Trash2,
   Copy,
-  Scissors,
-  Clipboard,
+  Cut,
+  Paste,
   Filter,
-  StretchHorizontal
+  Resize
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -33,7 +33,7 @@ interface GridHeaderProps {
   onColumnResize?: (columnIndex: number, newWidth: number) => void;
   onAddColumn?: (afterColumnId: string) => void;
   onDeleteColumn?: (columnId: string) => void;
-  onContextMenu?: (columnId: string | null, position?: { x: number, y: number }) => void;
+  onContextMenu?: (columnId: string | null) => void;
   activeContextMenu?: string | null;
 }
 
@@ -52,7 +52,6 @@ export function GridHeader({
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [initialX, setInitialX] = useState(0);
   const [initialWidth, setInitialWidth] = useState(0);
-  const [dragPreview, setDragPreview] = useState<HTMLDivElement | null>(null);
   
   // Handle column header edit (double click)
   const handleHeaderDoubleClick = (columnId: string) => {
@@ -78,58 +77,23 @@ export function GridHeader({
     }
   };
   
-  // Handle column drag start - improved with better drag preview
+  // Handle column drag start
   const handleDragStart = (e: React.DragEvent, columnId: string) => {
     if (columnId === 'opportunity') return; // Don't allow dragging the opportunity column
-    
     setDraggedColumn(columnId);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', columnId);
     
-    // Create a more visible drag preview
-    const column = columns.find(col => col.id === columnId);
-    if (!column) return;
-    
+    // Create a drag preview
     const dragPreview = document.createElement('div');
-    dragPreview.className = 'drag-preview-column';
-    dragPreview.textContent = column.title;
+    dragPreview.className = 'drop-placeholder';
+    dragPreview.style.width = '100px';
+    dragPreview.style.height = '30px';
     dragPreview.style.position = 'absolute';
-    dragPreview.style.top = '-1000px';
-    dragPreview.style.backgroundColor = '#d4e6ff';
-    dragPreview.style.border = '2px dashed #2684ff';
-    dragPreview.style.padding = '8px 12px';
-    dragPreview.style.borderRadius = '4px';
-    dragPreview.style.width = `${column.width}px`;
-    dragPreview.style.zIndex = '1000';
-    dragPreview.style.opacity = '0.8';
-    
+    dragPreview.style.left = '-1000px';
     document.body.appendChild(dragPreview);
-    setDragPreview(dragPreview);
     e.dataTransfer.setDragImage(dragPreview, 50, 15);
   };
-  
-  // Clean up drag preview when dragging ends
-  useEffect(() => {
-    const handleDragEnd = () => {
-      if (dragPreview) {
-        document.body.removeChild(dragPreview);
-        setDragPreview(null);
-      }
-      setDraggedColumn(null);
-    };
-    
-    window.addEventListener('dragend', handleDragEnd);
-    return () => {
-      window.removeEventListener('dragend', handleDragEnd);
-      if (dragPreview) {
-        try {
-          document.body.removeChild(dragPreview);
-        } catch (e) {
-          // Preview may have been removed already
-        }
-      }
-    };
-  }, [dragPreview]);
   
   // Handle column drag over
   const handleDragOver = (e: React.DragEvent) => {
@@ -137,7 +101,7 @@ export function GridHeader({
     e.dataTransfer.dropEffect = 'move';
   };
   
-  // Handle column drop for reordering - with improved visual feedback
+  // Handle column drop for reordering
   const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
     
@@ -146,8 +110,8 @@ export function GridHeader({
       return;
     }
     
-    // Don't allow dropping onto the opportunity column if it's first
-    if (targetColumnId === 'opportunity' && columns[0].id === 'opportunity') {
+    // Don't allow dropping onto the opportunity column
+    if (targetColumnId === 'opportunity') {
       setDraggedColumn(null);
       return;
     }
@@ -169,7 +133,7 @@ export function GridHeader({
     setDraggedColumn(null);
   };
   
-  // Handle column resize start with improved live update
+  // Handle column resize start with improved logic
   const handleResizeStart = useCallback((e: React.MouseEvent, columnId: string, initialWidth: number) => {
     e.preventDefault();
     e.stopPropagation();
@@ -190,7 +154,7 @@ export function GridHeader({
       const columnIndex = columns.findIndex(col => col.id === columnId);
       
       if (columnIndex >= 0 && onColumnResize) {
-        onColumnResize(columnIndex, newWidth);
+        onColumnResize(columnIndex + 1, newWidth);
       }
     };
     
@@ -203,7 +167,7 @@ export function GridHeader({
         if (columnIndex >= 0) {
           const diffX = upEvent.clientX - initialX;
           const newWidth = Math.max(100, initialWidth + diffX);
-          onColumnResize(columnIndex, newWidth);
+          onColumnResize(columnIndex + 1, newWidth);
         }
       }
       
@@ -217,16 +181,10 @@ export function GridHeader({
     document.addEventListener('mouseup', handleResizeEnd);
   }, [columns, onColumnResize, initialX, initialWidth, resizingColumn]);
 
-  // Handler for the context menu - now with position
+  // Handler for the context menu
   const handleHeaderContextMenu = (e: React.MouseEvent, columnId: string) => {
     e.preventDefault();
-    
-    // Get the position for the context menu
-    const position = { x: e.clientX, y: e.clientY };
-    
-    if (onContextMenu) {
-      onContextMenu(columnId, position);
-    }
+    if (onContextMenu) onContextMenu(columnId);
   };
   
   // Clipboard operations stubs
@@ -323,7 +281,7 @@ export function GridHeader({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => handleCutColumn(columnId)}>
-                  <Scissors size={14} className="mr-2" />
+                  <Cut size={14} className="mr-2" />
                   Cut
                   <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
                 </DropdownMenuItem>
@@ -335,14 +293,14 @@ export function GridHeader({
                 </DropdownMenuItem>
                 
                 <DropdownMenuItem onClick={() => handlePasteColumn(columnId)}>
-                  <Clipboard size={14} className="mr-2" />
+                  <Paste size={14} className="mr-2" />
                   Paste
                   <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
                 </DropdownMenuItem>
                 
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
-                    <Clipboard size={14} className="mr-2" />
+                    <Paste size={14} className="mr-2" />
                     Paste special
                   </DropdownMenuSubTrigger>
                   <DropdownMenuPortal>
@@ -387,7 +345,7 @@ export function GridHeader({
                 </DropdownMenuItem>
                 
                 <DropdownMenuItem onClick={() => handleResizeColumnAction(columnId)}>
-                  <StretchHorizontal size={14} className="mr-2" />
+                  <Resize size={14} className="mr-2" />
                   Resize column
                 </DropdownMenuItem>
                 
