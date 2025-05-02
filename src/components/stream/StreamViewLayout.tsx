@@ -7,13 +7,34 @@ import MobileTabView from './MobileTabView';
 import StreamTimeline from './StreamTimeline';
 import StreamToolbar from './StreamToolbar';
 import FilterPanel from './FilterPanel';
-import { sampleContact } from './sample-data';
 
 // Layout constants
 const LEFT_RAIL_WIDTH = 400; // px
 const RIGHT_RAIL_WIDTH = 300; // px
 
-export default function StreamViewLayout() {
+interface StreamViewLayoutProps {
+  contact: {
+    id: string;
+    name: string;
+    title?: string;
+    company?: string;
+    location?: string;
+    email?: string;
+    phone?: string;
+    avatarUrl?: string;
+    owner?: string;
+    lastContacted?: string;
+    leadStatus?: string;
+    lifecycleStage?: string;
+    source?: string;
+    industry?: string;
+    jobTitle?: string;
+    address?: string;
+    activities?: Array<any>;
+  }
+}
+
+export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
   return (
     <div className="flex flex-col w-full">
       {/* Desktop Toolbar - hidden on mobile */}
@@ -37,27 +58,31 @@ export default function StreamViewLayout() {
           }}
         >
           {/* Profile card */}
-          <StreamProfileCard />
+          <StreamProfileCard contact={contact} />
           
           {/* Action row - visible on all screen sizes, below profile card */}
           <div className="mt-6 flex items-center justify-center">
-            <ActionRow className="w-full" />
+            <ActionRow className="w-full" contact={contact} />
           </div>
           
           {/* Mobile Tab View - only visible on mobile/tablet */}
           <div className="mt-4">
-            <MobileTabView />
+            <MobileTabView contact={contact} />
           </div>
           
           {/* About This Contact - only visible on desktop with single-column layout */}
           <div className="hidden lg:block mt-4">
-            <AboutThisContact compact={true} leadStatus={sampleContact.leadStatus} />
+            <AboutThisContact 
+              compact={true} 
+              leadStatus={contact.leadStatus} 
+              contact={contact}
+            />
           </div>
         </div>
         
         {/* Main content area - desktop only */}
         <div className="hidden lg:block flex-1 bg-slate-light/5 rounded-md overflow-y-auto self-start h-full">
-          <StreamTimeline />
+          <StreamTimeline activities={contact.activities || []} />
         </div>
         
         {/* Right rail - desktop only */}

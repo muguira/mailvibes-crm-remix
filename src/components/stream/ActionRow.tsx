@@ -4,13 +4,17 @@ import { Phone, Mail, CheckSquare, MoreHorizontal, StickyNote, CalendarClock, Me
 
 interface ActionRowProps {
   className?: string;
+  contact?: {
+    email?: string;
+    phone?: string;
+  };
 }
 
-export default function ActionRow({ className = '' }: ActionRowProps) {
+export default function ActionRow({ className = '', contact }: ActionRowProps) {
   // Action buttons configuration - all buttons for desktop
   const desktopActions = [
-    { icon: Phone, label: 'Call' },
-    { icon: Mail, label: 'Email' },
+    { icon: Phone, label: 'Call', href: contact?.phone ? `tel:${contact.phone}` : undefined },
+    { icon: Mail, label: 'Email', href: contact?.email ? `mailto:${contact.email}` : undefined },
     { icon: CheckSquare, label: 'Task' },
     { icon: StickyNote, label: 'Note' },
     { icon: CalendarClock, label: 'Meeting' },
@@ -19,9 +23,9 @@ export default function ActionRow({ className = '' }: ActionRowProps) {
 
   // Mobile shows 5 buttons in the specified order
   const mobileActions = [
-    { icon: Phone, label: 'Call' },
+    { icon: Phone, label: 'Call', href: contact?.phone ? `tel:${contact.phone}` : undefined },
     { icon: Calendar, label: 'Meeting' },
-    { icon: Mail, label: 'Email' },
+    { icon: Mail, label: 'Email', href: contact?.email ? `mailto:${contact.email}` : undefined },
     { icon: MessageCircle, label: 'Text' },
     { icon: MoreHorizontal, label: 'More' },
   ];
@@ -34,6 +38,7 @@ export default function ActionRow({ className = '' }: ActionRowProps) {
           <button
             key={index}
             className="flex flex-col items-center justify-center p-2 group"
+            onClick={() => action.href && window.location.href = action.href}
           >
             <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center border border-slate-light/30 group-hover:bg-slate-light/10 transition-colors">
               <action.icon size={20} strokeWidth={1.5} className="text-teal-primary" />
@@ -49,6 +54,7 @@ export default function ActionRow({ className = '' }: ActionRowProps) {
           <button
             key={index}
             className="flex flex-col items-center justify-center p-2 group"
+            onClick={() => action.href && window.location.href = action.href}
           >
             <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center border border-slate-light/30 group-hover:bg-slate-light/10 group-hover:border-teal-primary group-hover:border-2 transition-colors">
               <action.icon size={20} strokeWidth={1.5} className="text-teal-primary" />

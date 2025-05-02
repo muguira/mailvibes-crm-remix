@@ -5,36 +5,38 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 interface AboutThisContactProps {
   compact?: boolean;
   leadStatus?: string;
+  contact: {
+    email?: string;
+    phone?: string;
+    owner?: string;
+    lastContacted?: string;
+    lifecycleStage?: string;
+    source?: string;
+    company?: string;
+    industry?: string;
+    jobTitle?: string;
+    address?: string;
+  };
 }
 
-export default function AboutThisContact({ compact = false, leadStatus = "N/A" }: AboutThisContactProps) {
-  // Dummy contact details
-  const contactDetails = {
-    email: "alberto@acmecorp.com",
-    phone: "+1 (555) 123-4567",
-    owner: "Sarah Johnson",
-    lastContacted: "Apr 28, 2025",
-    lifecycleStage: "Lead",
-    source: "Website Form",
-    company: "Acme Corporation",
-    industry: "Software",
-    jobTitle: "Growth Manager",
-    address: "123 Tech Lane, Austin, TX 78701"
-  };
-
+export default function AboutThisContact({ 
+  compact = false, 
+  leadStatus = "N/A",
+  contact
+}: AboutThisContactProps) {
   // All fields in a single array for the single-column layout
   const allFields = [
-    { label: "Email", value: contactDetails.email },
-    { label: "Phone", value: contactDetails.phone },
-    { label: "Owner", value: contactDetails.owner },
-    { label: "Last Contacted", value: contactDetails.lastContacted },
-    { label: "Lead Status", value: leadStatus },
-    { label: "Lifecycle Stage", value: contactDetails.lifecycleStage },
-    { label: "Source", value: contactDetails.source },
-    { label: "Company", value: contactDetails.company },
-    { label: "Industry", value: contactDetails.industry },
-    { label: "Job Title", value: contactDetails.jobTitle },
-    { label: "Address", value: contactDetails.address }
+    { label: "Email", value: contact.email || 'N/A' },
+    { label: "Phone", value: contact.phone || 'N/A' },
+    { label: "Owner", value: contact.owner || 'N/A' },
+    { label: "Last Contacted", value: contact.lastContacted || 'N/A' },
+    { label: "Lead Status", value: leadStatus || 'N/A' },
+    { label: "Lifecycle Stage", value: contact.lifecycleStage || 'N/A' },
+    { label: "Source", value: contact.source || 'N/A' },
+    { label: "Company", value: contact.company || 'N/A' },
+    { label: "Industry", value: contact.industry || 'N/A' },
+    { label: "Job Title", value: contact.jobTitle || 'N/A' },
+    { label: "Address", value: contact.address || 'N/A' }
   ];
 
   return (
@@ -58,49 +60,49 @@ export default function AboutThisContact({ compact = false, leadStatus = "N/A" }
               <div>
                 <div className="mb-3">
                   <div className="text-muted-foreground">Email</div>
-                  <div>{contactDetails.email}</div>
+                  <div>{contact.email || 'N/A'}</div>
                 </div>
                 <div className="mb-3">
                   <div className="text-muted-foreground">Phone</div>
-                  <div>{contactDetails.phone}</div>
+                  <div>{contact.phone || 'N/A'}</div>
                 </div>
                 <div className="mb-3">
                   <div className="text-muted-foreground">Owner</div>
-                  <div>{contactDetails.owner}</div>
+                  <div>{contact.owner || 'N/A'}</div>
                 </div>
                 <div className="mb-3">
                   <div className="text-muted-foreground">Last Contacted</div>
-                  <div>{contactDetails.lastContacted}</div>
+                  <div>{contact.lastContacted || 'N/A'}</div>
                 </div>
                 <div className="mb-3">
                   <div className="text-muted-foreground">Lead Status</div>
-                  <div>{leadStatus}</div>
+                  <div>{leadStatus || 'N/A'}</div>
                 </div>
                 <div className="mb-3">
                   <div className="text-muted-foreground">Lifecycle Stage</div>
-                  <div>{contactDetails.lifecycleStage}</div>
+                  <div>{contact.lifecycleStage || 'N/A'}</div>
                 </div>
               </div>
               <div>
                 <div className="mb-3">
                   <div className="text-muted-foreground">Source</div>
-                  <div>{contactDetails.source}</div>
+                  <div>{contact.source || 'N/A'}</div>
                 </div>
                 <div className="mb-3">
                   <div className="text-muted-foreground">Company</div>
-                  <div>{contactDetails.company}</div>
+                  <div>{contact.company || 'N/A'}</div>
                 </div>
                 <div className="mb-3">
                   <div className="text-muted-foreground">Industry</div>
-                  <div>{contactDetails.industry}</div>
+                  <div>{contact.industry || 'N/A'}</div>
                 </div>
                 <div className="mb-3">
                   <div className="text-muted-foreground">Job Title</div>
-                  <div>{contactDetails.jobTitle}</div>
+                  <div>{contact.jobTitle || 'N/A'}</div>
                 </div>
                 <div className="mb-3">
                   <div className="text-muted-foreground">Address</div>
-                  <div>{contactDetails.address}</div>
+                  <div>{contact.address || 'N/A'}</div>
                 </div>
               </div>
             </>

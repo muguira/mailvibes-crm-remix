@@ -1,14 +1,14 @@
-
 import React from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileEdit, CalendarPlus, Activity } from 'lucide-react';
-import AssociationsTab from './AssociationsTab';
-import AboutTab from './AboutTab';
-import { sampleActivities } from './sample-activities';
-import TimelineItem from './TimelineItem';
 
-export default function MobileTabView() {
+interface MobileTabViewProps {
+  contact?: {
+    id: string;
+    name: string;
+    // Include other properties as needed
+  };
+}
+
+export default function MobileTabView({ contact }: MobileTabViewProps) {
   // Mobile activity samples - a subset of the main timeline
   const mobileSamples = sampleActivities.slice(0, 3);
   
