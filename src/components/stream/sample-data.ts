@@ -18,8 +18,8 @@ export const sampleContact = {
   address: "123 Tech Lane, Austin, TX 78701"
 };
 
-// Mock contacts mapped by ID for dynamic loading
-export const mockContactsById = {
+// Mock contacts mapped by ID for dynamic loading - now maintained by the EditableLeadsGrid
+export const mockContactsById: Record<string, any> = {
   "1": {
     id: "1",
     name: "Alberto Navarro",
@@ -75,4 +75,3 @@ export const mockContactsById = {
     address: "789 Tech Center, Chicago, IL 60601"
   }
 };
-
