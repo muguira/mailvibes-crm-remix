@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Phone, Mail, CheckSquare, MoreHorizontal, StickyNote, CalendarClock } from 'lucide-react';
+import { Phone, Mail, CheckSquare, MoreHorizontal, StickyNote, CalendarClock, MessageCircle, Calendar } from 'lucide-react';
 
 interface ActionRowProps {
   className?: string;
@@ -17,11 +17,12 @@ export default function ActionRow({ className = '' }: ActionRowProps) {
     { icon: MoreHorizontal, label: 'More' },
   ];
 
-  // Mobile only shows 4 buttons
+  // Mobile shows 5 buttons in the specified order
   const mobileActions = [
     { icon: Phone, label: 'Call' },
+    { icon: Calendar, label: 'Meeting' },
     { icon: Mail, label: 'Email' },
-    { icon: CheckSquare, label: 'Task' },
+    { icon: MessageCircle, label: 'Text' },
     { icon: MoreHorizontal, label: 'More' },
   ];
 

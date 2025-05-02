@@ -9,8 +9,8 @@ import { sampleContact } from './sample-data';
 export default function StreamViewLayout() {
   return (
     <div className="flex flex-col lg:flex-row gap-4">
-      {/* Left rail - fixed 280px width on desktop */}
-      <div className="w-full lg:w-[280px] shrink-0">
+      {/* Left rail - fixed 320px width on desktop (increased from 280px) */}
+      <div className="w-full lg:w-[320px] shrink-0">
         {/* Profile card */}
         <StreamProfileCard />
         

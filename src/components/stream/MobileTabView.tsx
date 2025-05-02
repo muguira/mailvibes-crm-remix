@@ -2,7 +2,7 @@
 import React from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileEdit, Calendar, Activity } from 'lucide-react';
+import { FileEdit, CalendarPlus, Activity } from 'lucide-react';
 
 export default function MobileTabView() {
   return (
@@ -29,7 +29,7 @@ export default function MobileTabView() {
               </SelectContent>
             </Select>
 
-            {/* Quick Action Buttons */}
+            {/* Quick Action Buttons - Updated to only show 3 buttons in specified order */}
             <div className="flex items-center justify-around mt-4">
               <button className="flex flex-col items-center gap-1">
                 <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center border border-slate-light/30 hover:bg-slate-light/10 transition-colors">
@@ -39,7 +39,7 @@ export default function MobileTabView() {
               </button>
               <button className="flex flex-col items-center gap-1">
                 <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center border border-slate-light/30 hover:bg-slate-light/10 transition-colors">
-                  <Calendar className="h-6 w-6 text-teal-primary" />
+                  <CalendarPlus className="h-6 w-6 text-teal-primary" />
                 </div>
                 <span className="text-xs text-slate-dark">Create Task</span>
               </button>
