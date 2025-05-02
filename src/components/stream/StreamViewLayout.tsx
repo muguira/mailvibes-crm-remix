@@ -4,6 +4,7 @@ import { StreamProfileCard } from './index';
 import { AboutThisContact } from './index';
 import ActionRow from './ActionRow';
 import MobileTabView from './MobileTabView';
+import { sampleContact } from './sample-data';
 
 export default function StreamViewLayout() {
   return (
@@ -25,7 +26,7 @@ export default function StreamViewLayout() {
         
         {/* About This Contact - only visible on desktop with single-column layout */}
         <div className="hidden lg:block mt-4">
-          <AboutThisContact compact={true} />
+          <AboutThisContact compact={true} leadStatus={sampleContact.leadStatus} />
         </div>
       </div>
       

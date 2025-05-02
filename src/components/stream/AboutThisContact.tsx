@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface AboutThisContactProps {
   compact?: boolean;
+  leadStatus?: string;
 }
 
-export default function AboutThisContact({ compact = false }: AboutThisContactProps) {
+export default function AboutThisContact({ compact = false, leadStatus = "N/A" }: AboutThisContactProps) {
   // Dummy contact details
   const contactDetails = {
     email: "alberto@acmecorp.com",
@@ -27,6 +28,7 @@ export default function AboutThisContact({ compact = false }: AboutThisContactPr
     { label: "Phone", value: contactDetails.phone },
     { label: "Owner", value: contactDetails.owner },
     { label: "Last Contacted", value: contactDetails.lastContacted },
+    { label: "Lead Status", value: leadStatus },
     { label: "Lifecycle Stage", value: contactDetails.lifecycleStage },
     { label: "Source", value: contactDetails.source },
     { label: "Company", value: contactDetails.company },
@@ -69,6 +71,10 @@ export default function AboutThisContact({ compact = false }: AboutThisContactPr
                 <div className="mb-3">
                   <div className="text-muted-foreground">Last Contacted</div>
                   <div>{contactDetails.lastContacted}</div>
+                </div>
+                <div className="mb-3">
+                  <div className="text-muted-foreground">Lead Status</div>
+                  <div>{leadStatus}</div>
                 </div>
                 <div className="mb-3">
                   <div className="text-muted-foreground">Lifecycle Stage</div>
