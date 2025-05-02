@@ -3,6 +3,7 @@ import React from 'react';
 import { StreamProfileCard } from './index';
 import { AboutThisContact } from './index';
 import ActionRow from './ActionRow';
+import MobileTabView from './MobileTabView';
 
 export default function StreamViewLayout() {
   return (
@@ -17,14 +18,19 @@ export default function StreamViewLayout() {
           <ActionRow className="w-full" />
         </div>
         
-        {/* About This Contact - 16px spacing from the profile card */}
+        {/* Mobile Tab View - only visible on mobile/tablet */}
         <div className="mt-4">
-          <AboutThisContact />
+          <MobileTabView />
+        </div>
+        
+        {/* About This Contact - only visible on desktop with single-column layout */}
+        <div className="hidden lg:block mt-4">
+          <AboutThisContact compact={true} />
         </div>
       </div>
       
       {/* Main content area - takes remaining space on desktop */}
-      <div className="w-full lg:flex-grow bg-muted/50 min-h-[300px] rounded-md flex items-center justify-center p-6">
+      <div className="w-full lg:flex-grow bg-muted/50 min-h-[300px] rounded-md flex items-center justify-center p-6 overflow-y-auto lg:overflow-visible pb-24 lg:pb-6">
         <p className="text-muted-foreground">Stream timeline will render here...</p>
       </div>
     </div>
