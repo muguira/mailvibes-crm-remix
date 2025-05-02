@@ -1,0 +1,28 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## Grid Sizing Invariants — DO NOT ALTER
+
+The spreadsheet list view is considered **production-ready** as of commit `fix(grid): fully remove onColumnResize prop to restore build`  
+(“grid works perfect”). All future changes must respect these invariants unless a new
+product-level spec explicitly updates them.
+
+| Aspect                    | Invariant rule | Where the value lives |
+|---------------------------|----------------|-----------------------|
+| **Row height**            | Fixed, identical for header & body; no per-row overrides. | `ROW_HEIGHT` constant in `grid-constants.ts` |
+| **Index “#” column** | Frozen at its current width; **sticky-left (remains visible during horizontal scroll)**; never resizes. | `INDEX_COL_WIDTH` constant |
+| **Other columns**         | Widths are the values currently stored in `columnWidths` state. No drag-resize handles; adding a column must set an explicit width in code. | `columnWidths` array |
+| **Alignment**             | Header and body share the same `columnWidth` callback; no CSS transforms/margins allowed that shift rows. | `VariableSizeGrid` props |
+| **Borders / gap**         | Header bottom border must sit flush on top of Row 1; no blank or grey spacer row permitted. | CSS: `.gridHeaderRow` & `.gridRow` |
+| **Pagination**            | Page size is fixed at the constant defined in `PAGINATION_SIZE`. Changing it requires a feature ticket. | `PAGINATION_SIZE` constant |
+| **Feature flags**         | `FEATURE_RESIZE = false` and `FEATURE_REORDER = false` until a new epic turns them on. | `grid-feature-flags.ts` |
+
+### Guard-rail
+> Any PR that adds `onColumnResize`, a `.resize-handle`, alters `ROW_HEIGHT`,
+> changes the length/order of `columnWidths` without a matching schema ticket,
+> or re-introduces a header/body mis-alignment (visual diff test > 0 px)
+> **must be rejected**.
+
+These rules freeze the current visual grid baseline so future work (filters, saved views, etc.) can proceed without risking layout regressions.

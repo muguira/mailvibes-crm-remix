@@ -1,15 +1,26 @@
-import { NavLink } from "react-router-dom";
-import { Bell, Settings, HelpCircle, Search, User } from "lucide-react";
-import { ProfileMenu } from "./profile-menu";
 
-export function TopNavbar() {
+import { NavLink } from "react-router-dom";
+import { Bell, Settings, HelpCircle, Search } from "lucide-react";
+import { ProfileMenu } from "./profile-menu";
+import { cn } from "@/lib/utils";
+
+interface TopNavbarProps {
+  className?: string;
+}
+
+export function TopNavbar({ className }: TopNavbarProps) {
   return (
-    <div className="bg-[#054258] text-white w-full">
+    <div className={cn("bg-[#054258] text-white w-full", className)}>
       <div className="flex items-center h-12">
-        {/* Logo */}
+        {/* Logo - replaced circle with plain SVG logo */}
         <div className="flex items-center px-4">
-          <div className="h-8 w-8 rounded-full bg-teal-primary/20 flex items-center justify-center text-lg font-bold text-teal-primary">
-            S
+          <div className="flex items-center">
+            <img 
+              src="/lovable-uploads/e748aec3-e452-4ebc-b84b-7a48e19480be.png" 
+              alt="" 
+              className="h-6 w-auto" 
+            />
+            <span className="sr-only">SalesIQ Home</span>
           </div>
           <span className="ml-2 font-semibold text-lg">SalesIQ</span>
         </div>
@@ -58,8 +69,8 @@ export function TopNavbar() {
           </NavLink>
         </div>
 
-        {/* Right side icons */}
-        <div className="ml-auto flex items-center pr-4">
+        {/* Right side icons with gap-4 and flush right */}
+        <div className="ml-auto flex items-center gap-4 pr-4">
           <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
             <Bell size={18} />
           </button>

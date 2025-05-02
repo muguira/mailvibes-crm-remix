@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Column } from './types';
-import { MIN_COLUMN_WIDTH } from './grid-constants';
+import { MIN_COLUMN_WIDTH, INDEX_COLUMN_WIDTH } from './grid-constants';
 import {
   MoreVertical,
   Eye,
@@ -33,6 +33,7 @@ interface GridHeaderProps {
   onDeleteColumn?: (columnId: string) => void;
   onContextMenu?: (columnId: string | null, position?: { x: number, y: number }) => void;
   activeContextMenu?: string | null;
+  columnWidths?: number[]; // Add columnWidths prop
 }
 
 export function GridHeader({
@@ -42,7 +43,8 @@ export function GridHeader({
   onAddColumn,
   onDeleteColumn,
   onContextMenu,
-  activeContextMenu
+  activeContextMenu,
+  columnWidths = [] // Default to empty array
 }: GridHeaderProps) {
   const [editingHeader, setEditingHeader] = useState<string | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export function GridHeader({
     }
   };
 
-  // Cancel header editing
+  // Handle header editing
   const handleHeaderKeyDown = (e: React.KeyboardEvent, columnId: string, newTitle: string) => {
     if (e.key === 'Enter') {
       handleHeaderSave(columnId, newTitle);
@@ -131,7 +133,7 @@ export function GridHeader({
     e.dataTransfer.dropEffect = 'move';
   };
 
-  // Handle column drop for reordering - with improved visual feedback
+  // Handle column drop for reordering
   const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
 
@@ -175,7 +177,7 @@ export function GridHeader({
     }
   };
 
-  // Clipboard operations stubs
+  // Various column operations (most are stubs for now)
   const handleCutColumn = (columnId: string) => {
     console.log(`Cut column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
@@ -196,7 +198,6 @@ export function GridHeader({
     if (onContextMenu) onContextMenu(null);
   };
 
-  // Column operations
   const handleInsertColumnLeft = (columnId: string) => {
     console.log(`Insert column left of: ${columnId}`);
     const columnIndex = columns.findIndex(col => col.id === columnId);
@@ -236,7 +237,6 @@ export function GridHeader({
     if (onContextMenu) onContextMenu(null);
   };
 
-  // Sort and filter
   const handleCreateFilter = (columnId: string) => {
     console.log(`Create filter for column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
@@ -252,14 +252,32 @@ export function GridHeader({
     if (onContextMenu) onContextMenu(null);
   };
 
+  // Get the width for a column
+  const getColumnWidth = (index: number, column: Column) => {
+    // Use columnWidths if provided (for alignment with grid cells)
+    if (columnWidths && columnWidths.length > index + 1) {
+      return columnWidths[index + 1]; // +1 to skip index column
+    }
+    return column.width || MIN_COLUMN_WIDTH;
+  };
+
   return (
     <div className="grid-header">
-      <div className="index-header">#</div>
+      <div
+        className="index-header"
+        style={{
+          width: columnWidths[0] || INDEX_COLUMN_WIDTH,
+          boxSizing: 'border-box'
+        }}
+      >
+        #
+      </div>
       <div className="columns-header">
         {columns.map((column, index) => {
           // Fix for first column display name
-          const displayTitle = column.id === 'opportunity' ? 'Opportunity' : column.title;
+          const displayTitle = column.title;
           const isContextMenuOpen = activeContextMenu === column.id;
+          const isOpportunity = column.id === 'opportunity';
 
           // Render dropdown menu for column options
           const renderColumnMenu = (columnId: string) => (
@@ -364,7 +382,7 @@ export function GridHeader({
               key={column.id}
               className={`
                 grid-header-cell 
-                ${column.id === 'opportunity' ? 'sticky' : ''} 
+                ${isOpportunity ? 'grid-frozen-header' : ''} 
                 ${draggedColumn === column.id ? 'dragging' : ''}
                 ${column.type === 'currency' ? 'text-right' : ''}
                 ${isContextMenuOpen ? 'highlight-column' : ''}
@@ -375,7 +393,12 @@ export function GridHeader({
               onDrop={(e) => handleDrop(e, column.id)}
               onDoubleClick={() => handleHeaderDoubleClick(column.id)}
               onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
-              style={{ width: column.width || MIN_COLUMN_WIDTH, flexShrink: 0 }}
+              style={{
+                width: getColumnWidth(index, column),
+                boxSizing: 'border-box',
+                margin: 0,
+                padding: '0 0.75rem',
+              }}
             >
               {editingHeader === column.id ? (
                 <input
@@ -400,6 +423,7 @@ export function GridHeader({
         <div
           className="add-column-button"
           onClick={() => onAddColumn && onAddColumn(columns[columns.length - 1].id)}
+          style={{ boxSizing: 'border-box' }}
         >
           +
         </div>

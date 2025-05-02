@@ -1,28 +1,34 @@
+import React from 'react';
 
-export type ColumnType = 'text' | 'number' | 'date' | 'currency' | 'status' | 'url';
-
+// Column definition for grid
 export interface Column {
   id: string;
   title: string;
-  type: ColumnType;
+  type: 'text' | 'number' | 'date' | 'status' | 'currency' | 'url' | 'custom';
   width: number;
-  editable?: boolean;
+  editable: boolean;
   frozen?: boolean;
   options?: string[];
   colors?: Record<string, string>;
+  renderCell?: (value: any, row: GridRow) => React.ReactNode;
 }
 
+// Row data interface
 export interface GridRow {
   id: string;
   [key: string]: any;
 }
 
+// Props for the grid container
 export interface GridContainerProps {
   columns: Column[];
   data: GridRow[];
   listName?: string;
-  listId?: string;
   listType?: string;
+  listId?: string;
+  firstRowIndex?: number;
+  searchTerm?: string;
+  onSearchChange?: (term: string) => void;
   onCellChange?: (rowId: string, columnId: string, value: any) => void;
   onColumnChange?: (columnId: string, updates: Partial<Column>) => void;
   onColumnsReorder?: (columnIds: string[]) => void;

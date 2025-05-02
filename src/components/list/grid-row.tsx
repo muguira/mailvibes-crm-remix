@@ -5,7 +5,7 @@ import { ColumnDef } from "./grid/types";
 import { Pencil } from "lucide-react";
 
 interface GridRowProps {
-  rowData: { id: string; [key: string]: any };
+  rowData: { id: string; originalIndex?: number; [key: string]: any };
   rowNumber: number;
   frozenColumns: ColumnDef[];
   scrollableColumns: ColumnDef[];
@@ -32,15 +32,20 @@ export function GridRow({
   renderRowActions
 }: GridRowProps) {
   const isActive = activeCell?.row === rowData.id;
+  
+  // Use originalIndex if available or default to rowNumber
+  const displayRowNumber = rowData.originalIndex !== undefined 
+    ? rowData.originalIndex + 1 
+    : rowNumber;
 
   return (
     <div 
       className={`grid-row ${isActive ? 'active-row' : ''}`}
       data-row-id={rowData.id}
     >
-      {/* Row number cell */}
+      {/* Row number cell - absolute number across all pages */}
       <div className="row-number-cell">
-        {rowNumber}
+        {displayRowNumber}
       </div>
 
       {/* Frozen columns (if any) */}

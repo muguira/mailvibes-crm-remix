@@ -1,9 +1,16 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Search, Filter, Plus, X, Check } from "lucide-react";
+import { Search, Filter, X, Check, ChevronLeft, Calendar as CalendarIcon, Calendar } from "lucide-react";
 import { Column } from './types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Badge } from "@/components/ui/badge";
 
 interface GridToolbarProps {
   listName?: string;
@@ -63,14 +70,6 @@ export function GridToolbar({
     }
   };
 
-  // Handle filter value changes based on column type
-  const handleFilterValueChange = (columnId: string, value: any) => {
-    setFilterValues(prev => ({
-      ...prev,
-      [columnId]: value
-    }));
-  };
-
   // Handle status option selection
   const handleStatusOptionSelect = (columnId: string, option: string, checked: boolean) => {
     setFilterValues(prev => {
@@ -91,12 +90,12 @@ export function GridToolbar({
   };
 
   // Handle date range filter changes
-  const handleDateRangeChange = (columnId: string, type: 'start' | 'end', value: string) => {
+  const handleDateChange = (columnId: string, type: 'start' | 'end', value: Date | undefined) => {
     setFilterValues(prev => ({
       ...prev,
       [columnId]: {
         ...prev[columnId] || {},
-        [type]: value
+        [type]: value ? format(value, 'yyyy-MM-dd') : undefined
       }
     }));
   };
@@ -121,6 +120,25 @@ export function GridToolbar({
     setIsFilterOpen(false);
   };
 
+  // Get active filter badges
+  const getActiveFilterBadges = () => {
+    return selectedColumns.map(columnId => {
+      const column = columns.find(col => col.id === columnId);
+      if (!column) return null;
+      
+      return (
+        <Badge key={columnId} variant="outline" className="gap-1">
+          {column.title}
+          <X 
+            size={14} 
+            className="cursor-pointer" 
+            onClick={() => handleColumnSelect(columnId, false)}
+          />
+        </Badge>
+      );
+    });
+  };
+
   // Render filter value selector based on column type
   const renderFilterValueSelector = (column: Column) => {
     if (!column) return null;
@@ -128,30 +146,29 @@ export function GridToolbar({
     switch (column.type) {
       case 'status':
         return (
-          <div className="filter-values-list">
+          <div className="space-y-2 mt-2">
             {column.options?.map(option => {
               const isSelected = Array.isArray(filterValues[column.id]) && 
                 filterValues[column.id]?.includes(option);
               
               return (
-                <div key={option} className="filter-option-label">
-                  <input 
-                    type="checkbox"
+                <div key={option} className="flex items-center space-x-2 py-1">
+                  <Checkbox 
                     id={`filter-${column.id}-${option}`}
                     checked={isSelected}
-                    onChange={(e) => handleStatusOptionSelect(column.id, option, e.target.checked)}
+                    onCheckedChange={(checked) => 
+                      handleStatusOptionSelect(column.id, option, checked === true)
+                    }
                   />
-                  <label htmlFor={`filter-${column.id}-${option}`}>
-                    <div className="flex items-center gap-2">
-                      <span 
-                        className="inline-block w-3 h-3 rounded-full"
-                        style={{ 
-                          backgroundColor: column.colors?.[option] || '#e5e7eb' 
-                        }}
-                      />
-                      {option}
-                    </div>
-                  </label>
+                  <Label htmlFor={`filter-${column.id}-${option}`} className="flex items-center cursor-pointer">
+                    <span 
+                      className="inline-block w-3 h-3 rounded-full mr-2"
+                      style={{ 
+                        backgroundColor: column.colors?.[option] || '#e5e7eb' 
+                      }}
+                    />
+                    {option}
+                  </Label>
                 </div>
               );
             })}
@@ -160,128 +177,218 @@ export function GridToolbar({
         
       case 'date':
         const dateValues = filterValues[column.id] || {};
+        const startDate = dateValues.start ? new Date(dateValues.start) : undefined;
+        const endDate = dateValues.end ? new Date(dateValues.end) : undefined;
         
         return (
-          <div className="date-range-inputs">
-            <div>
-              <label htmlFor={`date-start-${column.id}`} className="block text-xs mb-1">From</label>
-              <input 
-                type="date"
-                id={`date-start-${column.id}`}
-                className="date-range-input"
-                value={dateValues.start || ''}
-                onChange={(e) => handleDateRangeChange(column.id, 'start', e.target.value)}
-              />
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <Label className="text-xs">From</Label>
+              <div className="grid gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "PPP") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={startDate}
+                      onSelect={(date) => handleDateChange(column.id, 'start', date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
-            <div>
-              <label htmlFor={`date-end-${column.id}`} className="block text-xs mb-1">To</label>
-              <input 
-                type="date"
-                id={`date-end-${column.id}`}
-                className="date-range-input"
-                value={dateValues.end || ''}
-                onChange={(e) => handleDateRangeChange(column.id, 'end', e.target.value)}
-              />
+            
+            <div className="space-y-2">
+              <Label className="text-xs">To</Label>
+              <div className="grid gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "PPP") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={endDate}
+                      onSelect={(date) => handleDateChange(column.id, 'end', date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           </div>
         );
         
       default:
         return (
-          <div className="text-sm text-gray-500">
-            Select columns to filter
+          <div className="text-sm text-muted-foreground mt-2">
+            No specific filters for this column type
           </div>
         );
     }
   };
 
+  // Get the selected column
+  const selectedColumn = selectedField ? columns.find(col => col.id === selectedField) : null;
+
   return (
     <div className="grid-toolbar">
-      <div className="flex items-center space-x-2">
-        {/* Search Field - Updated to be inline with magnifying glass */}
-        <div className="search-field">
-          <Search size={16} className="text-slate-400 mr-2" />
-          <input 
-            type="text" 
-            placeholder="Search Field Values" 
-            className="search-input"
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
+      <div className="flex flex-col w-full gap-4">
+        {/* List name with clean search field */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">{listName}</h2>
+          <div className="text-sm text-muted-foreground">
+            {columns.length} columns
+          </div>
         </div>
         
-        {/* Filter Button with Popover */}
-        <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-          <PopoverTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex items-center text-xs font-normal px-2 text-slate-dark hover:text-slate-darker"
-            >
-              <Filter size={14} className="mr-1" />
-              Filters
-              {filterCount > 0 && (
-                <span className="filter-badge">{filterCount}</span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="filter-popover-container p-0" sideOffset={5}>
-            <div className="filter-popover">
-              <div className="filter-popover-content">
-                <div className="filter-section">
-                  <div className="filter-section-title">Select columns to filter</div>
-                  <div>
-                    {columns.map(column => (
-                      <div key={column.id} className="filter-option-label">
-                        <input 
-                          type="checkbox"
-                          id={`filter-col-${column.id}`}
-                          checked={selectedColumns.includes(column.id)}
-                          onChange={(e) => handleColumnSelect(column.id, e.target.checked)}
-                        />
-                        <label htmlFor={`filter-col-${column.id}`}>{column.title}</label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                {selectedField && (
-                  <div className="filter-value-section">
-                    <div className="filter-section-title">
-                      {columns.find(col => col.id === selectedField)?.title} values
-                    </div>
-                    {renderFilterValueSelector(columns.find(col => col.id === selectedField)!)}
-                  </div>
-                )}
+        {/* Clean search field and filter button */}
+        <div className="flex items-center justify-between">
+          <div className="relative flex-1 max-w-md">
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <Input
+              type="search"
+              placeholder={`Search ${listType || 'items'}...`}
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-10 pr-4 h-9 bg-transparent border-0 border-b focus-visible:ring-0 focus-visible:border-primary rounded-none"
+            />
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {filterCount > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {getActiveFilterBadges()}
               </div>
-              
-              <div className="filter-actions">
+            )}
+            
+            <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+              <PopoverTrigger asChild>
                 <Button 
                   variant="outline" 
-                  size="sm"
-                  onClick={handleClearFilters}
+                  size="sm" 
+                  className="h-9 relative"
                 >
-                  <X size={14} className="mr-1" />
-                  Clear
+                  <Filter size={14} className="mr-1.5" />
+                  Filter
+                  {filterCount > 0 && (
+                    <span className="ml-1 bg-primary text-primary-foreground rounded-full w-4 h-4 inline-flex items-center justify-center text-[10px]">
+                      {filterCount}
+                    </span>
+                  )}
                 </Button>
-                <Button 
-                  size="sm"
-                  onClick={handleApplyFilters}
-                >
-                  <Check size={14} className="mr-1" />
-                  Apply
-                </Button>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
-      
-      <div className="flex items-center space-x-2">
-        {/* Label for columns count */}
-        <span className="text-sm text-slate-400">
-          {columns.length} columns • {listType || 'Item'}
-        </span>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" sideOffset={5}>
+                <div className="flex flex-col">
+                  <div className="p-4 border-b">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-medium">Filters</h3>
+                      {filterCount > 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={handleClearFilters}
+                          className="h-8 text-xs"
+                        >
+                          Clear all
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {/* Show active filter badges */}
+                    {filterCount > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {getActiveFilterBadges()}
+                      </div>
+                    )}
+                    
+                    {!selectedField ? (
+                      <div className="space-y-3">
+                        <div className="text-xs text-muted-foreground font-medium">Select a field to filter</div>
+                        <div className="space-y-1 max-h-[250px] overflow-y-auto pr-1">
+                          {columns.map(column => (
+                            <div key={column.id} className="flex items-center space-x-2 py-1.5 hover:bg-muted rounded px-1">
+                              <Checkbox 
+                                id={`filter-col-${column.id}`}
+                                checked={selectedColumns.includes(column.id)}
+                                onCheckedChange={(checked) => 
+                                  handleColumnSelect(column.id, checked === true)
+                                }
+                              />
+                              <Label 
+                                htmlFor={`filter-col-${column.id}`}
+                                className="flex-1 cursor-pointer"
+                                onClick={() => {
+                                  if (!selectedColumns.includes(column.id)) {
+                                    handleColumnSelect(column.id, true);
+                                  }
+                                  setSelectedField(column.id);
+                                }}
+                              >
+                                {column.title}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex items-center mb-4">
+                          <button 
+                            className="text-sm flex items-center text-muted-foreground hover:text-foreground"
+                            onClick={() => setSelectedField(null)}
+                          >
+                            <ChevronLeft className="h-4 w-4 mr-1" />
+                            Back
+                          </button>
+                          <h3 className="font-medium text-sm ml-auto">{selectedColumn?.title}</h3>
+                        </div>
+                        <div className="max-h-[250px] overflow-y-auto pr-1">
+                          {renderFilterValueSelector(selectedColumn!)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-end p-3 bg-muted/50">
+                    <Button 
+                      size="sm"
+                      onClick={handleApplyFilters}
+                      className="h-8"
+                    >
+                      Apply Filters
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
       </div>
     </div>
   );

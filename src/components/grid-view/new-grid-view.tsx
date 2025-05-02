@@ -21,6 +21,7 @@ const OuterElementWrapper = React.forwardRef<HTMLDivElement, React.HTMLProps<HTM
         ...style,
         height: '100%', // Ensure it takes full height
         width: '100%',
+        overflow: 'auto',
       }}
       {...rest}
     />
@@ -33,6 +34,9 @@ export function NewGridView({
   listName = '',
   listId = '',
   listType = '',
+  firstRowIndex = 0,
+  searchTerm: externalSearchTerm,
+  onSearchChange: externalSearchChange,
   onCellChange,
   onColumnChange,
   onColumnsReorder,
@@ -45,7 +49,9 @@ export function NewGridView({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [localSearchTerm, setLocalSearchTerm] = useState('');
+  // Use external search term if provided, otherwise use local state
+  const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : localSearchTerm;
   const [editingCell, setEditingCell] = useState<{ rowId: string, columnId: string } | null>(null);
   const [focusedCell, setFocusedCell] = useState<{ rowIndex: number, columnIndex: number } | null>(null);
   const [activeFilters, setActiveFilters] = useState<{ columns: string[], values: Record<string, any> }>({ columns: [], values: {} });
@@ -86,9 +92,36 @@ export function NewGridView({
     // Only update if columns length is different to avoid resetting widths
     if (columnWidths.length !== columns.length + 1) {
       console.log('Updating column widths due to columns change', columns.length);
-      setColumnWidths([INDEX_COLUMN_WIDTH, ...columns.map(col => col.width)]);
+      // Preserve existing widths for existing columns and add default for new ones
+      const newWidths = [INDEX_COLUMN_WIDTH];
+
+      // Add widths for existing columns
+      columns.forEach((col, index) => {
+        if (index < columnWidths.length - 1) {
+          // Use existing width if available
+          newWidths.push(columnWidths[index + 1]);
+        } else {
+          // Use default width for new columns
+          newWidths.push(col.width);
+        }
+      });
+
+      setColumnWidths(newWidths);
     }
   }, [columns.length]);
+
+  // Also update Grid component and ensure it re-renders when columns change
+  useEffect(() => {
+    // Force re-render of grid when columns change
+    if (gridRef.current) {
+      gridRef.current.resetAfterColumnIndex(0);
+
+      // Reset scroll position to avoid alignment issues
+      if (headerRef.current) {
+        headerRef.current.scrollLeft = 0;
+      }
+    }
+  }, [columns, columnWidths]);
 
   // Set visible data on initial load
   useEffect(() => {
@@ -176,6 +209,11 @@ export function NewGridView({
       const { width, height } = entries[0].contentRect;
       setContainerWidth(width);
       setContainerHeight(height);
+
+      // Reset grid when container size changes to avoid alignment issues
+      if (gridRef.current) {
+        gridRef.current.resetAfterColumnIndex(0);
+      }
     });
 
     resizeObserver.observe(containerRef.current);
@@ -304,10 +342,9 @@ export function NewGridView({
   };
 
   // Sync header scrolling with grid body
-  const handleGridScroll = useCallback(({ scrollLeft }: { scrollLeft: number; scrollTop: number }) => {
-    const columnsHeader = document.querySelector('.columns-header');
-    if (columnsHeader) {
-      columnsHeader.scrollLeft = scrollLeft;
+  const handleGridScroll = useCallback(({ scrollLeft, scrollTop }: { scrollLeft: number; scrollTop: number }) => {
+    if (headerRef.current) {
+      headerRef.current.scrollLeft = scrollLeft;
     }
   }, []);
 
@@ -554,6 +591,15 @@ export function NewGridView({
     setContextMenuColumn(null);
   };
 
+  // Handle search change
+  const handleSearchChange = (term: string) => {
+    if (externalSearchChange) {
+      externalSearchChange(term);
+    } else {
+      setLocalSearchTerm(term);
+    }
+  };
+
   // Render edit input based on column type with enhanced UX
   const renderEditInput = (row: GridRow, column: Column) => {
     const value = row[column.id];
@@ -605,8 +651,13 @@ export function NewGridView({
   };
 
   // Format cell value based on column type
-  const formatCellValue = (value: any, column: Column) => {
+  const formatCellValue = (value: any, column: Column, row?: GridRow) => {
     if (value === undefined || value === null) return '';
+
+    // If the column has a custom render function, use it
+    if (column.renderCell && row) {
+      return column.renderCell(value, row);
+    }
 
     switch (column.type) {
       case 'currency':
@@ -618,6 +669,9 @@ export function NewGridView({
         }).format(Number(value));
       case 'status':
         return renderStatusPill(value, column.colors || {});
+      case 'custom':
+        // Custom columns might have their own rendering logic
+        return value;
       default:
         return highlightSearchTerm(String(value));
     }
@@ -667,7 +721,7 @@ export function NewGridView({
     return brightness > 128;
   };
 
-  // Cell renderer with fixes for borders and alignment
+  // Cell renderer with absolute row numbering
   const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
     if (rowIndex === 0) {
       return null; // Header is rendered separately
@@ -679,20 +733,19 @@ export function NewGridView({
     if (!row) return null;
 
     if (columnIndex === 0) {
-      // Index column
+      // Index column - use absolute row numbering from firstRowIndex
       return (
         <div
           className="index-column left-0 !sticky"
           style={{
             ...style,
-            position: "sticky",
-            borderTop: 'none',
-            borderBottom: '1px solid #e5e7eb',
-            borderRight: '1px solid #e5e7eb',
-            zIndex: 5
+            left: 0,
+            top: style.top as number,
+            width: columnWidths[0],
+            height: ROW_HEIGHT,
           }}
         >
-          {dataRowIndex + 1}
+          {firstRowIndex + dataRowIndex + 1}
         </div>
       );
     }
@@ -703,24 +756,33 @@ export function NewGridView({
     if (!column) return null;
 
     const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
-    const isFirstColumn = columnIdx === 0;
+    const isFirstColumn = columnIdx === 0 && column.id === 'opportunity';
     const isFocused = focusedCell?.rowIndex === rowIndex && focusedCell?.columnIndex === columnIndex;
-    const shouldLinkToStream = isFirstColumn && (
-      (listType === 'Contact' && column.id === 'email') ||
-      (listType === 'Opportunity' && column.id === 'opportunity')
-    );
+    const shouldNotAllowEditing = column.type === 'custom' || !column.editable;
 
-    // Fix cell styles to eliminate gaps and ensure alignment - fix type error
+    // Fix cell styles to eliminate gaps and ensure alignment
     const cellStyle: React.CSSProperties = {
       ...style,
-      borderTop: 'none',
-      borderLeft: 'none',
-      padding: isEditing ? 0 : '0.75rem',
+      padding: isEditing ? 0 : '0 0.75rem',
+      position: 'absolute',
       height: ROW_HEIGHT,
-      left: style.left as number | string,
-      top: style.top as number | string,
-      width: style.width as number | string
+      width: columnWidths[columnIndex],
+      display: 'flex',
+      alignItems: 'center',
+      borderBottom: '1px solid #e5e7eb',
+      borderRight: '1px solid #e5e7eb',
+      overflow: 'hidden',
+      boxSizing: 'border-box',
+      margin: 0
     };
+
+    // Add position styles for fixed columns
+    if (isFirstColumn) {
+      cellStyle.left = columnWidths[0];
+      cellStyle.position = 'sticky';
+      cellStyle.zIndex = 5;
+      cellStyle.backgroundColor = '#ffffff';
+    }
 
     return (
       <div
@@ -738,10 +800,7 @@ export function NewGridView({
         data-cell={`${row.id}-${column.id}`}
         tabIndex={0}
         onClick={() => {
-          if (shouldLinkToStream) {
-            // Placeholder for navigation
-            console.log(`Navigate to stream for ${row.id}`);
-          } else {
+          if (!shouldNotAllowEditing) {
             handleCellClick(row.id, column.id);
           }
         }}
@@ -753,7 +812,7 @@ export function NewGridView({
         {isEditing ? (
           renderEditInput(row, column)
         ) : (
-          formatCellValue(row[column.id], column)
+          formatCellValue(row[column.id], column, row)
         )}
       </div>
     );
@@ -769,7 +828,8 @@ export function NewGridView({
           borderCollapse: 'collapse',
           borderSpacing: 0,
           padding: 0,
-          margin: 0
+          margin: 0,
+          position: 'relative'
         }}
         className="react-window-grid-inner"
         {...rest}
@@ -898,7 +958,7 @@ export function NewGridView({
         listName={listName}
         listType={listType}
         searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
+        onSearchChange={handleSearchChange}
         filterCount={activeFilters.columns.length}
         columns={columns}
         onApplyFilters={handleApplyFilters}
@@ -914,11 +974,12 @@ export function NewGridView({
           onDeleteColumn={onDeleteColumn}
           onContextMenu={handleContextMenu}
           activeContextMenu={contextMenuColumn}
+          columnWidths={columnWidths}
         />
       </div>
 
       <div className="grid-wrapper">
-        <div className="grid-body mt-[-30px]">
+        <div className="grid-body">
           {containerWidth > 0 && containerHeight > 0 && (
             <Grid
               ref={gridRef}
@@ -930,17 +991,16 @@ export function NewGridView({
               width={containerWidth}
               className="react-window-grid"
               style={{
-                overflowX: 'auto',
-                overflowY: 'auto',
+                overflow: 'auto',
                 margin: 0,
                 padding: 0,
-                borderTop: 0,
-                borderCollapse: 'collapse',
-                borderSpacing: 0
+                borderTop: 'none'
               }}
               innerElementType={innerElementType}
               outerElementType={OuterElementWrapper}
               onScroll={handleGridScroll}
+              overscanRowCount={5} // Add overscan for smoother scrolling
+              overscanColumnCount={2} // Also overscan columns for smoother horizontal scrolling
             >
               {Cell}
             </Grid>

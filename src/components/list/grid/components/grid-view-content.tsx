@@ -1,4 +1,3 @@
-
 import { useRef, useEffect, useState } from "react";
 import { GridToolbar } from "../../grid-toolbar";
 import { GridHeaders } from "../../grid-headers";
@@ -31,6 +30,11 @@ export function GridViewContent({
   
   // Setup points of contact functionality
   const { setOpenPointsOfContactFn, renderRowActions } = usePointsOfContact();
+  
+  // Get the firstRowIndex from data if available
+  const firstRowIndex = initialData.length > 0 && 'originalIndex' in initialData[0] 
+    ? initialData[0].originalIndex as number
+    : 0;
   
   const {
     columns,
@@ -178,20 +182,22 @@ export function GridViewContent({
         onDrop={handleDrop}
       />
       
-      {/* Grid Content */}
-      <GridBody
-        data={data}
-        frozenColumns={frozenColumns}
-        scrollableColumns={scrollableColumns}
-        frozenColsTemplate={frozenColsTemplate}
-        scrollableColsTemplate={scrollableColsTemplate}
-        activeCell={activeCell}
-        showSaveIndicator={showSaveIndicator}
-        bodyRef={bodyRef}
-        onCellClick={handleCellClick}
-        onCellChange={handleCellChangeAndSave}
-        renderRowActions={(rowId) => renderRowActions(rowId, data.find(r => r.id === rowId))}
-      />
+      {/* Grid Content - with flex-1 and overflow-auto for proper scrolling */}
+      <div className="flex-1 overflow-auto">
+        <GridBody
+          data={data}
+          frozenColumns={frozenColumns}
+          scrollableColumns={scrollableColumns}
+          frozenColsTemplate={frozenColsTemplate}
+          scrollableColsTemplate={scrollableColsTemplate}
+          activeCell={activeCell}
+          showSaveIndicator={showSaveIndicator}
+          bodyRef={bodyRef}
+          onCellClick={handleCellClick}
+          onCellChange={handleCellChangeAndSave}
+          renderRowActions={(rowId) => renderRowActions(rowId, data.find(r => r.id === rowId))}
+        />
+      </div>
       
       {/* Points of Contact Dialog */}
       <PointsOfContactDialogContainer 
