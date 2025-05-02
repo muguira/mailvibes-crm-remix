@@ -56,7 +56,7 @@ export default function StreamViewLayout() {
         </div>
         
         {/* Main content area - desktop only */}
-        <div className="hidden lg:block flex-1 bg-slate-light/5 rounded-md overflow-y-auto self-start">
+        <div className="hidden lg:block flex-1 bg-slate-light/5 rounded-md overflow-y-auto self-start h-full">
           <StreamTimeline />
         </div>
         
