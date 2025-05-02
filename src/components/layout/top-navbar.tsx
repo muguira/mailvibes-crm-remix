@@ -1,6 +1,6 @@
 
 import { NavLink } from "react-router-dom";
-import { Bell, Settings, HelpCircle, Search, User } from "lucide-react";
+import { Bell, Settings, HelpCircle, Search } from "lucide-react";
 import { ProfileMenu } from "./profile-menu";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +15,7 @@ export function TopNavbar({ className }: TopNavbarProps) {
         {/* Logo */}
         <div className="flex items-center px-4">
           <div className="h-8 w-8 rounded-full bg-teal-primary/20 flex items-center justify-center text-lg font-bold text-teal-primary">
-            S
+            $
           </div>
           <span className="ml-2 font-semibold text-lg">SalesIQ</span>
         </div>
