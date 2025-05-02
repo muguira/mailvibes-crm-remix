@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { NewGridView } from '@/components/grid-view/new-grid-view';
 import { Column, GridRow } from '@/components/grid-view/types';
@@ -8,7 +7,7 @@ import { ExternalLink } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { mockContactsById, generateDummyLeads, LeadContact } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
-import { PAGE_SIZE, LEADS_STORAGE_KEY } from '@/constants/grid';
+import { PAGE_SIZE, LEADS_STORAGE_KEY, LEADS_GRID_ID } from '@/constants/grid';
 import { useGridData } from '@/hooks/supabase/use-grid-data';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -55,10 +54,9 @@ const syncContact = (row: GridRow): void => {
 export function EditableLeadsGrid() {
   // Get authentication state
   const { user } = useAuth();
-  const listId = 'leads-grid';
   
-  // Use Supabase grid data hook when authenticated
-  const { gridData, isLoading, saveGridChange } = useGridData(listId);
+  // Use Supabase grid data hook when authenticated - now with proper UUID
+  const { gridData, isLoading, saveGridChange } = useGridData(LEADS_GRID_ID);
   
   // Component state
   const [localRows, setLocalRows] = useState<GridRow[]>(() => {
@@ -347,7 +345,7 @@ export function EditableLeadsGrid() {
         data={paginated}
         listName="All Leads"
         listType="Lead"
-        listId="leads-grid"
+        listId={LEADS_GRID_ID}
         onCellChange={handleCellChange}
         onColumnChange={handleColumnChange}
         onColumnsReorder={handleColumnsReorder}
