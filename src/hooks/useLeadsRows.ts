@@ -36,6 +36,13 @@ export function useLeadsRows() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
   
+  // Update mockContactsById whenever rows change
+  useEffect(() => {
+    rows.forEach(row => {
+      mockContactsById[row.id] = row;
+    });
+  }, [rows]);
+  
   // Load data on component mount
   useEffect(() => {
     async function fetchLeadsRows() {
@@ -45,7 +52,7 @@ export function useLeadsRows() {
         // First try to fetch from Supabase
         const { data, error } = await supabase
           .from('leads_rows')
-          .select('row_id, data')
+          .select('*')
           .order('row_id');
         
         if (error) {
@@ -134,27 +141,28 @@ export function useLeadsRows() {
     mockContactsById[updatedRow.id] = updatedRow;
     
     try {
-      // Save to Supabase
-      const { error } = await supabase
-        .from('leads_rows')
-        .upsert({
-          row_id: rowIndex + 1,
-          user_id: user?.id || null,
-          data: updatedRow
-        });
-      
-      if (error) {
-        throw error;
+      // Save to Supabase if user is authenticated
+      if (user) {
+        const { error } = await supabase
+          .from('leads_rows')
+          .upsert({
+            row_id: rowIndex + 1,
+            data: updatedRow,
+            user_id: user.id
+          });
+        
+        if (error) {
+          throw error;
+        }
+      } else {
+        // Fall back to localStorage if not authenticated
+        saveRowsToLocal(rows);
       }
-      
     } catch (error) {
       console.error('Failed to save to Supabase, saving to localStorage instead:', error);
       
       // Fall back to localStorage
       saveRowsToLocal(rows);
-      
-      // Queue for retry when connection is restored
-      // In a real app, we'd implement a more sophisticated retry mechanism
     }
   };
   

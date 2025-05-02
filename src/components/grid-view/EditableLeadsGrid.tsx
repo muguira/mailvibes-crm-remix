@@ -6,7 +6,6 @@ import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Filter, Search } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { mockContactsById } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
 import { useLeadsRows } from '@/hooks/useLeadsRows';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -188,7 +187,7 @@ export function EditableLeadsGrid() {
   const customToolbar = (
     <div className="flex justify-between items-center p-2 border-b border-slate-light/20 bg-white">
       <div className="flex items-center space-x-2">
-        {/* Search Field - Updated to be inline with magnifying glass */}
+        {/* Search Field with inline search button */}
         <div className="flex items-center border rounded-md px-2">
           <Search size={16} className="text-slate-400 mr-2" />
           <input 
@@ -261,7 +260,7 @@ export function EditableLeadsGrid() {
       {customToolbar}
       
       {/* Grid with paginated data */}
-      <div className="flex-1 relative">
+      <div className="flex-1 overflow-auto">
         <NewGridView 
           columns={columns} 
           data={gridData}
@@ -276,8 +275,8 @@ export function EditableLeadsGrid() {
         />
       </div>
       
-      {/* Sticky pager UI at the bottom */}
-      <div className="sticky bottom-0 z-10 bg-white border-t flex items-center justify-end gap-4 px-4 py-2">
+      {/* Sticky pager UI at the bottom - improved spacing */}
+      <div className="sticky bottom-0 z-10 bg-white border-t flex items-center justify-end gap-3 px-4 py-2">
         <Button 
           variant="outline" 
           size="sm" 
