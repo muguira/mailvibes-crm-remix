@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { PAGE_SIZE, LEADS_STORAGE_KEY, LEADS_GRID_ID } from '@/constants/grid';
 import { useGridData } from '@/hooks/supabase/use-grid-data';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
+import { useLists } from '@/hooks/supabase/use-lists';
 
 // Fallback function to load rows from localStorage when not authenticated
 const loadRowsFromLocalStorage = (): GridRow[] => {
@@ -27,7 +29,7 @@ const loadRowsFromLocalStorage = (): GridRow[] => {
   return [];
 };
 
-// Sync a row with the mockContactsById mapping
+// Sync a contact with the mockContactsById mapping
 const syncContact = (row: GridRow): void => {
   if (!mockContactsById[row.id]) {
     // Create a new contact object if it doesn't exist
@@ -55,8 +57,11 @@ export function EditableLeadsGrid() {
   // Get authentication state
   const { user } = useAuth();
   
-  // Use Supabase grid data hook when authenticated - now with proper UUID
-  const { gridData, isLoading, saveGridChange } = useGridData(LEADS_GRID_ID);
+  // Fetch lists to ensure we have a valid list ID for the leads grid
+  const { lists, createList, isLoading: listsLoading } = useLists();
+  
+  // Use Supabase grid data hook when authenticated
+  const { gridData, isLoading: dataLoading, saveGridChange, isError } = useGridData(LEADS_GRID_ID);
   
   // Component state
   const [localRows, setLocalRows] = useState<GridRow[]>(() => {
@@ -93,6 +98,29 @@ export function EditableLeadsGrid() {
   });
   
   const [page, setPage] = useState(0);
+
+  // Create the leads list if it doesn't exist
+  useEffect(() => {
+    if (user && lists.length > 0) {
+      // Check if our LEADS_GRID_ID exists in the user's lists
+      const leadsListExists = lists.some(list => list.id === LEADS_GRID_ID);
+      
+      if (!leadsListExists) {
+        console.log("Leads list doesn't exist, creating...");
+        // Create the leads list with the predefined ID
+        createList({
+          name: "All Leads",
+          type: "Lead"
+        });
+        
+        // Show toast notification
+        toast({
+          title: "Created Leads List",
+          description: "A new leads list has been created for you.",
+        });
+      }
+    }
+  }, [user, lists, createList]);
   
   // Determine which data source to use (Supabase or localStorage)
   const rows = user && gridData.length > 0 ? gridData : localRows;
@@ -225,18 +253,27 @@ export function EditableLeadsGrid() {
   // Handle cell value changes
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
     if (user) {
-      // When authenticated, save to Supabase
-      saveGridChange({
-        rowId,
-        colKey: columnId,
-        value
-      });
-      
-      // Also update the local state mockContactsById
-      const row = rows.find(r => r.id === rowId);
-      if (row) {
-        const updatedRow = { ...row, [columnId]: value };
-        syncContact(updatedRow);
+      try {
+        // When authenticated, save to Supabase
+        saveGridChange({
+          rowId,
+          colKey: columnId,
+          value
+        });
+        
+        // Also update the local state mockContactsById
+        const row = rows.find(r => r.id === rowId);
+        if (row) {
+          const updatedRow = { ...row, [columnId]: value };
+          syncContact(updatedRow);
+        }
+      } catch (error: any) {
+        console.error("Error saving data:", error);
+        toast({
+          title: "Error Saving Data",
+          description: `Failed to save: ${error.message}`,
+          variant: "destructive",
+        });
       }
     } else {
       // When not authenticated, use localStorage
@@ -337,6 +374,26 @@ export function EditableLeadsGrid() {
     ]);
   };
   
+  // Show loading state
+  if (user && listsLoading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <p>Loading leads data...</p>
+      </div>
+    );
+  }
+  
+  // Show error state if we couldn't load data
+  if (user && isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-4">
+        <h3 className="text-lg font-semibold text-red-500 mb-2">Error Loading Data</h3>
+        <p className="text-gray-600 mb-4">There was an issue connecting to the database.</p>
+        <p className="text-sm text-gray-500">Please make sure your Supabase connection is configured correctly.</p>
+      </div>
+    );
+  }
+  
   return (
     <div className="flex flex-col h-full">
       {/* Grid with paginated data */}
@@ -364,7 +421,7 @@ export function EditableLeadsGrid() {
           Prev
         </Button>
         <span className="px-2 flex items-center text-sm">
-          Page <b>{page + 1}</b> of {pageCount}
+          Page <b>{page + 1}</b> of {pageCount || 1}
         </span>
         <Button 
           variant="outline" 
