@@ -21,7 +21,7 @@ export default function StreamViewLayout() {
         <StreamToolbar />
       </div>
       
-      <div className="flex flex-col lg:grid lg:grid-cols-[360px_minmax(0,1fr)_300px] lg:gap-x-6 gap-4 mt-4">
+      <div className="flex flex-col lg:flex-row gap-4 mt-4">
         {/* Left rail - w-full on mobile, fixed 360px width on desktop */}
         <div 
           className="w-full lg:w-[360px] shrink-0"
@@ -56,7 +56,7 @@ export default function StreamViewLayout() {
         </div>
         
         {/* Main content area - desktop only */}
-        <div className="hidden lg:block bg-slate-light/5 rounded-md overflow-y-auto">
+        <div className="hidden lg:block flex-1 bg-slate-light/5 rounded-md overflow-y-auto">
           <StreamTimeline />
         </div>
         
