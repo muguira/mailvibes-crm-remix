@@ -8,7 +8,7 @@ const TIMELINE_COL_WIDTH = 60;
 
 export default function StreamTimeline() {
   return (
-    <div className="bg-slate-light/10 p-6 rounded-md">
+    <div className="bg-slate-light/10 p-6 pb-20 rounded-md">
       {/* Added lg:px-12 wrapper to center the timeline content better between the red lines */}
       <div className="lg:px-12 w-full">
         {/* TimelineComposer only visible on desktop */}
