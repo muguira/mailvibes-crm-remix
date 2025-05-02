@@ -1,10 +1,15 @@
 import { NavLink } from "react-router-dom";
 import { Bell, Settings, HelpCircle, Search, User } from "lucide-react";
 import { ProfileMenu } from "./profile-menu";
+import { cn } from "@/lib/utils";
 
-export function TopNavbar() {
+interface TopNavbarProps {
+  className?: string;
+}
+
+export function TopNavbar({ className }: TopNavbarProps) {
   return (
-    <div className="bg-[#054258] text-white w-full">
+    <div className={cn("bg-[#054258] text-white w-full", className)}>
       <div className="flex items-center h-12">
         {/* Logo */}
         <div className="flex items-center px-4">
