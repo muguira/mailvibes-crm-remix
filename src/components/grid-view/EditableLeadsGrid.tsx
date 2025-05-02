@@ -1,110 +1,29 @@
+
 import React, { useState, useEffect } from 'react';
 import { NewGridView } from '@/components/grid-view/new-grid-view';
 import { Column, GridRow } from '@/components/grid-view/types';
 import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { Link } from 'react-router-dom';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Search } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { mockContactsById, generateDummyLeads, LeadContact } from '@/components/stream/sample-data';
+import { mockContactsById } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
-import { PAGE_SIZE, LEADS_STORAGE_KEY } from '@/constants/grid';
-
-// Load rows from localStorage
-const loadRows = (): GridRow[] => {
-  try {
-    const savedRows = localStorage.getItem(LEADS_STORAGE_KEY);
-    if (savedRows) {
-      const parsedRows = JSON.parse(savedRows);
-      if (Array.isArray(parsedRows) && parsedRows.length > 0) {
-        return parsedRows;
-      }
-    }
-  } catch (error) {
-    console.error('Failed to load rows from localStorage:', error);
-  }
-  return [];
-};
-
-// Save rows to localStorage
-const saveRows = (rows: GridRow[]): void => {
-  try {
-    localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(rows));
-  } catch (error) {
-    console.error('Failed to save rows to localStorage:', error);
-  }
-};
-
-// Sync a row with the mockContactsById mapping
-const syncContact = (row: GridRow): void => {
-  if (!mockContactsById[row.id]) {
-    // Create a new contact object if it doesn't exist
-    mockContactsById[row.id] = { 
-      id: row.id,
-      name: row.opportunity || '—',
-      email: row.email || '—',
-    };
-  }
-  
-  // Update the contact object with row values
-  mockContactsById[row.id] = {
-    ...mockContactsById[row.id],
-    name: row.opportunity || '—',
-    email: row.email || '—',
-    company: row.companyName || '—',
-    owner: row.owner || '—',
-    opportunity: row.opportunity || '—',
-    leadStatus: row.status,
-    revenue: row.revenue,
-  };
-};
-
-// Seed localStorage once
-const initialRows = (() => {
-  const stored = loadRows();
-  if (stored.length) return stored;
-  
-  // Generate dummy data for first load
-  const dummyLeads = generateDummyLeads();
-  
-  // Convert to GridRow format
-  const dummyRows = dummyLeads.map(lead => ({
-    id: lead.id,
-    opportunity: lead.name,
-    status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-    revenue: lead.revenue || Math.floor(Math.random() * 100000),
-    closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    owner: lead.owner || lead.name?.split(' ')[0] || '',
-    website: lead.website || 'https://example.com',
-    companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
-    linkedIn: 'https://linkedin.com/company/example',
-    employees: lead.employees || Math.floor(Math.random() * 1000),
-    lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    email: lead.email,
-  }));
-  
-  // Save and sync
-  saveRows(dummyRows);
-  dummyRows.forEach(syncContact);
-  return dummyRows;
-})();
+import { useLeadsRows } from '@/hooks/useLeadsRows';
 
 export function EditableLeadsGrid() {
-  // Component state
-  const [rows, setRows] = useState<GridRow[]>(initialRows);
+  // Use our new hook for Supabase persistence
+  const { rows, loading, saveRow, filter, setFilter, getFilteredRows, PAGE_SIZE } = useLeadsRows();
   const [page, setPage] = useState(0);
-  const pageCount = Math.ceil(rows.length / PAGE_SIZE);
+  
+  // Filter rows based on search query
+  const filteredRows = getFilteredRows();
+  const pageCount = Math.ceil(filteredRows.length / PAGE_SIZE);
   
   // Calculate the index of the first row on current page
   const firstRowIndex = page * PAGE_SIZE;
   
   // Get rows for current page
-  const paginated = rows.slice(firstRowIndex, firstRowIndex + PAGE_SIZE);
-  
-  // Keep localStorage and mockContactsById in sync when rows change
-  useEffect(() => {
-    saveRows(rows);
-    rows.forEach(syncContact);
-  }, [rows]);
+  const paginated = filteredRows.slice(firstRowIndex, firstRowIndex + PAGE_SIZE);
   
   // Define columns for the grid
   const [columns, setColumns] = useState<Column[]>([
@@ -207,55 +126,16 @@ export function EditableLeadsGrid() {
   
   // Handle cell value changes
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
-    // Store the current ID before update (needed for ID changes)
-    const currentRow = rows.find(row => row.id === rowId);
-    if (!currentRow) return;
+    // Find the row index
+    const rowIndex = rows.findIndex(r => r.id === rowId);
+    if (rowIndex === -1) return;
     
-    const oldId = currentRow.id;
-    const isIdChange = columnId === 'id';
+    // Create updated row
+    const currentRow = rows[rowIndex];
+    const updatedRow = { ...currentRow, [columnId]: value };
     
-    // Update the row with the new value
-    setRows(prevRows => {
-      const updatedRows = prevRows.map(row => {
-        // If this is the row we're updating
-        if (row.id === rowId) {
-          const updatedRow = { ...row, [columnId]: value };
-          
-          // If we're changing the ID, update it
-          if (isIdChange) {
-            updatedRow.id = value;
-          }
-          
-          return updatedRow;
-        }
-        return row;
-      });
-      
-      // Sync with mockContactsById
-      const updatedRow = updatedRows.find(row => {
-        return isIdChange ? row.id === value : row.id === rowId;
-      });
-      
-      if (updatedRow) {
-        // Handle ID change
-        if (isIdChange && value !== oldId) {
-          // Create entry for new ID
-          syncContact(updatedRow);
-          
-          // Check if old ID is still used by any row
-          const oldIdStillUsed = updatedRows.some(row => row.id === oldId);
-          if (!oldIdStillUsed) {
-            // If old ID no longer used, remove it from mapping
-            delete mockContactsById[oldId];
-          }
-        } else {
-          // Regular update
-          syncContact(updatedRow);
-        }
-      }
-      
-      return updatedRows;
-    });
+    // Save the updated row
+    saveRow(rowIndex, updatedRow);
   };
 
   // Handle column updates (width, title, etc)
@@ -302,25 +182,80 @@ export function EditableLeadsGrid() {
       ...prev.slice(afterColumnIndex + 1)
     ]);
   };
+
+  // Create a custom toolbar with search
+  const customToolbar = (
+    <div className="flex justify-between items-center p-2 border-b border-slate-light/20 bg-white">
+      <div className="flex items-center space-x-2">
+        {/* Search Field - Updated to be inline with magnifying glass */}
+        <div className="flex items-center border-b border-gray-300">
+          <Search size={16} className="text-slate-400 mr-2" />
+          <input 
+            type="text" 
+            placeholder="Search across all leads..." 
+            className="border-none outline-none text-sm py-1 w-64 focus:ring-0 bg-transparent"
+            value={filter}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              setPage(0); // Reset to first page when searching
+            }}
+          />
+        </div>
+      </div>
+      
+      <div className="flex items-center space-x-2">
+        {/* Label for columns count */}
+        <span className="text-sm text-slate-400">
+          {columns.length} columns • Opportunity
+        </span>
+      </div>
+    </div>
+  );
+  
+  // Show loading state if data is still loading
+  if (loading) {
+    return <div className="flex items-center justify-center h-full">Loading leads data...</div>;
+  }
+  
+  // Convert the data to the format expected by the grid
+  const gridData: GridRow[] = paginated.map((row, index) => ({
+    id: row.id,
+    opportunity: row.opportunity || row.name || '',
+    status: row.status || 'New',
+    revenue: row.revenue || 0,
+    closeDate: row.closeDate || new Date().toISOString().split('T')[0],
+    owner: row.owner || '',
+    website: row.website || '',
+    companyName: row.companyName || row.company || '',
+    linkedIn: row.linkedIn || '',
+    employees: row.employees || 0,
+    lastContacted: row.lastContacted || '',
+    email: row.email || '',
+  }));
   
   return (
     <div className="flex flex-col h-full">
+      {/* Custom toolbar with search */}
+      {customToolbar}
+      
       {/* Grid with paginated data */}
-      <NewGridView 
-        columns={columns} 
-        data={paginated}
-        listName="All Opportunities"
-        listType="Opportunity"
-        listId="opportunities-grid"
-        onCellChange={handleCellChange}
-        onColumnChange={handleColumnChange}
-        onColumnsReorder={handleColumnsReorder}
-        onDeleteColumn={handleDeleteColumn}
-        onAddColumn={handleAddColumn}
-      />
+      <div className="flex-1 relative">
+        <NewGridView 
+          columns={columns} 
+          data={gridData}
+          listName={`All Opportunities (${filteredRows.length} total)`}
+          listType="Opportunity"
+          listId="opportunities-grid"
+          onCellChange={handleCellChange}
+          onColumnChange={handleColumnChange}
+          onColumnsReorder={handleColumnsReorder}
+          onDeleteColumn={handleDeleteColumn}
+          onAddColumn={handleAddColumn}
+        />
+      </div>
       
       {/* Sticky pager UI at the bottom */}
-      <div className="sticky bottom-0 z-10 bg-white border-t border-slate-light flex items-center justify-end gap-2 px-4 py-2">
+      <div className="sticky bottom-0 z-10 bg-white border-t flex items-center justify-end gap-4 px-4 py-2">
         <Button 
           variant="outline" 
           size="sm" 
@@ -329,7 +264,7 @@ export function EditableLeadsGrid() {
         >
           Prev
         </Button>
-        <span className="px-2 flex items-center text-sm">
+        <span className="text-sm min-w-[110px] text-center whitespace-nowrap">
           Page <b>{page + 1}</b> of {pageCount}
         </span>
         <Button 

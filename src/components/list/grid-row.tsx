@@ -38,7 +38,7 @@ export function GridRow({
       className={`grid-row ${isActive ? 'active-row' : ''}`}
       data-row-id={rowData.id}
     >
-      {/* Row number cell */}
+      {/* Row number cell - absolute number */}
       <div className="row-number-cell">
         {rowNumber}
       </div>

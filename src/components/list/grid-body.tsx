@@ -1,8 +1,7 @@
 
 import { RefObject } from "react";
-import { GridRow } from "./grid-row";
+import { GridRow } from "../grid-row";
 import { ColumnDef } from "./grid/types";
-import { v4 as uuidv4 } from "uuid";
 
 interface GridBodyProps {
   data: { id: string; [key: string]: any }[];
@@ -13,7 +12,7 @@ interface GridBodyProps {
   activeCell: { row: string; col: string } | null;
   showSaveIndicator: { row: string; col: string } | null;
   bodyRef: RefObject<HTMLDivElement>;
-  onCellClick: (rowId: string, colKey: string, colType?: string, options?: string[]) => void;
+  onCellClick: (rowId: string, colKey: string, colType?: string) => void;
   onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
   renderRowActions?: (rowId: string) => React.ReactNode;
 }
@@ -31,29 +30,25 @@ export function GridBody({
   onCellChange,
   renderRowActions
 }: GridBodyProps) {
-  // Only include rows with valid IDs and filter out any potential duplicates
-  const validRows = data.filter((row, index, self) => 
-    row.id && self.findIndex(r => r.id === row.id) === index
-  );
-  
-  // Create an empty row with a UUID instead of timestamp-based ID to avoid duplicates
-  const emptyRowId = `new-row-${uuidv4()}`;
-  const emptyRowData = {
-    id: emptyRowId
-  };
+  // Calculate the first row index for this page
+  const firstRowIndex = data.length > 0 && 'originalIndex' in data[0] 
+    ? data[0].originalIndex as number
+    : 0;
+    
+  // Use the provided data directly as we've already ensured sufficient rows in ListContent
+  const displayData = data;
 
-  // Add all columns to the empty row with empty values
-  [...frozenColumns, ...scrollableColumns].forEach(col => {
-    emptyRowData[col.key] = "";
-  });
+  console.log("GridBody: frozenColumns", frozenColumns);
+  console.log("GridBody: scrollableColumns", scrollableColumns);
+  console.log("First row index:", firstRowIndex);
 
   return (
     <div className="overflow-auto flex-1 bg-white" ref={bodyRef}>
-      {validRows.map((row, index) => (
+      {displayData.map((row, index) => (
         <GridRow
           key={row.id}
           rowData={row}
-          rowNumber={index + 1}
+          rowNumber={firstRowIndex + index + 1} // Use absolute row number across pages
           frozenColumns={frozenColumns}
           scrollableColumns={scrollableColumns}
           frozenColsTemplate={frozenColsTemplate}
@@ -66,20 +61,20 @@ export function GridBody({
         />
       ))}
 
-      <GridRow
-        key={emptyRowId}
-        rowData={emptyRowData}
-        rowNumber={validRows.length + 1}
-        frozenColumns={frozenColumns}
-        scrollableColumns={scrollableColumns}
-        frozenColsTemplate={frozenColsTemplate}
-        scrollableColsTemplate={scrollableColsTemplate}
-        activeCell={activeCell}
-        showSaveIndicator={showSaveIndicator}
-        onCellClick={onCellClick}
-        onCellChange={onCellChange}
-        renderRowActions={renderRowActions}
-      />
+      {/* Add one additional empty row at the end for new data entry */}
+      <div className="grid-row h-[var(--row-height,32px)] bg-white border-0 hover:bg-slate-light/5">
+        <div className="row-number-cell text-slate-300">{firstRowIndex + displayData.length + 1}</div>
+        <div className="edit-column-cell"></div>
+        <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${frozenColumns.length + scrollableColumns.length}, minmax(var(--cell-min-width, 150px), 1fr))` }}>
+          {Array.from({ length: frozenColumns.length + scrollableColumns.length }, (_, colIndex) => (
+            <div 
+              key={`empty-cell-${colIndex}`} 
+              className="grid-cell"
+              tabIndex={0}
+            ></div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

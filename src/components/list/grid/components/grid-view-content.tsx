@@ -1,4 +1,3 @@
-
 import { useRef, useEffect, useState } from "react";
 import { GridToolbar } from "../../grid-toolbar";
 import { GridHeaders } from "../../grid-headers";
@@ -31,6 +30,11 @@ export function GridViewContent({
   
   // Setup points of contact functionality
   const { setOpenPointsOfContactFn, renderRowActions } = usePointsOfContact();
+  
+  // Get the firstRowIndex from data if available
+  const firstRowIndex = initialData.length > 0 && 'originalIndex' in initialData[0] 
+    ? initialData[0].originalIndex as number
+    : 0;
   
   const {
     columns,
