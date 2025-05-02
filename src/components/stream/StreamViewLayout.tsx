@@ -10,7 +10,7 @@ import FilterPanel from './FilterPanel';
 import { sampleContact } from './sample-data';
 
 // Layout constants
-const LEFT_RAIL_WIDTH = 360; // px - reduced from 400px
+const LEFT_RAIL_WIDTH = 400; // px
 const RIGHT_RAIL_WIDTH = 300; // px
 
 export default function StreamViewLayout() {
@@ -22,9 +22,9 @@ export default function StreamViewLayout() {
       </div>
       
       <div className="flex flex-col lg:flex-row gap-4 mt-4">
-        {/* Left rail - w-full on mobile, fixed 360px width on desktop */}
+        {/* Left rail - w-full on mobile, fixed 400px width on desktop */}
         <div 
-          className="w-full lg:w-[360px] shrink-0"
+          className="w-full lg:w-[400px] shrink-0"
           style={{ 
             minWidth: 'auto', 
             maxWidth: '100%',

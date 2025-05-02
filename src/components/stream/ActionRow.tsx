@@ -43,7 +43,7 @@ export default function ActionRow({ className = '' }: ActionRowProps) {
         ))}
       </div>
       
-      {/* Desktop buttons (visible on larger screens) - reduced gap to gap-4 */}
+      {/* Desktop buttons (visible on larger screens) - Now with gap-4 instead of gap-6 */}
       <div className="hidden lg:grid grid-cols-6 gap-4 w-full">
         {desktopActions.map((action, index) => (
           <button

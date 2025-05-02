@@ -16,8 +16,8 @@ export default function TimelineItem({ activity }: TimelineItemProps) {
       <div className="absolute left-[27px] top-2 h-[6px] w-[6px] rounded-full bg-teal-primary"></div>
       <div className="absolute left-[29px] -bottom-3 top-5 border-l-2 border-dashed border-teal-light/40"></div>
       
-      {/* Timestamp marker - now right-aligned within the 60px column and nudged 2px upward */}
-      <div className="absolute left-0 top-2 w-[19px] text-xs text-slate-medium font-medium text-right -translate-y-[2px]">
+      {/* Timestamp marker - now right-aligned within the 60px column */}
+      <div className="absolute left-0 top-2 w-[19px] text-xs text-slate-medium font-medium text-right">
         {activity.relativeTime}
       </div>
       
