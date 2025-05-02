@@ -5,3 +5,8 @@ export { default as ActionRow } from './ActionRow';
 export { default as AboutThisContact } from './AboutThisContact';
 export { default as StreamViewLayout } from './StreamViewLayout';
 export { default as MobileTabView } from './MobileTabView';
+export { default as StreamToolbar } from './StreamToolbar';
+export { default as StreamTimeline } from './StreamTimeline';
+export { default as FilterPanel } from './FilterPanel';
+export { default as AssociationsTab } from './AssociationsTab';
+export { default as AboutTab } from './AboutTab';

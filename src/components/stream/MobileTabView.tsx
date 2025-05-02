@@ -3,6 +3,8 @@ import React from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileEdit, CalendarPlus, Activity } from 'lucide-react';
+import AssociationsTab from './AssociationsTab';
+import AboutTab from './AboutTab';
 
 export default function MobileTabView() {
   return (
@@ -53,12 +55,12 @@ export default function MobileTabView() {
           </div>
         </TabsContent>
         
-        <TabsContent value="associations" className="p-4 text-center text-muted-foreground">
-          Associations tab coming soon...
+        <TabsContent value="associations" className="p-0 m-0">
+          <AssociationsTab />
         </TabsContent>
         
-        <TabsContent value="about" className="p-4 text-center text-muted-foreground">
-          About tab coming soon...
+        <TabsContent value="about" className="p-0 m-0">
+          <AboutTab />
         </TabsContent>
       </Tabs>
     </div>
