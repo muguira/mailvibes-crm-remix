@@ -8,7 +8,7 @@ const TIMELINE_COL_WIDTH = 60;
 export default function StreamTimeline() {
   return (
     <div className="bg-slate-light/10 p-6 rounded-md">
-      <ul className="flex flex-col">
+      <ul className="flex flex-col gap-4">
         {sampleActivities.map((activity) => (
           <TimelineItem key={activity.id} activity={activity} />
         ))}
