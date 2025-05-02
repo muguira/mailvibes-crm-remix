@@ -341,46 +341,102 @@ export function NewGridView({
     setActiveFilters(filters);
   };
 
-  // Sync header scrolling with grid body
+  // State to track grid scrollTop for sticky overlay
+  const [gridScrollTop, setGridScrollTop] = useState(0);
+
+  // Handler to sync overlay with grid scroll
   const handleGridScroll = useCallback(({ scrollLeft, scrollTop }: { scrollLeft: number; scrollTop: number }) => {
     if (headerRef.current) {
       headerRef.current.scrollLeft = scrollLeft;
     }
+    setGridScrollTop(scrollTop);
   }, []);
 
-  // Add scroll event listener to sync columns header with grid body
-  useEffect(() => {
-    const gridBody = document.querySelector('.grid-body');
-    const columnsHeader = document.querySelector('.columns-header');
-    if (!gridBody || !columnsHeader) return;
-
-    const handleScroll = (e: Event) => {
-      const target = e.target as HTMLElement;
-      columnsHeader.scrollLeft = target.scrollLeft;
-    };
-
-    gridBody.addEventListener('scroll', handleScroll);
-    return () => {
-      gridBody.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
-  // Add scroll event listener to sync grid body with columns header
-  useEffect(() => {
-    const columnsHeader = document.querySelector('.columns-header');
-    const gridBody = document.querySelector('.grid-body');
-    if (!columnsHeader || !gridBody) return;
-
-    const handleHeaderScroll = (e: Event) => {
-      const target = e.target as HTMLElement;
-      gridBody.scrollLeft = target.scrollLeft;
-    };
-
-    columnsHeader.addEventListener('scroll', handleHeaderScroll);
-    return () => {
-      columnsHeader.removeEventListener('scroll', handleHeaderScroll);
-    };
-  }, []);
+  // Helper to render sticky overlay for index and opportunity columns
+  const renderStickyOverlay = () => {
+    // Only render if there is visible data and container height
+    if (!visibleData.length || containerHeight <= HEADER_HEIGHT) return null;
+    // Calculate number of visible rows (approximate)
+    const visibleRowCount = Math.ceil((containerHeight - HEADER_HEIGHT) / ROW_HEIGHT);
+    // Find the first visible row index (based on scrollTop)
+    const firstVisibleRow = Math.floor(gridScrollTop / ROW_HEIGHT);
+    // Clamp to data length
+    const lastVisibleRow = Math.min(firstVisibleRow + visibleRowCount, visibleData.length);
+    // Render overlay rows
+    const rows = [];
+    for (let i = firstVisibleRow; i < lastVisibleRow; i++) {
+      const row = visibleData[i];
+      if (!row) continue;
+      const top = HEADER_HEIGHT + (i * ROW_HEIGHT) - gridScrollTop;
+      rows.push(
+        <React.Fragment key={row.id}>
+          {/* Index column */}
+          <div
+            className="index-column sticky-overlay-cell"
+            style={{
+              position: 'absolute',
+              left: 0,
+              top,
+              width: columnWidths[0],
+              height: ROW_HEIGHT,
+              zIndex: 10,
+              background: '#f9fafb',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRight: '1px solid #e5e7eb',
+              borderBottom: '1px solid #e5e7eb',
+              fontSize: '0.75rem',
+              color: '#6b7280',
+              boxSizing: 'border-box',
+            }}
+          >
+            {firstRowIndex + i + 1}
+          </div>
+          {/* Opportunity column */}
+          <div
+            className="opportunity-cell sticky-overlay-cell"
+            style={{
+              position: 'absolute',
+              left: columnWidths[0],
+              top,
+              width: columnWidths[1],
+              height: ROW_HEIGHT,
+              zIndex: 9,
+              background: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              borderRight: '1px solid #e5e7eb',
+              borderBottom: '1px solid #e5e7eb',
+              boxSizing: 'border-box',
+              padding: '0 0.75rem',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {row[columns[0].id]}
+          </div>
+        </React.Fragment>
+      );
+    }
+    return (
+      <div
+        className="sticky-columns-overlay"
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: HEADER_HEIGHT,
+          width: columnWidths[0] + columnWidths[1],
+          height: containerHeight - HEADER_HEIGHT,
+          pointerEvents: 'none', // Let grid cells handle events
+          zIndex: 20,
+        }}
+      >
+        {rows}
+      </div>
+    );
+  };
 
   // Close status dropdown when clicking outside
   useEffect(() => {
@@ -736,13 +792,14 @@ export function NewGridView({
       // Index column - use absolute row numbering from firstRowIndex
       return (
         <div
-          className="index-column left-0 !sticky"
+          className="index-column"
           style={{
             ...style,
+            position: 'sticky',
             left: 0,
-            top: style.top as number,
-            width: columnWidths[0],
+            top: style.top,
             height: ROW_HEIGHT,
+            width: columnWidths[0]
           }}
         >
           {firstRowIndex + dataRowIndex + 1}
@@ -764,7 +821,6 @@ export function NewGridView({
     const cellStyle: React.CSSProperties = {
       ...style,
       padding: isEditing ? 0 : '0 0.75rem',
-      position: 'absolute',
       height: ROW_HEIGHT,
       width: columnWidths[columnIndex],
       display: 'flex',
@@ -772,21 +828,20 @@ export function NewGridView({
       borderBottom: '1px solid #e5e7eb',
       borderRight: '1px solid #e5e7eb',
       overflow: 'hidden',
-      boxSizing: 'border-box',
-      margin: 0
+      boxSizing: 'border-box'
     };
 
     // Add position styles for fixed columns
     if (isFirstColumn) {
-      cellStyle.left = columnWidths[0];
       cellStyle.position = 'sticky';
-      cellStyle.zIndex = 5;
+      cellStyle.left = columnWidths[0];
+      cellStyle.zIndex = 2;
       cellStyle.backgroundColor = '#ffffff';
     }
 
     return (
       <div
-        style={{ ...cellStyle }}
+        style={cellStyle}
         className={`
           grid-cell 
           ${column.id === 'opportunity' ? 'sticky' : ''} 
@@ -978,7 +1033,9 @@ export function NewGridView({
         />
       </div>
 
-      <div className="grid-wrapper">
+      <div className="grid-wrapper" style={{ position: 'relative' }}>
+        {/* Sticky columns overlay */}
+        {renderStickyOverlay()}
         <div className="grid-body">
           {containerWidth > 0 && containerHeight > 0 && (
             <Grid
