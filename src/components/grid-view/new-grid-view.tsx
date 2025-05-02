@@ -570,8 +570,13 @@ export function NewGridView({
   };
 
   // Format cell value based on column type
-  const formatCellValue = (value: any, column: Column) => {
+  const formatCellValue = (value: any, column: Column, row?: GridRow) => {
     if (value === undefined || value === null) return '';
+
+    // If the column has a custom render function, use it
+    if (column.renderCell && row) {
+      return column.renderCell(value, row);
+    }
 
     switch (column.type) {
       case 'currency':
@@ -583,6 +588,9 @@ export function NewGridView({
         }).format(Number(value));
       case 'status':
         return renderStatusPill(value, column.colors || {});
+      case 'custom':
+        // Custom columns might have their own rendering logic
+        return value;
       default:
         return highlightSearchTerm(String(value));
     }
@@ -669,10 +677,7 @@ export function NewGridView({
     const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
     const isFirstColumn = columnIdx === 0;
     const isFocused = focusedCell?.rowIndex === rowIndex && focusedCell?.columnIndex === columnIndex;
-    const shouldLinkToStream = isFirstColumn && (
-      (listType === 'Contact' && column.id === 'email') ||
-      (listType === 'Opportunity' && column.id === 'opportunity')
-    );
+    const shouldNotAllowEditing = column.type === 'custom' || !column.editable;
 
     // Fix cell styles to eliminate gaps and ensure alignment - fix type error
     const cellStyle: React.CSSProperties = {
@@ -702,10 +707,7 @@ export function NewGridView({
         data-cell={`${row.id}-${column.id}`}
         tabIndex={0}
         onClick={() => {
-          if (shouldLinkToStream) {
-            // Placeholder for navigation
-            console.log(`Navigate to stream for ${row.id}`);
-          } else {
+          if (!shouldNotAllowEditing) {
             handleCellClick(row.id, column.id);
           }
         }}
@@ -717,7 +719,7 @@ export function NewGridView({
         {isEditing ? (
           renderEditInput(row, column)
         ) : (
-          formatCellValue(row[column.id], column)
+          formatCellValue(row[column.id], column, row)
         )}
       </div>
     );

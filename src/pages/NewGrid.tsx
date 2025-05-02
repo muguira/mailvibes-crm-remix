@@ -7,6 +7,8 @@ import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { STATUS_COLORS } from '@/components/grid-view/grid-constants';
 import { useLocation } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+import { Link } from 'react-router-dom';
+import { ExternalLink } from 'lucide-react';
 
 // Sample column definitions for opportunities
 const opportunityColumns: Column[] = [
@@ -17,6 +19,11 @@ const opportunityColumns: Column[] = [
     width: DEFAULT_COLUMN_WIDTH,
     editable: true,
     frozen: true,
+    renderCell: (value, row) => (
+      <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
+        {value}
+      </Link>
+    ),
   },
   {
     id: 'status',
@@ -91,6 +98,26 @@ const opportunityColumns: Column[] = [
   }
 ];
 
+// Add a new external link column
+const externalLinkColumn: Column = {
+  id: 'streamLink',
+  title: '',
+  type: 'custom',
+  width: 60, // Narrower column for just the icon
+  editable: false,
+  renderCell: (_, row) => (
+    <div className="flex justify-center hidden sm:flex">
+      <Link 
+        to={`/stream-view/${row.id}`} 
+        className="text-gray-500 hover:text-primary"
+        aria-label="Open in Stream View"
+      >
+        <ExternalLink size={16} />
+      </Link>
+    </div>
+  ),
+};
+
 // Generate sample row data
 const generateRow = (i: number): GridRow => ({
   id: `row-${uuidv4()}`, // Use UUID to ensure uniqueness for API calls
@@ -115,7 +142,10 @@ const generateLargeDataset = (count: number): GridRow[] => {
 };
 
 const NewGrid: React.FC = () => {
-  const [columns, setColumns] = useState<Column[]>(opportunityColumns);
+  const [columns, setColumns] = useState<Column[]>([
+    ...opportunityColumns,
+    externalLinkColumn  // Add the external link column to the end
+  ]);
   const [data, setData] = useState<GridRow[]>([]);
   const location = useLocation();
   
