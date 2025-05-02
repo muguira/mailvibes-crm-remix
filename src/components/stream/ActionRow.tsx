@@ -27,7 +27,7 @@ export default function ActionRow({ className = '' }: ActionRowProps) {
   ];
 
   return (
-    <div className={`flex items-center justify-between md:justify-around ${className}`}>
+    <div className={`${className}`}>
       {/* Mobile buttons (visible on smaller screens) */}
       <div className="flex items-center justify-between w-full lg:hidden">
         {mobileActions.map((action, index) => (
@@ -43,8 +43,8 @@ export default function ActionRow({ className = '' }: ActionRowProps) {
         ))}
       </div>
       
-      {/* Desktop buttons (visible on larger screens) */}
-      <div className="hidden lg:flex items-center justify-between w-full">
+      {/* Desktop buttons (visible on larger screens) - Now uses grid for even spacing */}
+      <div className="hidden lg:grid grid-cols-6 gap-2 w-full">
         {desktopActions.map((action, index) => (
           <button
             key={index}
