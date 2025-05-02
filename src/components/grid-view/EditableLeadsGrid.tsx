@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { NewGridView } from '@/components/grid-view/new-grid-view';
 import { Column, GridRow } from '@/components/grid-view/types';
@@ -6,27 +5,11 @@ import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { Link } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { mockContactsById, generateDummyLeads, LeadContact } from '@/components/stream/sample-data';
+import { mockContactsById, generateDummyLeads } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
 import { PAGE_SIZE, LEADS_STORAGE_KEY } from '@/constants/grid';
-import { useGridData } from '@/hooks/supabase/use-grid-data';
 import { useAuth } from '@/contexts/AuthContext';
-
-// Fallback function to load rows from localStorage when not authenticated
-const loadRowsFromLocalStorage = (): GridRow[] => {
-  try {
-    const savedRows = localStorage.getItem(LEADS_STORAGE_KEY);
-    if (savedRows) {
-      const parsedRows = JSON.parse(savedRows);
-      if (Array.isArray(parsedRows) && parsedRows.length > 0) {
-        return parsedRows;
-      }
-    }
-  } catch (error) {
-    console.error('Failed to load rows from localStorage:', error);
-  }
-  return [];
-};
+import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
 
 // Sync a row with the mockContactsById mapping
 const syncContact = (row: GridRow): void => {
@@ -55,83 +38,78 @@ const syncContact = (row: GridRow): void => {
 export function EditableLeadsGrid() {
   // Get authentication state
   const { user } = useAuth();
-  const listId = 'leads-grid';
   
-  // Use Supabase grid data hook when authenticated
-  const { gridData, isLoading, saveGridChange } = useGridData(listId);
+  // Use our leads rows hook for Supabase persistence
+  const { rows, isLoading, updateCell } = useLeadsRows();
   
-  // Component state
-  const [localRows, setLocalRows] = useState<GridRow[]>(() => {
-    const stored = loadRowsFromLocalStorage();
-    if (stored.length) return stored;
-    
-    // Generate dummy data for first load
-    const dummyLeads = generateDummyLeads();
-    
-    // Convert to GridRow format
-    const dummyRows = dummyLeads.map(lead => ({
-      id: lead.id,
-      opportunity: lead.name,
-      status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-      revenue: lead.revenue || Math.floor(Math.random() * 100000),
-      closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      owner: lead.owner || lead.name?.split(' ')[0] || '',
-      website: lead.website || 'https://example.com',
-      companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
-      linkedIn: 'https://linkedin.com/company/example',
-      employees: lead.employees || Math.floor(Math.random() * 1000),
-      lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      email: lead.email,
-    }));
-    
-    // Save to localStorage as fallback
-    try {
-      localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(dummyRows));
-    } catch (error) {
-      console.error('Failed to save initial rows to localStorage:', error);
-    }
-    
-    return dummyRows;
-  });
-  
+  const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   
-  // Determine which data source to use (Supabase or localStorage)
-  const rows = user && gridData.length > 0 ? gridData : localRows;
-  const pageCount = Math.ceil(rows.length / PAGE_SIZE);
+  // Handle case where no data exists by generating dummy data
+  useEffect(() => {
+    if (!isLoading && rows.length === 0) {
+      // Generate dummy leads if no data exists
+      const dummyLeads = generateDummyLeads();
+      
+      // Create rows for each dummy lead
+      dummyLeads.forEach(lead => {
+        const rowData: GridRow = {
+          id: lead.id,
+          opportunity: lead.name,
+          status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+          revenue: lead.revenue || Math.floor(Math.random() * 100000),
+          closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          owner: lead.owner || lead.name?.split(' ')[0] || '',
+          website: lead.website || 'https://example.com',
+          companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
+          linkedIn: 'https://linkedin.com/company/example',
+          employees: lead.employees || Math.floor(Math.random() * 1000),
+          lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          email: lead.email,
+        };
+        
+        // Add row to storage
+        updateCell({ rowId: rowData.id, columnId: 'opportunity', value: rowData.opportunity });
+      });
+    }
+  }, [isLoading, rows, updateCell]);
+  
+  // Filter rows based on search term
+  const filteredRows = rows.filter(row => {
+    if (!searchTerm) return true;
+    
+    // Search across all columns
+    return Object.entries(row).some(([key, value]) => {
+      if (key === 'id' || !value) return false;
+      return String(value).toLowerCase().includes(searchTerm.toLowerCase());
+    });
+  });
+  
+  // Reset to page 0 when search changes
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm]);
+  
+  const pageCount = Math.ceil(filteredRows.length / PAGE_SIZE);
   
   // Calculate the index of the first row on current page
   const firstRowIndex = page * PAGE_SIZE;
   
   // Get rows for current page
-  const paginated = rows.slice(firstRowIndex, firstRowIndex + PAGE_SIZE);
+  const paginated = filteredRows.slice(firstRowIndex, firstRowIndex + PAGE_SIZE);
   
-  // Keep localStorage and mockContactsById in sync when rows change
+  // Sync mockContactsById with row data
   useEffect(() => {
-    if (!user) {
-      try {
-        localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(localRows));
-      } catch (error) {
-        console.error('Failed to save rows to localStorage:', error);
-      }
-      localRows.forEach(syncContact);
-    }
-  }, [localRows, user]);
+    rows.forEach(syncContact);
+  }, [rows]);
   
-  // Sync mockContactsById with Supabase data when available
-  useEffect(() => {
-    if (user && gridData.length > 0) {
-      gridData.forEach(syncContact);
-    }
-  }, [gridData, user]);
-  
-  // Define columns for the grid
+  // Define columns for the grid - with opportunity column marked as frozen
   const [columns, setColumns] = useState<Column[]>([
     {
       id: 'opportunity',
       title: 'Opportunity',
       type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
+      width: DEFAULT_COLUMN_WIDTH + 20, // Give a bit more width to opportunity column
       editable: true,
       frozen: true,
       renderCell: (value, row) => (
@@ -224,73 +202,16 @@ export function EditableLeadsGrid() {
     }
   ]);
   
-  // Handle cell value changes
+  // Handle cell value changes - update Supabase and sync with mockContactsById
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
-    if (user) {
-      // When authenticated, save to Supabase
-      saveGridChange({
-        rowId,
-        colKey: columnId,
-        value
-      });
-      
-      // Also update the local state mockContactsById
-      const row = rows.find(r => r.id === rowId);
-      if (row) {
-        const updatedRow = { ...row, [columnId]: value };
-        syncContact(updatedRow);
-      }
-    } else {
-      // When not authenticated, use localStorage
-      // Store the current ID before update (needed for ID changes)
-      const currentRow = localRows.find(row => row.id === rowId);
-      if (!currentRow) return;
-      
-      const oldId = currentRow.id;
-      const isIdChange = columnId === 'id';
-      
-      // Update the row with the new value
-      setLocalRows(prevRows => {
-        const updatedRows = prevRows.map(row => {
-          // If this is the row we're updating
-          if (row.id === rowId) {
-            const updatedRow = { ...row, [columnId]: value };
-            
-            // If we're changing the ID, update it
-            if (isIdChange) {
-              updatedRow.id = value;
-            }
-            
-            return updatedRow;
-          }
-          return row;
-        });
-        
-        // Sync with mockContactsById
-        const updatedRow = updatedRows.find(row => {
-          return isIdChange ? row.id === value : row.id === rowId;
-        });
-        
-        if (updatedRow) {
-          // Handle ID change
-          if (isIdChange && value !== oldId) {
-            // Create entry for new ID
-            syncContact(updatedRow);
-            
-            // Check if old ID is still used by any row
-            const oldIdStillUsed = updatedRows.some(row => row.id === oldId);
-            if (!oldIdStillUsed) {
-              // If old ID no longer used, remove it from mapping
-              delete mockContactsById[oldId];
-            }
-          } else {
-            // Regular update
-            syncContact(updatedRow);
-          }
-        }
-        
-        return updatedRows;
-      });
+    // Update cell in Supabase or localStorage
+    updateCell({ rowId, columnId, value });
+    
+    // Update mockContactsById for Stream View integrity
+    const row = rows.find(r => r.id === rowId);
+    if (row) {
+      const updatedRow = { ...row, [columnId]: value };
+      syncContact(updatedRow);
     }
   };
 
@@ -339,43 +260,56 @@ export function EditableLeadsGrid() {
     ]);
   };
   
+  // Show loading message during initial data load
+  if (isLoading) {
+    return <div className="p-4 text-center">Loading leads data...</div>;
+  }
+  
   return (
-    <div className="flex flex-col h-full">
-      {/* Grid with paginated data */}
-      <NewGridView 
-        columns={columns} 
-        data={paginated}
-        listName="All Leads"
-        listType="Lead"
-        listId="leads-grid"
-        onCellChange={handleCellChange}
-        onColumnChange={handleColumnChange}
-        onColumnsReorder={handleColumnsReorder}
-        onDeleteColumn={handleDeleteColumn}
-        onAddColumn={handleAddColumn}
-      />
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Grid with paginated data and firstRowIndex for absolute numbering */}
+      <div className="flex-1 overflow-hidden">
+        <NewGridView 
+          columns={columns} 
+          data={paginated}
+          listName="All Leads"
+          listType="Lead"
+          listId="leads-grid"
+          firstRowIndex={firstRowIndex}
+          onCellChange={handleCellChange}
+          onColumnChange={handleColumnChange}
+          onColumnsReorder={handleColumnsReorder}
+          onDeleteColumn={handleDeleteColumn}
+          onAddColumn={handleAddColumn}
+          onSearchChange={setSearchTerm}
+          searchTerm={searchTerm}
+          className="h-full"
+        />
+      </div>
       
       {/* Sticky pager UI at the bottom */}
-      <div className="sticky bottom-0 z-10 bg-white border-t border-slate-light flex items-center justify-end gap-2 px-4 py-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          disabled={page === 0} 
-          onClick={() => setPage(p => p - 1)}
-        >
-          Prev
-        </Button>
-        <span className="px-2 flex items-center text-sm">
-          Page <b>{page + 1}</b> of {pageCount}
-        </span>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          disabled={page >= pageCount-1} 
-          onClick={() => setPage(p => p + 1)}
-        >
-          Next
-        </Button>
+      <div className="sticky bottom-0 z-10 bg-white border-t border-slate-light flex items-center justify-end px-4 py-2">
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            disabled={page === 0} 
+            onClick={() => setPage(p => p - 1)}
+          >
+            Prev
+          </Button>
+          <span className="flex items-center text-sm">
+            Page <b className="mx-1">{page + 1}</b> of <b className="ml-1">{pageCount || 1}</b>
+          </span>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            disabled={page >= pageCount-1} 
+            onClick={() => setPage(p => p + 1)}
+          >
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   );

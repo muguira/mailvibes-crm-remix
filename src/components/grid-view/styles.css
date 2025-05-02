@@ -1,4 +1,3 @@
-
 /* Grid container */
 .grid-view {
   display: flex;
@@ -7,6 +6,7 @@
   background-color: #fff;
   font-family: 'Inter', system-ui, sans-serif;
   user-select: none;
+  overflow: hidden; /* Prevent outer scroll */
 }
 
 /* Grid toolbar */
@@ -16,6 +16,8 @@
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #e5e7eb;
   justify-content: space-between;
+  background-color: #fff;
+  z-index: 20; /* Keep above grid */
 }
 
 .toolbar-left,
@@ -32,6 +34,30 @@
   gap: 0.5rem;
 }
 
+/* Search field styling */
+.search-field {
+  position: relative;
+  width: 100%;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem 0.5rem 0.5rem 2rem;
+  background-color: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.875rem;
+  color: #111827;
+}
+
+.search-input:focus {
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: #9ca3af;
+}
+
 /* Grid header */
 .grid-header {
   display: flex;
@@ -42,12 +68,14 @@
   z-index: 10;
   padding: 0;
   margin: 0;
+  width: fit-content; /* Allow horizontal expansion */
+  min-width: 100%; /* At least full width */
 }
 
 .index-header {
-  min-width: 40px;
-  flex: 0 0 40px;
-  padding-inline: 24px;
+  min-width: 48px; /* Matching INDEX_COLUMN_WIDTH */
+  flex: 0 0 48px;
+  height: 36px; /* Match HEADER_HEIGHT */
   border-right: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
@@ -55,17 +83,22 @@
   font-weight: 500;
   font-size: 0.75rem;
   color: #6b7280;
+  position: sticky;
+  left: 0;
+  z-index: 15; /* Above normal headers */
+  background-color: #f9fafb;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
 }
 
 .columns-header {
   display: flex;
-  flex: 1;
-  overflow-x: hidden;
+  overflow-x: visible;
   position: relative;
+  height: 36px; /* Match HEADER_HEIGHT */
 }
 
 .grid-header-cell {
-  height: 40px;
+  height: 36px; /* Match HEADER_HEIGHT */
   padding: 0 0.75rem;
   display: flex;
   align-items: center;
@@ -85,8 +118,8 @@
 
 .grid-header-cell.grid-frozen-header {
   position: sticky;
-  left: 0;
-  z-index: 5;
+  left: 48px; /* Match INDEX_COLUMN_WIDTH */
+  z-index: 14; /* Below index but above regular headers */
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
   background-color: #f9fafb;
 }
@@ -135,7 +168,7 @@
 
 .add-column-button {
   min-width: 40px;
-  height: 40px;
+  height: 36px; /* Match HEADER_HEIGHT */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -153,10 +186,16 @@
 
 /* Header wrapper */
 .header-wrapper {
-  position: relative;
+  overflow-x: auto;
   width: 100%;
-  overflow-x: hidden;
-  border-bottom: 1px solid #e5e7eb;
+  position: relative;
+  scrollbar-width: none; /* Hide scrollbar for Firefox */
+  -ms-overflow-style: none; /* Hide scrollbar for IE/Edge */
+  border-bottom: none; /* Remove border to avoid double borders */
+}
+
+.header-wrapper::-webkit-scrollbar {
+  display: none; /* Hide scrollbar for Chrome/Safari/Opera */
 }
 
 /* Grid body */
@@ -169,17 +208,28 @@
 .grid-body {
   height: 100%;
   position: relative;
+  margin-top: 0 !important; /* Remove any top margin */
 }
 
 .react-window-grid {
-  border-top: none !important;
-  margin-top: 0 !important;
+  position: relative !important;
+  /* Ensure no extra borders or margins */
+  border: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.react-window-grid-inner {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .grid-cell {
   border-bottom: 1px solid #e5e7eb;
   border-right: 1px solid #e5e7eb;
-  padding: 0.75rem;
+  padding: 0 0.75rem;
   font-size: 0.875rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -188,11 +238,12 @@
   align-items: center;
   background-color: #ffffff;
   box-sizing: border-box;
+  height: 32px !important; /* Enforce consistent height */
 }
 
 .grid-cell.grid-frozen-cell {
-  position: sticky;
-  left: 0;
+  position: sticky !important;
+  left: 48px !important; /* Match INDEX_COLUMN_WIDTH */
   z-index: 1;
   background-color: #ffffff;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
@@ -237,9 +288,14 @@
   font-size: 0.75rem;
   color: #6b7280;
   background-color: #f9fafb;
-  position: sticky;
-  left: 0;
+  position: sticky !important;
+  left: 0 !important;
   z-index: 10;
+  height: 32px !important; /* Enforce consistent height */
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  box-sizing: border-box;
 }
 
 /* Status dropdown */
@@ -309,6 +365,25 @@
   text-align: center;
   color: #6b7280;
   font-size: 0.875rem;
+}
+
+/* Ensure correct scrolling on headers and grid */
+.header-edit-input {
+  width: 100%;
+  height: 80%;
+  border: none;
+  outline: none;
+  padding: 0 0.25rem;
+  background-color: #ffffff;
+  border-radius: 2px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: #111827;
+}
+
+/* Fix for the opportunity column to be sticky when scrolling horizontally */
+.opportunity-cell {
+  z-index: 4 !important;
 }
 
 @media (max-width: 640px) {

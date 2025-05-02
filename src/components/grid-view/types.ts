@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 // Column definition for grid
@@ -25,12 +24,15 @@ export interface GridContainerProps {
   columns: Column[];
   data: GridRow[];
   listName?: string;
-  listId?: string;
   listType?: string;
-  className?: string;
+  listId?: string;
+  firstRowIndex?: number;
+  searchTerm?: string;
+  onSearchChange?: (term: string) => void;
   onCellChange?: (rowId: string, columnId: string, value: any) => void;
   onColumnChange?: (columnId: string, updates: Partial<Column>) => void;
   onColumnsReorder?: (columnIds: string[]) => void;
   onDeleteColumn?: (columnId: string) => void;
   onAddColumn?: (afterColumnId: string) => void;
+  className?: string;
 }
