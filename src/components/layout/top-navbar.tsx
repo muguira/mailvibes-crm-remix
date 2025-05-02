@@ -1,3 +1,4 @@
+
 import { NavLink } from "react-router-dom";
 import { Bell, Settings, HelpCircle, Search, User } from "lucide-react";
 import { ProfileMenu } from "./profile-menu";
@@ -63,8 +64,8 @@ export function TopNavbar({ className }: TopNavbarProps) {
           </NavLink>
         </div>
 
-        {/* Right side icons - ensure ml-auto is applied here */}
-        <div className="ml-auto flex items-center pr-4">
+        {/* Right side icons with gap-4 and flush right */}
+        <div className="ml-auto flex items-center gap-4 pr-4">
           <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
             <Bell size={18} />
           </button>
