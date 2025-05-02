@@ -18,7 +18,7 @@ export const sampleContact = {
   address: "123 Tech Lane, Austin, TX 78701"
 };
 
-// Mock contacts mapped by ID for dynamic loading - now maintained by the EditableLeadsGrid
+// Mock contacts mapped by ID for dynamic loading
 export const mockContactsById: Record<string, any> = {
   "1": {
     id: "1",
@@ -41,10 +41,10 @@ export const mockContactsById: Record<string, any> = {
   "row-2": {
     id: "row-2",
     name: "Marina Lopez",
+    email: "marina@techforward.com",
     title: "Marketing Director",
     company: "TechForward",
-    location: "Miami, FL",
-    email: "marina@techforward.com", 
+    location: "Miami, FL", 
     phone: "+1 (555) 987-6543",
     avatarUrl: 'https://ui-avatars.com/api/?name=Marina+L&size=128&background=6E9DE0&color=fff',
     owner: "Kelly Singsank",
@@ -59,10 +59,10 @@ export const mockContactsById: Record<string, any> = {
   "row-3": {
     id: "row-3",
     name: "Carlos Rodriguez",
+    email: "carlos@datasystems.com",
     title: "IT Manager",
     company: "Data Systems Inc.",
     location: "Chicago, IL",
-    email: "carlos@datasystems.com",
     phone: "+1 (555) 234-5678",
     avatarUrl: 'https://ui-avatars.com/api/?name=Carlos+R&size=128&background=D1A171&color=fff',
     owner: "Rosie Roca",

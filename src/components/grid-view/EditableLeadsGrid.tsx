@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { NewGridView } from '@/components/grid-view/new-grid-view';
 import { Column, GridRow } from '@/components/grid-view/types';
@@ -7,6 +6,9 @@ import { Link } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { mockContactsById } from '@/components/stream/sample-data';
+
+// Storage key for persisting data
+const STORAGE_KEY = 'leadsRows-v1';
 
 // Generate sample row data
 const generateRow = (i: number): GridRow => ({
@@ -29,8 +31,50 @@ const generateSampleData = (count: number): GridRow[] => {
   return Array.from({ length: count }, (_, i) => generateRow(i));
 };
 
-// The storage key for persisting data
-const STORAGE_KEY = 'leadsRows-v1';
+// Load rows from localStorage
+const loadRows = (): GridRow[] => {
+  try {
+    const savedRows = localStorage.getItem(STORAGE_KEY);
+    if (savedRows) {
+      const parsedRows = JSON.parse(savedRows);
+      if (Array.isArray(parsedRows) && parsedRows.length > 0) {
+        return parsedRows;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load rows from localStorage:', error);
+  }
+  return [];
+};
+
+// Save rows to localStorage
+const saveRows = (rows: GridRow[]): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+  } catch (error) {
+    console.error('Failed to save rows to localStorage:', error);
+  }
+};
+
+// Sync a row with the mockContactsById mapping
+const syncContactWithRow = (row: GridRow): void => {
+  if (!mockContactsById[row.id]) {
+    // Create a new contact object if it doesn't exist
+    mockContactsById[row.id] = { 
+      id: row.id,
+      activities: []
+    };
+  }
+  
+  // Update the contact object with row values
+  mockContactsById[row.id] = {
+    ...mockContactsById[row.id],
+    name: row.opportunity || '—',
+    email: row.email || '—',
+    company: row.companyName || '—',
+    owner: row.owner || '—',
+  };
+};
 
 export function EditableLeadsGrid() {
   // Define columns for the grid
@@ -132,50 +176,21 @@ export function EditableLeadsGrid() {
     }
   ]);
   
-  // Load rows from localStorage or use default data
+  // Initialize rows state with localStorage data or sample data
   const [rows, setRows] = useState<GridRow[]>(() => {
-    try {
-      const savedRows = localStorage.getItem(STORAGE_KEY);
-      if (savedRows) {
-        const parsedRows = JSON.parse(savedRows);
-        if (Array.isArray(parsedRows) && parsedRows.length > 0) {
-          return parsedRows;
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load rows from localStorage:', error);
+    const loadedRows = loadRows();
+    if (loadedRows.length > 0) {
+      return loadedRows;
     }
-    
     // Default to sample data if nothing in localStorage
-    const sampleData = generateSampleData(10);
-    
-    // Initialize mockContactsById with sample data
-    sampleData.forEach(row => {
-      syncContactWithRow(row);
-    });
-    
-    return sampleData;
+    return generateSampleData(10);
   });
 
-  // Sync a row with the mockContactsById mapping
-  const syncContactWithRow = (row: GridRow) => {
-    if (!mockContactsById[row.id]) {
-      // Create a new contact object if it doesn't exist
-      mockContactsById[row.id] = { 
-        id: row.id,
-        activities: []
-      };
-    }
-    
-    // Update the contact object with row values
-    mockContactsById[row.id] = {
-      ...mockContactsById[row.id],
-      name: row.opportunity,
-      email: row.email || '',
-      company: row.companyName || '',
-      owner: row.owner || '',
-    };
-  };
+  // Keep localStorage and mockContactsById in sync when rows change
+  useEffect(() => {
+    rows.forEach(syncContactWithRow);
+    saveRows(rows);
+  }, [rows]);
   
   // Handle cell value changes
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
@@ -202,9 +217,6 @@ export function EditableLeadsGrid() {
         }
         return row;
       });
-      
-      // Save to localStorage
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedRows));
       
       // Sync with mockContactsById
       const updatedRow = updatedRows.find(row => {
