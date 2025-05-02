@@ -426,7 +426,7 @@ export function NewGridView({
         style={{
           position: 'absolute',
           left: 0,
-          top: HEADER_HEIGHT,
+          top: 0,
           width: columnWidths[0] + columnWidths[1],
           height: containerHeight - HEADER_HEIGHT,
           pointerEvents: 'none', // Let grid cells handle events
@@ -797,7 +797,7 @@ export function NewGridView({
             ...style,
             position: 'sticky',
             left: 0,
-            top: style.top,
+            top: 0,
             height: ROW_HEIGHT,
             width: columnWidths[0]
           }}
@@ -836,6 +836,7 @@ export function NewGridView({
       cellStyle.position = 'sticky';
       cellStyle.left = columnWidths[0];
       cellStyle.zIndex = 2;
+      cellStyle.top = 0;
       cellStyle.backgroundColor = '#ffffff';
     }
 

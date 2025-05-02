@@ -244,6 +244,7 @@
 }
 
 .react-window-grid-inner {
+  top: -30px;
   position: relative !important;
   border-collapse: separate !important;
   border-spacing: 0 !important;
