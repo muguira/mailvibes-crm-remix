@@ -11,17 +11,18 @@ interface TimelineItemProps {
 
 export default function TimelineItem({ activity }: TimelineItemProps) {
   return (
-    <li className="relative pb-6"> 
-      {/* Timeline dot */}
-      <div className="absolute left-[28px] top-2 h-[6px] w-[6px] rounded-full bg-teal-primary -translate-x-1/2"></div>
+    <li className="relative pl-[76px] pb-6"> {/* 60px column + 16px gap */}
+      {/* Timeline dot and line */}
+      <div className="absolute left-[27px] top-2 h-[6px] w-[6px] rounded-full bg-teal-primary"></div>
+      <div className="absolute left-[29px] -bottom-3 top-5 border-l-2 border-dashed border-teal-light/40"></div>
       
-      {/* Timestamp marker - aligned with translate */}
-      <div className="absolute -left-[56px] top-2 w-[56px] text-xs text-slate-medium font-medium text-right translate-x-1/2 -translate-y-[2px]">
+      {/* Timestamp marker - now right-aligned within the 60px column and nudged 2px upward */}
+      <div className="absolute left-0 top-2 w-[19px] text-xs text-slate-medium font-medium text-right -translate-y-[2px]">
         {activity.relativeTime}
       </div>
       
       {/* Activity card */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-light/30 p-4 w-full">
+      <div className="bg-white rounded-lg shadow-sm border border-slate-light/30 p-4 max-w-md">
         <div className="flex flex-col gap-2">
           {/* Activity header */}
           <div className="text-sm text-teal-primary font-medium">
