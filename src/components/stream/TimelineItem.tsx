@@ -12,12 +12,12 @@ interface TimelineItemProps {
 export default function TimelineItem({ activity }: TimelineItemProps) {
   return (
     <li className="relative pl-[76px] pb-6"> {/* 60px column + 16px gap */}
-      {/* Timeline dot and line, adding translate-y-[-2px] to adjust vertical alignment */}
-      <div className="absolute left-[27px] top-2 h-[6px] w-[6px] rounded-full bg-teal-primary translate-y-[-2px]"></div>
-      <div className="absolute left-[29px] -bottom-3 top-5 border-l-2 border-dashed border-teal-light/40"></div>
+      {/* Timeline dot and line, adjusting position for better centering */}
+      <div className="absolute left-[32px] top-2 h-[6px] w-[6px] rounded-full bg-teal-primary translate-y-[-2px]"></div>
+      <div className="absolute left-[34px] -bottom-3 top-5 border-l-2 border-dashed border-teal-light/40"></div>
       
-      {/* Timestamp marker - now with vertical alignment adjustment */}
-      <div className="absolute left-0 top-2 w-[19px] text-xs text-slate-medium font-medium text-right translate-y-[-2px]">
+      {/* Timestamp marker - adjusted for better alignment with the new centering */}
+      <div className="absolute left-[5px] top-2 w-[19px] text-xs text-slate-medium font-medium text-right translate-y-[-2px]">
         {activity.relativeTime}
       </div>
       
