@@ -9,227 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      activities: {
-        Row: {
-          contact_id: string
-          content: string | null
-          created_at: string
-          id: string
-          timestamp: string
-          type: string
-          user_id: string
-        }
-        Insert: {
-          contact_id: string
-          content?: string | null
-          created_at?: string
-          id?: string
-          timestamp?: string
-          type: string
-          user_id: string
-        }
-        Update: {
-          contact_id?: string
-          content?: string | null
-          created_at?: string
-          id?: string
-          timestamp?: string
-          type?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "activities_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      contacts: {
-        Row: {
-          company: string | null
-          created_at: string
-          data: Json
-          email: string | null
-          id: string
-          last_activity: string | null
-          list_id: string
-          name: string
-          phone: string | null
-          status: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          company?: string | null
-          created_at?: string
-          data?: Json
-          email?: string | null
-          id?: string
-          last_activity?: string | null
-          list_id: string
-          name: string
-          phone?: string | null
-          status?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          company?: string | null
-          created_at?: string
-          data?: Json
-          email?: string | null
-          id?: string
-          last_activity?: string | null
-          list_id?: string
-          name?: string
-          phone?: string | null
-          status?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "contacts_list_id_fkey"
-            columns: ["list_id"]
-            isOneToOne: false
-            referencedRelation: "user_lists"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      grid_change_history: {
-        Row: {
-          changed_at: string
-          column_key: string
-          id: string
-          list_id: string
-          new_value: Json | null
-          old_value: Json | null
-          row_id: string
-          user_id: string
-        }
-        Insert: {
-          changed_at?: string
-          column_key: string
-          id?: string
-          list_id: string
-          new_value?: Json | null
-          old_value?: Json | null
-          row_id: string
-          user_id: string
-        }
-        Update: {
-          changed_at?: string
-          column_key?: string
-          id?: string
-          list_id?: string
-          new_value?: Json | null
-          old_value?: Json | null
-          row_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "grid_change_history_list_id_fkey"
-            columns: ["list_id"]
-            isOneToOne: false
-            referencedRelation: "user_lists"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      grid_data: {
+      leads_rows: {
         Row: {
           created_at: string
           data: Json
           id: string
-          list_id: string
-          row_id: string
+          row_id: number
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           data: Json
           id?: string
-          list_id: string
-          row_id: string
+          row_id: number
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           data?: Json
           id?: string
-          list_id?: string
-          row_id?: string
+          row_id?: number
           updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "grid_data_list_id_fkey"
-            columns: ["list_id"]
-            isOneToOne: false
-            referencedRelation: "user_lists"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      profiles: {
-        Row: {
-          avatar_url: string | null
-          created_at: string
-          first_name: string | null
-          id: string
-          last_name: string | null
-          updated_at: string
-        }
-        Insert: {
-          avatar_url?: string | null
-          created_at?: string
-          first_name?: string | null
-          id: string
-          last_name?: string | null
-          updated_at?: string
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      user_lists: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          type: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          type: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          type?: string
-          updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }

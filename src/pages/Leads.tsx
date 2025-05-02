@@ -1,9 +1,10 @@
 
 import React from 'react';
-import { TopNavbar } from "@/components/layout/top-navbar";
 import { EditableLeadsGrid } from '@/components/grid-view/EditableLeadsGrid';
+import { TopNavbar } from "@/components/layout/top-navbar";
 
-const LeadsPage: React.FC = () => {
+// Leads page component
+const Leads: React.FC = () => {
   return (
     <div className="flex flex-col h-screen">
       <TopNavbar />
@@ -14,4 +15,4 @@ const LeadsPage: React.FC = () => {
   );
 };
 
-export default LeadsPage;
+export default Leads;

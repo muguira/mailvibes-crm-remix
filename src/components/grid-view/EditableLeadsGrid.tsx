@@ -3,7 +3,7 @@ import { NewGridView } from '@/components/grid-view/new-grid-view';
 import { Column, GridRow } from '@/components/grid-view/types';
 import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { Link } from 'react-router-dom';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Filter, Search } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { mockContactsById, generateDummyLeads } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
