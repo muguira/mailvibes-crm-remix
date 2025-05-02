@@ -56,6 +56,8 @@ const syncContact = (row: GridRow): void => {
     company: row.companyName || '—',
     owner: row.owner || '—',
     opportunity: row.opportunity || '—',
+    leadStatus: row.status,
+    revenue: row.revenue,
   };
 };
 
@@ -95,6 +97,12 @@ export function EditableLeadsGrid() {
   const [page, setPage] = useState(0);
   const pageCount = Math.ceil(rows.length / PAGE_SIZE);
   const paginated = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  
+  // Keep localStorage and mockContactsById in sync when rows change
+  useEffect(() => {
+    saveRows(rows);
+    rows.forEach(syncContact);
+  }, [rows]);
   
   // Define columns for the grid
   const [columns, setColumns] = useState<Column[]>([
@@ -194,12 +202,6 @@ export function EditableLeadsGrid() {
       ),
     }
   ]);
-  
-  // Keep localStorage and mockContactsById in sync when rows change
-  useEffect(() => {
-    rows.forEach(syncContact);
-    saveRows(rows);
-  }, [rows]);
   
   // Handle cell value changes
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
@@ -301,8 +303,8 @@ export function EditableLeadsGrid() {
   
   return (
     <div className="flex flex-col h-full">
-      {/* Pagination UI */}
-      <div className="flex justify-end gap-2 py-2 px-4">
+      {/* Sticky pager UI */}
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-light flex items-center justify-end gap-2 px-4 py-2">
         <Button 
           variant="outline" 
           size="sm" 
@@ -312,7 +314,7 @@ export function EditableLeadsGrid() {
           Prev
         </Button>
         <span className="px-2 flex items-center text-sm">
-          Page {page + 1} of {pageCount}
+          Page <b>{page + 1}</b> of {pageCount}
         </span>
         <Button 
           variant="outline" 
