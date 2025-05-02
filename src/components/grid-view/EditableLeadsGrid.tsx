@@ -9,9 +9,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { mockContactsById, generateDummyLeads, LeadContact } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
 import { PAGE_SIZE, LEADS_STORAGE_KEY } from '@/constants/grid';
+import { useGridData } from '@/hooks/supabase/use-grid-data';
+import { useAuth } from '@/contexts/AuthContext';
 
-// Load rows from localStorage
-const loadRows = (): GridRow[] => {
+// Fallback function to load rows from localStorage when not authenticated
+const loadRowsFromLocalStorage = (): GridRow[] => {
   try {
     const savedRows = localStorage.getItem(LEADS_STORAGE_KEY);
     if (savedRows) {
@@ -24,15 +26,6 @@ const loadRows = (): GridRow[] => {
     console.error('Failed to load rows from localStorage:', error);
   }
   return [];
-};
-
-// Save rows to localStorage
-const saveRows = (rows: GridRow[]): void => {
-  try {
-    localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(rows));
-  } catch (error) {
-    console.error('Failed to save rows to localStorage:', error);
-  }
 };
 
 // Sync a row with the mockContactsById mapping
@@ -59,40 +52,52 @@ const syncContact = (row: GridRow): void => {
   };
 };
 
-// Seed localStorage once
-const initialRows = (() => {
-  const stored = loadRows();
-  if (stored.length) return stored;
-  
-  // Generate dummy data for first load
-  const dummyLeads = generateDummyLeads();
-  
-  // Convert to GridRow format
-  const dummyRows = dummyLeads.map(lead => ({
-    id: lead.id,
-    opportunity: lead.name,
-    status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-    revenue: lead.revenue || Math.floor(Math.random() * 100000),
-    closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    owner: lead.owner || lead.name?.split(' ')[0] || '',
-    website: lead.website || 'https://example.com',
-    companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
-    linkedIn: 'https://linkedin.com/company/example',
-    employees: lead.employees || Math.floor(Math.random() * 1000),
-    lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    email: lead.email,
-  }));
-  
-  // Save and sync
-  saveRows(dummyRows);
-  dummyRows.forEach(syncContact);
-  return dummyRows;
-})();
-
 export function EditableLeadsGrid() {
+  // Get authentication state
+  const { user } = useAuth();
+  const listId = 'leads-grid';
+  
+  // Use Supabase grid data hook when authenticated
+  const { gridData, isLoading, saveGridChange } = useGridData(listId);
+  
   // Component state
-  const [rows, setRows] = useState<GridRow[]>(initialRows);
+  const [localRows, setLocalRows] = useState<GridRow[]>(() => {
+    const stored = loadRowsFromLocalStorage();
+    if (stored.length) return stored;
+    
+    // Generate dummy data for first load
+    const dummyLeads = generateDummyLeads();
+    
+    // Convert to GridRow format
+    const dummyRows = dummyLeads.map(lead => ({
+      id: lead.id,
+      opportunity: lead.name,
+      status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+      revenue: lead.revenue || Math.floor(Math.random() * 100000),
+      closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      owner: lead.owner || lead.name?.split(' ')[0] || '',
+      website: lead.website || 'https://example.com',
+      companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
+      linkedIn: 'https://linkedin.com/company/example',
+      employees: lead.employees || Math.floor(Math.random() * 1000),
+      lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      email: lead.email,
+    }));
+    
+    // Save to localStorage as fallback
+    try {
+      localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(dummyRows));
+    } catch (error) {
+      console.error('Failed to save initial rows to localStorage:', error);
+    }
+    
+    return dummyRows;
+  });
+  
   const [page, setPage] = useState(0);
+  
+  // Determine which data source to use (Supabase or localStorage)
+  const rows = user && gridData.length > 0 ? gridData : localRows;
   const pageCount = Math.ceil(rows.length / PAGE_SIZE);
   
   // Calculate the index of the first row on current page
@@ -103,9 +108,22 @@ export function EditableLeadsGrid() {
   
   // Keep localStorage and mockContactsById in sync when rows change
   useEffect(() => {
-    saveRows(rows);
-    rows.forEach(syncContact);
-  }, [rows]);
+    if (!user) {
+      try {
+        localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(localRows));
+      } catch (error) {
+        console.error('Failed to save rows to localStorage:', error);
+      }
+      localRows.forEach(syncContact);
+    }
+  }, [localRows, user]);
+  
+  // Sync mockContactsById with Supabase data when available
+  useEffect(() => {
+    if (user && gridData.length > 0) {
+      gridData.forEach(syncContact);
+    }
+  }, [gridData, user]);
   
   // Define columns for the grid
   const [columns, setColumns] = useState<Column[]>([
@@ -208,55 +226,72 @@ export function EditableLeadsGrid() {
   
   // Handle cell value changes
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
-    // Store the current ID before update (needed for ID changes)
-    const currentRow = rows.find(row => row.id === rowId);
-    if (!currentRow) return;
-    
-    const oldId = currentRow.id;
-    const isIdChange = columnId === 'id';
-    
-    // Update the row with the new value
-    setRows(prevRows => {
-      const updatedRows = prevRows.map(row => {
-        // If this is the row we're updating
-        if (row.id === rowId) {
-          const updatedRow = { ...row, [columnId]: value };
-          
-          // If we're changing the ID, update it
-          if (isIdChange) {
-            updatedRow.id = value;
-          }
-          
-          return updatedRow;
-        }
-        return row;
+    if (user) {
+      // When authenticated, save to Supabase
+      saveGridChange({
+        rowId,
+        colKey: columnId,
+        value
       });
       
-      // Sync with mockContactsById
-      const updatedRow = updatedRows.find(row => {
-        return isIdChange ? row.id === value : row.id === rowId;
-      });
-      
-      if (updatedRow) {
-        // Handle ID change
-        if (isIdChange && value !== oldId) {
-          // Create entry for new ID
-          syncContact(updatedRow);
-          
-          // Check if old ID is still used by any row
-          const oldIdStillUsed = updatedRows.some(row => row.id === oldId);
-          if (!oldIdStillUsed) {
-            // If old ID no longer used, remove it from mapping
-            delete mockContactsById[oldId];
-          }
-        } else {
-          // Regular update
-          syncContact(updatedRow);
-        }
+      // Also update the local state mockContactsById
+      const row = rows.find(r => r.id === rowId);
+      if (row) {
+        const updatedRow = { ...row, [columnId]: value };
+        syncContact(updatedRow);
       }
+    } else {
+      // When not authenticated, use localStorage
+      // Store the current ID before update (needed for ID changes)
+      const currentRow = localRows.find(row => row.id === rowId);
+      if (!currentRow) return;
       
-      return updatedRows;
-    });
+      const oldId = currentRow.id;
+      const isIdChange = columnId === 'id';
+      
+      // Update the row with the new value
+      setLocalRows(prevRows => {
+        const updatedRows = prevRows.map(row => {
+          // If this is the row we're updating
+          if (row.id === rowId) {
+            const updatedRow = { ...row, [columnId]: value };
+            
+            // If we're changing the ID, update it
+            if (isIdChange) {
+              updatedRow.id = value;
+            }
+            
+            return updatedRow;
+          }
+          return row;
+        });
+        
+        // Sync with mockContactsById
+        const updatedRow = updatedRows.find(row => {
+          return isIdChange ? row.id === value : row.id === rowId;
+        });
+        
+        if (updatedRow) {
+          // Handle ID change
+          if (isIdChange && value !== oldId) {
+            // Create entry for new ID
+            syncContact(updatedRow);
+            
+            // Check if old ID is still used by any row
+            const oldIdStillUsed = updatedRows.some(row => row.id === oldId);
+            if (!oldIdStillUsed) {
+              // If old ID no longer used, remove it from mapping
+              delete mockContactsById[oldId];
+            }
+          } else {
+            // Regular update
+            syncContact(updatedRow);
+          }
+        }
+        
+        return updatedRows;
+      });
+    }
   };
 
   // Handle column updates (width, title, etc)
