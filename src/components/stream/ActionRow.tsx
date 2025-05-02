@@ -38,7 +38,9 @@ export default function ActionRow({ className = '', contact }: ActionRowProps) {
           <button
             key={index}
             className="flex flex-col items-center justify-center p-2 group"
-            onClick={() => action.href && window.location.href = action.href}
+            onClick={() => {
+              if (action.href) window.location.href = action.href;
+            }}
           >
             <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center border border-slate-light/30 group-hover:bg-slate-light/10 transition-colors">
               <action.icon size={20} strokeWidth={1.5} className="text-teal-primary" />
@@ -54,7 +56,9 @@ export default function ActionRow({ className = '', contact }: ActionRowProps) {
           <button
             key={index}
             className="flex flex-col items-center justify-center p-2 group"
-            onClick={() => action.href && window.location.href = action.href}
+            onClick={() => {
+              if (action.href) window.location.href = action.href;
+            }}
           >
             <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center border border-slate-light/30 group-hover:bg-slate-light/10 group-hover:border-teal-primary group-hover:border-2 transition-colors">
               <action.icon size={20} strokeWidth={1.5} className="text-teal-primary" />
