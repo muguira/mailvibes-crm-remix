@@ -63,7 +63,7 @@ export function TopNavbar({ className }: TopNavbarProps) {
           </NavLink>
         </div>
 
-        {/* Right side icons */}
+        {/* Right side icons - ensure ml-auto is applied here */}
         <div className="ml-auto flex items-center pr-4">
           <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
             <Bell size={18} />
