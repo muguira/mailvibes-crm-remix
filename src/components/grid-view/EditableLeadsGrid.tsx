@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { NewGridView } from '@/components/grid-view/new-grid-view';
 import { Column, GridRow } from '@/components/grid-view/types';
@@ -309,9 +310,9 @@ export function EditableLeadsGrid() {
       <NewGridView 
         columns={columns} 
         data={paginated}
-        listName="All Opportunities"
-        listType="Opportunity"
-        listId="opportunities-grid"
+        listName="All Leads"
+        listType="Lead"
+        listId="leads-grid"
         onCellChange={handleCellChange}
         onColumnChange={handleColumnChange}
         onColumnsReorder={handleColumnsReorder}
