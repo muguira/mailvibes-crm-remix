@@ -3,19 +3,21 @@ import React from 'react';
 import { MessageCircle, ThumbsUp } from 'lucide-react';
 import { StreamActivity } from './sample-activities';
 
+const TIMELINE_DOT_SIZE = 6; // px
+
 interface TimelineItemProps {
   activity: StreamActivity;
 }
 
 export default function TimelineItem({ activity }: TimelineItemProps) {
   return (
-    <li className="relative pl-8 pb-6">
+    <li className="relative pl-[76px] pb-6"> {/* 60px column + 16px gap */}
       {/* Timeline dot and line */}
-      <div className="absolute left-2 top-2 h-3 w-3 rounded-full bg-teal-primary"></div>
-      <div className="absolute left-3 -bottom-3 top-5 border-l-2 border-dashed border-slate-light/40"></div>
+      <div className="absolute left-[27px] top-2 h-[6px] w-[6px] rounded-full bg-teal-primary"></div>
+      <div className="absolute left-[29px] -bottom-3 top-5 border-l-2 border-dashed border-teal-light/40"></div>
       
-      {/* Timestamp marker */}
-      <div className="absolute left-0 top-2 text-xs text-slate-medium font-medium">
+      {/* Timestamp marker - now right-aligned within the 60px column */}
+      <div className="absolute left-0 top-2 w-[19px] text-xs text-slate-medium font-medium text-right">
         {activity.relativeTime}
       </div>
       
