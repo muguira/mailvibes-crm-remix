@@ -13,43 +13,26 @@ export function useGridData(listId?: string) {
   const fetchGridData = async (): Promise<{ id: string; [key: string]: any }[]> => {
     if (!user || !listId) return [];
 
-    try {
-      // First, check if the list exists
-      const { data: listCheck } = await supabase
-        .from('user_lists')
-        .select('id')
-        .eq('id', listId)
-        .maybeSingle();
-        
-      if (!listCheck) {
-        console.warn(`List with ID ${listId} doesn't exist in user_lists table`);
-        return [];
-      }
+    const { data, error } = await supabase
+      .from('grid_data')
+      .select('*')
+      .eq('list_id', listId);
 
-      const { data, error } = await supabase
-        .from('grid_data')
-        .select('*')
-        .eq('list_id', listId);
-
-      if (error) {
-        console.error('Error fetching grid data:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load grid data',
-          variant: 'destructive',
-        });
-        return [];
-      }
-
-      // Convert to the format expected by the grid component
-      return data.map(row => ({
-        id: row.row_id,
-        ...((typeof row.data === 'string' ? JSON.parse(row.data) : row.data) as Record<string, any>)
-      })) || [];
-    } catch (error: any) {
-      console.error('Error in fetchGridData:', error);
+    if (error) {
+      console.error('Error fetching grid data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load grid data',
+        variant: 'destructive',
+      });
       return [];
     }
+
+    // Convert to the format expected by the grid component
+    return data.map(row => ({
+      id: row.row_id,
+      ...((typeof row.data === 'string' ? JSON.parse(row.data) : row.data) as Record<string, any>)
+    })) || [];
   };
 
   // Query to fetch grid data
@@ -72,30 +55,7 @@ export function useGridData(listId?: string) {
       }
 
       try {
-        // First, check if the list exists in user_lists table
-        const { data: listData, error: listError } = await supabase
-          .from('user_lists')
-          .select('id')
-          .eq('id', listId)
-          .maybeSingle();
-          
-        if (listError) throw listError;
-        
-        // If list doesn't exist, create it first
-        if (!listData) {
-          const { error: createListError } = await supabase
-            .from('user_lists')
-            .insert({
-              id: listId,
-              user_id: user.id,
-              name: 'Auto-created List',
-              type: 'auto',
-            });
-            
-          if (createListError) throw new Error(`Failed to create list: ${createListError.message}`);
-        }
-        
-        // Now check if row exists
+        // Check if row exists
         const { data: existingData } = await supabase
           .from('grid_data')
           .select('*')

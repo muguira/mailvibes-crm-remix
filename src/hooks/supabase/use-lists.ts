@@ -3,7 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "../use-toast";
-import { v4 as uuidv4 } from 'uuid';
 
 // Types for lists
 export interface UserList {
@@ -49,42 +48,20 @@ export function useLists() {
 
   // Mutation to create a list
   const createListMutation = useMutation({
-    mutationFn: async (newList: { name: string; type: string; id?: string }) => {
+    mutationFn: async (newList: { name: string; type: string }) => {
       if (!user) throw new Error('User not authenticated');
 
-      const listId = newList.id || uuidv4(); // Use provided ID or generate new UUID
-
-      // Insert with specified ID
       const { data, error } = await supabase
         .from('user_lists')
         .insert({
-          id: listId,
           user_id: user.id,
           name: newList.name,
           type: newList.type,
         })
         .select();
 
-      if (error) {
-        // If the list already exists, try to update it instead
-        if (error.code === '23505') { // Unique violation code
-          const { data: updateData, error: updateError } = await supabase
-            .from('user_lists')
-            .update({
-              name: newList.name,
-              type: newList.type,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', listId)
-            .select();
-            
-          if (updateError) throw updateError;
-          return updateData?.[0] || { id: listId, ...newList };
-        }
-        throw error;
-      }
-      
-      return data?.[0] || { id: listId, ...newList };
+      if (error) throw error;
+      return data[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lists', user?.id] });
@@ -94,7 +71,6 @@ export function useLists() {
       });
     },
     onError: (error) => {
-      console.error('Failed to create list:', error);
       toast({
         title: 'Error',
         description: `Failed to create list: ${error.message}`,
