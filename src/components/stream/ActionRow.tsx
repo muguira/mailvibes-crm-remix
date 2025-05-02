@@ -43,8 +43,8 @@ export default function ActionRow({ className = '' }: ActionRowProps) {
         ))}
       </div>
       
-      {/* Desktop buttons (visible on larger screens) - now using grid for even spacing */}
-      <div className="hidden lg:grid grid-cols-6 w-full gap-2">
+      {/* Desktop buttons (visible on larger screens) */}
+      <div className="hidden lg:flex items-center justify-between w-full">
         {desktopActions.map((action, index) => (
           <button
             key={index}

@@ -5,13 +5,12 @@ import { AboutThisContact } from './index';
 import ActionRow from './ActionRow';
 import MobileTabView from './MobileTabView';
 import { sampleContact } from './sample-data';
-import { LEFT_RAIL_WIDTH } from '../../constants/stream-layout';
 
 export default function StreamViewLayout() {
   return (
     <div className="flex flex-col lg:flex-row gap-4">
-      {/* Left rail - fixed 400px width on desktop (increased from 320px) */}
-      <div className="w-full lg:w-[400px] shrink-0" style={{ minWidth: LEFT_RAIL_WIDTH }}>
+      {/* Left rail - fixed 320px width on desktop (increased from 280px) */}
+      <div className="w-full lg:w-[320px] shrink-0">
         {/* Profile card */}
         <StreamProfileCard />
         
