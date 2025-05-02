@@ -18,8 +18,39 @@ export const sampleContact = {
   address: "123 Tech Lane, Austin, TX 78701"
 };
 
+export interface LeadContact {
+  id: string;
+  name: string;
+  email: string;
+  opportunity?: string;
+  title?: string;
+  company?: string;
+  location?: string;
+  phone?: string;
+  avatarUrl?: string;
+  owner?: string;
+  lastContacted?: string;
+  leadStatus?: string;
+  lifecycleStage?: string;
+  source?: string;
+  industry?: string;
+  jobTitle?: string;
+  address?: string;
+}
+
+export const generateDummyLeads = (n = 1_000): LeadContact[] =>
+  Array.from({ length: n }, (_, i) => {
+    const num = (i + 1).toString().padStart(3, '0');
+    return {
+      id: `lead-${num}`,
+      name: `John Doe ${num}`,
+      email: `john${num}@example.com`,
+      opportunity: `Website Form`,
+    };
+  });
+
 // Mock contacts mapped by ID for dynamic loading
-export const mockContactsById: Record<string, any> = {
+export const mockContactsById: Record<string, LeadContact> = {
   "1": {
     id: "1",
     name: "Alberto Navarro",
@@ -75,3 +106,10 @@ export const mockContactsById: Record<string, any> = {
     address: "789 Tech Center, Chicago, IL 60601"
   }
 };
+
+// Seed mock contacts with dummy leads
+generateDummyLeads().forEach(c => {
+  if (!mockContactsById[c.id]) {
+    mockContactsById[c.id] = c;
+  }
+});

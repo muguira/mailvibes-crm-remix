@@ -5,31 +5,12 @@ import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { Link } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { mockContactsById } from '@/components/stream/sample-data';
+import { mockContactsById, generateDummyLeads, LeadContact } from '@/components/stream/sample-data';
+import { Button } from '@/components/ui/button';
+import { PAGE_SIZE } from '@/constants/grid';
 
 // Storage key for persisting data
 const STORAGE_KEY = 'leadsRows-v1';
-
-// Generate sample row data
-const generateRow = (i: number): GridRow => ({
-  id: `row-${uuidv4()}`,
-  opportunity: `Opportunity ${i}`,
-  status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-  revenue: Math.floor(Math.random() * 100000),
-  closeDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-  owner: ['John Doe', 'Jane Smith', 'Robert Johnson'][Math.floor(Math.random() * 3)],
-  website: 'https://example.com',
-  companyName: `Company ${i}`,
-  linkedIn: 'https://linkedin.com/company/example',
-  employees: Math.floor(Math.random() * 1000),
-  lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-  email: `contact${i}@example.com`,
-});
-
-// Generate default sample data
-const generateSampleData = (count: number): GridRow[] => {
-  return Array.from({ length: count }, (_, i) => generateRow(i));
-};
 
 // Load rows from localStorage
 const loadRows = (): GridRow[] => {
@@ -57,12 +38,13 @@ const saveRows = (rows: GridRow[]): void => {
 };
 
 // Sync a row with the mockContactsById mapping
-const syncContactWithRow = (row: GridRow): void => {
+const syncContact = (row: GridRow): void => {
   if (!mockContactsById[row.id]) {
     // Create a new contact object if it doesn't exist
     mockContactsById[row.id] = { 
       id: row.id,
-      activities: []
+      name: row.opportunity || '—',
+      email: row.email || '—',
     };
   }
   
@@ -73,10 +55,47 @@ const syncContactWithRow = (row: GridRow): void => {
     email: row.email || '—',
     company: row.companyName || '—',
     owner: row.owner || '—',
+    opportunity: row.opportunity || '—',
   };
 };
 
+// Seed localStorage once
+const initialRows = (() => {
+  const stored = loadRows();
+  if (stored.length) return stored;
+  
+  // Generate dummy data for first load
+  const dummyLeads = generateDummyLeads();
+  
+  // Convert to GridRow format
+  const dummyRows = dummyLeads.map(lead => ({
+    id: lead.id,
+    opportunity: lead.name,
+    status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+    revenue: Math.floor(Math.random() * 100000),
+    closeDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    owner: lead.name.split(' ')[0],
+    website: 'https://example.com',
+    companyName: `Company ${lead.id.split('-')[1]}`,
+    linkedIn: 'https://linkedin.com/company/example',
+    employees: Math.floor(Math.random() * 1000),
+    lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    email: lead.email,
+  }));
+  
+  // Save and sync
+  saveRows(dummyRows);
+  dummyRows.forEach(syncContact);
+  return dummyRows;
+})();
+
 export function EditableLeadsGrid() {
+  // Component state
+  const [rows, setRows] = useState<GridRow[]>(initialRows);
+  const [page, setPage] = useState(0);
+  const pageCount = Math.ceil(rows.length / PAGE_SIZE);
+  const paginated = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  
   // Define columns for the grid
   const [columns, setColumns] = useState<Column[]>([
     {
@@ -176,19 +195,9 @@ export function EditableLeadsGrid() {
     }
   ]);
   
-  // Initialize rows state with localStorage data or sample data
-  const [rows, setRows] = useState<GridRow[]>(() => {
-    const loadedRows = loadRows();
-    if (loadedRows.length > 0) {
-      return loadedRows;
-    }
-    // Default to sample data if nothing in localStorage
-    return generateSampleData(10);
-  });
-
   // Keep localStorage and mockContactsById in sync when rows change
   useEffect(() => {
-    rows.forEach(syncContactWithRow);
+    rows.forEach(syncContact);
     saveRows(rows);
   }, [rows]);
   
@@ -227,7 +236,7 @@ export function EditableLeadsGrid() {
         // Handle ID change
         if (isIdChange && value !== oldId) {
           // Create entry for new ID
-          syncContactWithRow(updatedRow);
+          syncContact(updatedRow);
           
           // Check if old ID is still used by any row
           const oldIdStillUsed = updatedRows.some(row => row.id === oldId);
@@ -237,7 +246,7 @@ export function EditableLeadsGrid() {
           }
         } else {
           // Regular update
-          syncContactWithRow(updatedRow);
+          syncContact(updatedRow);
         }
       }
       
@@ -291,17 +300,43 @@ export function EditableLeadsGrid() {
   };
   
   return (
-    <NewGridView 
-      columns={columns} 
-      data={rows}
-      listName="All Opportunities"
-      listType="Opportunity"
-      listId="opportunities-grid"
-      onCellChange={handleCellChange}
-      onColumnChange={handleColumnChange}
-      onColumnsReorder={handleColumnsReorder}
-      onDeleteColumn={handleDeleteColumn}
-      onAddColumn={handleAddColumn}
-    />
+    <div className="flex flex-col h-full">
+      {/* Pagination UI */}
+      <div className="flex justify-end gap-2 py-2 px-4">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          disabled={page === 0} 
+          onClick={() => setPage(p => p - 1)}
+        >
+          Prev
+        </Button>
+        <span className="px-2 flex items-center text-sm">
+          Page {page + 1} of {pageCount}
+        </span>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          disabled={page >= pageCount-1} 
+          onClick={() => setPage(p => p + 1)}
+        >
+          Next
+        </Button>
+      </div>
+      
+      {/* Grid with paginated data */}
+      <NewGridView 
+        columns={columns} 
+        data={paginated}
+        listName="All Opportunities"
+        listType="Opportunity"
+        listId="opportunities-grid"
+        onCellChange={handleCellChange}
+        onColumnChange={handleColumnChange}
+        onColumnsReorder={handleColumnsReorder}
+        onDeleteColumn={handleDeleteColumn}
+        onAddColumn={handleAddColumn}
+      />
+    </div>
   );
 }
