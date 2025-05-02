@@ -1,10 +1,10 @@
+
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function FilterPanel() {
   const panels = [
-    { title: "Filters", height: 80 },
     { title: "Tasks", height: 100 },
     { title: "Contact Sharing", height: 90 }
   ];
