@@ -27,14 +27,10 @@ export default function StreamView() {
         >
           <StreamHeader />
           
-          {contact ? (
-            <StreamViewLayout contact={contact} />
-          ) : (
-            <EmptyState 
-              title="Record Not Found" 
-              description="No data for this record yet." 
-            />
-          )}
+          <StreamViewLayout contact={contact || {
+            id: 'not-found',
+            name: '',
+          }} />
         </div>
         
         {/* Bottom tab bar for mobile devices */}

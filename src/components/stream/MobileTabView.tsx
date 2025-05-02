@@ -1,16 +1,22 @@
+
 import React from 'react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileEdit, CalendarPlus, Activity } from 'lucide-react';
+import AboutTab from './AboutTab';
 
 interface MobileTabViewProps {
   contact?: {
     id: string;
-    name: string;
+    name?: string;
     // Include other properties as needed
+    activities?: Array<any>;
   };
 }
 
 export default function MobileTabView({ contact }: MobileTabViewProps) {
   // Mobile activity samples - a subset of the main timeline
-  const mobileSamples = sampleActivities.slice(0, 3);
+  const mobileSamples = contact?.activities?.slice(0, 3) || [];
   
   return (
     <div className="lg:hidden w-full">
@@ -60,22 +66,30 @@ export default function MobileTabView({ contact }: MobileTabViewProps) {
             
             {/* New: Activity feed (mobile) */}
             <div className="mt-6">
-              <h3 className="text-sm font-medium text-slate-dark mb-2">May 2025</h3>
+              <h3 className="text-sm font-medium text-slate-dark mb-2">Recent Activity</h3>
               <div className="space-y-3">
-                {mobileSamples.map(activity => (
-                  <div key={activity.id} className="bg-white rounded-lg shadow-sm border border-slate-light/30 p-3">
-                    <p className="text-sm text-teal-primary font-medium">
-                      {activity.summary}
-                    </p>
+                {mobileSamples.length > 0 ? (
+                  mobileSamples.map((activity, index) => (
+                    <div key={index} className="bg-white rounded-lg shadow-sm border border-slate-light/30 p-3">
+                      <p className="text-sm text-teal-primary font-medium">
+                        {activity.summary || activity.content || "Activity item"}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-white rounded-lg shadow-sm border border-slate-light/30 p-3">
+                    <p className="text-sm text-slate-medium">No recent activities</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
         </TabsContent>
         
         <TabsContent value="associations" className="p-0 m-0">
-          <AssociationsTab />
+          <div className="p-4">
+            <p className="text-slate-medium">No associations found</p>
+          </div>
         </TabsContent>
         
         <TabsContent value="about" className="p-0 m-0">

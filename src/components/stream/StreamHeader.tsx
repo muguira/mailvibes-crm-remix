@@ -1,11 +1,11 @@
 
 import React from 'react';
-import StreamViewLayout from './StreamViewLayout';
 
 export default function StreamHeader() {
   return (
     <div className="flex flex-col w-full">
-      <StreamViewLayout />
+      {/* StreamHeader no longer renders StreamViewLayout directly */}
+      <h1 className="text-2xl font-semibold mb-4">Contact Details</h1>
     </div>
   );
 }

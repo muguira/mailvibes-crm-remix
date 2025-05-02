@@ -7,6 +7,7 @@ import MobileTabView from './MobileTabView';
 import StreamTimeline from './StreamTimeline';
 import StreamToolbar from './StreamToolbar';
 import FilterPanel from './FilterPanel';
+import { EmptyState } from "@/components/ui/empty-state";
 
 // Layout constants
 const LEFT_RAIL_WIDTH = 400; // px
@@ -15,7 +16,7 @@ const RIGHT_RAIL_WIDTH = 300; // px
 interface StreamViewLayoutProps {
   contact: {
     id: string;
-    name: string;
+    name?: string;
     title?: string;
     company?: string;
     location?: string;
@@ -35,6 +36,49 @@ interface StreamViewLayoutProps {
 }
 
 export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
+  // Early return if contact is undefined or null
+  if (!contact) {
+    return (
+      <EmptyState 
+        title="Contact Not Found" 
+        description="No data for this record yet." 
+      />
+    );
+  }
+
+  // Safely destructure contact with default values
+  const {
+    name = '—',
+    title = '—',
+    company = '—',
+    location = '—',
+    phone = '—',
+    email = '—',
+    leadStatus = '—',
+    lifecycleStage = '—',
+    source = '—',
+    industry = '—',
+    owner = '—',
+    activities = [],
+  } = contact;
+
+  // Create a safe contact object with default values
+  const safeContact = {
+    ...contact,
+    name,
+    title,
+    company,
+    location,
+    phone,
+    email,
+    leadStatus,
+    lifecycleStage,
+    source,
+    industry,
+    owner,
+    activities,
+  };
+
   return (
     <div className="flex flex-col w-full">
       {/* Desktop Toolbar - hidden on mobile */}
@@ -58,31 +102,31 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
           }}
         >
           {/* Profile card */}
-          <StreamProfileCard contact={contact} />
+          <StreamProfileCard contact={safeContact} />
           
           {/* Action row - visible on all screen sizes, below profile card */}
           <div className="mt-6 flex items-center justify-center">
-            <ActionRow className="w-full" contact={contact} />
+            <ActionRow className="w-full" contact={safeContact} />
           </div>
           
           {/* Mobile Tab View - only visible on mobile/tablet */}
           <div className="mt-4">
-            <MobileTabView contact={contact} />
+            <MobileTabView contact={safeContact} />
           </div>
           
           {/* About This Contact - only visible on desktop with single-column layout */}
           <div className="hidden lg:block mt-4">
             <AboutThisContact 
               compact={true} 
-              leadStatus={contact.leadStatus} 
-              contact={contact}
+              leadStatus={leadStatus} 
+              contact={safeContact}
             />
           </div>
         </div>
         
         {/* Main content area - desktop only */}
         <div className="hidden lg:block flex-1 bg-slate-light/5 rounded-md overflow-y-auto self-start h-full">
-          <StreamTimeline activities={contact.activities || []} />
+          <StreamTimeline activities={activities} />
         </div>
         
         {/* Right rail - desktop only */}
