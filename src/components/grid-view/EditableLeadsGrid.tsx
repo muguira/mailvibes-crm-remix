@@ -7,15 +7,12 @@ import { ExternalLink } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { mockContactsById, generateDummyLeads, LeadContact } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
-import { PAGE_SIZE } from '@/constants/grid';
-
-// Storage key for persisting data
-const STORAGE_KEY = 'leadsRows-v1';
+import { PAGE_SIZE, LEADS_STORAGE_KEY } from '@/constants/grid';
 
 // Load rows from localStorage
 const loadRows = (): GridRow[] => {
   try {
-    const savedRows = localStorage.getItem(STORAGE_KEY);
+    const savedRows = localStorage.getItem(LEADS_STORAGE_KEY);
     if (savedRows) {
       const parsedRows = JSON.parse(savedRows);
       if (Array.isArray(parsedRows) && parsedRows.length > 0) {
@@ -31,7 +28,7 @@ const loadRows = (): GridRow[] => {
 // Save rows to localStorage
 const saveRows = (rows: GridRow[]): void => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+    localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(rows));
   } catch (error) {
     console.error('Failed to save rows to localStorage:', error);
   }
@@ -73,15 +70,15 @@ const initialRows = (() => {
   const dummyRows = dummyLeads.map(lead => ({
     id: lead.id,
     opportunity: lead.name,
-    status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-    revenue: Math.floor(Math.random() * 100000),
-    closeDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    owner: lead.name.split(' ')[0],
-    website: 'https://example.com',
-    companyName: `Company ${lead.id.split('-')[1]}`,
+    status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+    revenue: lead.revenue || Math.floor(Math.random() * 100000),
+    closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    owner: lead.owner || lead.name?.split(' ')[0] || '',
+    website: lead.website || 'https://example.com',
+    companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
     linkedIn: 'https://linkedin.com/company/example',
-    employees: Math.floor(Math.random() * 1000),
-    lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    employees: lead.employees || Math.floor(Math.random() * 1000),
+    lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     email: lead.email,
   }));
   
@@ -96,7 +93,12 @@ export function EditableLeadsGrid() {
   const [rows, setRows] = useState<GridRow[]>(initialRows);
   const [page, setPage] = useState(0);
   const pageCount = Math.ceil(rows.length / PAGE_SIZE);
-  const paginated = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  
+  // Calculate the index of the first row on current page
+  const firstRowIndex = page * PAGE_SIZE;
+  
+  // Get rows for current page
+  const paginated = rows.slice(firstRowIndex, firstRowIndex + PAGE_SIZE);
   
   // Keep localStorage and mockContactsById in sync when rows change
   useEffect(() => {
@@ -303,8 +305,22 @@ export function EditableLeadsGrid() {
   
   return (
     <div className="flex flex-col h-full">
-      {/* Sticky pager UI */}
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-light flex items-center justify-end gap-2 px-4 py-2">
+      {/* Grid with paginated data */}
+      <NewGridView 
+        columns={columns} 
+        data={paginated}
+        listName="All Opportunities"
+        listType="Opportunity"
+        listId="opportunities-grid"
+        onCellChange={handleCellChange}
+        onColumnChange={handleColumnChange}
+        onColumnsReorder={handleColumnsReorder}
+        onDeleteColumn={handleDeleteColumn}
+        onAddColumn={handleAddColumn}
+      />
+      
+      {/* Sticky pager UI at the bottom */}
+      <div className="sticky bottom-0 z-10 bg-white border-t border-slate-light flex items-center justify-end gap-2 px-4 py-2">
         <Button 
           variant="outline" 
           size="sm" 
@@ -325,20 +341,6 @@ export function EditableLeadsGrid() {
           Next
         </Button>
       </div>
-      
-      {/* Grid with paginated data */}
-      <NewGridView 
-        columns={columns} 
-        data={paginated}
-        listName="All Opportunities"
-        listType="Opportunity"
-        listId="opportunities-grid"
-        onCellChange={handleCellChange}
-        onColumnChange={handleColumnChange}
-        onColumnsReorder={handleColumnsReorder}
-        onDeleteColumn={handleDeleteColumn}
-        onAddColumn={handleAddColumn}
-      />
     </div>
   );
 }

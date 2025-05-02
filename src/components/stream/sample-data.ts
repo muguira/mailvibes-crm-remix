@@ -36,6 +36,13 @@ export interface LeadContact {
   industry?: string;
   jobTitle?: string;
   address?: string;
+  status?: string;
+  revenue?: number;
+  closeDate?: string;
+  companyName?: string;
+  employees?: number;
+  website?: string;
+  linkedIn?: string;
 }
 
 export const generateDummyLeads = (n = 1_000): LeadContact[] =>
@@ -46,6 +53,15 @@ export const generateDummyLeads = (n = 1_000): LeadContact[] =>
       name: `John Doe ${num}`,
       email: `john${num}@example.com`,
       opportunity: `Website Form`,
+      status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+      revenue: Math.floor(Math.random() * 100000),
+      closeDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      owner: `John Doe ${num}`.split(' ')[0],
+      website: 'https://example.com',
+      companyName: `Company ${num}`,
+      linkedIn: 'https://linkedin.com/company/example',
+      employees: Math.floor(Math.random() * 1000),
+      lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     };
   });
 
