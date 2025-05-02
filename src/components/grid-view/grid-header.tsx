@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Column } from './types';
 import { MIN_COLUMN_WIDTH } from './grid-constants';
@@ -365,7 +364,7 @@ export function GridHeader({
               key={column.id}
               className={`
                 grid-header-cell 
-                ${column.id === 'opportunity' ? 'grid-frozen-header' : ''} 
+                ${column.id === 'opportunity' ? 'sticky' : ''} 
                 ${draggedColumn === column.id ? 'dragging' : ''}
                 ${column.type === 'currency' ? 'text-right' : ''}
                 ${isContextMenuOpen ? 'highlight-column' : ''}
@@ -376,7 +375,7 @@ export function GridHeader({
               onDrop={(e) => handleDrop(e, column.id)}
               onDoubleClick={() => handleHeaderDoubleClick(column.id)}
               onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
-              style={{ width: column.width || MIN_COLUMN_WIDTH }}
+              style={{ width: column.width || MIN_COLUMN_WIDTH, flexShrink: 0 }}
             >
               {editingHeader === column.id ? (
                 <input

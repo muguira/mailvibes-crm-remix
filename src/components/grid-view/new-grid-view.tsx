@@ -305,9 +305,44 @@ export function NewGridView({
 
   // Sync header scrolling with grid body
   const handleGridScroll = useCallback(({ scrollLeft }: { scrollLeft: number; scrollTop: number }) => {
-    if (headerRef.current) {
-      headerRef.current.scrollLeft = scrollLeft;
+    const columnsHeader = document.querySelector('.columns-header');
+    if (columnsHeader) {
+      columnsHeader.scrollLeft = scrollLeft;
     }
+  }, []);
+
+  // Add scroll event listener to sync columns header with grid body
+  useEffect(() => {
+    const gridBody = document.querySelector('.grid-body');
+    const columnsHeader = document.querySelector('.columns-header');
+    if (!gridBody || !columnsHeader) return;
+
+    const handleScroll = (e: Event) => {
+      const target = e.target as HTMLElement;
+      columnsHeader.scrollLeft = target.scrollLeft;
+    };
+
+    gridBody.addEventListener('scroll', handleScroll);
+    return () => {
+      gridBody.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  // Add scroll event listener to sync grid body with columns header
+  useEffect(() => {
+    const columnsHeader = document.querySelector('.columns-header');
+    const gridBody = document.querySelector('.grid-body');
+    if (!columnsHeader || !gridBody) return;
+
+    const handleHeaderScroll = (e: Event) => {
+      const target = e.target as HTMLElement;
+      gridBody.scrollLeft = target.scrollLeft;
+    };
+
+    columnsHeader.addEventListener('scroll', handleHeaderScroll);
+    return () => {
+      columnsHeader.removeEventListener('scroll', handleHeaderScroll);
+    };
   }, []);
 
   // Close status dropdown when clicking outside
@@ -647,9 +682,10 @@ export function NewGridView({
       // Index column
       return (
         <div
-          className="index-column"
+          className="index-column left-0 !sticky"
           style={{
             ...style,
+            position: "sticky",
             borderTop: 'none',
             borderBottom: '1px solid #e5e7eb',
             borderRight: '1px solid #e5e7eb',
@@ -680,7 +716,6 @@ export function NewGridView({
       borderTop: 'none',
       borderLeft: 'none',
       padding: isEditing ? 0 : '0.75rem',
-      position: 'absolute',
       height: ROW_HEIGHT,
       left: style.left as number | string,
       top: style.top as number | string,
@@ -689,8 +724,10 @@ export function NewGridView({
 
     return (
       <div
+        style={{ ...cellStyle }}
         className={`
           grid-cell 
+          ${column.id === 'opportunity' ? 'sticky' : ''} 
           ${column.editable ? 'grid-cell-editable' : ''} 
           ${isEditing ? 'grid-cell-editing' : ''} 
           ${column.type === 'currency' ? 'text-right' : ''}
@@ -698,7 +735,6 @@ export function NewGridView({
           ${contextMenuColumn === column.id ? 'highlight-column' : ''}
           ${isFocused ? 'grid-cell-focused' : ''}
         `}
-        style={cellStyle}
         data-cell={`${row.id}-${column.id}`}
         tabIndex={0}
         onClick={() => {
