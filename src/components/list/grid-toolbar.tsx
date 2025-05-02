@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Search, Filter, Plus } from "lucide-react";
+import { Filter, Plus } from "lucide-react";
 import { ColumnDef } from "./grid/types";
 
 interface GridToolbarProps {
@@ -20,25 +20,8 @@ export function GridToolbar({
   return (
     <div className="flex justify-between items-center p-2 border-b border-slate-light/20 bg-white">
       <div className="flex items-center space-x-2">
-        {/* Search Field - Updated to be inline with magnifying glass */}
-        <div className="flex items-center border-b border-gray-300">
-          <Search size={16} className="text-slate-400 mr-2" />
-          <input 
-            type="text" 
-            placeholder="Search Field Values" 
-            className="border-none outline-none text-sm py-1 w-52 focus:ring-0 bg-transparent"
-          />
-        </div>
-        
-        {/* Filter Button */}
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center text-xs font-normal px-2 text-slate-dark hover:text-slate-darker"
-        >
-          <Filter size={14} className="mr-1" />
-          Filters ({filterCount})
-        </Button>
+        {/* This toolbar is now used only for displaying optional list-specific actions */}
+        {/* Search and filters are handled by the parent component */}
       </div>
       
       <div className="flex items-center space-x-2">

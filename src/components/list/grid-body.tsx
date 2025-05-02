@@ -1,10 +1,10 @@
 
 import { RefObject } from "react";
-import { GridRow } from "../grid-row";
+import { GridRow } from "./grid-row";
 import { ColumnDef } from "./grid/types";
 
 interface GridBodyProps {
-  data: { id: string; [key: string]: any }[];
+  data: { id: string; originalIndex?: number; [key: string]: any }[];
   frozenColumns: ColumnDef[];
   scrollableColumns: ColumnDef[];
   frozenColsTemplate: string;
@@ -30,7 +30,7 @@ export function GridBody({
   onCellChange,
   renderRowActions
 }: GridBodyProps) {
-  // Calculate the first row index for this page
+  // Get the first row index (originalIndex) for absolute row numbering
   const firstRowIndex = data.length > 0 && 'originalIndex' in data[0] 
     ? data[0].originalIndex as number
     : 0;

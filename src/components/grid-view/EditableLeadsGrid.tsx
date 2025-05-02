@@ -4,14 +4,15 @@ import { NewGridView } from '@/components/grid-view/new-grid-view';
 import { Column, GridRow } from '@/components/grid-view/types';
 import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Search } from 'lucide-react';
+import { ExternalLink, Filter, Search } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { mockContactsById } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
 import { useLeadsRows } from '@/hooks/useLeadsRows';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export function EditableLeadsGrid() {
-  // Use our new hook for Supabase persistence
+  // Use our hook for Supabase persistence
   const { rows, loading, saveRow, filter, setFilter, getFilteredRows, PAGE_SIZE } = useLeadsRows();
   const [page, setPage] = useState(0);
   
@@ -188,7 +189,7 @@ export function EditableLeadsGrid() {
     <div className="flex justify-between items-center p-2 border-b border-slate-light/20 bg-white">
       <div className="flex items-center space-x-2">
         {/* Search Field - Updated to be inline with magnifying glass */}
-        <div className="flex items-center border-b border-gray-300">
+        <div className="flex items-center border rounded-md px-2">
           <Search size={16} className="text-slate-400 mr-2" />
           <input 
             type="text" 
@@ -200,6 +201,26 @@ export function EditableLeadsGrid() {
               setPage(0); // Reset to first page when searching
             }}
           />
+          
+          {/* Filter Button - moved inline with search */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="ml-2 text-xs font-normal"
+              >
+                <Filter size={14} className="mr-1" />
+                Filters
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0">
+              <div className="p-4 space-y-2">
+                <h4 className="font-medium">Filter Options</h4>
+                <p className="text-sm text-slate-500">Filter options will go here.</p>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
       
@@ -220,6 +241,7 @@ export function EditableLeadsGrid() {
   // Convert the data to the format expected by the grid
   const gridData: GridRow[] = paginated.map((row, index) => ({
     id: row.id,
+    originalIndex: firstRowIndex + index, // Store original index for "#" column
     opportunity: row.opportunity || row.name || '',
     status: row.status || 'New',
     revenue: row.revenue || 0,
@@ -264,7 +286,7 @@ export function EditableLeadsGrid() {
         >
           Prev
         </Button>
-        <span className="text-sm min-w-[110px] text-center whitespace-nowrap">
+        <span className="text-sm min-w-[110px] text-center whitespace-nowrap mx-2">
           Page <b>{page + 1}</b> of {pageCount}
         </span>
         <Button 

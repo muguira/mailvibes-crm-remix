@@ -1,13 +1,15 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { generateDummyLeads, mockContactsById } from '@/components/stream/sample-data';
 import { LeadContact } from '@/components/stream/sample-data';
 import { useAuth } from '@/contexts/AuthContext';
-import { PAGE_SIZE } from '@/constants/grid';
 
-// Local storage fallback functions
+// Constants
+export const PAGE_SIZE = 100;
 const LEADS_STORAGE_KEY = 'leadsRows-v1';
 
+// Local storage fallback functions
 const loadRowsFromLocal = (): LeadContact[] => {
   try {
     const savedRows = localStorage.getItem(LEADS_STORAGE_KEY);
