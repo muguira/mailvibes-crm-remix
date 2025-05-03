@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { generateDummyLeads, mockContactsById } from '@/components/stream/sample-data';
@@ -35,6 +34,7 @@ export function useLeadsRows() {
   const [rows, setRows] = useState<LeadContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(0);
   
   // Update mockContactsById whenever rows change
   useEffect(() => {
@@ -49,36 +49,75 @@ export function useLeadsRows() {
       setLoading(true);
       
       try {
-        // First try to fetch from Supabase
-        const { data, error } = await supabase
-          .from('leads_rows')
-          .select('*')
-          .order('row_id');
-        
-        if (error) {
-          throw error;
+        // First try to fetch from Supabase if user is authenticated
+        if (user) {
+          const { data, error } = await supabase
+            .from('leads_rows')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('row_id');
+          
+          if (error) {
+            throw error;
+          }
+          
+          // If we have data in Supabase, use it
+          if (data && data.length > 0) {
+            const processedRows = data.map(row => row.data as LeadContact);
+            setRows(processedRows);
+            
+            // Keep mockContactsById in sync
+            processedRows.forEach(row => {
+              mockContactsById[row.id] = row;
+            });
+            return;
+          }
         }
         
-        // If we have data in Supabase, use it
-        if (data && data.length > 0) {
-          const processedRows = data.map(row => row.data as LeadContact);
-          setRows(processedRows);
+        // If no authenticated user or no data in Supabase, try localStorage
+        const localRows = loadRowsFromLocal();
+        if (localRows.length > 0) {
+          setRows(localRows);
           
           // Keep mockContactsById in sync
-          processedRows.forEach(row => {
+          localRows.forEach(row => {
             mockContactsById[row.id] = row;
           });
-        } else {
-          // If no data in Supabase, generate dummy data and seed the database
-          const dummyLeads = generateDummyLeads(1000);
           
-          // Save to Supabase
+          // If user is authenticated, seed the database with local data
+          if (user) {
+            try {
+              const insertPromises = localRows.map((lead, index) => 
+                supabase.from('leads_rows').insert({
+                  row_id: index + 1,
+                  data: lead,
+                  user_id: user.id
+                })
+              );
+              
+              await Promise.all(insertPromises);
+            } catch (insertError) {
+              console.error('Failed to seed Supabase:', insertError);
+            }
+          }
+          return;
+        }
+        
+        // If no local data, generate dummy data
+        const dummyLeads = generateDummyLeads(1000);
+        setRows(dummyLeads);
+        
+        // Save to localStorage
+        saveRowsToLocal(dummyLeads);
+        
+        // If user is authenticated, also save to Supabase
+        if (user) {
           try {
             const insertPromises = dummyLeads.map((lead, index) => 
               supabase.from('leads_rows').insert({
                 row_id: index + 1,
                 data: lead,
-                user_id: user?.id || null
+                user_id: user.id
               })
             );
             
@@ -86,19 +125,14 @@ export function useLeadsRows() {
           } catch (insertError) {
             console.error('Failed to seed Supabase:', insertError);
           }
-          
-          // Also save to localStorage as fallback
-          saveRowsToLocal(dummyLeads);
-          
-          // Keep mockContactsById in sync
-          dummyLeads.forEach(lead => {
-            mockContactsById[lead.id] = lead;
-          });
-          
-          setRows(dummyLeads);
         }
+        
+        // Keep mockContactsById in sync
+        dummyLeads.forEach(lead => {
+          mockContactsById[lead.id] = lead;
+        });
       } catch (fetchError) {
-        console.error('Error fetching from Supabase, falling back to localStorage:', fetchError);
+        console.error('Error fetching data:', fetchError);
         
         // Fall back to localStorage
         const localRows = loadRowsFromLocal();
@@ -126,7 +160,7 @@ export function useLeadsRows() {
     }
     
     fetchLeadsRows();
-  }, [user?.id]);
+  }, [user]);
   
   // Save a row to both Supabase and localStorage
   const saveRow = async (rowIndex: number, updatedRow: LeadContact) => {
@@ -154,10 +188,10 @@ export function useLeadsRows() {
         if (error) {
           throw error;
         }
-      } else {
-        // Fall back to localStorage if not authenticated
-        saveRowsToLocal(rows);
       }
+      
+      // Also save to localStorage (redundant but helpful for offline access)
+      saveRowsToLocal(rows);
     } catch (error) {
       console.error('Failed to save to Supabase, saving to localStorage instead:', error);
       
@@ -169,6 +203,11 @@ export function useLeadsRows() {
   // Get filtered and paginated data
   const getFilteredRows = () => {
     if (!filter) return rows;
+    
+    // Reset to page 0 when filtering
+    if (currentPage !== 0) {
+      setCurrentPage(0);
+    }
     
     return rows.filter(row => 
       Object.values(row).some(value => 
@@ -185,5 +224,7 @@ export function useLeadsRows() {
     setFilter,
     getFilteredRows,
     PAGE_SIZE,
+    currentPage,
+    setCurrentPage
   };
 }

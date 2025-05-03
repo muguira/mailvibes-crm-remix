@@ -34,7 +34,11 @@ export function ProfileMenu() {
     );
   }
 
-  const userInitials = user.email ? user.email.substring(0, 2).toUpperCase() : "U";
+  // Get initials from email
+  const userInitials = user.email ? 
+    user.email.substring(0, 1).toUpperCase() + 
+    (user.email.split('@')[0].length > 1 ? user.email.split('@')[0].charAt(1).toUpperCase() : '') : 
+    "U";
 
   return (
     <DropdownMenu>
