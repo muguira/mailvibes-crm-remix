@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Navigate } from "react-router-dom";
 import { CustomButton } from "@/components/ui/custom-button";
-import { toast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -25,10 +25,6 @@ export default function Auth() {
     try {
       if (isSignUp) {
         await signUp(email, password);
-        toast({
-          title: "Check your email",
-          description: "We've sent you a verification link to complete your registration."
-        });
       } else {
         await signIn(email, password);
         navigate("/");

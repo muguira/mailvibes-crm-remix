@@ -1,91 +1,90 @@
-
 // @ts-nocheck
-// This file will be properly implemented in a future sprint
-// Currently disabled via ts-nocheck to unblock builds
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "../use-toast";
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-
-// Types for activity data
 export interface Activity {
   id: string;
-  user_id: string;
   contact_id: string;
   type: string;
-  content?: string;
+  content?: string | null;
   timestamp: string;
-  created_at: string;
 }
 
+// Hook for activities CRUD operations
 export function useActivities(contactId?: string) {
   const { user } = useAuth();
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (!user || !contactId) {
-      setLoading(false);
-      return;
+  const fetchActivities = async (): Promise<Activity[]> => {
+    if (!user || !contactId) return [];
+
+    const { data, error } = await supabase
+      .from('activities')
+      .select('*')
+      .eq('contact_id', contactId)
+      .order('timestamp', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching activities:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load activities',
+        variant: 'destructive',
+      });
+      return [];
     }
 
-    async function loadActivities() {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('activities')
-          .select('*')
-          .eq('contact_id', contactId)
-          .order('created_at', { ascending: false });
+    return data || [];
+  };
 
-        if (error) {
-          throw error;
-        }
+  // Query to fetch activities
+  const activitiesQuery = useQuery({
+    queryKey: ['activities', user?.id, contactId],
+    queryFn: fetchActivities,
+    enabled: !!user && !!contactId,
+  });
 
-        setActivities(data || []);
-      } catch (error) {
-        console.error('Error loading activities:', error);
-        setActivities([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadActivities();
-  }, [contactId, user]);
-
-  async function createActivity(activity: Omit<Activity, 'id' | 'created_at'>) {
-    if (!user) return null;
-
-    try {
-      const newActivity = {
-        user_id: user.id,
-        contact_id: activity.contact_id,
-        type: activity.type,
-        content: activity.content,
-        timestamp: activity.timestamp || new Date().toISOString(),
-      };
+  // Mutation to create an activity
+  const createActivityMutation = useMutation({
+    mutationFn: async (newActivity: { type: string; content?: string; }) => {
+      if (!user) throw new Error('User not authenticated');
+      if (!contactId) throw new Error('Contact ID is required');
 
       const { data, error } = await supabase
         .from('activities')
-        .insert(newActivity)
-        .select()
-        .single();
+        .insert({
+          user_id: user.id,
+          contact_id: contactId,
+          type: newActivity.type,
+          content: newActivity.content,
+        })
+        .select();
 
       if (error) throw error;
-
-      // Update local state
-      setActivities(prev => [data as Activity, ...prev]);
-      return data;
-    } catch (error) {
-      console.error('Error creating activity:', error);
-      return null;
-    }
-  }
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activities', user?.id, contactId] });
+      toast({
+        title: 'Success',
+        description: 'Activity recorded successfully',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: `Failed to record activity: ${error.message}`,
+        variant: 'destructive',
+      });
+    },
+  });
 
   return {
-    activities,
-    loading,
-    createActivity,
+    activities: activitiesQuery.data || [],
+    isLoading: activitiesQuery.isLoading,
+    isError: activitiesQuery.isError,
+    createActivity: createActivityMutation.mutate,
   };
 }
