@@ -4,7 +4,7 @@ import { GridContainerProps, Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants';
 import { GridToolbar } from './grid-toolbar';
 import { GridHeader } from './grid-header';
-import { Check, Clipboard, Copy, Scissors, Filter, Clipboard as Paste, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Check, Clipboard, Copy, Scissors, Filter, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
 import './styles.css';
 import { v4 as uuidv4 } from 'uuid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
@@ -844,15 +844,15 @@ export function NewGridView({
       <div
         style={cellStyle}
         className={`
-          grid-cell 
-          ${column.id === 'opportunity' ? 'sticky' : ''} 
-          ${column.editable ? 'grid-cell-editable' : ''} 
-          ${isEditing ? 'grid-cell-editing' : ''} 
-          ${column.type === 'currency' ? 'text-right' : ''}
-          ${isFirstColumn ? 'grid-frozen-cell opportunity-cell' : ''}
-          ${contextMenuColumn === column.id ? 'highlight-column' : ''}
-          ${isFocused ? 'grid-cell-focused' : ''}
-        `}
+        grid-cell 
+        ${column.id === 'opportunity' ? 'sticky' : ''} 
+        ${column.editable ? 'grid-cell-editable' : ''} 
+        ${isEditing ? 'grid-cell-editing' : ''} 
+        ${column.type === 'currency' ? 'text-right' : ''}
+        ${isFirstColumn ? 'grid-frozen-cell opportunity-cell' : ''}
+        ${contextMenuColumn === column.id ? 'highlight-column' : ''}
+        ${isFocused ? 'grid-cell-focused' : ''}
+      `}
         data-cell={`${row.id}-${column.id}`}
         tabIndex={0}
         onClick={() => {
@@ -1079,7 +1079,6 @@ export function NewGridView({
             const column = columns.find(col => col.id === statusDropdownPosition.columnId);
             const row = visibleData.find(r => r.id === statusDropdownPosition.rowId);
             const currentValue = row ? row[statusDropdownPosition.columnId] : '';
-
             return column?.options?.map((option) => (
               <div
                 key={option}

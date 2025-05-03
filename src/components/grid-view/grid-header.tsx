@@ -66,6 +66,7 @@ export function GridHeader({
   };
 
   // Handle header editing
+  // Handle header editing
   const handleHeaderKeyDown = (e: React.KeyboardEvent, columnId: string, newTitle: string) => {
     if (e.key === 'Enter') {
       handleHeaderSave(columnId, newTitle);
@@ -134,6 +135,7 @@ export function GridHeader({
   };
 
   // Handle column drop for reordering
+  // Handle column drop for reordering
   const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
 
@@ -177,6 +179,7 @@ export function GridHeader({
     }
   };
 
+  // Various column operations (most are stubs for now)
   // Various column operations (most are stubs for now)
   const handleCutColumn = (columnId: string) => {
     console.log(`Cut column: ${columnId}`);
