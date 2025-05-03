@@ -94,7 +94,6 @@ export function NewGridView({
       console.log('Updating column widths due to columns change', columns.length);
       // Preserve existing widths for existing columns and add default for new ones
       const newWidths = [INDEX_COLUMN_WIDTH];
-
       // Add widths for existing columns
       columns.forEach((col, index) => {
         if (index < columnWidths.length - 1) {
@@ -105,7 +104,6 @@ export function NewGridView({
           newWidths.push(col.width);
         }
       });
-
       setColumnWidths(newWidths);
     }
   }, [columns.length]);
@@ -115,7 +113,6 @@ export function NewGridView({
     // Force re-render of grid when columns change
     if (gridRef.current) {
       gridRef.current.resetAfterColumnIndex(0);
-
       // Reset scroll position to avoid alignment issues
       if (headerRef.current) {
         headerRef.current.scrollLeft = 0;
@@ -209,7 +206,6 @@ export function NewGridView({
       const { width, height } = entries[0].contentRect;
       setContainerWidth(width);
       setContainerHeight(height);
-
       // Reset grid when container size changes to avoid alignment issues
       if (gridRef.current) {
         gridRef.current.resetAfterColumnIndex(0);

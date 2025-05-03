@@ -88,6 +88,12 @@
   font-weight: 500;
   font-size: 0.75rem;
   color: #6b7280;
+  position: sticky;
+  left: 0;
+  z-index: 15;
+  /* Above normal headers */
+  background-color: #f9fafb;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
 }
 
 .columns-header {
