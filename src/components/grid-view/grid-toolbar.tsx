@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Search, Filter, X, Check, ChevronLeft, Calendar as CalendarIcon, Calendar } from "lucide-react";
+import { Filter, Check, ChevronLeft, Calendar as CalendarIcon, Calendar } from "lucide-react";
 import { Column } from './types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
+import { SearchInput } from '@/components/ui/SearchInput';
+import { FilterPopupBase, FilterColumn } from '@/components/ui/FilterPopupBase';
 
 interface GridToolbarProps {
   listName?: string;
@@ -36,7 +38,6 @@ export function GridToolbar({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<string[]>(activeFilters.columns || []);
   const [filterValues, setFilterValues] = useState<Record<string, any>>(activeFilters.values || {});
-  const [selectedField, setSelectedField] = useState<string | null>(null);
   
   // Sync with active filters when they change externally
   useEffect(() => {
@@ -44,60 +45,29 @@ export function GridToolbar({
     setFilterValues(activeFilters.values);
   }, [activeFilters]);
 
-  // Handle checkbox change for column selection
-  const handleColumnSelect = (columnId: string, checked: boolean) => {
-    let newSelectedColumns: string[];
-    
-    if (checked) {
-      newSelectedColumns = [...selectedColumns, columnId];
-    } else {
-      newSelectedColumns = selectedColumns.filter(id => id !== columnId);
-      
-      // Also remove any values for this column
-      const newValues = { ...filterValues };
-      delete newValues[columnId];
-      setFilterValues(newValues);
-    }
-    
-    setSelectedColumns(newSelectedColumns);
-    
-    // If a column is selected, set it as the selected field for second-tier values
-    if (checked) {
-      setSelectedField(columnId);
-    } else if (columnId === selectedField) {
-      // If we're deselecting the currently selected field, choose another one or null
-      setSelectedField(newSelectedColumns.length > 0 ? newSelectedColumns[0] : null);
-    }
-  };
-
   // Handle status option selection
   const handleStatusOptionSelect = (columnId: string, option: string, checked: boolean) => {
-    setFilterValues(prev => {
-      const currentOptions = Array.isArray(prev[columnId]) ? [...prev[columnId]] : [];
-      
-      if (checked) {
-        return {
-          ...prev,
-          [columnId]: [...currentOptions, option]
-        };
-      } else {
-        return {
-          ...prev,
-          [columnId]: currentOptions.filter(opt => opt !== option)
-        };
-      }
-    });
+    const newFilterValues = { ...filterValues };
+    const currentOptions = Array.isArray(newFilterValues[columnId]) ? [...newFilterValues[columnId]] : [];
+    
+    if (checked) {
+      newFilterValues[columnId] = [...currentOptions, option];
+    } else {
+      newFilterValues[columnId] = currentOptions.filter(opt => opt !== option);
+    }
+    
+    setFilterValues(newFilterValues);
   };
 
   // Handle date range filter changes
   const handleDateChange = (columnId: string, type: 'start' | 'end', value: Date | undefined) => {
-    setFilterValues(prev => ({
-      ...prev,
-      [columnId]: {
-        ...prev[columnId] || {},
-        [type]: value ? format(value, 'yyyy-MM-dd') : undefined
-      }
-    }));
+    const newFilterValues = { ...filterValues };
+    newFilterValues[columnId] = {
+      ...newFilterValues[columnId] || {},
+      [type]: value ? format(value, 'yyyy-MM-dd') : undefined
+    };
+    
+    setFilterValues(newFilterValues);
   };
 
   // Apply filters
@@ -118,25 +88,6 @@ export function GridToolbar({
       values: {}
     });
     setIsFilterOpen(false);
-  };
-
-  // Get active filter badges
-  const getActiveFilterBadges = () => {
-    return selectedColumns.map(columnId => {
-      const column = columns.find(col => col.id === columnId);
-      if (!column) return null;
-      
-      return (
-        <Badge key={columnId} variant="outline" className="gap-1">
-          {column.title}
-          <X 
-            size={14} 
-            className="cursor-pointer" 
-            onClick={() => handleColumnSelect(columnId, false)}
-          />
-        </Badge>
-      );
-    });
   };
 
   // Render filter value selector based on column type
@@ -244,150 +195,112 @@ export function GridToolbar({
         
       default:
         return (
-          <div className="text-sm text-muted-foreground mt-2">
-            No specific filters for this column type
+          <div className="text-sm py-2 text-muted-foreground">
+            No specific filter options for this column type.
           </div>
         );
     }
   };
+  
+  const columnCount = columns.length;
 
-  // Get the selected column
-  const selectedColumn = selectedField ? columns.find(col => col.id === selectedField) : null;
+  // Convert Column type to FilterColumn type for the FilterPopupBase
+  const filterColumns: FilterColumn[] = columns.map(col => ({
+    id: col.id,
+    title: col.title,
+    type: col.type,
+    options: col.options,
+    colors: col.colors
+  }));
+
+  // Generate filter tags for individual filter values, not just columns
+  const getFilterTags = () => {
+    const tags = [];
+    
+    for (const columnId of selectedColumns) {
+      const column = columns.find(col => col.id === columnId);
+      if (!column) continue;
+      
+      const values = filterValues[columnId];
+      
+      if (Array.isArray(values) && values.length > 0) {
+        // For status or multi-select columns, show each selected value as a tag
+        values.forEach(value => {
+          tags.push(
+            <Badge key={`${columnId}-${value}`} variant="outline" className="gap-1">
+              {column.title}: {value}
+            </Badge>
+          );
+        });
+      } else if (column.type === 'date' && values) {
+        // For date ranges, show a combined tag
+        const startDate = values.start ? format(new Date(values.start), "MMM d") : null;
+        const endDate = values.end ? format(new Date(values.end), "MMM d") : null;
+        
+        if (startDate || endDate) {
+          tags.push(
+            <Badge key={`${columnId}-date`} variant="outline" className="gap-1">
+              {column.title}: {startDate ? `from ${startDate}` : ''} {endDate ? `to ${endDate}` : ''}
+            </Badge>
+          );
+        }
+      } else if (values && typeof values === 'string') {
+        // For text or other single-value columns
+        tags.push(
+          <Badge key={`${columnId}-${values}`} variant="outline" className="gap-1">
+            {column.title}: {values}
+          </Badge>
+        );
+      }
+    }
+    
+    return tags;
+  };
 
   return (
     <div className="grid-toolbar">
-      <div className="flex flex-col w-full gap-4">
-        {/* List name with clean search field */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{listName}</h2>
-          <div className="text-sm text-muted-foreground">
-            {columns.length} columns
-          </div>
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center">
+          {/* Search field */}
+          <SearchInput
+            value={searchTerm}
+            onChange={onSearchChange}
+            placeholder="Search in grid..."
+            width="w-full"
+            maxWidth={440}
+            variant="leads"
+          />
+          
+          {/* Active filter badges - moved left with the search */}
+          {filterCount > 0 && (
+            <div className="flex gap-1 flex-wrap ml-2">
+              {getFilterTags()}
+            </div>
+          )}
         </div>
         
-        {/* Clean search field and filter button */}
-        <div className="flex items-center justify-between">
-          <div className="relative flex-1 max-w-md">
-            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <Input
-              type="search"
-              placeholder={`Search ${listType || 'items'}...`}
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10 pr-4 h-9 bg-transparent border-0 border-b focus-visible:ring-0 focus-visible:border-primary rounded-none"
-            />
+        {/* Right-aligned section */}
+        <div className="flex items-center gap-2">
+          {/* Column count text */}
+          <div className="text-sm text-gray-500">
+            {columnCount} column{columnCount !== 1 ? 's' : ''}
           </div>
           
-          <div className="flex items-center gap-2">
-            {filterCount > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {getActiveFilterBadges()}
-              </div>
-            )}
-            
-            <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-9 relative"
-                >
-                  <Filter size={14} className="mr-1.5" />
-                  Filter
-                  {filterCount > 0 && (
-                    <span className="ml-1 bg-primary text-primary-foreground rounded-full w-4 h-4 inline-flex items-center justify-center text-[10px]">
-                      {filterCount}
-                    </span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-0" sideOffset={5}>
-                <div className="flex flex-col">
-                  <div className="p-4 border-b">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-medium">Filters</h3>
-                      {filterCount > 0 && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={handleClearFilters}
-                          className="h-8 text-xs"
-                        >
-                          Clear all
-                        </Button>
-                      )}
-                    </div>
-                    
-                    {/* Show active filter badges */}
-                    {filterCount > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {getActiveFilterBadges()}
-                      </div>
-                    )}
-                    
-                    {!selectedField ? (
-                      <div className="space-y-3">
-                        <div className="text-xs text-muted-foreground font-medium">Select a field to filter</div>
-                        <div className="space-y-1 max-h-[250px] overflow-y-auto pr-1">
-                          {columns.map(column => (
-                            <div key={column.id} className="flex items-center space-x-2 py-1.5 hover:bg-muted rounded px-1">
-                              <Checkbox 
-                                id={`filter-col-${column.id}`}
-                                checked={selectedColumns.includes(column.id)}
-                                onCheckedChange={(checked) => 
-                                  handleColumnSelect(column.id, checked === true)
-                                }
-                              />
-                              <Label 
-                                htmlFor={`filter-col-${column.id}`}
-                                className="flex-1 cursor-pointer"
-                                onClick={() => {
-                                  if (!selectedColumns.includes(column.id)) {
-                                    handleColumnSelect(column.id, true);
-                                  }
-                                  setSelectedField(column.id);
-                                }}
-                              >
-                                {column.title}
-                              </Label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="flex items-center mb-4">
-                          <button 
-                            className="text-sm flex items-center text-muted-foreground hover:text-foreground"
-                            onClick={() => setSelectedField(null)}
-                          >
-                            <ChevronLeft className="h-4 w-4 mr-1" />
-                            Back
-                          </button>
-                          <h3 className="font-medium text-sm ml-auto">{selectedColumn?.title}</h3>
-                        </div>
-                        <div className="max-h-[250px] overflow-y-auto pr-1">
-                          {renderFilterValueSelector(selectedColumn!)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center justify-end p-3 bg-muted/50">
-                    <Button 
-                      size="sm"
-                      onClick={handleApplyFilters}
-                      className="h-8"
-                    >
-                      Apply Filters
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+          {/* Filter button */}
+          <FilterPopupBase
+            columns={filterColumns}
+            isOpen={isFilterOpen}
+            onOpenChange={setIsFilterOpen}
+            selectedColumns={selectedColumns}
+            onSelectedColumnsChange={setSelectedColumns}
+            filterValues={filterValues}
+            onFilterValuesChange={setFilterValues}
+            onApplyFilters={handleApplyFilters}
+            onClearFilters={handleClearFilters}
+            align="end"
+            renderFilterValueSelector={renderFilterValueSelector}
+            triggerClassName={`h-8 px-3 ${filterCount > 0 ? "bg-primary/10 border-primary/30" : ""}`}
+          />
         </div>
       </div>
     </div>

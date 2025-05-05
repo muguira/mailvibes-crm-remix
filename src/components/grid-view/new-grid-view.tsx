@@ -4,10 +4,12 @@ import { GridContainerProps, Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants';
 import { GridToolbar } from './grid-toolbar';
 import { GridHeader } from './grid-header';
-import { Check, Clipboard, Copy, Scissors, Filter, Clipboard as Paste, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Check, Clipboard, Copy, Scissors, Filter, ClipboardPaste, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
 import './styles.css';
 import { v4 as uuidv4 } from 'uuid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { ContextMenu } from './ContextMenu';
 
 // Constants for minimum column width
 const MIN_COL_WIDTH = 100;
@@ -468,8 +470,39 @@ export function NewGridView({
 
   // Handle adding a column after another column
   const handleAddColumn = (afterColumnId: string) => {
+    console.log(`Adding column after: ${afterColumnId}`);
     if (onAddColumn) {
+      const newColumnId = `column_${Date.now()}`;
+      const newColumn: Column = {
+        id: newColumnId,
+        title: 'New Column',
+        type: 'text',
+        width: MIN_COL_WIDTH,
+        editable: true
+      };
+      
+      // Find the index of the column after which to add the new one
+      const afterColumnIndex = columns.findIndex(col => col.id === afterColumnId);
+      if (afterColumnIndex < 0) {
+        console.error(`Column with ID ${afterColumnId} not found`);
+        return;
+      }
+      
+      // Create a new array with the new column inserted at the right position
+      const newColumns = [
+        ...columns.slice(0, afterColumnIndex + 1),
+        newColumn,
+        ...columns.slice(afterColumnIndex + 1)
+      ];
+      
       onAddColumn(afterColumnId);
+      
+      // Force reset the grid to handle the new column
+      if (gridRef.current) {
+        setTimeout(() => {
+          gridRef.current.resetAfterColumnIndex(0);
+        }, 0);
+      }
     }
   };
 
@@ -481,10 +514,17 @@ export function NewGridView({
   };
 
   // Context menu handlers with position
-  const handleContextMenu = (columnId: string | null, position?: { x: number, y: number }) => {
+  const openContextMenu = (columnId: string | null, position?: { x: number, y: number }) => {
     setContextMenuColumn(columnId);
     if (position) {
       setContextMenuPosition(position);
+    } else {
+      setContextMenuPosition(null);
+    }
+    
+    // Force a rerender to highlight the column
+    if (gridRef.current) {
+      gridRef.current.forceUpdate();
     }
   };
 
@@ -512,19 +552,20 @@ export function NewGridView({
   const handleInsertColumnLeft = (columnId: string) => {
     console.log(`Insert column left of: ${columnId}`);
     const columnIndex = columns.findIndex(col => col.id === columnId);
+    
     if (columnIndex > 0) {
+      // Insert before the current column (after the previous one)
       const prevColumnId = columns[columnIndex - 1].id;
       handleAddColumn(prevColumnId);
     } else {
+      // If it's the first column, insert after it (we can't insert before the first column)
       handleAddColumn(columnId);
     }
-    setContextMenuColumn(null);
   };
 
   const handleInsertColumnRight = (columnId: string) => {
     console.log(`Insert column right of: ${columnId}`);
     handleAddColumn(columnId);
-    setContextMenuColumn(null);
   };
 
   const handleClearColumn = (columnId: string) => {
@@ -689,96 +730,143 @@ export function NewGridView({
 
   // Cell renderer with absolute row numbering
   const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
-    if (rowIndex === 0) {
-      return null; // Header is rendered separately
-    }
-
-    const dataRowIndex = rowIndex - 1;
-    const row = visibleData[dataRowIndex];
-
+    const row = visibleData[rowIndex];
     if (!row) return null;
 
+    // First column is always the index column
     if (columnIndex === 0) {
-      // Index column - use absolute row numbering from firstRowIndex
+      const rowNum = firstRowIndex + rowIndex + 1; // Calculate absolute row number
       return (
         <div
           className="index-column"
           style={{
             ...style,
-            left: 0,
-            top: style.top as number,
-            width: columnWidths[0],
-            height: ROW_HEIGHT,
+            height: `${ROW_HEIGHT}px`,
+            width: `${columnWidths[0]}px`,
           }}
         >
-          {firstRowIndex + dataRowIndex + 1}
+          {rowNum}
         </div>
       );
     }
 
-    const columnIdx = columnIndex - 1;
-    const column = columns[columnIdx];
-
+    const colIndex = columnIndex - 1; // Adjust for index column
+    const column = columns[colIndex];
+    
     if (!column) return null;
-
+    
+    const cellId = `${row.id}-${column.id}`;
     const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
-    const isFirstColumn = columnIdx === 0 && column.id === 'opportunity';
     const isFocused = focusedCell?.rowIndex === rowIndex && focusedCell?.columnIndex === columnIndex;
-    const shouldNotAllowEditing = column.type === 'custom' || !column.editable;
-
-    // Fix cell styles to eliminate gaps and ensure alignment
+    const value = row[column.id];
+    
+    // Determine various states and classes
+    const isFrozen = column.frozen || column.id === 'opportunity';
+    const isLastColumn = columnIndex === columns.length;
+    const isStickyRight = column.sticky === 'right' || (isLastColumn && column.id === 'streamLink');
+    const isStickyLeft = column.sticky === 'left';
+    
+    // Apply special classes for styling
+    const cellClassName = [
+      'grid-cell',
+      isEditing ? 'cell-editing' : '',
+      isFocused ? 'grid-cell-focused' : '',
+      isFrozen ? 'grid-frozen-cell' : '',
+      column.id === 'opportunity' ? 'opportunity-cell' : '',
+      column.id === contextMenuColumn ? 'highlight-column' : '',
+      isStickyRight ? 'grid-sticky-right' : '',
+      isStickyLeft ? 'grid-sticky-left' : '',
+      column.id === 'streamLink' ? 'stream-link-column' : ''
+    ].filter(Boolean).join(' ');
+    
+    // Basic cell style from react-window
     const cellStyle: React.CSSProperties = {
       ...style,
-      padding: isEditing ? 0 : '0 0.75rem',
-      position: 'absolute',
-      height: ROW_HEIGHT,
-      width: columnWidths[columnIndex],
-      display: 'flex',
-      alignItems: 'center',
-      borderBottom: '1px solid #e5e7eb',
-      borderRight: '1px solid #e5e7eb',
-      overflow: 'hidden',
-      boxSizing: 'border-box',
-      margin: 0
+      height: `${ROW_HEIGHT}px`,
+      width: `${getColumnWidth(columnIndex)}px`,
     };
-
-    // Add position styles for fixed columns
-    if (isFirstColumn) {
-      cellStyle.left = columnWidths[0];
-      cellStyle.position = 'sticky';
-      cellStyle.zIndex = 5;
-      cellStyle.backgroundColor = '#ffffff';
+    
+    // Render cell based on state
+    if (isEditing) {
+      return (
+        <div 
+          style={cellStyle} 
+          className={cellClassName}
+          data-column-id={column.id}
+          data-cell={cellId}
+        >
+          {renderEditInput(row, column)}
+        </div>
+      );
     }
-
+    
+    // Handle status dropdown
+    if (column.type === 'status' && statusDropdownPosition?.rowId === row.id && statusDropdownPosition?.columnId === column.id) {
+      return (
+        <div
+          style={cellStyle}
+          className={cellClassName}
+          data-column-id={column.id}
+          data-cell={cellId}
+          onClick={() => handleCellClick(row.id, column.id)}
+        >
+          {formatCellValue(value, column, row)}
+          <div 
+            className="status-dropdown"
+            style={{
+              top: statusDropdownPosition.top,
+              left: statusDropdownPosition.left,
+            }}
+          >
+            {column.options?.map(option => (
+              <div 
+                key={option}
+                className={`status-option ${value === option ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStatusSelect(row.id, column.id, option);
+                }}
+              >
+                <div className="status-option-label">
+                  <span 
+                    style={{ 
+                      width: '12px', 
+                      height: '12px', 
+                      borderRadius: '50%',
+                      backgroundColor: column.colors?.[option] || '#e5e7eb',
+                    }}
+                  />
+                  {option}
+                </div>
+                {value === option && <Check size={14} />}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div
-        className={`
-          grid-cell 
-          ${column.editable ? 'grid-cell-editable' : ''} 
-          ${isEditing ? 'grid-cell-editing' : ''} 
-          ${column.type === 'currency' ? 'text-right' : ''}
-          ${isFirstColumn ? 'grid-frozen-cell opportunity-cell' : ''}
-          ${contextMenuColumn === column.id ? 'highlight-column' : ''}
-          ${isFocused ? 'grid-cell-focused' : ''}
-        `}
         style={cellStyle}
-        data-cell={`${row.id}-${column.id}`}
-        tabIndex={0}
-        onClick={() => {
-          if (!shouldNotAllowEditing) {
-            handleCellClick(row.id, column.id);
+        className={cellClassName}
+        data-column-id={column.id}
+        data-cell={cellId}
+        onClick={() => handleCellClick(row.id, column.id)}
+        onDoubleClick={() => {
+          if (column.editable) {
+            setEditingCell({ rowId: row.id, columnId: column.id });
           }
         }}
         onContextMenu={(e) => {
           e.preventDefault();
-          handleContextMenu(column.id, { x: e.clientX, y: e.clientY });
+          handleCellContextMenu(e, row.id, column.id);
         }}
       >
-        {isEditing ? (
-          renderEditInput(row, column)
-        ) : (
-          formatCellValue(row[column.id], column, row)
-        )}
+        {column.renderCell 
+          ? column.renderCell(value, row) 
+          : formatCellValue(value, column, row)
+        }
       </div>
     );
   };
@@ -828,38 +916,16 @@ export function NewGridView({
           <div style={{ display: 'none' }} />
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56" style={menuStyle}>
-          <DropdownMenuItem onClick={() => handleCutColumn(column.id)}>
-            <Scissors className="mr-2 h-4 w-4" />
-            <span>Cut</span>
-            <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
-          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleCopyColumn(column.id)}>
             <Copy className="mr-2 h-4 w-4" />
             <span>Copy</span>
             <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handlePasteColumn(column.id)}>
-            <Clipboard className="mr-2 h-4 w-4" />
+            <ClipboardPaste className="mr-2 h-4 w-4" />
             <span>Paste</span>
             <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
           </DropdownMenuItem>
-
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <Clipboard className="mr-2 h-4 w-4" />
-              <span>Paste special</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuSubContent>
-                <DropdownMenuItem onClick={() => handlePasteSpecial(column.id, 'values')}>
-                  Values only
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePasteSpecial(column.id, 'format')}>
-                  Format only
-                </DropdownMenuItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuPortal>
-          </DropdownMenuSub>
 
           <DropdownMenuSeparator />
 
@@ -879,28 +945,6 @@ export function NewGridView({
             </DropdownMenuItem>
           )}
 
-          <DropdownMenuItem onClick={() => handleClearColumn(column.id)}>
-            <span className="mr-2">×</span>
-            <span>Clear column</span>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem onClick={() => handleHideColumn(column.id)}>
-            <EyeOff className="mr-2 h-4 w-4" />
-            <span>Hide column</span>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem onClick={() => handleResizeColumn(column.id)}>
-            <StretchHorizontal className="mr-2 h-4 w-4" />
-            <span>Resize column</span>
-          </DropdownMenuItem>
-
-          <DropdownMenuSeparator />
-
-          <DropdownMenuItem onClick={() => handleCreateFilter(column.id)}>
-            <Filter className="mr-2 h-4 w-4" />
-            <span>Create a filter</span>
-          </DropdownMenuItem>
-
           <DropdownMenuSeparator />
 
           <DropdownMenuItem onClick={() => handleSortAZ(column.id)}>
@@ -917,10 +961,60 @@ export function NewGridView({
     );
   };
 
+  // Add keyboard shortcuts handler for Copy/Paste
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!contextMenuColumn) return;
+      
+      // Handle copy with Cmd/Ctrl+C
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+        handleCopyColumn(contextMenuColumn);
+      }
+      
+      // Handle paste with Cmd/Ctrl+V
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+        handlePasteColumn(contextMenuColumn);
+      }
+      
+      // Close on Escape
+      if (e.key === 'Escape') {
+        setContextMenuColumn(null);
+        setContextMenuPosition(null);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [contextMenuColumn]);
+
+  // Add handler for cell right-click
+  const handleCellContextMenu = (e: React.MouseEvent, rowId: string, columnId: string) => {
+    e.preventDefault();
+    const column = columns.find(col => col.id === columnId);
+    if (!column) return;
+    
+    openContextMenu(columnId, { x: e.clientX, y: e.clientY });
+  };
+
+  // Add click outside handler to close the context menu
+  useEffect(() => {
+    if (!contextMenuColumn) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      const menuElement = document.querySelector('.context-menu-container');
+      if (menuElement && !menuElement.contains(e.target as Node)) {
+        setContextMenuColumn(null);
+        setContextMenuPosition(null);
+      }
+    };
+    
+    window.addEventListener('mousedown', handleClickOutside);
+    return () => window.removeEventListener('mousedown', handleClickOutside);
+  }, [contextMenuColumn]);
+
   return (
     <div className={`grid-view ${className || ''}`} ref={containerRef}>
       <GridToolbar
-        listName={listName}
         listType={listType}
         searchTerm={searchTerm}
         onSearchChange={handleSearchChange}
@@ -931,81 +1025,65 @@ export function NewGridView({
       />
 
       <div className="header-wrapper" ref={headerRef}>
-        <GridHeader
-          columns={columns}
-          onColumnChange={onColumnChange}
-          onColumnsReorder={onColumnsReorder}
-          onAddColumn={onAddColumn}
-          onDeleteColumn={onDeleteColumn}
-          onContextMenu={handleContextMenu}
-          activeContextMenu={contextMenuColumn}
-          columnWidths={columnWidths}
-        />
+        <div className="grid-header">
+          <div className="index-header">#</div>
+          <div className="columns-header">
+            <GridHeader 
+              columns={columns}
+              onColumnChange={onColumnChange}
+              onColumnsReorder={onColumnsReorder}
+              onAddColumn={onAddColumn}
+              onDeleteColumn={onDeleteColumn}
+              onContextMenu={openContextMenu}
+              activeContextMenu={contextMenuColumn}
+              columnWidths={columnWidths}
+              contextMenuPosition={contextMenuPosition}
+              onCopy={handleCopyColumn}
+              onPaste={handlePasteColumn}
+              onSortAZ={handleSortAZ}
+              onSortZA={handleSortZA}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid-wrapper">
-        <div className="grid-body">
-          {containerWidth > 0 && containerHeight > 0 && (
+        {visibleData.length === 0 ? (
+          <div className="no-rows">
+            <Filter size={36} />
+            <p>No data matching your filters</p>
+            {activeFilters.columns.length > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="mt-2"
+                onClick={() => handleApplyFilters({ columns: [], values: {} })}
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid-body">
             <Grid
               ref={gridRef}
+              className="react-window-grid"
+              outerElementType={OuterElementWrapper}
+              innerElementType={innerElementType}
               columnCount={columns.length + 1} // +1 for index column
               columnWidth={getColumnWidth}
-              height={containerHeight - HEADER_HEIGHT}
-              rowCount={visibleData.length + 1} // +1 for header placeholder
+              height={containerHeight}
+              rowCount={visibleData.length}
               rowHeight={getRowHeight}
               width={containerWidth}
-              className="react-window-grid"
-              style={{
-                overflow: 'auto',
-                margin: 0,
-                padding: 0,
-                borderTop: 'none'
-              }}
-              innerElementType={innerElementType}
-              outerElementType={OuterElementWrapper}
+              itemData={visibleData}
               onScroll={handleGridScroll}
-              overscanRowCount={5} // Add overscan for smoother scrolling
-              overscanColumnCount={2} // Also overscan columns for smoother horizontal scrolling
             >
               {Cell}
             </Grid>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-
-      {/* Status Dropdown */}
-      {statusDropdownPosition && (
-        <div
-          className="status-dropdown"
-          style={{
-            top: statusDropdownPosition.top + 'px',
-            left: statusDropdownPosition.left + 'px'
-          }}
-        >
-          {(() => {
-            const column = columns.find(col => col.id === statusDropdownPosition.columnId);
-            const row = visibleData.find(r => r.id === statusDropdownPosition.rowId);
-            const currentValue = row ? row[statusDropdownPosition.columnId] : '';
-
-            return column?.options?.map((option) => (
-              <div
-                key={option}
-                className={`status-option ${currentValue === option ? 'active' : ''}`}
-                onClick={() => handleStatusSelect(
-                  statusDropdownPosition.rowId,
-                  statusDropdownPosition.columnId,
-                  option
-                )}
-              >
-                <div className="status-option-label">
-                  {renderStatusPill(option, column.colors || {})}
-                </div>
-                {currentValue === option && <Check size={16} />}
-              </div>
-            ));
-          })()}
-        </div>
-      )}
 
       {/* Column Context Menu */}
       {renderColumnContextMenu()}

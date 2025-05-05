@@ -3,7 +3,7 @@ import { NewGridView } from '@/components/grid-view/new-grid-view';
 import { Column, GridRow } from '@/components/grid-view/types';
 import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Filter, Search } from 'lucide-react';
+import { ExternalLink, Pencil } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { mockContactsById, generateDummyLeads } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
@@ -108,14 +108,22 @@ export function EditableLeadsGrid() {
     {
       id: 'opportunity',
       title: 'Opportunity',
-      type: 'text',
+      type: 'custom',
       width: DEFAULT_COLUMN_WIDTH + 20, // Give a bit more width to opportunity column
       editable: true,
       frozen: true,
       renderCell: (value, row) => (
-        <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
-          {value}
-        </Link>
+        <div className="flex items-center">
+          <Link 
+            to={`/stream-view/${row.id}`} 
+            className="text-primary hover:underline flex items-center group"
+          >
+            {value}
+            <span className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Pencil size={14} />
+            </span>
+          </Link>
+        </div>
       ),
     },
     {
@@ -188,8 +196,9 @@ export function EditableLeadsGrid() {
       type: 'custom',
       width: 60,
       editable: false,
+      sticky: 'right',
       renderCell: (_, row) => (
-        <div className="flex justify-center hidden sm:flex">
+        <div className="flex justify-center">
           <Link 
             to={`/stream-view/${row.id}`} 
             className="text-gray-500 hover:text-primary"

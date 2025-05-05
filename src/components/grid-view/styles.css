@@ -17,7 +17,8 @@
   border-bottom: 1px solid #e5e7eb;
   justify-content: space-between;
   background-color: #fff;
-  z-index: 20; /* Keep above grid */
+  z-index: 50; /* Increase z-index to keep above grid */
+  height: 48px; /* Fixed height for better layout calculation */
 }
 
 .toolbar-left,
@@ -28,16 +29,27 @@
 
 .toolbar-left {
   gap: 1rem;
+  flex: 1; /* Take available space */
 }
 
 .toolbar-right {
   gap: 0.5rem;
 }
 
-/* Search field styling */
-.search-field {
+/* Search field styling - minimalist and transparent */
+.search-field-container {
   position: relative;
-  width: 100%;
+  flex: 1;
+  max-width: 360px;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+}
+
+.search-field-container:focus-within {
+  border-color: #e5e7eb;
+  background-color: #f9fafb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .search-input {
@@ -65,7 +77,7 @@
   background-color: #f9fafb;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 30; /* Higher than normal cells, lower than toolbar */
   padding: 0;
   margin: 0;
   width: fit-content; /* Allow horizontal expansion */
@@ -85,7 +97,7 @@
   color: #6b7280;
   position: sticky;
   left: 0;
-  z-index: 15; /* Above normal headers */
+  z-index: 40; /* Above normal headers and cells */
   background-color: #f9fafb;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
 }
@@ -119,9 +131,10 @@
 .grid-header-cell.grid-frozen-header {
   position: sticky;
   left: 48px; /* Match INDEX_COLUMN_WIDTH */
-  z-index: 14; /* Below index but above regular headers */
+  z-index: 35; /* Below index but above regular headers */
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
   background-color: #f9fafb;
+  border-right: 1px solid #e5e7eb;
 }
 
 .grid-header-cell.dragging {
@@ -157,6 +170,8 @@
   height: 24px;
   border-radius: 4px;
   color: #6b7280;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
 .header-cell-menu-button:hover {
@@ -164,7 +179,16 @@
   color: #111827;
 }
 
-/* Removed resize-handle styles */
+.group:hover .header-cell-menu-button {
+  opacity: 1;
+}
+
+.header-cell-menu-button.active,
+.header-cell-menu-button.pressed {
+  opacity: 1;
+  background-color: #f3f4f6;
+  box-shadow: 0 0 0 1px #d1d5db;
+}
 
 .add-column-button {
   min-width: 40px;
@@ -192,6 +216,7 @@
   scrollbar-width: none; /* Hide scrollbar for Firefox */
   -ms-overflow-style: none; /* Hide scrollbar for IE/Edge */
   border-bottom: none; /* Remove border to avoid double borders */
+  z-index: 30;
 }
 
 .header-wrapper::-webkit-scrollbar {
@@ -200,57 +225,61 @@
 
 /* Grid body */
 .grid-wrapper {
+  position: relative;
   flex: 1;
   overflow: hidden;
-  position: relative;
+  height: calc(100% - 84px); /* Subtract header + toolbar heights */
 }
 
 .grid-body {
+  overflow: auto;
   height: 100%;
-  position: relative;
-  margin-top: 0 !important; /* Remove any top margin */
+  scrollbar-width: thin;
 }
 
+/* React Window Grid */
 .react-window-grid {
-  position: relative !important;
-  /* Ensure no extra borders or margins */
-  border: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: auto !important;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .react-window-grid-inner {
-  border-collapse: collapse !important;
-  border-spacing: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
+  position: relative;
+  width: fit-content;
+  min-width: 100%;
 }
 
+/* Grid cells */
 .grid-cell {
-  border-bottom: 1px solid #e5e7eb;
+  position: relative;
   border-right: 1px solid #e5e7eb;
-  padding: 0 0.75rem;
-  font-size: 0.875rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border-bottom: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
-  background-color: #ffffff;
   box-sizing: border-box;
-  height: 32px !important; /* Enforce consistent height */
+  padding: 0 0.75rem;
+  background-color: #fff;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .grid-cell.grid-frozen-cell {
-  position: sticky !important;
-  left: 48px !important; /* Match INDEX_COLUMN_WIDTH */
-  z-index: 1;
-  background-color: #ffffff;
+  position: sticky;
+  left: 48px; /* Match INDEX_COLUMN_WIDTH */
+  z-index: 20; /* Above normal cells */
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  background-color: #fff;
+  border-right: 1px solid #e5e7eb;
 }
 
 .grid-cell-editable {
-  cursor: cell;
+  cursor: text;
 }
 
 .grid-cell-editable:hover {
@@ -259,66 +288,76 @@
 
 .grid-cell-editing {
   padding: 0;
-  z-index: 5;
 }
 
 .grid-cell-focused {
-  box-shadow: inset 0 0 0 2px #2563eb;
-  z-index: 2;
-  position: relative;
-  outline: none;
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+  z-index: 10;
 }
 
 .grid-cell-input {
+  border: none;
+  background: transparent;
   width: 100%;
   height: 100%;
-  border: none;
-  outline: none;
-  padding: 0.75rem;
-  box-sizing: border-box;
-  font-family: inherit;
-  font-size: inherit;
-  background-color: #ffffff;
+  font-size: 0.875rem;
+  padding: 0 0.75rem;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
+.grid-cell-input:focus {
+  outline: none;
+}
+
+/* Index column styling */
 .index-column {
+  position: sticky;
+  left: 0;
+  z-index: 25; /* Above normal cells, below sticky cells */
+  width: 48px; /* Matching INDEX_COLUMN_WIDTH */
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
   color: #6b7280;
-  background-color: #f9fafb;
-  position: sticky !important;
-  left: 0 !important;
-  z-index: 10;
-  height: 32px !important; /* Enforce consistent height */
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  background-color: #fff;
   border-right: 1px solid #e5e7eb;
   border-bottom: 1px solid #e5e7eb;
-  box-sizing: border-box;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+}
+
+.index-column:hover {
+  background-color: #f9fafb;
+}
+
+/* Non-frozen cells */
+.grid-cell:not(.grid-frozen-cell):not(.index-column) {
+  background-color: #fff;
 }
 
 /* Status dropdown */
 .status-dropdown {
-  position: fixed;
-  background-color: #ffffff;
+  position: absolute;
+  z-index: 1000;
+  background-color: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  z-index: 50;
-  min-width: 160px;
-  max-width: 300px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  min-width: 150px;
   max-height: 300px;
   overflow-y: auto;
-  padding: 0.5rem 0;
+  padding: 0.25rem;
 }
 
 .status-option {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  border-radius: 4px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
+  font-size: 0.875rem;
 }
 
 .status-option:hover {
@@ -326,75 +365,335 @@
 }
 
 .status-option.active {
-  background-color: #f3f4f6;
+  background-color: #ebf5ff;
 }
 
 .status-option-label {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
 }
 
 /* Search highlight */
 .search-highlight {
-  background-color: #fef08a;
-  padding: 0.125rem 0;
+  background-color: #fef3c7;
+  padding: 0px 2px;
   border-radius: 2px;
 }
 
-/* Highlight column */
+/* Ensure highlight column affects all cells in the column */
 .highlight-column {
-  background-color: #e0f2fe !important;
+  background-color: rgba(214, 235, 255, 0.25) !important;
 }
 
 /* Drag preview */
 .drag-preview-column {
   pointer-events: none;
+  padding: 0.5rem 1rem;
+  background-color: #fff;
+  border: 2px dashed #3b82f6;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  color: #111827;
+  font-weight: 500;
+}
+
+/* Empty state */
+.no-rows {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 2rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+.no-rows svg {
+  margin-bottom: 1rem;
+  color: #d1d5db;
+}
+
+/* Header editing input */
+.header-edit-input {
+  border: none;
+  background-color: #fff;
   font-size: 0.875rem;
   font-weight: 500;
   color: #111827;
-  z-index: 100;
-}
-
-/* No rows overlay */
-.no-rows {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  transform: translateY(-50%);
-  text-align: center;
-  color: #6b7280;
-  font-size: 0.875rem;
-}
-
-/* Ensure correct scrolling on headers and grid */
-.header-edit-input {
+  padding: 0.25rem 0;
   width: 100%;
-  height: 80%;
-  border: none;
   outline: none;
-  padding: 0 0.25rem;
-  background-color: #ffffff;
-  border-radius: 2px;
-  font-size: 0.875rem;
-  font-family: inherit;
-  color: #111827;
 }
 
-/* Fix for the opportunity column to be sticky when scrolling horizontally */
+/* Special styling for opportunity cells */
 .opportunity-cell {
-  z-index: 4 !important;
+  color: #2563eb;
 }
 
+/* Responsive adjustments */
 @media (max-width: 640px) {
   .grid-toolbar {
     flex-direction: column;
-    gap: 0.75rem;
     align-items: flex-start;
+    gap: 0.75rem;
   }
-
+  
   .toolbar-left,
   .toolbar-right {
     width: 100%;
   }
+}
+
+/* Status column specific styling */
+.grid-cell[data-column-id="status"] {
+  z-index: 15 !important; /* Below opportunity column but above regular cells */
+}
+
+/* Status column backdrop to prevent see-through */
+.grid-cell[data-column-id="status"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+  background-color: #fff;
+}
+
+/* Add some distance from the frozen column */
+.grid-cell[data-column-id="status"] {
+  margin-left: 1px;
+  border-left: 1px solid #e5e7eb;
+}
+
+/* Ensure frozen column has proper z-index */
+.grid-cell.grid-frozen-cell {
+  position: sticky;
+  left: 48px; /* Match INDEX_COLUMN_WIDTH */
+  z-index: 20; /* Above normal cells */
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  background-color: #fff;
+}
+
+/* Add specific backdrop for frozen columns to prevent content showing through */
+.grid-header-cell.grid-frozen-header::after,
+.grid-cell.grid-frozen-cell::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+  background-color: inherit;
+}
+
+/* Ensure index column is always on top and sticky left */
+.index-header,
+.index-column {
+  position: sticky;
+  left: 0;
+  z-index: 40 !important; /* Above all other columns */
+  background-color: #f9fafb;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  border-right: 1px solid #e5e7eb;
+}
+
+/* Opportunity column should be sticky and right next to index column */
+.grid-header-cell.grid-frozen-header {
+  position: sticky;
+  left: 48px !important; /* Exactly INDEX_COLUMN_WIDTH */
+  z-index: 35; /* Below index but above regular headers */
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  background-color: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+}
+
+.grid-cell.grid-frozen-cell {
+  position: sticky;
+  left: 48px !important; /* Exactly INDEX_COLUMN_WIDTH */
+  z-index: 20; /* Above normal cells */
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  background-color: #fff;
+  border-right: 1px solid #e5e7eb;
+}
+
+/* Rightmost link column sticky right */
+.grid-header-cell.grid-sticky-right,
+.grid-cell.grid-sticky-right {
+  position: sticky;
+  right: 0;
+  z-index: 20;
+  background-color: inherit;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Add visual separation for the sticky columns block */
+.index-header, 
+.index-column,
+.grid-header-cell.grid-frozen-header,
+.grid-cell.grid-frozen-cell {
+  border-right: 1px solid #c8c8c9;
+}
+
+/* Style for the stream link column */
+.stream-link-column {
+  position: sticky !important;
+  right: 0 !important;
+  z-index: 25 !important;
+  background-color: #fff !important;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Add column button styling to fix it to the right */
+.add-column-button.grid-sticky-right {
+  position: sticky;
+  right: 0;
+  z-index: 35;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Improved styling for frozen/sticky column headers and cells */
+/* Index column - leftmost sticky column */
+.index-header,
+.index-column {
+  position: sticky;
+  left: 0;
+  z-index: 40 !important; /* Above all other columns */
+  background-color: #f9fafb;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  border-right: 1px solid #e5e7eb;
+}
+
+.index-column {
+  background-color: #fff;
+}
+
+/* Fix the opportunity column (second column) to be sticky left */
+.grid-header-cell.grid-frozen-header {
+  position: sticky !important;
+  left: 48px !important; /* Exactly INDEX_COLUMN_WIDTH */
+  z-index: 35 !important; /* Below index but above regular headers */
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  background-color: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+}
+
+.grid-cell.grid-frozen-cell {
+  position: sticky !important;
+  left: 48px !important; /* Exactly INDEX_COLUMN_WIDTH */
+  z-index: 20 !important; /* Above normal cells */
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  background-color: #fff;
+  border-right: 1px solid #e5e7eb;
+}
+
+/* Left sticky columns */
+.grid-header-cell.grid-sticky-left,
+.grid-cell.grid-sticky-left {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 30 !important; 
+  background-color: inherit;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Right sticky columns */
+.grid-header-cell.grid-sticky-right,
+.grid-cell.grid-sticky-right {
+  position: sticky !important;
+  right: 0 !important;
+  z-index: 20 !important;
+  background-color: inherit;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Special handling for the stream link column (rightmost column) */
+.stream-link-column {
+  position: sticky !important;
+  right: 0 !important;
+  z-index: 20 !important;
+  background-color: #fff !important;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Add column button - make it stick properly to the right */
+.add-column-button.grid-sticky-right {
+  position: sticky !important;
+  right: 0 !important;
+  z-index: 35 !important;
+  background-color: #f9fafb;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Ensure proper background for sticky elements */
+.grid-header-cell.grid-frozen-header::after,
+.grid-cell.grid-frozen-cell::after,
+.grid-header-cell.grid-sticky-right::after,
+.grid-cell.grid-sticky-right::after,
+.grid-header-cell.grid-sticky-left::after,
+.grid-cell.grid-sticky-left::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-color: inherit;
+}
+
+/* Fix white space issue after opportunity column rows */
+.opportunity-cell {
+  color: #2563eb;
+  padding-right: 0 !important; 
+  padding-left: 0.75rem !important;
+  overflow: visible !important;
+}
+
+/* Ensure opportunity column doesn't have extra whitespace */
+.grid-cell[data-column-id="opportunity"] {
+  overflow: visible !important;
+}
+
+/* Clean up any spacing issues between frozen columns */
+.grid-cell:not(.grid-frozen-cell):not(.index-column):first-of-type {
+  border-left: none;
+}
+
+/* Remove double borders between sticky columns */
+.grid-cell.grid-frozen-cell + .grid-cell:not(.grid-frozen-cell) {
+  border-left: none;
+}
+
+/* Ensure all headers and rows align perfectly */
+.react-window-grid {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: auto !important;
+}
+
+.react-window-grid-inner {
+  position: relative;
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Make grid rows consistent */
+.react-window-grid-inner > div {
+  display: flex;
+}
+
+/* Context menu container */
+.context-menu-container {
+  z-index: 1000;
 }
