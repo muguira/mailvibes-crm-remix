@@ -6,7 +6,8 @@
   background-color: #fff;
   font-family: 'Inter', system-ui, sans-serif;
   user-select: none;
-  overflow: hidden; /* Prevent outer scroll */
+  overflow: hidden;
+  /* Prevent outer scroll */
 }
 
 /* Grid toolbar */
@@ -80,14 +81,17 @@
   z-index: 30; /* Higher than normal cells, lower than toolbar */
   padding: 0;
   margin: 0;
-  width: fit-content; /* Allow horizontal expansion */
-  min-width: 100%; /* At least full width */
+  width: fit-content;
+  min-width: 100%;
+  box-sizing: border-box;
 }
 
 .index-header {
-  min-width: 48px; /* Matching INDEX_COLUMN_WIDTH */
+  z-index: 5;
+  background-color: #f9fafb;
+  min-width: 48px;
   flex: 0 0 48px;
-  height: 36px; /* Match HEADER_HEIGHT */
+  height: 36px;
   border-right: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
@@ -106,11 +110,16 @@
   display: flex;
   overflow-x: visible;
   position: relative;
-  height: 36px; /* Match HEADER_HEIGHT */
+  height: 36px;
+  /* Match HEADER_HEIGHT */
 }
 
 .grid-header-cell {
-  height: 36px; /* Match HEADER_HEIGHT */
+  position: relative;
+  z-index: 1;
+  background-color: #f9fafb;
+  height: 36px;
+  /* Match HEADER_HEIGHT */
   padding: 0 0.75rem;
   display: flex;
   align-items: center;
@@ -118,8 +127,6 @@
   border-right: 1px solid #e5e7eb;
   font-weight: 500;
   color: #111827;
-  position: relative;
-  background-color: #f9fafb;
   cursor: pointer;
   box-sizing: border-box;
 }
@@ -140,6 +147,13 @@
 .grid-header-cell.dragging {
   opacity: 0.6;
   background-color: #e5e7eb;
+}
+
+.grid-header-cell.sticky {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  background-color: #f9fafb;
 }
 
 .header-title {
@@ -192,7 +206,8 @@
 
 .add-column-button {
   min-width: 40px;
-  height: 36px; /* Match HEADER_HEIGHT */
+  height: 36px;
+  /* Match HEADER_HEIGHT */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -220,7 +235,8 @@
 }
 
 .header-wrapper::-webkit-scrollbar {
-  display: none; /* Hide scrollbar for Chrome/Safari/Opera */
+  display: none;
+  /* Hide scrollbar for Chrome/Safari/Opera */
 }
 
 /* Grid body */

@@ -96,7 +96,6 @@ export function NewGridView({
       console.log('Updating column widths due to columns change', columns.length);
       // Preserve existing widths for existing columns and add default for new ones
       const newWidths = [INDEX_COLUMN_WIDTH];
-      
       // Add widths for existing columns
       columns.forEach((col, index) => {
         if (index < columnWidths.length - 1) {
@@ -107,7 +106,6 @@ export function NewGridView({
           newWidths.push(col.width);
         }
       });
-      
       setColumnWidths(newWidths);
     }
   }, [columns.length]);
@@ -117,7 +115,6 @@ export function NewGridView({
     // Force re-render of grid when columns change
     if (gridRef.current) {
       gridRef.current.resetAfterColumnIndex(0);
-      
       // Reset scroll position to avoid alignment issues
       if (headerRef.current) {
         headerRef.current.scrollLeft = 0;
@@ -211,7 +208,6 @@ export function NewGridView({
       const { width, height } = entries[0].contentRect;
       setContainerWidth(width);
       setContainerHeight(height);
-      
       // Reset grid when container size changes to avoid alignment issues
       if (gridRef.current) {
         gridRef.current.resetAfterColumnIndex(0);
@@ -343,12 +339,102 @@ export function NewGridView({
     setActiveFilters(filters);
   };
 
-  // Sync header scrolling with grid body
+  // State to track grid scrollTop for sticky overlay
+  const [gridScrollTop, setGridScrollTop] = useState(0);
+
+  // Handler to sync overlay with grid scroll
   const handleGridScroll = useCallback(({ scrollLeft, scrollTop }: { scrollLeft: number; scrollTop: number }) => {
     if (headerRef.current) {
       headerRef.current.scrollLeft = scrollLeft;
     }
+    setGridScrollTop(scrollTop);
   }, []);
+
+  // Helper to render sticky overlay for index and opportunity columns
+  const renderStickyOverlay = () => {
+    // Only render if there is visible data and container height
+    if (!visibleData.length || containerHeight <= HEADER_HEIGHT) return null;
+    // Calculate number of visible rows (approximate)
+    const visibleRowCount = Math.ceil((containerHeight - HEADER_HEIGHT) / ROW_HEIGHT);
+    // Find the first visible row index (based on scrollTop)
+    const firstVisibleRow = Math.floor(gridScrollTop / ROW_HEIGHT);
+    // Clamp to data length
+    const lastVisibleRow = Math.min(firstVisibleRow + visibleRowCount, visibleData.length);
+    // Render overlay rows
+    const rows = [];
+    for (let i = firstVisibleRow; i < lastVisibleRow; i++) {
+      const row = visibleData[i];
+      if (!row) continue;
+      const top = HEADER_HEIGHT + (i * ROW_HEIGHT) - gridScrollTop;
+      rows.push(
+        <React.Fragment key={row.id}>
+          {/* Index column */}
+          <div
+            className="index-column sticky-overlay-cell"
+            style={{
+              position: 'absolute',
+              left: 0,
+              top,
+              width: columnWidths[0],
+              height: ROW_HEIGHT,
+              zIndex: 10,
+              background: '#f9fafb',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRight: '1px solid #e5e7eb',
+              borderBottom: '1px solid #e5e7eb',
+              fontSize: '0.75rem',
+              color: '#6b7280',
+              boxSizing: 'border-box',
+            }}
+          >
+            {firstRowIndex + i + 1}
+          </div>
+          {/* Opportunity column */}
+          <div
+            className="opportunity-cell sticky-overlay-cell"
+            style={{
+              position: 'absolute',
+              left: columnWidths[0],
+              top,
+              width: columnWidths[1],
+              height: ROW_HEIGHT,
+              zIndex: 9,
+              background: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              borderRight: '1px solid #e5e7eb',
+              borderBottom: '1px solid #e5e7eb',
+              boxSizing: 'border-box',
+              padding: '0 0.75rem',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {row[columns[0].id]}
+          </div>
+        </React.Fragment>
+      );
+    }
+    return (
+      <div
+        className="sticky-columns-overlay"
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: columnWidths[0] + columnWidths[1],
+          height: containerHeight - HEADER_HEIGHT,
+          pointerEvents: 'none', // Let grid cells handle events
+          zIndex: 20,
+        }}
+      >
+        {rows}
+      </div>
+    );
+  };
 
   // Close status dropdown when clicking outside
   useEffect(() => {
