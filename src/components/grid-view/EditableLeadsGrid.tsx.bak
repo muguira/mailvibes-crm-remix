@@ -43,28 +43,29 @@ export function EditableLeadsGrid() {
   const { rows, isLoading, updateCell } = useLeadsRows();
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(0);
   
   // Handle case where no data exists by generating dummy data
   useEffect(() => {
     if (!isLoading && rows.length === 0) {
       // Generate dummy leads if no data exists
-      const dummyLeads = generateDummyLeads();
+    const dummyLeads = generateDummyLeads();
     
       // Create rows for each dummy lead
       dummyLeads.forEach(lead => {
         const rowData: GridRow = {
-          id: lead.id,
-          opportunity: lead.name,
-          status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-          revenue: lead.revenue || Math.floor(Math.random() * 100000),
-          closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          owner: lead.owner || lead.name?.split(' ')[0] || '',
-          website: lead.website || 'https://example.com',
-          companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
-          linkedIn: 'https://linkedin.com/company/example',
-          employees: lead.employees || Math.floor(Math.random() * 1000),
-          lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          email: lead.email,
+      id: lead.id,
+      opportunity: lead.name,
+      status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+      revenue: lead.revenue || Math.floor(Math.random() * 100000),
+      closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      owner: lead.owner || lead.name?.split(' ')[0] || '',
+      website: lead.website || 'https://example.com',
+      companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
+      linkedIn: 'https://linkedin.com/company/example',
+      employees: lead.employees || Math.floor(Math.random() * 1000),
+      lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      email: lead.email,
         };
     
         // Add row to storage
@@ -83,6 +84,19 @@ export function EditableLeadsGrid() {
       return String(value).toLowerCase().includes(searchTerm.toLowerCase());
     });
   });
+  
+  // Reset to page 0 when search changes
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm]);
+  
+  const pageCount = Math.ceil(filteredRows.length / PAGE_SIZE);
+  
+  // Calculate the index of the first row on current page
+  const firstRowIndex = page * PAGE_SIZE;
+  
+  // Get rows for current page
+  const paginated = filteredRows.slice(firstRowIndex, firstRowIndex + PAGE_SIZE);
   
   // Sync mockContactsById with row data
   useEffect(() => {
@@ -269,24 +283,49 @@ export function EditableLeadsGrid() {
   
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Grid with all filtered rows */}
-      <div className="h-full overflow-hidden">
-        <GridViewContainer 
-          columns={columns} 
-          data={filteredRows} // Use all filtered rows instead of paginated subset
-          listName="All Leads"
-          listType="Lead"
-          listId="leads-grid"
-          firstRowIndex={0} // Always start from 0 since we're showing all rows
-          onCellChange={handleCellChange}
-          onColumnChange={handleColumnChange}
-          onColumnsReorder={handleColumnsReorder}
-          onDeleteColumn={handleDeleteColumn}
-          onAddColumn={handleAddColumn}
+      {/* Grid with paginated data and firstRowIndex for absolute numbering */}
+      <div className="flex-1 overflow-hidden">
+      <GridViewContainer 
+        columns={columns} 
+        data={paginated}
+        listName="All Leads"
+        listType="Lead"
+        listId="leads-grid"
+          firstRowIndex={firstRowIndex}
+        onCellChange={handleCellChange}
+        onColumnChange={handleColumnChange}
+        onColumnsReorder={handleColumnsReorder}
+        onDeleteColumn={handleDeleteColumn}
+        onAddColumn={handleAddColumn}
           onSearchChange={setSearchTerm}
           searchTerm={searchTerm}
           className="h-full"
-        />
+      />
+      </div>
+      
+      {/* Sticky pager UI at the bottom */}
+      <div className="sticky bottom-0 z-10 bg-white border-t border-slate-light flex items-center justify-end px-4 py-2">
+        <div className="flex items-center gap-3">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          disabled={page === 0} 
+          onClick={() => setPage(p => p - 1)}
+        >
+          Prev
+        </Button>
+          <span className="flex items-center text-sm">
+            Page <b className="mx-1">{page + 1}</b> of <b className="ml-1">{pageCount || 1}</b>
+        </span>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          disabled={page >= pageCount-1} 
+          onClick={() => setPage(p => p + 1)}
+        >
+          Next
+        </Button>
+        </div>
       </div>
     </div>
   );

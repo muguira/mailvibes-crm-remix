@@ -57,7 +57,12 @@ export function MainGridView({
   // Sync headers with grid scrolling
   useEffect(() => {
     if (headerRef.current) {
-      headerRef.current.scrollLeft = scrollLeft;
+      // Force integer-based scrolling to eliminate floating point differences
+      const exactScrollLeft = Math.floor(scrollLeft);
+      headerRef.current.scrollLeft = exactScrollLeft;
+      
+      // Force redraw to ensure visual synchronization
+      headerRef.current.style.transform = 'translateZ(0)';
     }
   }, [scrollLeft]);
   
@@ -78,7 +83,11 @@ export function MainGridView({
   
   // Handle grid scroll event
   const handleGridScroll = ({ scrollLeft, scrollTop }: { scrollLeft: number; scrollTop: number }) => {
-    onScroll({ scrollLeft, scrollTop });
+    // Force integer-based scrolling
+    onScroll({ 
+      scrollLeft: Math.floor(scrollLeft), 
+      scrollTop: Math.floor(scrollTop) 
+    });
   };
   
   // Handle header drag/drop for column reordering
@@ -127,8 +136,8 @@ export function MainGridView({
   const getColumnWidth = useCallback((index: number) => {
     // Ensure we always return a valid number, never NaN or undefined
     const width = columnWidths[index];
-    // Use default width if the width is NaN, undefined, or not a number
-    return (width !== undefined && !isNaN(width)) ? width : 180;
+    // Round to whole pixels to avoid sub-pixel rendering differences
+    return Math.floor((width !== undefined && !isNaN(width)) ? width : 180);
   }, [columnWidths]);
   
   // Calculate total grid width
@@ -180,6 +189,7 @@ export function MainGridView({
   // Format cell value based on column type
   const formatCellValue = (value: any, column: Column, row?: GridRow) => {
     if (value === undefined || value === null) return '';
+    
     
     // If the column has a custom render function, use it
     if (column.renderCell && row) {
@@ -249,7 +259,7 @@ export function MainGridView({
           borderBottom: '1px solid #e5e7eb',
           borderRight: '1px solid #e5e7eb',
           boxSizing: 'border-box',
-          width: column.width // Ensure same width as header
+          width: Math.floor(getColumnWidth(columnIndex))
         }}
         className={`grid-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''}`}
         data-cell={cellId}
@@ -304,77 +314,79 @@ export function MainGridView({
       return;
     }
     
-    // Check if we're trying to add right before the streamLink column
     const columnIndex = columns.findIndex(col => col.id === columnId);
     const nextColumnId = columnIndex < columns.length - 1 ? columns[columnIndex + 1].id : null;
     
-    // Don't allow adding directly before streamLink
-    if (nextColumnId === 'lastContacted') {
-      if (onContextMenu) onContextMenu(null);
-      return;
-    }
-    
-    if (onAddColumn) {
-      onAddColumn(columnId);
-    }
     if (onContextMenu) onContextMenu(null);
+    return;
   };
   
-  const handleDeleteColumn = (columnId: string) => {
-    console.log(`Delete column: ${columnId}`);
-    if (onDeleteColumn) onDeleteColumn(columnId);
-    if (onContextMenu) onContextMenu(null);
-  };
-  
-  const handleSortAZ = (columnId: string) => {
-    console.log(`Sort sheet A-Z by column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-  
-  const handleSortZA = (columnId: string) => {
-    console.log(`Sort sheet Z-A by column: ${columnId}`);
-    if (onContextMenu) onContextMenu(null);
-  };
-  
-  return (
-    <div className="main-grid-view">
-      {/* Header row */}
-      <div 
-        className="main-grid-header" 
-        ref={headerRef}
-        style={{ 
-          height: HEADER_HEIGHT, 
-          overflow: 'hidden',
-          boxSizing: 'border-box' 
-        }}
-      >
-        <div className="grid-header-row" style={{ 
-          width: totalWidth, 
-          display: 'flex',
-          boxSizing: 'border-box'
-        }}>
-          {columns.map((column, index) => (
-            <div
-              key={column.id}
-              className={`grid-header-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''}`}
-              style={{ 
-                width: column.width,
-                boxSizing: 'border-box'
-              }}
-              draggable
-              onDragStart={(e) => handleHeaderDragStart(e, column.id)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => handleHeaderDrop(e, column.id)}
-              onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
-            >
-              {column.title}
-            </div>
-          ))}
-        </div>
+  if (onAddColumn) {
+    onAddColumn(columnId);
+  }
+  if (onContextMenu) onContextMenu(null);
+};
+
+const handleDeleteColumn = (columnId: string) => {
+  console.log(`Delete column: ${columnId}`);
+  if (onDeleteColumn) onDeleteColumn(columnId);
+  if (onContextMenu) onContextMenu(null);
+};
+
+const handleSortAZ = (columnId: string) => {
+  console.log(`Sort sheet A-Z by column: ${columnId}`);
+  if (onContextMenu) onContextMenu(null);
+};
+
+const handleSortZA = (columnId: string) => {
+  console.log(`Sort sheet Z-A by column: ${columnId}`);
+  if (onContextMenu) onContextMenu(null);
+};
+
+return (
+  <div className="main-grid-view">
+    {/* Header row */}
+    <div 
+      className="main-grid-header" 
+      ref={headerRef}
+      style={{ height: HEADER_HEIGHT, overflow: 'hidden' }}
+    >
+      <div className="grid-header-row" style={{ 
+        width: totalWidth, 
+        display: 'flex',
+        boxSizing: 'border-box' 
+      }}>
+        {columns.map((column, index) => (
+          <div
+            key={column.id}
+            className={`grid-header-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''}`}
+            style={{ 
+              width: Math.floor(column.width),
+              boxSizing: 'border-box'
+            }}
+            draggable
+            onDragStart={(e) => handleHeaderDragStart(e, column.id)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => handleHeaderDrop(e, column.id)}
+            onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
+          >
+            {column.title}
+          </div>
+        ))}
       </div>
-      
-      {/* Grid body */}
-      <div className="main-grid-body">
+    </div>
+    
+    {/* Grid body with external scrollbar */}
+    <div className="main-grid-body" style={{ position: 'relative', height: `calc(100% - ${HEADER_HEIGHT}px)` }}>
+      <div style={{ 
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        paddingRight: '17px', // Add padding for scrollbar
+        boxSizing: 'border-box'
+      }}>
         <Grid
           ref={gridRef}
           className="data-grid"
@@ -388,31 +400,31 @@ export function MainGridView({
           style={{ 
             overflowX: 'scroll',
             overflowY: 'scroll',
-            width: '100%',
-            boxSizing: 'border-box'
+            marginRight: '-17px' // Negate the scrollbar width
           }}
         >
           {Cell}
         </Grid>
       </div>
-      
-      {/* Context Menu */}
-      {contextMenuColumn && contextMenuPosition && (
-        <ContextMenu
-          x={contextMenuPosition.x}
-          y={contextMenuPosition.y}
-          columnId={contextMenuColumn}
-          onClose={() => onContextMenu && onContextMenu(null)}
-          onCopy={handleCopyColumn}
-          onPaste={handlePasteColumn}
-          onInsertLeft={handleInsertLeft}
-          onInsertRight={handleInsertRight}
-          onDelete={handleDeleteColumn}
-          onSortAZ={handleSortAZ}
-          onSortZA={handleSortZA}
-          isVisible={!!contextMenuColumn}
-        />
-      )}
     </div>
-  );
+    
+    {/* Context Menu */}
+    {contextMenuColumn && contextMenuPosition && (
+      <ContextMenu
+        x={contextMenuPosition.x}
+        y={contextMenuPosition.y}
+        columnId={contextMenuColumn}
+        onClose={() => onContextMenu && onContextMenu(null)}
+        onCopy={handleCopyColumn}
+        onPaste={handlePasteColumn}
+        onInsertLeft={handleInsertLeft}
+        onInsertRight={handleInsertRight}
+        onDelete={handleDeleteColumn}
+        onSortAZ={handleSortAZ}
+        onSortZA={handleSortZA}
+        isVisible={!!contextMenuColumn}
+      />
+    )}
+  </div>
+);
 } 

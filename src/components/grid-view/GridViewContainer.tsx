@@ -3,7 +3,6 @@ import { Column, GridRow, GridContainerProps } from './types';
 import { GridToolbar } from './grid-toolbar';
 import { StaticColumns } from './StaticColumns';
 import { MainGridView } from './MainGridView';
-import { ActionColumn } from './ActionColumn';
 import './styles.css';
 
 export function GridViewContainer({
@@ -139,13 +138,6 @@ export function GridViewContainer({
           onContextMenu={handleOpenContextMenu}
           contextMenuColumn={contextMenuColumn}
           contextMenuPosition={contextMenuPosition}
-        />
-        
-        {/* Right action column */}
-        <ActionColumn
-          data={visibleData}
-          scrollTop={scrollTop}
-          onAddNewColumn={onAddColumn ? () => onAddColumn('') : undefined}
         />
       </div>
     </div>

@@ -1,7 +1,7 @@
 ---
 description: 
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 ## Grid Sizing Invariants — DO NOT ALTER
 

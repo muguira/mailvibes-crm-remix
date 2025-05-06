@@ -49,7 +49,7 @@ export function MainGridView({
     // Create a fresh column widths array based on current columns
     // Always ensure each width is a valid number
     const newColumnWidths = columns.map(col => 
-      typeof col.width === 'number' && !isNaN(col.width) ? col.width : 180
+      typeof col.width === 'number' && !isNaN(col.width) ? col.width : 200
     );
     setColumnWidths(newColumnWidths);
   }, [columns]);
@@ -128,13 +128,13 @@ export function MainGridView({
     // Ensure we always return a valid number, never NaN or undefined
     const width = columnWidths[index];
     // Use default width if the width is NaN, undefined, or not a number
-    return (width !== undefined && !isNaN(width)) ? width : 180;
+    return (width !== undefined && !isNaN(width)) ? width : 200;
   }, [columnWidths]);
   
   // Calculate total grid width
   const totalWidth = columnWidths.reduce((sum, width) => {
     // Ensure we only add valid numbers
-    const validWidth = typeof width === 'number' && !isNaN(width) ? width : 180;
+    const validWidth = typeof width === 'number' && !isNaN(width) ? width : 200;
     return sum + validWidth;
   }, 0);
   
@@ -180,6 +180,9 @@ export function MainGridView({
   // Format cell value based on column type
   const formatCellValue = (value: any, column: Column, row?: GridRow) => {
     if (value === undefined || value === null) return '';
+    
+    // If the column is the streamLink column, return empty string to avoid icons
+    if (column.id === 'streamLink') return '';
     
     // If the column has a custom render function, use it
     if (column.renderCell && row) {
@@ -237,6 +240,11 @@ export function MainGridView({
     const column = columns[columnIndex];
     if (!column) return null;
     
+    // If this is the streamLink column, return empty cell
+    if (column.id === 'streamLink') {
+      return <div style={style} className="grid-cell"></div>;
+    }
+    
     const cellId = `${row.id}-${column.id}`;
     const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
     const value = row[column.id];
@@ -247,9 +255,7 @@ export function MainGridView({
           ...style,
           height: ROW_HEIGHT,
           borderBottom: '1px solid #e5e7eb',
-          borderRight: '1px solid #e5e7eb',
-          boxSizing: 'border-box',
-          width: column.width // Ensure same width as header
+          borderRight: '1px solid #e5e7eb'
         }}
         className={`grid-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''}`}
         data-cell={cellId}
@@ -309,7 +315,7 @@ export function MainGridView({
     const nextColumnId = columnIndex < columns.length - 1 ? columns[columnIndex + 1].id : null;
     
     // Don't allow adding directly before streamLink
-    if (nextColumnId === 'lastContacted') {
+    if (nextColumnId === 'streamLink' || nextColumnId === 'lastContacted') {
       if (onContextMenu) onContextMenu(null);
       return;
     }
@@ -342,25 +348,14 @@ export function MainGridView({
       <div 
         className="main-grid-header" 
         ref={headerRef}
-        style={{ 
-          height: HEADER_HEIGHT, 
-          overflow: 'hidden',
-          boxSizing: 'border-box' 
-        }}
+        style={{ height: HEADER_HEIGHT, overflow: 'hidden' }}
       >
-        <div className="grid-header-row" style={{ 
-          width: totalWidth, 
-          display: 'flex',
-          boxSizing: 'border-box'
-        }}>
+        <div className="grid-header-row" style={{ width: totalWidth, display: 'flex' }}>
           {columns.map((column, index) => (
             <div
               key={column.id}
               className={`grid-header-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''}`}
-              style={{ 
-                width: column.width,
-                boxSizing: 'border-box'
-              }}
+              style={{ width: column.width }}
               draggable
               onDragStart={(e) => handleHeaderDragStart(e, column.id)}
               onDragOver={(e) => e.preventDefault()}
@@ -387,9 +382,7 @@ export function MainGridView({
           onScroll={handleGridScroll}
           style={{ 
             overflowX: 'scroll',
-            overflowY: 'scroll',
-            width: '100%',
-            boxSizing: 'border-box'
+            overflowY: 'scroll'
           }}
         >
           {Cell}
