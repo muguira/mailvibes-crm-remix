@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
@@ -33,6 +32,8 @@
     --border: 214.3 32% 91%;
     --input: 214.3 32% 91%;
     --ring: 166 42% 57%;
+
+    --teal: 170 180 204;
 
     --radius: 0.5rem;
 
@@ -86,30 +87,30 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
-  
+
   /* Custom classes for RelateIQ design */
   .grid-row {
     @apply h-10 border-b border-slate-light/30 hover:bg-slate-light/10 transition-colors;
   }
-  
+
   .grid-cell {
     @apply px-3 py-2 overflow-hidden text-ellipsis whitespace-nowrap outline-none focus-within:outline-teal-primary focus-within:outline-2;
   }
-  
+
   .grid-header {
     @apply bg-white sticky top-0 z-10 border-b border-slate-light/50 shadow-sm;
   }
-  
+
   .grid-header-cell {
     @apply px-3 py-2 font-semibold text-sm text-slate-dark flex items-center justify-between cursor-pointer;
   }
-  
+
   /* Search field customization */
   input[type="text"]::placeholder {
     color: #9CA3AF;
     opacity: 0.8;
   }
-  
+
   /* Remove default outline for search fields */
   input[type="text"]:focus {
     outline: none;

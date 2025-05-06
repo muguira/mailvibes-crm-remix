@@ -9,7 +9,7 @@ const Index = () => {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopNavbar />
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-6 mt-12">
           <div className="flex flex-col md:flex-row gap-6 h-full">
             {/* Left Column - Tasks */}
             <div className="w-full md:w-1/2">
