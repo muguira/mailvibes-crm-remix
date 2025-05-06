@@ -825,3 +825,20 @@ gi/* Status popover styling with close button */
   height: 14px !important;
   width: 14px !important;
 }
+
+/* Ensure dialogs appear above everything, including navbar */
+.shadcn-dialog-overlay {
+  z-index: 10002 !important;
+}
+
+.shadcn-dialog-content {
+  z-index: 10003 !important;
+}
+
+[data-radix-dialog-overlay] {
+  z-index: 10002 !important;
+}
+
+[data-radix-dialog-content] {
+  z-index: 10003 !important;
+}

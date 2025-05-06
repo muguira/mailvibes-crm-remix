@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Filter, Check, ChevronLeft, Calendar as CalendarIcon, Calendar } from "lucide-react";
+import { Filter, Check, ChevronLeft, Calendar as CalendarIcon, Calendar, User, Mail, Phone, Building2, CreditCard } from "lucide-react";
 import { Column } from './types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,6 +13,17 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { SearchInput } from '@/components/ui/SearchInput';
 import { FilterPopupBase, FilterColumn } from '@/components/ui/FilterPopupBase';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { v4 as uuidv4 } from 'uuid';
+import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
+import { toast } from '@/hooks/use-toast';
 
 interface GridToolbarProps {
   listName?: string;
@@ -38,6 +49,87 @@ export function GridToolbar({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<string[]>(activeFilters.columns || []);
   const [filterValues, setFilterValues] = useState<Record<string, any>>(activeFilters.values || {});
+  const { updateCell } = useLeadsRows();
+  
+  // Add Contact Dialog state
+  const [isAddContactOpen, setIsAddContactOpen] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    company: '',
+    status: 'New',
+    revenue: ''
+  });
+  
+  // Handle form input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setContactForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  // Handle form submission
+  const handleAddContact = () => {
+    // Create a unique ID for the new contact
+    const newContactId = `lead-${Date.now()}`;
+    
+    // Combine first and last name for opportunity field
+    const fullName = `${contactForm.firstName} ${contactForm.lastName}`.trim();
+    
+    // Create the new contact row
+    const newContact = {
+      id: newContactId,
+      opportunity: fullName,
+      email: contactForm.email,
+      status: contactForm.status,
+      companyName: contactForm.company,
+      revenue: contactForm.revenue ? parseInt(contactForm.revenue, 10) : 0,
+      owner: '',
+      closeDate: new Date().toISOString().split('T')[0],
+      lastContacted: new Date().toISOString().split('T')[0],
+      phone: contactForm.phone
+    };
+    
+    // Save the new contact
+    updateCell({ 
+      rowId: newContactId, 
+      columnId: 'opportunity', 
+      value: fullName 
+    });
+    
+    // Add all other fields
+    Object.entries(newContact).forEach(([key, value]) => {
+      if (key !== 'id' && key !== 'opportunity') {
+        updateCell({
+          rowId: newContactId,
+          columnId: key,
+          value
+        });
+      }
+    });
+    
+    // Show success message
+    toast({
+      title: "Contact Added",
+      description: `${fullName} has been added successfully.`
+    });
+    
+    // Reset form and close dialog
+    setContactForm({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      company: '',
+      status: 'New',
+      revenue: ''
+    });
+    setIsAddContactOpen(false);
+  };
   
   // Sync with active filters when they change externally
   useEffect(() => {
@@ -306,13 +398,146 @@ export function GridToolbar({
             {/* Add Contact button */}
             <Button 
               className="bg-[#32BAB0] hover:bg-[#28a79d] text-white rounded-md px-6 py-2 h-10"
-              onClick={() => console.log('Add Contact clicked')}
+              onClick={() => setIsAddContactOpen(true)}
             >
               Add Contact
             </Button>
           </div>
         </div>
       </div>
+      
+      {/* Add Contact Dialog */}
+      <Dialog open={isAddContactOpen} onOpenChange={setIsAddContactOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add New Contact</DialogTitle>
+            <DialogDescription>
+              Enter the contact information below. Fields marked with * are required.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name *</Label>
+                <div className="flex items-center">
+                  <User className="mr-2 h-4 w-4 text-gray-400" />
+                  <Input 
+                    id="firstName" 
+                    name="firstName" 
+                    placeholder="John" 
+                    value={contactForm.firstName}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name *</Label>
+                <Input 
+                  id="lastName" 
+                  name="lastName" 
+                  placeholder="Doe" 
+                  value={contactForm.lastName}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              <div className="flex items-center">
+                <Mail className="mr-2 h-4 w-4 text-gray-400" />
+                <Input 
+                  id="email" 
+                  name="email" 
+                  type="email" 
+                  placeholder="john.doe@example.com" 
+                  value={contactForm.email}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <div className="flex items-center">
+                <Phone className="mr-2 h-4 w-4 text-gray-400" />
+                <Input 
+                  id="phone" 
+                  name="phone" 
+                  placeholder="+1 (555) 123-4567" 
+                  value={contactForm.phone}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="company">Company</Label>
+              <div className="flex items-center">
+                <Building2 className="mr-2 h-4 w-4 text-gray-400" />
+                <Input 
+                  id="company" 
+                  name="company" 
+                  placeholder="Acme Inc." 
+                  value={contactForm.company}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <select 
+                  id="status" 
+                  name="status" 
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={contactForm.status}
+                  onChange={handleInputChange}
+                >
+                  <option value="New">New</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="On Hold">On Hold</option>
+                  <option value="Closed Won">Closed Won</option>
+                  <option value="Closed Lost">Closed Lost</option>
+                </select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="revenue">Revenue ($)</Label>
+                <div className="flex items-center">
+                  <CreditCard className="mr-2 h-4 w-4 text-gray-400" />
+                  <Input 
+                    id="revenue" 
+                    name="revenue" 
+                    type="number" 
+                    placeholder="0" 
+                    value={contactForm.revenue}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddContactOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddContact}
+              disabled={!contactForm.firstName || !contactForm.lastName}
+              className="bg-[#32BAB0] hover:bg-[#28a79d] text-white"
+            >
+              Add Contact
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
