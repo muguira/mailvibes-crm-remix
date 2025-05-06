@@ -1,4 +1,3 @@
-
 import { NavLink } from "react-router-dom";
 import { Bell, Settings, HelpCircle, Search } from "lucide-react";
 import { ProfileMenu } from "./profile-menu";
@@ -10,7 +9,7 @@ interface TopNavbarProps {
 
 export function TopNavbar({ className }: TopNavbarProps) {
   return (
-    <div className={cn("bg-[#054258] text-white w-full", className)}>
+    <div className={cn("bg-[#054258] text-white w-full fixed top-0 left-0 right-0 z-[10000]", className)}>
       <div className="flex items-center h-12">
         {/* Logo - replaced circle with plain SVG logo */}
         <div className="flex items-center px-4">

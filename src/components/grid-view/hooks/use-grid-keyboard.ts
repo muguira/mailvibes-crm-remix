@@ -1,4 +1,3 @@
-
 import { useRef, useCallback, RefObject } from 'react';
 import { SHORTCUTS } from '../grid-constants';
 
@@ -10,6 +9,7 @@ interface UseGridKeyboardProps {
   onCellEscape: () => void;
   onSearch: () => void;
   isEditing: boolean;
+  gridRef: RefObject<any>;
 }
 
 export function useGridKeyboard({
@@ -19,7 +19,8 @@ export function useGridKeyboard({
   onCellEdit,
   onCellEscape,
   onSearch,
-  isEditing
+  isEditing,
+  gridRef
 }: UseGridKeyboardProps) {
   // Store current focused cell position
   const focusedCell = useRef<{ row: number; col: number } | null>(null);
@@ -81,14 +82,41 @@ export function useGridKeyboard({
         
       case SHORTCUTS.ENTER:
         e.preventDefault();
-        if (isEditing) {
-          // Move down after editing
-          if (row < rowCount - 1) {
-            onCellFocus(row + 1, col);
-          }
-        } else {
-          // Enter edit mode
-          onCellEdit(row, col);
+        e.stopPropagation();
+        
+        // Apply optimistic update
+        const cellKey = `${row}-${col}`;
+        onCellEdit(row, col);
+        
+        // Exit edit mode first
+        onCellEscape();
+        
+        // Compute next row based on shift key
+        let nextRowIndex = row;
+        if (e.shiftKey && row > 0) {
+          nextRowIndex = row - 1;
+        } else if (row < rowCount - 1) {
+          nextRowIndex = row + 1;
+        }
+        
+        // Get ID for next row
+        const nextRowId = nextRowIndex;
+        
+        if (nextRowId) {
+          // IMPORTANT: Use requestAnimationFrame to prevent toolbar jumps
+          // This ensures the layout has settled before changing selection
+          requestAnimationFrame(() => {
+            onCellFocus(nextRowIndex, col);
+            
+            // Ensure row is visible without changing scroll position abruptly
+            if (gridRef.current && gridRef.current.scrollToItem) {
+              gridRef.current.scrollToItem({
+                columnIndex: col,
+                rowIndex: nextRowIndex,
+                align: 'smart'
+              });
+            }
+          });
         }
         break;
         
@@ -106,7 +134,7 @@ export function useGridKeyboard({
         }
         break;
     }
-  }, [rowCount, columnCount, onCellFocus, onCellEdit, onCellEscape, onSearch, isEditing]);
+  }, [rowCount, columnCount, onCellFocus, onCellEdit, onCellEscape, onSearch, isEditing, gridRef]);
 
   // Update focused cell reference
   const setFocusedCell = useCallback((rowIndex: number, colIndex: number) => {

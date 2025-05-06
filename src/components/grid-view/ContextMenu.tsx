@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Copy, Clipboard as Paste, ChevronLeft, ChevronRight, Trash2, ArrowDown, ArrowUp } from 'lucide-react';
 
 interface ContextMenuProps {
@@ -33,6 +33,26 @@ export function ContextMenu({
   if (!isVisible) return null;
   
   const menuRef = useRef<HTMLDivElement>(null);
+  const [adjustedPosition, setAdjustedPosition] = useState({ x, y });
+
+  // Calculate proper menu position to avoid overflow
+  useEffect(() => {
+    if (menuRef.current) {
+      const menuWidth = menuRef.current.offsetWidth;
+      const windowWidth = window.innerWidth;
+      
+      // If menu would overflow the right edge of the screen
+      if (x + menuWidth > windowWidth) {
+        // Position the menu to the left of the click point
+        setAdjustedPosition({
+          x: Math.max(windowWidth - menuWidth - 20, 0), // 20px padding from right edge
+          y
+        });
+      } else {
+        setAdjustedPosition({ x, y });
+      }
+    }
+  }, [x, y, isVisible]);
 
   // Handle click outside
   useEffect(() => {
@@ -52,7 +72,7 @@ export function ContextMenu({
     <div 
       ref={menuRef}
       className="fixed z-[1000] bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden w-60"
-      style={{ left: `${x}px`, top: `${y}px` }}
+      style={{ left: `${adjustedPosition.x}px`, top: `${adjustedPosition.y}px` }}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="px-1 py-1">
@@ -86,13 +106,16 @@ export function ContextMenu({
           <span>Insert column left</span>
         </button>
         
-        <button 
-          className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-          onClick={() => { onInsertRight(columnId); onClose(); }}
-        >
-          <ChevronRight size={16} className="mr-2 text-gray-500" />
-          <span>Insert column right</span>
-        </button>
+        {/* Only show Insert column right if not on Last Contacted column */}
+        {columnId !== 'lastContacted' && (
+          <button 
+            className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+            onClick={() => { onInsertRight(columnId); onClose(); }}
+          >
+            <ChevronRight size={16} className="mr-2 text-gray-500" />
+            <span>Insert column right</span>
+          </button>
+        )}
         
         <button 
           className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"

@@ -270,7 +270,7 @@ export function EditableLeadsGrid() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Grid with all filtered rows */}
-      <div className="h-full overflow-hidden">
+      <div className="h-full overflow-hidden grid-container">
         <GridViewContainer 
           columns={columns} 
           data={filteredRows} // Use all filtered rows instead of paginated subset

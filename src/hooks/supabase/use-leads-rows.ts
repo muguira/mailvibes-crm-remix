@@ -9,6 +9,47 @@ import { LEADS_STORAGE_KEY } from "@/constants/grid";
 import { generateDummyLeads } from "@/components/stream/sample-data";
 
 /**
+ * Helper function to transform row IDs to database-compatible format
+ * - Converts "lead-XXX" format to integer if possible
+ * - Falls back to original ID if can't be transformed
+ */
+function transformRowId(id: string): string | number {
+  // If ID has format "lead-XXX", try to extract just the number
+  if (typeof id === 'string' && id.startsWith('lead-')) {
+    try {
+      // Extract the number part and convert to integer
+      const numericPart = id.replace('lead-', '');
+      // Remove leading zeros from numeric part (e.g., '007' becomes '7')
+      const cleanNumeric = numericPart.replace(/^0+/, '');
+      return parseInt(cleanNumeric, 10);
+    } catch (e) {
+      console.warn(`Could not transform row ID ${id} to number:`, e);
+    }
+  }
+  // Return original ID as fallback
+  return id;
+}
+
+/**
+ * Helper function to check if a row exists in the database
+ */
+async function checkRowExistsInDb(userId: string, rowId: string | number) {
+  try {
+    const { data } = await supabase
+      .from('leads_rows')
+      .select('row_id')
+      .eq('user_id', userId)
+      .eq('row_id', rowId)
+      .single();
+    
+    return !!data; // Return true if data exists
+  } catch (e) {
+    // If there's an error, assume row doesn't exist
+    return false;
+  }
+}
+
+/**
  * Hook for managing lead rows with Supabase persistence
  * Falls back to localStorage when not authenticated
  */
@@ -46,7 +87,7 @@ export function useLeadsRows() {
 
       // Transform data to expected GridRow format
       return data.map(row => ({
-        id: row.row_id,
+        id: `lead-${row.row_id}`, // Convert back to frontend format
         ...(typeof row.data === 'string' ? JSON.parse(row.data) : row.data)
       }));
     } catch (error) {
@@ -128,12 +169,15 @@ export function useLeadsRows() {
       }
 
       try {
+        // Transform row ID to database-compatible format
+        const dbRowId = transformRowId(row.id);
+        
         // Check if the row exists
         const { data: existingRow } = await supabase
           .from('leads_rows')
           .select('*')
           .eq('user_id', user.id)
-          .eq('row_id', row.id)
+          .eq('row_id', dbRowId)
           .maybeSingle();
 
         if (existingRow) {
@@ -145,7 +189,7 @@ export function useLeadsRows() {
               updated_at: new Date().toISOString()
             })
             .eq('user_id', user.id)
-            .eq('row_id', row.id);
+            .eq('row_id', dbRowId);
 
           if (error) throw error;
         } else {
@@ -154,7 +198,7 @@ export function useLeadsRows() {
             .from('leads_rows')
             .insert({
               user_id: user.id,
-              row_id: row.id,
+              row_id: dbRowId,
               data: row,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
@@ -219,15 +263,21 @@ export function useLeadsRows() {
       }
 
       try {
-        // First get the current row data
-        const { data: existingRow } = await supabase
-          .from('leads_rows')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('row_id', rowId)
-          .maybeSingle();
+        // Transform rowId to database-compatible format
+        const dbRowId = transformRowId(rowId);
+        
+        // Check if the row exists in the database
+        const rowExists = await checkRowExistsInDb(user.id, dbRowId);
+        
+        if (rowExists) {
+          // Get existing row data first
+          const { data: existingRow } = await supabase
+            .from('leads_rows')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('row_id', dbRowId)
+            .maybeSingle();
 
-        if (existingRow) {
           // Update existing row's specific column
           const currentData = typeof existingRow.data === 'string' 
             ? JSON.parse(existingRow.data) 
@@ -238,7 +288,7 @@ export function useLeadsRows() {
             [columnId]: value
           };
 
-          // Use row_id and user_id for the update condition, not the database id
+          // Use transformed row_id and user_id for the update condition
           const { error } = await supabase
             .from('leads_rows')
             .update({
@@ -246,29 +296,39 @@ export function useLeadsRows() {
               updated_at: new Date().toISOString()
             })
             .eq('user_id', user.id)
-            .eq('row_id', rowId);
+            .eq('row_id', dbRowId);
 
           if (error) throw error;
           
           return { 
-            id: rowId, 
+            id: rowId, // Keep original format for frontend
             ...updatedData 
           };
         } else {
+          // Create a unique row ID if there might be a conflict
+          // Use a timestamp-based approach to avoid conflicts
+          const uniqueRowId = typeof dbRowId === 'number' ? 
+            dbRowId : // Use numeric ID if available
+            `${Date.now()}_${Math.floor(Math.random() * 1000)}`; // Generate unique ID
+          
           // Row doesn't exist yet, create it
           const newRowData = { 
-            id: rowId,
+            id: rowId, // Keep original format in the data
             [columnId]: value 
           };
           
+          // Use upsert to handle conflicts 
           const { error } = await supabase
             .from('leads_rows')
-            .insert({
+            .upsert({
               user_id: user.id,
-              row_id: rowId,
+              row_id: uniqueRowId,
               data: newRowData,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'user_id,row_id',  // Specify conflict keys
+              ignoreDuplicates: false        // Update on conflict
             });
 
           if (error) throw error;

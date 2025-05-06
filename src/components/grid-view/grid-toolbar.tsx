@@ -265,8 +265,8 @@ export function GridToolbar({
           <SearchInput
             value={searchTerm}
             onChange={onSearchChange}
-            placeholder="Search in grid..."
-            width="w-[400px]"
+            placeholder="Search contacts..."
+            width="w-[240px]"
           />
         
           {/* Active filter badges - moved left with the search */}
