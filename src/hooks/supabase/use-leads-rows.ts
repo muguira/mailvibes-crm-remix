@@ -244,6 +244,7 @@ export function useLeadsRows() {
         const rowIndex = currentRows.findIndex(r => r.id === rowId);
         
         if (rowIndex >= 0) {
+          // Updating an existing row
           const updatedRow = { 
             ...currentRows[rowIndex], 
             [columnId]: value 
@@ -257,9 +258,19 @@ export function useLeadsRows() {
           
           localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
           return updatedRow;
+        } else {
+          // Creating a new row - add it at the top
+          const newRow = { 
+            id: rowId,
+            [columnId]: value 
+          };
+          
+          // Add new row at the beginning of the array (top of the grid)
+          const updatedRows = [newRow, ...currentRows];
+          
+          localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
+          return newRow;
         }
-        
-        throw new Error(`Row with ID ${rowId} not found in local storage`);
       }
 
       try {
@@ -356,9 +367,70 @@ export function useLeadsRows() {
           
           localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
           return updatedRow;
+        } else {
+          // Creating a new row on error - add it at the top
+          const newRow = { 
+            id: rowId,
+            [columnId]: value 
+          };
+          
+          // Add new row at the beginning of the array (top of the grid)
+          const updatedRows = [newRow, ...currentRows];
+          
+          localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
+          return newRow;
         }
+      }
+    },
+    onSuccess: () => {
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ['leads_rows', user?.id] });
+    }
+  });
+
+  // Add a new function for batch adding a contact
+  const addContactMutation = useMutation({
+    mutationFn: async (newContact: Partial<GridRow>) => {
+      if (!user) {
+        // If not authenticated, update localStorage
+        const currentRows = loadFromLocalStorage();
         
-        throw error;
+        // Add new row at the beginning of the array (top of the grid)
+        const updatedRows = [newContact, ...currentRows];
+        
+        localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
+        return newContact;
+      }
+
+      try {
+        // Transform row ID to database-compatible format
+        const dbRowId = transformRowId(newContact.id as string);
+        
+        // Insert new row in a single operation
+        const { error } = await supabase
+          .from('leads_rows')
+          .insert({
+            user_id: user.id,
+            row_id: dbRowId,
+            data: newContact,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (error) throw error;
+        
+        return newContact;
+      } catch (error) {
+        console.error('Error adding contact:', error);
+        
+        // Fall back to localStorage on error
+        const currentRows = loadFromLocalStorage();
+        
+        // Add new row at the beginning of the array (top of the grid)
+        const updatedRows = [newContact, ...currentRows];
+        
+        localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
+        return newContact;
       }
     },
     onSuccess: () => {
@@ -373,5 +445,6 @@ export function useLeadsRows() {
     isError: leadsRowsQuery.isError,
     upsertRow: upsertRowMutation.mutate,
     updateCell: updateCellMutation.mutate,
+    addContact: addContactMutation.mutate,
   };
 } 

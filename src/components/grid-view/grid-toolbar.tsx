@@ -49,7 +49,7 @@ export function GridToolbar({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<string[]>(activeFilters.columns || []);
   const [filterValues, setFilterValues] = useState<Record<string, any>>(activeFilters.values || {});
-  const { updateCell } = useLeadsRows();
+  const { updateCell, addContact } = useLeadsRows();
   
   // Add Contact Dialog state
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
@@ -72,15 +72,20 @@ export function GridToolbar({
     }));
   };
   
-  // Handle form submission
+  // Handle form submission - updated to use batch operation
   const handleAddContact = () => {
     // Create a unique ID for the new contact
     const newContactId = `lead-${Date.now()}`;
     
-    // Combine first and last name for opportunity field
-    const fullName = `${contactForm.firstName} ${contactForm.lastName}`.trim();
+    // Combine first and last name for opportunity field or use email if names empty
+    let fullName = `${contactForm.firstName} ${contactForm.lastName}`.trim();
     
-    // Create the new contact row
+    // Use email as the name if first/last name fields are empty
+    if (!fullName) {
+      fullName = contactForm.email;
+    }
+    
+    // Create the new contact row with all properties
     const newContact = {
       id: newContactId,
       opportunity: fullName,
@@ -94,23 +99,8 @@ export function GridToolbar({
       phone: contactForm.phone
     };
     
-    // Save the new contact
-    updateCell({ 
-      rowId: newContactId, 
-      columnId: 'opportunity', 
-      value: fullName 
-    });
-    
-    // Add all other fields
-    Object.entries(newContact).forEach(([key, value]) => {
-      if (key !== 'id' && key !== 'opportunity') {
-        updateCell({
-          rowId: newContactId,
-          columnId: key,
-          value
-        });
-      }
-    });
+    // Use the batch contact addition function for better performance
+    addContact(newContact);
     
     // Show success message
     toast({
@@ -417,37 +407,9 @@ export function GridToolbar({
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name *</Label>
-                <div className="flex items-center">
-                  <User className="mr-2 h-4 w-4 text-gray-400" />
-                  <Input 
-                    id="firstName" 
-                    name="firstName" 
-                    placeholder="John" 
-                    value={contactForm.firstName}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name *</Label>
-                <Input 
-                  id="lastName" 
-                  name="lastName" 
-                  placeholder="Doe" 
-                  value={contactForm.lastName}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-            </div>
-            
+            {/* Email Address - moved to the top as the first field */}
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="email">Email Address *</Label>
               <div className="flex items-center">
                 <Mail className="mr-2 h-4 w-4 text-gray-400" />
                 <Input 
@@ -456,6 +418,35 @@ export function GridToolbar({
                   type="email" 
                   placeholder="john.doe@example.com" 
                   value={contactForm.email}
+                  onChange={handleInputChange}
+                  required
+                  autoFocus
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <div className="flex items-center">
+                  <User className="mr-2 h-4 w-4 text-gray-400" />
+                  <Input 
+                    id="firstName" 
+                    name="firstName" 
+                    placeholder="John" 
+                    value={contactForm.firstName}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input 
+                  id="lastName" 
+                  name="lastName" 
+                  placeholder="Doe" 
+                  value={contactForm.lastName}
                   onChange={handleInputChange}
                 />
               </div>
@@ -530,7 +521,7 @@ export function GridToolbar({
             </Button>
             <Button 
               onClick={handleAddContact}
-              disabled={!contactForm.firstName || !contactForm.lastName}
+              disabled={!contactForm.email}
               className="bg-[#32BAB0] hover:bg-[#28a79d] text-white"
             >
               Add Contact

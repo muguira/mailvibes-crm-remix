@@ -731,7 +731,7 @@ body.grid-scroll-active .main-grid-body {
   z-index: 10 !important; /* Force to be lower than toolbar */
 }
 
-gi/* Status popover styling with close button */
+/* Status popover styling with close button */
 .status-options-popup {
   width: 160px; /* Smaller width to match blue box size in image */
   padding: 0;
@@ -744,7 +744,7 @@ gi/* Status popover styling with close button */
   animation: none !important; /* Remove animation for immediate appearance */
   transform-origin: var(--radix-popover-content-transform-origin);
   transform: translateY(0) !important; /* Prevent any transform that might shift position */
-  max-height: 250px; /* Limit the maximum height */
+  max-height: 200px; /* Limit the maximum height */
 }
 
 /* Status pill centering in grid cell */
@@ -755,6 +755,71 @@ gi/* Status popover styling with close button */
   padding: 0 !important; /* Remove default padding to ensure proper centering */
 }
 
+/* Status popup needs padding at the bottom to show border */
+.status-command [cmdk-list] {
+  padding-top: 0 !important;
+  gap: 0 !important;
+  padding-bottom: 0 !important; /* Removed padding to move border up */
+}
+
+/* Fix status popup to ensure the bottom is visible */
+.status-command {
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  padding-bottom: 0; /* Removed padding */
+  margin-bottom: 0; /* Removed margin */
+}
+
+/* Remove bottom whitespace in the dropdown */
+.status-options-popup > div {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Remove white space from dropdown content wrapper */
+[data-radix-popper-content-wrapper] {
+  padding-bottom: 0 !important; 
+  margin-bottom: 0 !important;
+}
+
+/* Fix the dropdown content's vertical space */
+div[cmdk-root] {
+  min-height: 0 !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Eliminate whitespace at bottom of list */
+div[cmdk-list] {
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Hide any extra space at the bottom of dropdown */
+div[cmdk-list]:after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Make last item not have any margin or padding at bottom */
+.status-command-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0 !important;
+  padding-bottom: 4px !important;
+}
+
+/* Status popup item height - decrease to fit more in view */
+.status-command-item {
+  padding: 4px 10px; /* Reduced padding from 8px 12px */
+  border-radius: 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  height: 26px; /* Slightly reduce height to match blue line */
+  min-height: 26px;
+  font-size: 13px; /* Smaller font size */
+}
+
 .status-popup-header {
   display: flex;
   align-items: center;
@@ -763,6 +828,24 @@ gi/* Status popover styling with close button */
   border-bottom: 1px solid #e5e7eb;
   font-size: 13px; /* Reduced from 14px */
   font-weight: 500;
+}
+
+/* Fix border position at the bottom */
+.status-command-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+/* Adjust content container to eliminate any extra space at bottom */
+[data-radix-popper-content-wrapper] {
+  padding-bottom: 0 !important; 
+  margin-bottom: 0 !important;
+}
+
+/* Adjust popup root container */
+.status-options-popup {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 .status-popup-close {

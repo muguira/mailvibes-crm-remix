@@ -123,6 +123,27 @@ export function GridViewContainer({
       });
     }
 
+    // Sort data to show newest items first by checking for timestamp in ID
+    result.sort((a, b) => {
+      // Check if IDs are timestamp-based (lead-timestamp format)
+      const aIsTimestamp = a.id.startsWith('lead-') && !isNaN(parseInt(a.id.split('-')[1]));
+      const bIsTimestamp = b.id.startsWith('lead-') && !isNaN(parseInt(b.id.split('-')[1]));
+      
+      // If both are timestamp-based, sort by timestamp descending (newest first)
+      if (aIsTimestamp && bIsTimestamp) {
+        const aTimestamp = parseInt(a.id.split('-')[1]);
+        const bTimestamp = parseInt(b.id.split('-')[1]);
+        return bTimestamp - aTimestamp;
+      }
+      
+      // If only one is timestamp-based, prioritize it
+      if (aIsTimestamp) return -1;
+      if (bIsTimestamp) return 1;
+      
+      // Default sort - keep original order
+      return 0;
+    });
+
     return result;
   }, [data, columns, searchTerm, activeFilters]);
 
