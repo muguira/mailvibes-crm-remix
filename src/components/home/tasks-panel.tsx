@@ -1,6 +1,7 @@
-import { Check, Circle, Plus } from "lucide-react";
+import { Check, Circle, Plus, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface Task {
   id: string;
@@ -11,10 +12,11 @@ interface Task {
   status: "upcoming" | "overdue" | "completed";
   type: "follow-up" | "respond" | "task";
   tag?: string; // For tags like "LATAM"
+  hasCalendar?: boolean;
 }
 
 // Sample task data
-const tasks: Task[] = [
+const initialTasks: Task[] = [
   {
     id: "1",
     title: "Ivan Seguimiento",
@@ -60,36 +62,50 @@ const tasks: Task[] = [
 ];
 
 export function TasksPanel() {
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+
+  const upcomingTasks = tasks.filter(task => task.status === "upcoming");
+  const overdueTasks = tasks.filter(task => task.status === "overdue");
+  const completedTasks = tasks.filter(task => task.status === "completed");
+
+  const handleTaskStatusChange = (taskId: string, newStatus: Task["status"]) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId ? { ...task, status: newStatus } : task
+      )
+    );
+  };
+
   return (
-    <div className="bg-background text-foreground rounded-lg overflow-hidden h-full flex flex-col shadow-relate">
+    <div className="bg-background text-foreground rounded-lg overflow-hidden h-full flex flex-col shadow-lg">
       <div className="p-4 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium" />
-        <h2 className="text-2xl font-semibold flex items-center gap-2">
-          My tasks
-          <span className="text-muted-foreground">🔒</span>
-        </h2>
+        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+          {/* Add your profile image here */}
+          <div className="w-full h-full bg-muted-foreground/20" />
+        </div>
+        <h2 className="text-2xl font-semibold">My tasks</h2>
       </div>
 
       <Tabs defaultValue="upcoming" className="flex-1">
         <div className="border-none">
-          <TabsList className="w-full flex p-0 bg-transparent">
+          <TabsList className="w-full flex p-0 bg-transparent border-b border-border">
             <TabsTrigger
               value="upcoming"
-              className="flex-1 py-3 border data-[state=active]:border-primary rounded-none bg-transparent data-[state=active]:text-foreground"
+              className="flex-1 py-3 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
             >
-              Upcoming
+              Upcoming {upcomingTasks.length > 0 && `(${upcomingTasks.length})`}
             </TabsTrigger>
             <TabsTrigger
               value="overdue"
-              className="flex-1 py-3 border data-[state=active]:border-primary rounded-none bg-transparent data-[state=active]:text-foreground"
+              className="flex-1 py-3 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
             >
-              Overdue (43)
+              Overdue {overdueTasks.length > 0 && `(${overdueTasks.length})`}
             </TabsTrigger>
             <TabsTrigger
               value="completed"
-              className="flex-1 py-3 border data-[state=active]:border-primary rounded-none bg-transparent data-[state=active]:text-foreground"
+              className="flex-1 py-3 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
             >
-              Completed
+              Completed {completedTasks.length > 0 && `(${completedTasks.length})`}
             </TabsTrigger>
           </TabsList>
         </div>
@@ -103,30 +119,33 @@ export function TasksPanel() {
 
         <div className="overflow-y-auto flex-1">
           <TabsContent value="upcoming" className="m-0">
-            {tasks
-              .filter(task => task.status === "upcoming")
-              .map((task) => (
-                <TaskItem key={task.id} task={task} />
-              ))
-            }
+            {upcomingTasks.map((task) => (
+              <TaskItem
+                key={task.id}
+                task={task}
+                onStatusChange={handleTaskStatusChange}
+              />
+            ))}
           </TabsContent>
 
           <TabsContent value="overdue" className="m-0">
-            {tasks
-              .filter(task => task.status === "overdue")
-              .map((task) => (
-                <TaskItem key={task.id} task={task} />
-              ))
-            }
+            {overdueTasks.map((task) => (
+              <TaskItem
+                key={task.id}
+                task={task}
+                onStatusChange={handleTaskStatusChange}
+              />
+            ))}
           </TabsContent>
 
           <TabsContent value="completed" className="m-0">
-            {tasks
-              .filter(task => task.status === "completed")
-              .map((task) => (
-                <TaskItem key={task.id} task={task} />
-              ))
-            }
+            {completedTasks.map((task) => (
+              <TaskItem
+                key={task.id}
+                task={task}
+                onStatusChange={handleTaskStatusChange}
+              />
+            ))}
           </TabsContent>
         </div>
       </Tabs>
@@ -134,31 +153,43 @@ export function TasksPanel() {
   );
 }
 
-function TaskItem({ task }: { task: Task }) {
-  const [isCompleted, setIsCompleted] = useState(task.status === "completed");
+interface TaskItemProps {
+  task: Task;
+  onStatusChange: (taskId: string, newStatus: Task["status"]) => void;
+}
 
-  const handleToggleComplete = () => {
-    setIsCompleted(!isCompleted);
-    // Here you would typically make an API call to update the task status
-    // For now, we'll just update the local state
+function TaskItem({ task, onStatusChange }: TaskItemProps) {
+  const getDueDateColor = (dueDate: string) => {
+    if (dueDate.toLowerCase() === 'today' || dueDate.toLowerCase() === 'tomorrow') {
+      return 'text-emerald-400';
+    }
+    if (task.status === 'overdue') {
+      return 'text-red-400';
+    }
+    return 'text-muted-foreground';
   };
 
   return (
-    <div className="px-4 py-3 border-b border-border hover:bg-accent/5 transition-colors">
+    <div className="px-4 py-3 border-b border-border hover:bg-muted/50 transition-colors">
       <div className="flex items-center gap-3">
         <button
-          onClick={handleToggleComplete}
+          onClick={() => onStatusChange(task.id, task.status === "completed" ? "upcoming" : "completed")}
           className="flex-shrink-0 hover:opacity-80 transition-opacity"
-          aria-label={isCompleted ? "Mark as incomplete" : "Mark as complete"}
+          aria-label={task.status === "completed" ? "Mark as incomplete" : "Mark as complete"}
         >
-          {isCompleted ? (
-            <Check className="h-5 w-5 text-primary" />
+          {task.status === "completed" ? (
+            <div className="h-5 w-5 rounded-full border-2 border-primary flex items-center justify-center bg-primary">
+              <Check className="h-3 w-3 text-primary-foreground" />
+            </div>
           ) : (
             <Circle className="h-5 w-5 text-muted-foreground" />
           )}
         </button>
         <div className="flex-1">
-          <h3 className={`text-foreground font-medium ${isCompleted ? "line-through text-muted-foreground" : ""}`}>
+          <h3 className={cn(
+            "font-medium",
+            task.status === "completed" ? "line-through text-muted-foreground" : "text-foreground"
+          )}>
             {task.title}
           </h3>
         </div>
@@ -168,7 +199,10 @@ function TaskItem({ task }: { task: Task }) {
               {task.tag}
             </span>
           )}
-          <span className="text-primary">{task.dueDate}</span>
+          <span className={cn("flex items-center gap-1", getDueDateColor(task.dueDate))}>
+            {task.hasCalendar && <Calendar className="h-4 w-4" />}
+            {task.dueDate}
+          </span>
         </div>
       </div>
     </div>
