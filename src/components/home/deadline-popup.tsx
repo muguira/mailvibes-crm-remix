@@ -22,8 +22,17 @@ export function DeadlinePopup({
     onSelect,
     children
 }: DeadlinePopupProps) {
+    const [isOpen, setIsOpen] = React.useState(false);
+
+    const handleSelect = (newDate: Date | undefined) => {
+        onSelect(newDate);
+        if (newDate) {
+            setIsOpen(false);
+        }
+    };
+
     return (
-        <Popover>
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
                 {children}
             </PopoverTrigger>
@@ -31,16 +40,32 @@ export function DeadlinePopup({
                 <Calendar
                     mode="single"
                     selected={date}
-                    onSelect={onSelect}
+                    onSelect={handleSelect}
                     initialFocus
                     locale={es}
+                    defaultMonth={date}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    modifiersStyles={{
+                        today: {
+                            backgroundColor: "rgb(var(--teal) / 0.15)",
+                            color: "rgb(var(--teal))"
+                        },
+                        selected: {
+                            backgroundColor: "rgb(var(--primary))",
+                            color: "rgb(var(--primary-foreground))"
+                        }
+                    }}
+                    classNames={{
+                        day_today: "bg-primary/ text-primary font-semibold",
+                        day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground"
+                    }}
                 />
                 {date && (
                     <div className="p-2 border-t border-border">
                         <Button
                             variant="ghost"
                             className="w-full justify-start text-destructive hover:text-destructive"
-                            onClick={() => onSelect(undefined)}
+                            onClick={() => handleSelect(undefined)}
                         >
                             Remove deadline
                         </Button>
