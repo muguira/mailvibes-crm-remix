@@ -1,9 +1,9 @@
 import { Check, Circle, Plus, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { DeadlinePopup } from "./deadline-popup";
-import { format, isToday, isTomorrow, parseISO } from "date-fns";
+import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-fns";
 import { es } from 'date-fns/locale';
 
 interface Task {
@@ -62,6 +62,30 @@ const initialTasks: Task[] = [
 export function TasksPanel() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
 
+  // Check for overdue tasks
+  const checkOverdueTasks = () => {
+    const now = new Date();
+    setTasks(prevTasks =>
+      prevTasks.map(task => {
+        if (task.status === "completed" || !task.deadline) return task;
+
+        const deadlineDate = parseISO(task.deadline);
+        // Compare with start of current day to match the calendar date concept
+        if (isPast(startOfDay(deadlineDate)) && task.status !== "overdue") {
+          return { ...task, status: "overdue" };
+        }
+        return task;
+      })
+    );
+  };
+
+  // Check for overdue tasks on mount and every minute
+  useEffect(() => {
+    checkOverdueTasks();
+    const interval = setInterval(checkOverdueTasks, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, []);
+
   const upcomingTasks = tasks.filter(task => task.status === "upcoming");
   const overdueTasks = tasks.filter(task => task.status === "overdue");
   const completedTasks = tasks.filter(task => task.status === "completed");
@@ -76,9 +100,23 @@ export function TasksPanel() {
 
   const handleDeadlineChange = (taskId: string, deadline: string | undefined) => {
     setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId ? { ...task, deadline } : task
-      )
+      prevTasks.map(task => {
+        if (task.id !== taskId) return task;
+
+        // When setting a new deadline, check if it's already overdue
+        if (deadline) {
+          const deadlineDate = parseISO(deadline);
+          if (isPast(startOfDay(deadlineDate))) {
+            return { ...task, deadline, status: "overdue" };
+          }
+          // If task was overdue but new deadline is in the future, move back to upcoming
+          if (task.status === "overdue" && !isPast(startOfDay(deadlineDate))) {
+            return { ...task, deadline, status: "upcoming" };
+          }
+        }
+
+        return { ...task, deadline };
+      })
     );
   };
 
