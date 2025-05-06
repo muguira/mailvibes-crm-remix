@@ -13,15 +13,7 @@ export function TopNavbar({ className }: TopNavbarProps) {
       <div className="flex items-center h-12">
         {/* Logo - replaced circle with plain SVG logo */}
         <div className="flex items-center px-4">
-          <div className="flex items-center">
-            <img 
-              src="/lovable-uploads/e748aec3-e452-4ebc-b84b-7a48e19480be.png" 
-              alt="" 
-              className="h-6 w-auto" 
-            />
-            <span className="sr-only">SalesIQ Home</span>
-          </div>
-          <span className="ml-2 font-semibold text-lg">SalesIQ</span>
+          <span className="font-semibold text-lg">SalesIQ</span>
         </div>
 
         {/* Navigation Items */}
