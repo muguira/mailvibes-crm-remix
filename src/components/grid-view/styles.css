@@ -731,7 +731,7 @@ body.grid-scroll-active .main-grid-body {
   z-index: 10 !important; /* Force to be lower than toolbar */
 }
 
-/* Status popover styling with close button */
+gi/* Status popover styling with close button */
 .status-options-popup {
   width: 160px; /* Smaller width to match blue box size in image */
   padding: 0;
