@@ -2,11 +2,14 @@ import { Check, Circle, Plus, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { DeadlinePopup } from "./deadline-popup";
+import { format, isToday, isTomorrow, parseISO } from "date-fns";
+import { es } from 'date-fns/locale';
 
 interface Task {
   id: string;
   title: string;
-  dueDate: string;
+  deadline?: string; // ISO string
   contact: string;
   description?: string;
   status: "upcoming" | "overdue" | "completed";
@@ -21,7 +24,6 @@ const initialTasks: Task[] = [
     id: "1",
     title: "Ivan Seguimiento",
     contact: "Ivan",
-    dueDate: "Today",
     status: "upcoming",
     type: "follow-up"
   },
@@ -29,7 +31,6 @@ const initialTasks: Task[] = [
     id: "2",
     title: "QBR's",
     contact: "",
-    dueDate: "Today",
     status: "upcoming",
     type: "task",
     tag: "LATAM"
@@ -38,7 +39,6 @@ const initialTasks: Task[] = [
     id: "3",
     title: "Seguimiento a Leandro",
     contact: "",
-    dueDate: "Tomorrow",
     status: "upcoming",
     type: "follow-up",
     tag: "LATAM"
@@ -47,7 +47,6 @@ const initialTasks: Task[] = [
     id: "4",
     title: "Viaje CDMX",
     contact: "",
-    dueDate: "Monday",
     status: "upcoming",
     type: "task"
   },
@@ -55,7 +54,6 @@ const initialTasks: Task[] = [
     id: "5",
     title: "Platica o 1-a-1 con Vivek",
     contact: "",
-    dueDate: "May 9",
     status: "upcoming",
     type: "task"
   }
@@ -72,6 +70,14 @@ export function TasksPanel() {
     setTasks(prevTasks =>
       prevTasks.map(task =>
         task.id === taskId ? { ...task, status: newStatus } : task
+      )
+    );
+  };
+
+  const handleDeadlineChange = (taskId: string, deadline: string | undefined) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId ? { ...task, deadline } : task
       )
     );
   };
@@ -124,6 +130,7 @@ export function TasksPanel() {
                 key={task.id}
                 task={task}
                 onStatusChange={handleTaskStatusChange}
+                onDeadlineChange={handleDeadlineChange}
               />
             ))}
           </TabsContent>
@@ -134,6 +141,7 @@ export function TasksPanel() {
                 key={task.id}
                 task={task}
                 onStatusChange={handleTaskStatusChange}
+                onDeadlineChange={handleDeadlineChange}
               />
             ))}
           </TabsContent>
@@ -144,6 +152,7 @@ export function TasksPanel() {
                 key={task.id}
                 task={task}
                 onStatusChange={handleTaskStatusChange}
+                onDeadlineChange={handleDeadlineChange}
               />
             ))}
           </TabsContent>
@@ -156,17 +165,38 @@ export function TasksPanel() {
 interface TaskItemProps {
   task: Task;
   onStatusChange: (taskId: string, newStatus: Task["status"]) => void;
+  onDeadlineChange: (taskId: string, deadline: string | undefined) => void;
 }
 
-function TaskItem({ task, onStatusChange }: TaskItemProps) {
-  const getDueDateColor = (dueDate: string) => {
-    if (dueDate.toLowerCase() === 'today' || dueDate.toLowerCase() === 'tomorrow') {
-      return 'text-emerald-400';
+function TaskItem({ task, onStatusChange, onDeadlineChange }: TaskItemProps) {
+  const deadline = task.deadline ? parseISO(task.deadline) : undefined;
+
+  const getDueDateDisplay = () => {
+    if (!deadline) return null;
+
+    if (isToday(deadline)) {
+      return "Today";
     }
-    if (task.status === 'overdue') {
-      return 'text-red-400';
+    if (isTomorrow(deadline)) {
+      return "Tomorrow";
     }
-    return 'text-muted-foreground';
+    return format(deadline, "MMM d, yyyy", { locale: es });
+  };
+
+  const getDueDateColor = () => {
+    if (!deadline) return "text-muted-foreground";
+
+    if (isToday(deadline) || isTomorrow(deadline)) {
+      return "text-emerald-400";
+    }
+    if (task.status === "overdue") {
+      return "text-red-400";
+    }
+    return "text-muted-foreground";
+  };
+
+  const handleDeadlineChange = (date: Date | undefined) => {
+    onDeadlineChange(task.id, date?.toISOString());
   };
 
   return (
@@ -199,10 +229,23 @@ function TaskItem({ task, onStatusChange }: TaskItemProps) {
               {task.tag}
             </span>
           )}
-          <span className={cn("flex items-center gap-1", getDueDateColor(task.dueDate))}>
-            {task.hasCalendar && <Calendar className="h-4 w-4" />}
-            {task.dueDate}
-          </span>
+          <DeadlinePopup
+            date={deadline}
+            onSelect={handleDeadlineChange}
+          >
+            <button
+              className={cn(
+                "flex items-center gap-1 hover:opacity-80 transition-opacity",
+                getDueDateColor()
+              )}
+            >
+              {deadline ? (
+                getDueDateDisplay()
+              ) : (
+                <Calendar className="h-4 w-4" />
+              )}
+            </button>
+          </DeadlinePopup>
         </div>
       </div>
     </div>
