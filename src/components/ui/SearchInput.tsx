@@ -7,7 +7,6 @@ interface SearchInputProps {
   placeholder?: string;
   className?: string;
   width?: string;
-  maxWidth?: number;
   variant?: 'stream' | 'leads';
 }
 
@@ -17,13 +16,12 @@ export function SearchInput({
   placeholder = "Search...",
   className = "",
   width = "w-[200px]",
-  maxWidth,
   variant = "stream"
 }: SearchInputProps) {
   const [isFocused, setIsFocused] = useState(false);
   
   return (
-    <div className={`relative ${className}`} style={{ maxWidth: maxWidth ? `${maxWidth}px` : undefined }}>
+    <div className={`relative ${className}`}>
       <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
       <input
         type="text"

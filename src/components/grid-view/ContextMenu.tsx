@@ -1,6 +1,5 @@
-import React from 'react';
-import { Copy, ClipboardPaste, ChevronLeft, ChevronRight, Trash2, ArrowDown, ArrowUp } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import React, { useRef, useEffect } from 'react';
+import { Copy, Clipboard as Paste, ChevronLeft, ChevronRight, Trash2, ArrowDown, ArrowUp } from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;
@@ -32,56 +31,97 @@ export function ContextMenu({
   isVisible
 }: ContextMenuProps) {
   if (!isVisible) return null;
+  
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [onClose]);
 
   return (
     <div 
-      className="fixed z-50 context-menu-container"
-      style={{ left: x, top: y }}
+      ref={menuRef}
+      className="fixed z-[1000] bg-white rounded-md shadow-lg border border-gray-200 overflow-hidden w-60"
+      style={{ left: `${x}px`, top: `${y}px` }}
+      onClick={(e) => e.stopPropagation()}
     >
-      <DropdownMenu open={isVisible} onOpenChange={(open) => !open && onClose()}>
-        <DropdownMenuContent className="w-44 min-w-[180px]">
-          <DropdownMenuItem onClick={() => { onCopy(columnId); onClose(); }}>
-            <Copy size={16} className="mr-2" />
-            <span>Copy</span>
-            <div className="ml-auto text-xs text-muted-foreground">⌘C</div>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => { onPaste(columnId); onClose(); }}>
-            <ClipboardPaste size={16} className="mr-2" />
-            <span>Paste</span>
-            <div className="ml-auto text-xs text-muted-foreground">⌘V</div>
-          </DropdownMenuItem>
-          
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem onClick={() => { onInsertLeft(columnId); onClose(); }}>
-            <ChevronLeft size={16} className="mr-2" />
-            <span>Insert column left</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => { onInsertRight(columnId); onClose(); }}>
-            <ChevronRight size={16} className="mr-2" />
-            <span>Insert column right</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => { onDelete(columnId); onClose(); }}>
-            <Trash2 size={16} className="mr-2" />
-            <span>Delete column</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem onClick={() => { onSortAZ(columnId); onClose(); }}>
-            <ArrowDown size={16} className="mr-2" />
-            <span>A→Z Sort sheet A to Z</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => { onSortZA(columnId); onClose(); }}>
-            <ArrowUp size={16} className="mr-2" />
-            <span>Z→A Sort sheet Z to A</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="px-1 py-1">
+        <button 
+          className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+          onClick={() => { onCopy(columnId); onClose(); }}
+        >
+          <Copy size={16} className="mr-2 text-gray-500" />
+          <span>Copy</span>
+          <div className="ml-auto text-xs text-gray-500">⌘C</div>
+        </button>
+        
+        <button 
+          className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+          onClick={() => { onPaste(columnId); onClose(); }}
+        >
+          <Paste size={16} className="mr-2 text-gray-500" />
+          <span>Paste</span>
+          <div className="ml-auto text-xs text-gray-500">⌘V</div>
+        </button>
+      </div>
+      
+      <div className="border-t border-gray-200 my-1"></div>
+      
+      <div className="px-1 py-1">
+        <button 
+          className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+          onClick={() => { onInsertLeft(columnId); onClose(); }}
+        >
+          <ChevronLeft size={16} className="mr-2 text-gray-500" />
+          <span>Insert column left</span>
+        </button>
+        
+        <button 
+          className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+          onClick={() => { onInsertRight(columnId); onClose(); }}
+        >
+          <ChevronRight size={16} className="mr-2 text-gray-500" />
+          <span>Insert column right</span>
+        </button>
+        
+        <button 
+          className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+          onClick={() => { onDelete(columnId); onClose(); }}
+        >
+          <Trash2 size={16} className="mr-2 text-gray-500" />
+          <span>Delete column</span>
+        </button>
+      </div>
+      
+      <div className="border-t border-gray-200 my-1"></div>
+      
+      <div className="px-1 py-1">
+        <button 
+          className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+          onClick={() => { onSortAZ(columnId); onClose(); }}
+        >
+          <ArrowDown size={16} className="mr-2 text-gray-500" />
+          <span>A→Z Sort sheet A to Z</span>
+        </button>
+        
+        <button 
+          className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+          onClick={() => { onSortZA(columnId); onClose(); }}
+        >
+          <ArrowUp size={16} className="mr-2 text-gray-500" />
+          <span>Z→A Sort sheet Z to A</span>
+        </button>
+      </div>
     </div>
   );
 } 

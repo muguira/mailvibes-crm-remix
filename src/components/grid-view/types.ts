@@ -8,7 +8,6 @@ export interface Column {
   width: number;
   editable: boolean;
   frozen?: boolean;
-  sticky?: 'left' | 'right';
   options?: string[];
   colors?: Record<string, string>;
   renderCell?: (value: any, row: GridRow) => React.ReactNode;

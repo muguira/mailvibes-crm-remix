@@ -66,7 +66,7 @@ export default function StreamToolbar() {
           onChange={setSearchQuery}
           placeholder="Search lead"
           width="w-[200px]"
-        />
+          />
       </div>
       
       {/* Right section */}

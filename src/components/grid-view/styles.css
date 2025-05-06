@@ -6,8 +6,7 @@
   background-color: #fff;
   font-family: 'Inter', system-ui, sans-serif;
   user-select: none;
-  overflow: hidden;
-  /* Prevent outer scroll */
+  overflow: hidden; /* Prevent outer scroll */
 }
 
 /* Grid toolbar */
@@ -19,7 +18,6 @@
   justify-content: space-between;
   background-color: #fff;
   z-index: 50; /* Increase z-index to keep above grid */
-  height: 48px; /* Fixed height for better layout calculation */
 }
 
 .toolbar-left,
@@ -30,27 +28,21 @@
 
 .toolbar-left {
   gap: 1rem;
-  flex: 1; /* Take available space */
 }
 
 .toolbar-right {
   gap: 0.5rem;
 }
 
-/* Search field styling - minimalist and transparent */
+/* Search field styling - updated */
 .search-field-container {
   position: relative;
-  flex: 1;
-  max-width: 360px;
-  border: 1px solid transparent;
-  border-radius: 0.375rem;
-  transition: all 0.2s ease;
+  border-color: #e5e7eb;
 }
 
 .search-field-container:focus-within {
-  border-color: #e5e7eb;
-  background-color: #f9fafb;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
 }
 
 .search-input {
@@ -71,112 +63,177 @@
   color: #9ca3af;
 }
 
-/* Grid header */
-.grid-header {
+/* NEW: Grid components container */
+.grid-components-container {
   display: flex;
-  border-bottom: 1px solid #e5e7eb;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* NEW: Static columns container */
+.static-columns-container {
+  flex-shrink: 0;
+  position: relative;
+  height: 100%;
+  z-index: 40; /* Higher than other grid elements */
+  border-right: 2px solid #e5e7eb; /* Border to separate from main grid */
+  background-color: #fff;
+  overflow: hidden;
+}
+
+.static-headers {
+  display: flex;
   background-color: #f9fafb;
-  position: sticky;
-  top: 0;
-  z-index: 30; /* Higher than normal cells, lower than toolbar */
-  padding: 0;
-  margin: 0;
-  width: fit-content;
-  min-width: 100%;
-  box-sizing: border-box;
+  border-bottom: 1px solid #e5e7eb;
+  height: 36px; /* HEADER_HEIGHT */
+  z-index: 41;
+  position: relative;
 }
 
 .index-header {
-  z-index: 5;
-  background-color: #f9fafb;
-  min-width: 48px;
-  flex: 0 0 48px;
-  height: 36px;
-  border-right: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 500;
   font-size: 0.75rem;
   color: #6b7280;
-  position: sticky;
-  left: 0;
-  z-index: 40; /* Above normal headers and cells */
   background-color: #f9fafb;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  border-right: 1px solid #e5e7eb;
 }
 
-.columns-header {
+.opportunity-header {
   display: flex;
-  overflow-x: visible;
-  position: relative;
-  height: 36px;
-  /* Match HEADER_HEIGHT */
-}
-
-.grid-header-cell {
-  position: relative;
-  z-index: 1;
-  background-color: #f9fafb;
-  height: 36px;
-  /* Match HEADER_HEIGHT */
+  align-items: center;
+  justify-content: flex-start;
   padding: 0 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-right: 1px solid #e5e7eb;
   font-weight: 500;
+  font-size: 0.875rem;
   color: #111827;
-  cursor: pointer;
-  box-sizing: border-box;
-}
-
-.grid-header-cell:hover {
-  background-color: #f3f4f6;
-}
-
-.grid-header-cell.grid-frozen-header {
-  position: sticky;
-  left: 48px; /* Match INDEX_COLUMN_WIDTH */
-  z-index: 35; /* Below index but above regular headers */
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
   background-color: #f9fafb;
   border-right: 1px solid #e5e7eb;
 }
 
-.grid-header-cell.dragging {
-  opacity: 0.6;
-  background-color: #e5e7eb;
-}
-
-.grid-header-cell.sticky {
-  position: sticky;
-  left: 0;
-  z-index: 20;
-  background-color: #f9fafb;
-}
-
-.header-title {
-  font-size: 0.875rem;
-  white-space: nowrap;
+.static-rows-container {
+  will-change: transform;
   overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
 }
 
-.header-cell-actions {
+.static-row {
+  background-color: #fff;
+}
+
+.index-cell {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  opacity: 0;
-  transition: opacity 0.2s;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #6b7280;
+  background-color: #fff;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.grid-header-cell:hover .header-cell-actions {
-  opacity: 1;
+.opportunity-cell {
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  font-size: 0.875rem;
+  color: #111827;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #fff;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.header-cell-menu-button {
+.opportunity-text {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.opportunity-text:hover {
+  text-decoration: underline;
+}
+
+/* NEW: Main grid view */
+.main-grid-view {
+  flex: 1;
+  position: relative;
+  overflow: hidden; /* Keep this as hidden */
+  height: 100%;
+  max-width: calc(100% - 88px); /* Less restrictive width limit */
+}
+
+.main-grid-header {
+  overflow-x: scroll;
+  scrollbar-width: none; /* Hide scrollbar in Firefox */
+  -ms-overflow-style: none; /* Hide scrollbar in IE/Edge */
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  position: relative;
+  z-index: 31;
+  width: 100%;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.main-grid-header::-webkit-scrollbar {
+  display: none;
+}
+
+.main-grid-body {
+  position: relative;
+  height: calc(100% - 36px); /* 100% - HEADER_HEIGHT */
+  overflow: hidden;
+}
+
+.data-grid {
+  overflow: scroll !important; /* Force scrolling to be enabled */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera - but allow scrolling */
+.data-grid::-webkit-scrollbar {
+  height: 6px; /* Show a thin scrollbar for horizontal scrolling */
+  width: 6px; /* Show a thin scrollbar for vertical scrolling */
+}
+
+.data-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.data-grid::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 20px;
+}
+
+/* NEW: Action column */
+.action-column-container {
+  flex-shrink: 0;
+  width: 40px;
+  position: relative;
+  height: 100%;
+  border-left: 1px solid #e5e7eb;
+  background-color: #fff;
+  z-index: 30;
+  overflow: hidden;
+}
+
+.action-column-header {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-column-rows {
+  will-change: transform;
+  overflow: hidden;
+}
+
+.row-action-link {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -184,98 +241,45 @@
   height: 24px;
   border-radius: 4px;
   color: #6b7280;
-  opacity: 0;
-  transition: opacity 0.15s ease;
 }
 
-.header-cell-menu-button:hover {
-  background-color: #e5e7eb;
-  color: #111827;
-}
-
-.group:hover .header-cell-menu-button {
-  opacity: 1;
-}
-
-.header-cell-menu-button.active,
-.header-cell-menu-button.pressed {
-  opacity: 1;
+.row-action-link:hover {
   background-color: #f3f4f6;
-  box-shadow: 0 0 0 1px #d1d5db;
+  color: #2563eb;
 }
 
-.add-column-button {
-  min-width: 40px;
-  height: 36px;
-  /* Match HEADER_HEIGHT */
+/* Grid header - updated */
+.grid-header-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  border-right: 1px solid #e5e7eb;
-  cursor: pointer;
-  color: #6b7280;
-  font-size: 1.25rem;
   background-color: #f9fafb;
-}
-
-.add-column-button:hover {
-  background-color: #e5e7eb;
-  color: #111827;
-}
-
-/* Header wrapper */
-.header-wrapper {
-  overflow-x: auto;
-  width: 100%;
-  position: relative;
-  scrollbar-width: none; /* Hide scrollbar for Firefox */
-  -ms-overflow-style: none; /* Hide scrollbar for IE/Edge */
-  border-bottom: none; /* Remove border to avoid double borders */
+  height: 36px; /* HEADER_HEIGHT */
   z-index: 30;
 }
 
-.header-wrapper::-webkit-scrollbar {
-  display: none;
-  /* Hide scrollbar for Chrome/Safari/Opera */
-}
-
-/* Grid body */
-.grid-wrapper {
-  position: relative;
-  flex: 1;
-  overflow: hidden;
-  height: calc(100% - 84px); /* Subtract header + toolbar heights */
-}
-
-.grid-body {
-  overflow: auto;
-  height: 100%;
-  scrollbar-width: thin;
-}
-
-/* React Window Grid */
-.react-window-grid {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: auto !important;
-  scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
-}
-
-.react-window-grid-inner {
-  position: relative;
-  width: fit-content;
-  min-width: 100%;
-}
-
-/* Grid cells */
-.grid-cell {
-  position: relative;
-  border-right: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
+.grid-header-cell {
+  height: 36px; /* HEADER_HEIGHT */
+  padding: 0 0.75rem;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  border-right: 1px solid #e5e7eb;
+  font-weight: 500;
+  color: #111827;
+  background-color: #f9fafb;
+  cursor: pointer;
+  box-sizing: border-box;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.grid-header-cell:hover {
+  background-color: #f3f4f6;
+}
+
+/* Grid cells - updated */
+.grid-cell {
   box-sizing: border-box;
   padding: 0 0.75rem;
   background-color: #fff;
@@ -283,15 +287,9 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.grid-cell.grid-frozen-cell {
-  position: sticky;
-  left: 48px; /* Match INDEX_COLUMN_WIDTH */
-  z-index: 20; /* Above normal cells */
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-  background-color: #fff;
-  border-right: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  user-select: none; /* Prevent text selection */
 }
 
 .grid-cell-editable {
@@ -304,12 +302,6 @@
 
 .grid-cell-editing {
   padding: 0;
-}
-
-.grid-cell-focused {
-  outline: 2px solid #3b82f6;
-  outline-offset: -2px;
-  z-index: 10;
 }
 
 .grid-cell-input {
@@ -326,68 +318,23 @@
   outline: none;
 }
 
-/* Index column styling */
-.index-column {
-  position: sticky;
-  left: 0;
-  z-index: 25; /* Above normal cells, below sticky cells */
-  width: 48px; /* Matching INDEX_COLUMN_WIDTH */
+/* Add Column button */
+.add-column-button {
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
-  color: #6b7280;
-  background-color: #fff;
-  border-right: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-}
-
-.index-column:hover {
-  background-color: #f9fafb;
-}
-
-/* Non-frozen cells */
-.grid-cell:not(.grid-frozen-cell):not(.index-column) {
-  background-color: #fff;
-}
-
-/* Status dropdown */
-.status-dropdown {
-  position: absolute;
-  z-index: 1000;
-  background-color: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  min-width: 150px;
-  max-height: 300px;
-  overflow-y: auto;
-  padding: 0.25rem;
-}
-
-.status-option {
-  padding: 0.5rem 0.75rem;
+  border: none;
+  background: none;
   cursor: pointer;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  font-size: 0.875rem;
+  color: #6b7280;
+  font-size: 1.25rem;
 }
 
-.status-option:hover {
+.add-column-button:hover {
   background-color: #f3f4f6;
-}
-
-.status-option.active {
-  background-color: #ebf5ff;
-}
-
-.status-option-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  color: #2563eb;
 }
 
 /* Search highlight */
@@ -397,21 +344,25 @@
   border-radius: 2px;
 }
 
-/* Ensure highlight column affects all cells in the column */
+/* Highlight column when context menu is open */
 .highlight-column {
   background-color: rgba(214, 235, 255, 0.25) !important;
 }
 
-/* Drag preview */
-.drag-preview-column {
-  pointer-events: none;
-  padding: 0.5rem 1rem;
-  background-color: #fff;
-  border: 2px dashed #3b82f6;
-  border-radius: 4px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  color: #111827;
+/* Context menu container */
+.context-menu-container {
+  z-index: 1000;
+}
+
+/* Status pill styling */
+.status-pill {
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 /* Empty state */
@@ -431,285 +382,23 @@
   color: #d1d5db;
 }
 
-/* Header editing input */
-.header-edit-input {
-  border: none;
-  background-color: #fff;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #111827;
-  padding: 0.25rem 0;
-  width: 100%;
-  outline: none;
-}
-
-/* Special styling for opportunity cells */
-.opportunity-cell {
-  color: #2563eb;
-}
-
 /* Responsive adjustments */
-@media (max-width: 640px) {
+@media (max-width:.640px) {
   .grid-toolbar {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.75rem;
   }
-  
+
   .toolbar-left,
   .toolbar-right {
     width: 100%;
   }
 }
 
-/* Status column specific styling */
-.grid-cell[data-column-id="status"] {
-  z-index: 15 !important; /* Below opportunity column but above regular cells */
-}
-
-/* Status column backdrop to prevent see-through */
-.grid-cell[data-column-id="status"]::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: -1;
-  background-color: #fff;
-}
-
-/* Add some distance from the frozen column */
-.grid-cell[data-column-id="status"] {
-  margin-left: 1px;
-  border-left: 1px solid #e5e7eb;
-}
-
-/* Ensure frozen column has proper z-index */
-.grid-cell.grid-frozen-cell {
-  position: sticky;
-  left: 48px; /* Match INDEX_COLUMN_WIDTH */
-  z-index: 20; /* Above normal cells */
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-  background-color: #fff;
-}
-
-/* Add specific backdrop for frozen columns to prevent content showing through */
-.grid-header-cell.grid-frozen-header::after,
-.grid-cell.grid-frozen-cell::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: -1;
-  background-color: inherit;
-}
-
-/* Ensure index column is always on top and sticky left */
-.index-header,
-.index-column {
-  position: sticky;
-  left: 0;
-  z-index: 40 !important; /* Above all other columns */
-  background-color: #f9fafb;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-  border-right: 1px solid #e5e7eb;
-}
-
-/* Opportunity column should be sticky and right next to index column */
-.grid-header-cell.grid-frozen-header {
-  position: sticky;
-  left: 48px !important; /* Exactly INDEX_COLUMN_WIDTH */
-  z-index: 35; /* Below index but above regular headers */
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-  background-color: #f9fafb;
-  border-right: 1px solid #e5e7eb;
-}
-
-.grid-cell.grid-frozen-cell {
-  position: sticky;
-  left: 48px !important; /* Exactly INDEX_COLUMN_WIDTH */
-  z-index: 20; /* Above normal cells */
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-  background-color: #fff;
-  border-right: 1px solid #e5e7eb;
-}
-
-/* Rightmost link column sticky right */
-.grid-header-cell.grid-sticky-right,
-.grid-cell.grid-sticky-right {
-  position: sticky;
-  right: 0;
-  z-index: 20;
-  background-color: inherit;
-  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
-}
-
-/* Add visual separation for the sticky columns block */
-.index-header, 
-.index-column,
-.grid-header-cell.grid-frozen-header,
-.grid-cell.grid-frozen-cell {
-  border-right: 1px solid #c8c8c9;
-}
-
-/* Style for the stream link column */
-.stream-link-column {
-  position: sticky !important;
-  right: 0 !important;
-  z-index: 25 !important;
-  background-color: #fff !important;
-  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05) !important;
-}
-
-/* Add column button styling to fix it to the right */
-.add-column-button.grid-sticky-right {
-  position: sticky;
-  right: 0;
-  z-index: 35;
-  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
-}
-
-/* Improved styling for frozen/sticky column headers and cells */
-/* Index column - leftmost sticky column */
-.index-header,
-.index-column {
-  position: sticky;
-  left: 0;
-  z-index: 40 !important; /* Above all other columns */
-  background-color: #f9fafb;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-  border-right: 1px solid #e5e7eb;
-}
-
-.index-column {
-  background-color: #fff;
-}
-
-/* Fix the opportunity column (second column) to be sticky left */
-.grid-header-cell.grid-frozen-header {
-  position: sticky !important;
-  left: 48px !important; /* Exactly INDEX_COLUMN_WIDTH */
-  z-index: 35 !important; /* Below index but above regular headers */
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-  background-color: #f9fafb;
-  border-right: 1px solid #e5e7eb;
-}
-
-.grid-cell.grid-frozen-cell {
-  position: sticky !important;
-  left: 48px !important; /* Exactly INDEX_COLUMN_WIDTH */
-  z-index: 20 !important; /* Above normal cells */
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-  background-color: #fff;
-  border-right: 1px solid #e5e7eb;
-}
-
-/* Left sticky columns */
-.grid-header-cell.grid-sticky-left,
-.grid-cell.grid-sticky-left {
-  position: sticky !important;
-  left: 0 !important;
-  z-index: 30 !important; 
-  background-color: inherit;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-}
-
-/* Right sticky columns */
-.grid-header-cell.grid-sticky-right,
-.grid-cell.grid-sticky-right {
-  position: sticky !important;
-  right: 0 !important;
-  z-index: 20 !important;
-  background-color: inherit;
-  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
-}
-
-/* Special handling for the stream link column (rightmost column) */
-.stream-link-column {
-  position: sticky !important;
-  right: 0 !important;
-  z-index: 20 !important;
-  background-color: #fff !important;
-  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
-}
-
-/* Add column button - make it stick properly to the right */
-.add-column-button.grid-sticky-right {
-  position: sticky !important;
-  right: 0 !important;
-  z-index: 35 !important;
-  background-color: #f9fafb;
-  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
-}
-
-/* Ensure proper background for sticky elements */
-.grid-header-cell.grid-frozen-header::after,
-.grid-cell.grid-frozen-cell::after,
-.grid-header-cell.grid-sticky-right::after,
-.grid-cell.grid-sticky-right::after,
-.grid-header-cell.grid-sticky-left::after,
-.grid-cell.grid-sticky-left::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  z-index: -1;
-  background-color: inherit;
-}
-
-/* Fix white space issue after opportunity column rows */
-.opportunity-cell {
-  color: #2563eb;
-  padding-right: 0 !important; 
-  padding-left: 0.75rem !important;
-  overflow: visible !important;
-}
-
-/* Ensure opportunity column doesn't have extra whitespace */
-.grid-cell[data-column-id="opportunity"] {
-  overflow: visible !important;
-}
-
-/* Clean up any spacing issues between frozen columns */
-.grid-cell:not(.grid-frozen-cell):not(.index-column):first-of-type {
-  border-left: none;
-}
-
-/* Remove double borders between sticky columns */
-.grid-cell.grid-frozen-cell + .grid-cell:not(.grid-frozen-cell) {
-  border-left: none;
-}
-
-/* Ensure all headers and rows align perfectly */
-.react-window-grid {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: auto !important;
-}
-
-.react-window-grid-inner {
-  position: relative;
-  border-collapse: collapse !important;
-  border-spacing: 0 !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-/* Make grid rows consistent */
-.react-window-grid-inner > div {
-  display: flex;
-}
-
-/* Context menu container */
-.context-menu-container {
-  z-index: 1000;
+/* Fix for border alignment */
+.static-columns-container, 
+.main-grid-view, 
+.action-column-container {
+  box-sizing: border-box;
 }

@@ -4,7 +4,7 @@ import { GridContainerProps, Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants';
 import { GridToolbar } from './grid-toolbar';
 import { GridHeader } from './grid-header';
-import { Check, Clipboard, Copy, Scissors, Filter, ClipboardPaste, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Check, Clipboard, Copy, Scissors, Filter, Clipboard as Paste, StretchHorizontal, Trash2, Eye, EyeOff } from 'lucide-react';
 import './styles.css';
 import { v4 as uuidv4 } from 'uuid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
@@ -96,6 +96,7 @@ export function NewGridView({
       console.log('Updating column widths due to columns change', columns.length);
       // Preserve existing widths for existing columns and add default for new ones
       const newWidths = [INDEX_COLUMN_WIDTH];
+      
       // Add widths for existing columns
       columns.forEach((col, index) => {
         if (index < columnWidths.length - 1) {
@@ -106,6 +107,7 @@ export function NewGridView({
           newWidths.push(col.width);
         }
       });
+      
       setColumnWidths(newWidths);
     }
   }, [columns.length]);
@@ -115,6 +117,7 @@ export function NewGridView({
     // Force re-render of grid when columns change
     if (gridRef.current) {
       gridRef.current.resetAfterColumnIndex(0);
+      
       // Reset scroll position to avoid alignment issues
       if (headerRef.current) {
         headerRef.current.scrollLeft = 0;
@@ -208,6 +211,7 @@ export function NewGridView({
       const { width, height } = entries[0].contentRect;
       setContainerWidth(width);
       setContainerHeight(height);
+      
       // Reset grid when container size changes to avoid alignment issues
       if (gridRef.current) {
         gridRef.current.resetAfterColumnIndex(0);
@@ -339,102 +343,12 @@ export function NewGridView({
     setActiveFilters(filters);
   };
 
-  // State to track grid scrollTop for sticky overlay
-  const [gridScrollTop, setGridScrollTop] = useState(0);
-
-  // Handler to sync overlay with grid scroll
+  // Sync header scrolling with grid body
   const handleGridScroll = useCallback(({ scrollLeft, scrollTop }: { scrollLeft: number; scrollTop: number }) => {
     if (headerRef.current) {
       headerRef.current.scrollLeft = scrollLeft;
     }
-    setGridScrollTop(scrollTop);
   }, []);
-
-  // Helper to render sticky overlay for index and opportunity columns
-  const renderStickyOverlay = () => {
-    // Only render if there is visible data and container height
-    if (!visibleData.length || containerHeight <= HEADER_HEIGHT) return null;
-    // Calculate number of visible rows (approximate)
-    const visibleRowCount = Math.ceil((containerHeight - HEADER_HEIGHT) / ROW_HEIGHT);
-    // Find the first visible row index (based on scrollTop)
-    const firstVisibleRow = Math.floor(gridScrollTop / ROW_HEIGHT);
-    // Clamp to data length
-    const lastVisibleRow = Math.min(firstVisibleRow + visibleRowCount, visibleData.length);
-    // Render overlay rows
-    const rows = [];
-    for (let i = firstVisibleRow; i < lastVisibleRow; i++) {
-      const row = visibleData[i];
-      if (!row) continue;
-      const top = HEADER_HEIGHT + (i * ROW_HEIGHT) - gridScrollTop;
-      rows.push(
-        <React.Fragment key={row.id}>
-          {/* Index column */}
-          <div
-            className="index-column sticky-overlay-cell"
-            style={{
-              position: 'absolute',
-              left: 0,
-              top,
-              width: columnWidths[0],
-              height: ROW_HEIGHT,
-              zIndex: 10,
-              background: '#f9fafb',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRight: '1px solid #e5e7eb',
-              borderBottom: '1px solid #e5e7eb',
-              fontSize: '0.75rem',
-              color: '#6b7280',
-              boxSizing: 'border-box',
-            }}
-          >
-            {firstRowIndex + i + 1}
-          </div>
-          {/* Opportunity column */}
-          <div
-            className="opportunity-cell sticky-overlay-cell"
-            style={{
-              position: 'absolute',
-              left: columnWidths[0],
-              top,
-              width: columnWidths[1],
-              height: ROW_HEIGHT,
-              zIndex: 9,
-              background: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              borderRight: '1px solid #e5e7eb',
-              borderBottom: '1px solid #e5e7eb',
-              boxSizing: 'border-box',
-              padding: '0 0.75rem',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {row[columns[0].id]}
-          </div>
-        </React.Fragment>
-      );
-    }
-    return (
-      <div
-        className="sticky-columns-overlay"
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: columnWidths[0] + columnWidths[1],
-          height: containerHeight - HEADER_HEIGHT,
-          pointerEvents: 'none', // Let grid cells handle events
-          zIndex: 20,
-        }}
-      >
-        {rows}
-      </div>
-    );
-  };
 
   // Close status dropdown when clicking outside
   useEffect(() => {
@@ -556,39 +470,8 @@ export function NewGridView({
 
   // Handle adding a column after another column
   const handleAddColumn = (afterColumnId: string) => {
-    console.log(`Adding column after: ${afterColumnId}`);
     if (onAddColumn) {
-      const newColumnId = `column_${Date.now()}`;
-      const newColumn: Column = {
-        id: newColumnId,
-        title: 'New Column',
-        type: 'text',
-        width: MIN_COL_WIDTH,
-        editable: true
-      };
-      
-      // Find the index of the column after which to add the new one
-      const afterColumnIndex = columns.findIndex(col => col.id === afterColumnId);
-      if (afterColumnIndex < 0) {
-        console.error(`Column with ID ${afterColumnId} not found`);
-        return;
-      }
-      
-      // Create a new array with the new column inserted at the right position
-      const newColumns = [
-        ...columns.slice(0, afterColumnIndex + 1),
-        newColumn,
-        ...columns.slice(afterColumnIndex + 1)
-      ];
-      
       onAddColumn(afterColumnId);
-      
-      // Force reset the grid to handle the new column
-      if (gridRef.current) {
-        setTimeout(() => {
-          gridRef.current.resetAfterColumnIndex(0);
-        }, 0);
-      }
     }
   };
 
@@ -606,11 +489,6 @@ export function NewGridView({
       setContextMenuPosition(position);
     } else {
       setContextMenuPosition(null);
-    }
-    
-    // Force a rerender to highlight the column
-    if (gridRef.current) {
-      gridRef.current.forceUpdate();
     }
   };
 
@@ -638,20 +516,19 @@ export function NewGridView({
   const handleInsertColumnLeft = (columnId: string) => {
     console.log(`Insert column left of: ${columnId}`);
     const columnIndex = columns.findIndex(col => col.id === columnId);
-    
     if (columnIndex > 0) {
-      // Insert before the current column (after the previous one)
       const prevColumnId = columns[columnIndex - 1].id;
       handleAddColumn(prevColumnId);
     } else {
-      // If it's the first column, insert after it (we can't insert before the first column)
       handleAddColumn(columnId);
     }
+    setContextMenuColumn(null);
   };
 
   const handleInsertColumnRight = (columnId: string) => {
     console.log(`Insert column right of: ${columnId}`);
     handleAddColumn(columnId);
+    setContextMenuColumn(null);
   };
 
   const handleClearColumn = (columnId: string) => {
@@ -829,6 +706,9 @@ export function NewGridView({
             ...style,
             height: `${ROW_HEIGHT}px`,
             width: `${columnWidths[0]}px`,
+            position: 'sticky',
+            left: 0,
+            zIndex: 25,
           }}
         >
           {rowNum}
@@ -838,20 +718,17 @@ export function NewGridView({
 
     const colIndex = columnIndex - 1; // Adjust for index column
     const column = columns[colIndex];
-    
+
     if (!column) return null;
-    
+
     const cellId = `${row.id}-${column.id}`;
     const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
     const isFocused = focusedCell?.rowIndex === rowIndex && focusedCell?.columnIndex === columnIndex;
     const value = row[column.id];
     
-    // Determine various states and classes
+    // Determine if this is a frozen column (opportunity column)
     const isFrozen = column.frozen || column.id === 'opportunity';
-    const isLastColumn = columnIndex === columns.length;
-    const isStickyRight = column.sticky === 'right' || (isLastColumn && column.id === 'streamLink');
-    const isStickyLeft = column.sticky === 'left';
-    
+
     // Apply special classes for styling
     const cellClassName = [
       'grid-cell',
@@ -859,24 +736,28 @@ export function NewGridView({
       isFocused ? 'grid-cell-focused' : '',
       isFrozen ? 'grid-frozen-cell' : '',
       column.id === 'opportunity' ? 'opportunity-cell' : '',
-      column.id === contextMenuColumn ? 'highlight-column' : '',
-      isStickyRight ? 'grid-sticky-right' : '',
-      isStickyLeft ? 'grid-sticky-left' : '',
-      column.id === 'streamLink' ? 'stream-link-column' : ''
+      column.id === contextMenuColumn ? 'bg-[#D6EBFF]/25' : ''
     ].filter(Boolean).join(' ');
     
-    // Basic cell style from react-window
+    // Calculate proper styles including z-index for proper layering
     const cellStyle: React.CSSProperties = {
       ...style,
       height: `${ROW_HEIGHT}px`,
-      width: `${getColumnWidth(columnIndex)}px`,
+      width: `${columnWidths[columnIndex]}px`,
     };
     
+    // For frozen columns, add sticky positioning
+    if (isFrozen) {
+      cellStyle.position = 'sticky';
+      cellStyle.left = `${columnWidths[0]}px`; // Position after index column
+      cellStyle.zIndex = 20; // Above regular cells, below index
+    }
+
     // Render cell based on state
     if (isEditing) {
-      return (
-        <div 
-          style={cellStyle} 
+    return (
+      <div
+        style={cellStyle}
           className={cellClassName}
           data-column-id={column.id}
           data-cell={cellId}
@@ -886,7 +767,7 @@ export function NewGridView({
       );
     }
     
-    // Handle status dropdown
+    // Handle special column types
     if (column.type === 'status' && statusDropdownPosition?.rowId === row.id && statusDropdownPosition?.columnId === column.id) {
       return (
         <div
@@ -1002,16 +883,38 @@ export function NewGridView({
           <div style={{ display: 'none' }} />
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56" style={menuStyle}>
+          <DropdownMenuItem onClick={() => handleCutColumn(column.id)}>
+            <Scissors className="mr-2 h-4 w-4" />
+            <span>Cut</span>
+            <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleCopyColumn(column.id)}>
             <Copy className="mr-2 h-4 w-4" />
             <span>Copy</span>
             <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handlePasteColumn(column.id)}>
-            <ClipboardPaste className="mr-2 h-4 w-4" />
+            <Clipboard className="mr-2 h-4 w-4" />
             <span>Paste</span>
             <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
           </DropdownMenuItem>
+
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Clipboard className="mr-2 h-4 w-4" />
+              <span>Paste special</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={() => handlePasteSpecial(column.id, 'values')}>
+                  Values only
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePasteSpecial(column.id, 'format')}>
+                  Format only
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
 
           <DropdownMenuSeparator />
 
@@ -1030,6 +933,28 @@ export function NewGridView({
               <span>Delete column</span>
             </DropdownMenuItem>
           )}
+
+          <DropdownMenuItem onClick={() => handleClearColumn(column.id)}>
+            <span className="mr-2">×</span>
+            <span>Clear column</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => handleHideColumn(column.id)}>
+            <EyeOff className="mr-2 h-4 w-4" />
+            <span>Hide column</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => handleResizeColumn(column.id)}>
+            <StretchHorizontal className="mr-2 h-4 w-4" />
+            <span>Resize column</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem onClick={() => handleCreateFilter(column.id)}>
+            <Filter className="mr-2 h-4 w-4" />
+            <span>Create a filter</span>
+          </DropdownMenuItem>
 
           <DropdownMenuSeparator />
 
@@ -1114,14 +1039,14 @@ export function NewGridView({
         <div className="grid-header">
           <div className="index-header">#</div>
           <div className="columns-header">
-            <GridHeader 
-              columns={columns}
-              onColumnChange={onColumnChange}
-              onColumnsReorder={onColumnsReorder}
-              onAddColumn={onAddColumn}
-              onDeleteColumn={onDeleteColumn}
+        <GridHeader
+          columns={columns}
+          onColumnChange={onColumnChange}
+          onColumnsReorder={onColumnsReorder}
+          onAddColumn={onAddColumn}
+          onDeleteColumn={onDeleteColumn}
               onContextMenu={openContextMenu}
-              activeContextMenu={contextMenuColumn}
+          activeContextMenu={contextMenuColumn}
               columnWidths={columnWidths}
               contextMenuPosition={contextMenuPosition}
               onCopy={handleCopyColumn}
@@ -1155,21 +1080,26 @@ export function NewGridView({
               ref={gridRef}
               className="react-window-grid"
               outerElementType={OuterElementWrapper}
-              innerElementType={innerElementType}
+              innerElementType="div"
               columnCount={columns.length + 1} // +1 for index column
-              columnWidth={getColumnWidth}
+              columnWidth={(index) => columnWidths[index] || 150}
               height={containerHeight}
               rowCount={visibleData.length}
-              rowHeight={getRowHeight}
+              rowHeight={() => ROW_HEIGHT}
               width={containerWidth}
               itemData={visibleData}
-              onScroll={handleGridScroll}
+              onScroll={({ scrollLeft }) => {
+                // Keep header and grid scroll positions synchronized
+                if (headerRef.current) {
+                  headerRef.current.scrollLeft = scrollLeft;
+                }
+              }}
             >
               {Cell}
             </Grid>
-          </div>
+        </div>
         )}
-      </div>
+                </div>
 
       {/* Column Context Menu */}
       {renderColumnContextMenu()}

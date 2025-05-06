@@ -9,7 +9,7 @@ import {
   Trash2,
   Copy,
   Scissors,
-  ClipboardPaste,
+  Clipboard,
   Filter,
   StretchHorizontal
 } from 'lucide-react';
@@ -76,7 +76,6 @@ export function GridHeader({
     }
   };
 
-  // Handle header editing
   // Handle header editing
   const handleHeaderKeyDown = (e: React.KeyboardEvent, columnId: string, newTitle: string) => {
     if (e.key === 'Enter') {
@@ -145,7 +144,6 @@ export function GridHeader({
     e.dataTransfer.dropEffect = 'move';
   };
 
-  // Handle column drop for reordering
   // Handle column drop for reordering
   const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
@@ -258,43 +256,27 @@ export function GridHeader({
   return (
     <div
       className="flex"
-      style={{ 
-        height: '36px', 
-        position: 'relative',
-        width: 'fit-content',
-        minWidth: '100%'
-      }}
+      style={{ height: '36px' }}
     >
       {columns.map((column, index) => {
         // Check if this is the opportunity column (should be frozen)
         const isFrozen = column.frozen || column.id === 'opportunity';
         const isActive = activeContextMenu === column.id;
-        const isLastColumn = index === columns.length - 1;
-        const isStickyRight = column.sticky === 'right';
-        const isStickyLeft = column.sticky === 'left';
-        
-        // Get width from columnWidths prop or fallback to column width
-        const width = getColumnWidth(index, column);
-        
-        // Fix opportunity column title - ensure it's always shown properly
-        const columnTitle = column.id === 'opportunity' ? 'Opportunity' : column.title || '';
-        
-        // Header element styles and classes for consistency
-        const headerClassName = [
-          'grid-header-cell',
-          draggedColumn === column.id ? 'dragging' : '',
-          isActive ? 'highlight-column' : '',
-          isFrozen ? 'grid-frozen-header' : '',
-          isStickyRight ? 'grid-sticky-right' : '',
-          isStickyLeft ? 'grid-sticky-left' : '',
-          'group'
-        ].filter(Boolean).join(' ');
         
         return (
           <div
             key={column.id}
-            className={headerClassName}
-            style={{ width: `${width}px` }}
+            className={`
+              grid-header-cell
+              ${draggedColumn === column.id ? 'dragging' : ''}
+              ${isActive ? 'highlight-column bg-[#D6EBFF]/25' : ''}
+              ${isFrozen ? 'grid-frozen-header' : ''}
+              group
+            `}
+            style={{ 
+              width: `${columnWidths[index] || column.width}px`,
+              ...(isFrozen ? { position: 'sticky', left: '48px', zIndex: 35 } : {})
+            }}
             draggable={!isFrozen}
             onDragStart={(e) => handleDragStart(e, column.id)}
             onDragOver={handleDragOver}
@@ -305,7 +287,7 @@ export function GridHeader({
               <input
                 className="header-edit-input"
                 autoFocus
-                defaultValue={columnTitle}
+                defaultValue={column.title}
                 onBlur={(e) => handleHeaderSave(column.id, e.target.value)}
                 onKeyDown={(e) => handleHeaderKeyDown(e, column.id, e.currentTarget.value)}
               />
@@ -315,7 +297,7 @@ export function GridHeader({
                   className="header-title"
                   onDoubleClick={() => handleHeaderDoubleClick(column.id)}
                 >
-                  {columnTitle}
+                  {column.title}
                 </span>
                 
                 <div className="header-cell-actions">
@@ -332,9 +314,9 @@ export function GridHeader({
         );
       })}
       
-      {/* Add column button - make it sticky right */}
-      <div 
-        className="add-column-button grid-sticky-right"
+      {/* Add column button */}
+      <div
+        className="add-column-button"
         onClick={() => {
           if (onAddColumn && columns.length > 0) {
             onAddColumn(columns[columns.length - 1].id);

@@ -1,9 +1,8 @@
-
 // Grid layout constants
 export const ROW_HEIGHT = 32;
 export const HEADER_HEIGHT = 36;
 export const INDEX_COLUMN_WIDTH = 48;
-export const DEFAULT_COLUMN_WIDTH = 150;
+export const DEFAULT_COLUMN_WIDTH = 200;
 export const MIN_COLUMN_WIDTH = 80;
 
 // Grid colors

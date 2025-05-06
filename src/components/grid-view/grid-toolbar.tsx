@@ -112,13 +112,13 @@ export function GridToolbar({
                     }
                   />
                   <Label htmlFor={`filter-${column.id}-${option}`} className="flex items-center cursor-pointer">
-                    <span 
+                      <span 
                       className="inline-block w-3 h-3 rounded-full mr-2"
-                      style={{ 
-                        backgroundColor: column.colors?.[option] || '#e5e7eb' 
-                      }}
-                    />
-                    {option}
+                        style={{ 
+                          backgroundColor: column.colors?.[option] || '#e5e7eb' 
+                        }}
+                      />
+                      {option}
                   </Label>
                 </div>
               );
@@ -266,26 +266,24 @@ export function GridToolbar({
             value={searchTerm}
             onChange={onSearchChange}
             placeholder="Search in grid..."
-            width="w-full"
-            maxWidth={440}
-            variant="leads"
+            width="w-[400px]"
           />
-          
+        
           {/* Active filter badges - moved left with the search */}
-          {filterCount > 0 && (
+              {filterCount > 0 && (
             <div className="flex gap-1 flex-wrap ml-2">
               {getFilterTags()}
-            </div>
-          )}
-        </div>
-        
+                  </div>
+                )}
+              </div>
+              
         {/* Right-aligned section */}
         <div className="flex items-center gap-2">
           {/* Column count text */}
           <div className="text-sm text-gray-500">
             {columnCount} column{columnCount !== 1 ? 's' : ''}
-          </div>
-          
+      </div>
+      
           {/* Filter button */}
           <FilterPopupBase
             columns={filterColumns}

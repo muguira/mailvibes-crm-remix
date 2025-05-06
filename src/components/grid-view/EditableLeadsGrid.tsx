@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { NewGridView } from '@/components/grid-view/new-grid-view';
+import { GridViewContainer } from '@/components/grid-view/GridViewContainer';
 import { Column, GridRow } from '@/components/grid-view/types';
 import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Pencil } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { mockContactsById, generateDummyLeads } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
@@ -49,25 +49,25 @@ export function EditableLeadsGrid() {
   useEffect(() => {
     if (!isLoading && rows.length === 0) {
       // Generate dummy leads if no data exists
-      const dummyLeads = generateDummyLeads();
-      
+    const dummyLeads = generateDummyLeads();
+    
       // Create rows for each dummy lead
       dummyLeads.forEach(lead => {
         const rowData: GridRow = {
-          id: lead.id,
-          opportunity: lead.name,
-          status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-          revenue: lead.revenue || Math.floor(Math.random() * 100000),
-          closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          owner: lead.owner || lead.name?.split(' ')[0] || '',
-          website: lead.website || 'https://example.com',
-          companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
-          linkedIn: 'https://linkedin.com/company/example',
-          employees: lead.employees || Math.floor(Math.random() * 1000),
-          lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          email: lead.email,
+      id: lead.id,
+      opportunity: lead.name,
+      status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+      revenue: lead.revenue || Math.floor(Math.random() * 100000),
+      closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      owner: lead.owner || lead.name?.split(' ')[0] || '',
+      website: lead.website || 'https://example.com',
+      companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
+      linkedIn: 'https://linkedin.com/company/example',
+      employees: lead.employees || Math.floor(Math.random() * 1000),
+      lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      email: lead.email,
         };
-        
+    
         // Add row to storage
         updateCell({ rowId: rowData.id, columnId: 'opportunity', value: rowData.opportunity });
       });
@@ -107,23 +107,15 @@ export function EditableLeadsGrid() {
   const [columns, setColumns] = useState<Column[]>([
     {
       id: 'opportunity',
-      title: 'Opportunity',
-      type: 'custom',
-      width: DEFAULT_COLUMN_WIDTH + 20, // Give a bit more width to opportunity column
+      title: 'Contacts',
+      type: 'text',
+      width: 180, // Changed from DEFAULT_COLUMN_WIDTH + 40 to exactly 180px
       editable: true,
       frozen: true,
       renderCell: (value, row) => (
-        <div className="flex items-center">
-          <Link 
-            to={`/stream-view/${row.id}`} 
-            className="text-primary hover:underline flex items-center group"
-          >
-            {value}
-            <span className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Pencil size={14} />
-            </span>
-          </Link>
-        </div>
+        <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
+          {value}
+        </Link>
       ),
     },
     {
@@ -186,28 +178,17 @@ export function EditableLeadsGrid() {
     {
       id: 'lastContacted',
       title: 'Last Contacted',
-      type: 'date',
+      type: 'text',
       width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
+      editable: true
     },
     {
       id: 'streamLink',
       title: '',
       type: 'custom',
-      width: 60,
+      width: 48,
       editable: false,
-      sticky: 'right',
-      renderCell: (_, row) => (
-        <div className="flex justify-center">
-          <Link 
-            to={`/stream-view/${row.id}`} 
-            className="text-gray-500 hover:text-primary"
-            aria-label="Open in Stream View"
-          >
-            <ExternalLink size={16} />
-          </Link>
-        </div>
-      ),
+      renderCell: () => null, // Remove the external link icon
     }
   ]);
   
@@ -215,12 +196,12 @@ export function EditableLeadsGrid() {
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
     // Update cell in Supabase or localStorage
     updateCell({ rowId, columnId, value });
-    
+      
     // Update mockContactsById for Stream View integrity
-    const row = rows.find(r => r.id === rowId);
-    if (row) {
-      const updatedRow = { ...row, [columnId]: value };
-      syncContact(updatedRow);
+      const row = rows.find(r => r.id === rowId);
+      if (row) {
+        const updatedRow = { ...row, [columnId]: value };
+        syncContact(updatedRow);
     }
   };
 
@@ -251,22 +232,56 @@ export function EditableLeadsGrid() {
   
   // Handle adding a new column
   const handleAddColumn = (afterColumnId: string) => {
-    const newColumnId = `column-${uuidv4()}`;
+    // Don't allow adding columns after lastContacted
+    if (afterColumnId === 'lastContacted') {
+      console.log("Cannot add columns after lastContacted");
+      return;
+    }
+    
+    // Log for debugging
+    console.log(`Adding column after: ${afterColumnId}`);
+    
+    // Check if adding before lastContacted
+    const lastContactedIdx = columns.findIndex(col => col.id === 'lastContacted');
+    const afterColumnIdx = columns.findIndex(col => col.id === afterColumnId);
+    
+    // Don't allow adding columns that would push lastContacted further right
+    if (lastContactedIdx >= 0 && afterColumnIdx >= lastContactedIdx) {
+      console.log("Cannot add columns that would push lastContacted further right");
+      return;
+    }
+    
+    // Always use a fixed width of 200px for new columns
     const newColumn: Column = {
-      id: newColumnId,
-      title: 'New Column',
+      id: uuidv4(),
+      title: `New Column`,
       type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
+      width: 200, // Explicit 200px, not using DEFAULT_COLUMN_WIDTH
+      editable: true
     };
     
-    const afterColumnIndex = columns.findIndex(col => col.id === afterColumnId);
-    
-    setColumns(prev => [
-      ...prev.slice(0, afterColumnIndex + 1),
-      newColumn,
-      ...prev.slice(afterColumnIndex + 1)
-    ]);
+    // Add the column at the right position
+    setColumns(prevColumns => {
+      const afterColumnIndex = prevColumns.findIndex(col => col.id === afterColumnId);
+      
+      // If column found in the list
+      if (afterColumnIndex >= 0) {
+        // Simple insertion after the target column
+        let result = [...prevColumns];
+        result.splice(afterColumnIndex + 1, 0, newColumn);
+        return result;
+      }
+      
+      // Fallback - add at beginning (after opportunity)
+      const opportunityIndex = prevColumns.findIndex(col => col.id === 'opportunity');
+      if (opportunityIndex >= 0) {
+        let result = [...prevColumns];
+        result.splice(opportunityIndex + 1, 0, newColumn);
+        return result;
+      }
+      
+      return [...prevColumns, newColumn];
+    });
   };
   
   // Show loading message during initial data load
@@ -278,46 +293,46 @@ export function EditableLeadsGrid() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Grid with paginated data and firstRowIndex for absolute numbering */}
       <div className="flex-1 overflow-hidden">
-        <NewGridView 
-          columns={columns} 
-          data={paginated}
-          listName="All Leads"
-          listType="Lead"
-          listId="leads-grid"
+      <GridViewContainer 
+        columns={columns} 
+        data={paginated}
+        listName="All Leads"
+        listType="Lead"
+        listId="leads-grid"
           firstRowIndex={firstRowIndex}
-          onCellChange={handleCellChange}
-          onColumnChange={handleColumnChange}
-          onColumnsReorder={handleColumnsReorder}
-          onDeleteColumn={handleDeleteColumn}
-          onAddColumn={handleAddColumn}
+        onCellChange={handleCellChange}
+        onColumnChange={handleColumnChange}
+        onColumnsReorder={handleColumnsReorder}
+        onDeleteColumn={handleDeleteColumn}
+        onAddColumn={handleAddColumn}
           onSearchChange={setSearchTerm}
           searchTerm={searchTerm}
           className="h-full"
-        />
+      />
       </div>
       
       {/* Sticky pager UI at the bottom */}
       <div className="sticky bottom-0 z-10 bg-white border-t border-slate-light flex items-center justify-end px-4 py-2">
         <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            disabled={page === 0} 
-            onClick={() => setPage(p => p - 1)}
-          >
-            Prev
-          </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          disabled={page === 0} 
+          onClick={() => setPage(p => p - 1)}
+        >
+          Prev
+        </Button>
           <span className="flex items-center text-sm">
             Page <b className="mx-1">{page + 1}</b> of <b className="ml-1">{pageCount || 1}</b>
-          </span>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            disabled={page >= pageCount-1} 
-            onClick={() => setPage(p => p + 1)}
-          >
-            Next
-          </Button>
+        </span>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          disabled={page >= pageCount-1} 
+          onClick={() => setPage(p => p + 1)}
+        >
+          Next
+        </Button>
         </div>
       </div>
     </div>
