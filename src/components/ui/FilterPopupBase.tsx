@@ -106,7 +106,7 @@ export function FilterPopupBase({
           {!iconOnly && "Filter"}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[340px] p-0 shadow-lg rounded-lg z-[1000]" align={align}>
+      <PopoverContent className="w-[340px] p-0 shadow-lg rounded-lg z-[10001]" align={align}>
         <div className="p-4 border-b border-gray-100 flex justify-between items-center">
           <h3 className="font-medium text-sm">Filter Data</h3>
           <Button 

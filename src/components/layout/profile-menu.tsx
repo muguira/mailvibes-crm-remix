@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/contexts/AuthContext";
 import { LogOut, Settings, User } from "lucide-react";
 import {
@@ -43,7 +42,7 @@ export function ProfileMenu() {
           {userInitials}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="w-56 z-[10001]">
         <div className="px-2 py-2 text-sm">
           <p className="font-medium">{user.email}</p>
         </div>
