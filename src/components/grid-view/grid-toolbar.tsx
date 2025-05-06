@@ -282,23 +282,35 @@ export function GridToolbar({
           {/* Column count text */}
           <div className="text-sm text-gray-500">
             {columnCount} column{columnCount !== 1 ? 's' : ''}
-      </div>
+          </div>
       
-          {/* Filter button */}
-          <FilterPopupBase
-            columns={filterColumns}
-            isOpen={isFilterOpen}
-            onOpenChange={setIsFilterOpen}
-            selectedColumns={selectedColumns}
-            onSelectedColumnsChange={setSelectedColumns}
-            filterValues={filterValues}
-            onFilterValuesChange={setFilterValues}
-            onApplyFilters={handleApplyFilters}
-            onClearFilters={handleClearFilters}
-            align="end"
-            renderFilterValueSelector={renderFilterValueSelector}
-            triggerClassName={`h-8 px-3 ${filterCount > 0 ? "bg-primary/10 border-primary/30" : ""}`}
-          />
+          {/* Filter button and Add Contact button */}
+          <div className="flex items-center gap-3">
+            {/* Filter button styled to match the image */}
+            <FilterPopupBase
+              columns={filterColumns}
+              isOpen={isFilterOpen}
+              onOpenChange={setIsFilterOpen}
+              selectedColumns={selectedColumns}
+              onSelectedColumnsChange={setSelectedColumns}
+              filterValues={filterValues}
+              onFilterValuesChange={setFilterValues}
+              onApplyFilters={handleApplyFilters}
+              onClearFilters={handleClearFilters}
+              align="end"
+              renderFilterValueSelector={renderFilterValueSelector}
+              triggerClassName="h-10 w-10 bg-white border border-gray-300 rounded-md flex items-center justify-center shadow-sm"
+              iconOnly={true}
+            />
+            
+            {/* Add Contact button */}
+            <Button 
+              className="bg-[#32BAB0] hover:bg-[#28a79d] text-white rounded-md px-6 py-2 h-10"
+              onClick={() => console.log('Add Contact clicked')}
+            >
+              Add Contact
+            </Button>
+          </div>
         </div>
       </div>
     </div>

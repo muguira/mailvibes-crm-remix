@@ -27,6 +27,7 @@ export interface FilterPopupBaseProps {
   triggerClassName?: string;
   align?: "start" | "center" | "end";
   renderFilterValueSelector?: (column: FilterColumn) => React.ReactNode;
+  iconOnly?: boolean;
 }
 
 export function FilterPopupBase({
@@ -41,7 +42,8 @@ export function FilterPopupBase({
   onClearFilters,
   triggerClassName = "",
   align = "end",
-  renderFilterValueSelector
+  renderFilterValueSelector,
+  iconOnly = false
 }: FilterPopupBaseProps) {
   const [selectedField, setSelectedField] = useState<string | null>(null);
 
@@ -100,8 +102,8 @@ export function FilterPopupBase({
           className={`${triggerClassName} ${selectedColumns.length > 0 ? "bg-primary/10 border-primary/30" : ""}`}
           onClick={() => onOpenChange(!isOpen)}
         >
-          <Filter size={16} className="mr-1" />
-          Filter
+          <Filter size={16} className={iconOnly ? "" : "mr-1"} />
+          {!iconOnly && "Filter"}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[340px] p-0 shadow-lg rounded-lg z-[1000]" align={align}>
