@@ -98,12 +98,13 @@ export function FilterPopupBase({
           variant="outline" 
           size="sm"
           className={`${triggerClassName} ${selectedColumns.length > 0 ? "bg-primary/10 border-primary/30" : ""}`}
+          onClick={() => onOpenChange(!isOpen)}
         >
           <Filter size={16} className="mr-1" />
           Filter
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[340px] p-0 shadow-lg rounded-lg" align={align}>
+      <PopoverContent className="w-[340px] p-0 shadow-lg rounded-lg z-[1000]" align={align}>
         <div className="p-4 border-b border-gray-100 flex justify-between items-center">
           <h3 className="font-medium text-sm">Filter Data</h3>
           <Button 

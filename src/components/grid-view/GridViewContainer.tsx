@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Column, GridRow, GridContainerProps } from './types';
 import { GridToolbar } from './grid-toolbar';
 import { StaticColumns } from './StaticColumns';
@@ -36,7 +36,7 @@ export function GridViewContainer({
   
   // Filter state
   const [activeFilters, setActiveFilters] = useState<{ columns: string[], values: Record<string, any> }>({ columns: [], values: {} });
-  const [visibleData, setVisibleData] = useState<GridRow[]>([]);
+  const [visibleData, setVisibleData] = useState<GridRow[]>(data);
   
   // Context menu state
   const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
@@ -63,10 +63,74 @@ export function GridViewContainer({
     };
   }, []);
   
-  // Set visible data on initial load and when filters change
+  // Filter data based on search term and active filters
+  const applyFilters = useCallback(() => {
+    // Start with all data
+    let result = data;
+
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(row => {
+        return columns.some(column => {
+          const value = row[column.id];
+          if (value === null || value === undefined) return false;
+          return String(value).toLowerCase().includes(term);
+        });
+      });
+    }
+
+    // Apply column filters
+    if (activeFilters.columns.length > 0) {
+      result = result.filter(row => {
+        return activeFilters.columns.every(columnId => {
+          const value = row[columnId];
+          const filterValue = activeFilters.values[columnId];
+          const column = columns.find(col => col.id === columnId);
+
+          if (!column) return true;
+
+          // Different filter logic based on column type
+          switch (column.type) {
+            case 'status':
+              if (!filterValue || filterValue.length === 0) {
+                return value !== null && value !== undefined && value !== '';
+              }
+              return filterValue.includes(value);
+
+            case 'date':
+              if (!filterValue) return value !== null && value !== undefined && value !== '';
+
+              const dateValue = value ? new Date(value) : null;
+              if (!dateValue) return false;
+
+              const startDate = filterValue.start ? new Date(filterValue.start) : null;
+              const endDate = filterValue.end ? new Date(filterValue.end) : null;
+
+              if (startDate && endDate) {
+                return dateValue >= startDate && dateValue <= endDate;
+              } else if (startDate) {
+                return dateValue >= startDate;
+              } else if (endDate) {
+                return dateValue <= endDate;
+              }
+              return true;
+
+            default:
+              return value !== null && value !== undefined && value !== '';
+          }
+        });
+      });
+    }
+
+    return result;
+  }, [data, columns, searchTerm, activeFilters]);
+
+  // Apply filters whenever filter conditions change
   useEffect(() => {
-    setVisibleData(data);
-  }, [data]);
+    const filteredData = applyFilters();
+    setVisibleData(filteredData);
+  }, [applyFilters, searchTerm, activeFilters]);
   
   // Handle search change
   const handleSearchChange = (term: string) => {
@@ -79,6 +143,7 @@ export function GridViewContainer({
   
   // Handle filter changes
   const handleApplyFilters = (filters: { columns: string[], values: Record<string, any> }) => {
+    console.log("Applying filters:", filters);
     setActiveFilters(filters);
   };
   

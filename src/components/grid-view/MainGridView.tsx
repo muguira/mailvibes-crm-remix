@@ -12,6 +12,18 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandGroup,
+  CommandItem
+} from '@/components/ui/command';
 
 interface MainGridViewProps {
   columns: Column[];
@@ -54,8 +66,6 @@ export function MainGridView({
   const [editingCell, setEditingCell] = useState<{ rowId: string, columnId: string } | null>(null);
   const [selectedCell, setSelectedCell] = useState<{ rowId: string, columnId: string } | null>(null);
   const [columnWidths, setColumnWidths] = useState<number[]>(columns.map(col => col.width));
-  // Track status dropdown state
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   
   // Add optimistic updates state to immediately show changes locally
   const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, any>>({});
@@ -178,7 +188,7 @@ export function MainGridView({
     };
   }, []);
   
-  // Add keyboard event handlers
+  // Update keyboard event handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Do nothing if context menu is open
@@ -212,8 +222,8 @@ export function MainGridView({
         return;
       }
       
-      // Don't handle arrow keys if no cell is selected or if a status dropdown is open
-      if (!selectedCell || statusDropdownOpen) return;
+      // Don't handle arrow keys if no cell is selected or if any popover/dropdown is open
+      if (!selectedCell || document.querySelector("[data-state='open']") || document.querySelector(".status-options-popup")) return;
       
       // If we're editing, only handle Escape and Enter
       if (editingCell) {
@@ -368,7 +378,7 @@ export function MainGridView({
       document.body.classList.remove('grid-keyboard-nav-light');
       document.body.classList.remove('grid-scroll-active');
     };
-  }, [selectedCell, editingCell, columns, data, contextMenuColumn, statusDropdownOpen]);
+  }, [selectedCell, editingCell, columns, data, contextMenuColumn]);
   
   // Add global click handler to handle clicking away properly
   useEffect(() => {
@@ -376,6 +386,11 @@ export function MainGridView({
       if (!editingCell) return; // Only handle when actively editing
       
       const target = e.target as HTMLElement;
+      
+      // If target is inside the status popup, don't close it
+      if (target.closest('.status-options-popup') || target.closest('.status-popup-header')) {
+        return;
+      }
       
       // If target is already handled by a cell click, ignore
       if (target.closest('.grid-cell')) {
@@ -501,13 +516,12 @@ export function MainGridView({
       setTimeout(() => {
         setSelectedCell({ rowId, columnId });
         
-        // For status cells, enter edit mode on first click
-        if (column?.type === 'status' && column.editable) {
-          setEditingCell({ rowId, columnId });
-        }
+        // For status cells, we DO NOT enter edit mode on first click anymore
+        // This is now handled by double-click for status cells too
       }, 10);
-    } else if (column?.type !== 'status' && column?.editable) {
+    } else if (column?.editable) {
       // Double click behavior - entering edit mode on second click
+      // But for status column, this is handled by onDoubleClick on the cell
       setEditingCell({ rowId, columnId });
     }
   };
@@ -887,6 +901,119 @@ export function MainGridView({
     const isSelected = selectedCell?.rowId === row.id && selectedCell?.columnId === column.id;
     const value = row[column.id];
     
+    // Special handler for status column - only open on double click
+    if (column.id === 'status') {
+      return (
+        <div
+          style={{
+            ...style,
+            height: ROW_HEIGHT,
+            borderBottom: '1px solid #e5e7eb',
+            borderRight: '1px solid #e5e7eb',
+            boxSizing: 'border-box',
+            width: column.width,
+            display: 'flex',
+            justifyContent: 'center', // Keep pill centered
+            alignItems: 'center'
+          }}
+          className={`grid-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''} ${isSelected ? 'selected-cell' : ''}`}
+          data-cell={cellId}
+          data-column-id={column.id}
+          onClick={(e) => handleCellClick(row.id, column.id, e)}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            // Enter edit mode on double-click
+            if (column?.editable) {
+              setEditingCell({ rowId: row.id, columnId: column.id });
+            }
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (onContextMenu) {
+              onContextMenu(column.id, { x: e.clientX, y: e.clientY });
+            }
+          }}
+        >
+          {isEditing ? (
+            <div className="w-full h-full flex justify-center items-center">
+              <Popover open={true}>
+                <PopoverTrigger asChild>
+                  <div className="cursor-pointer flex justify-center items-center">
+                    {renderStatusPill(value, column.colors)}
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent 
+                  className="status-options-popup"
+                  align="start"
+                  side="bottom"
+                  alignOffset={-50}
+                  sideOffset={5}
+                >
+                  <div className="status-popup-header">
+                    <span>Select Status</span>
+                    <button 
+                      className="status-popup-close" 
+                      onClick={() => setEditingCell(null)}
+                      aria-label="Close status popup"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <Command className="status-command">
+                    <CommandList>
+                      <CommandGroup>
+                        {(column.options || []).map(option => {
+                          // Use the same custom colors definition for consistency
+                          const customColors: Record<string, { bg: string, text: string }> = {
+                            'New': { bg: '#9ca3af', text: '#ffffff' },
+                            'In Progress': { bg: '#60a5fa', text: '#ffffff' },
+                            'On Hold': { bg: '#fcd34d', text: '#000000' },
+                            'Closed Won': { bg: '#34d399', text: '#ffffff' },
+                            'Closed Lost': { bg: '#f87171', text: '#ffffff' }
+                          };
+                          
+                          const customColor = customColors[option];
+                          const bgColor = customColor?.bg || column.colors?.[option] || '#e5e7eb';
+                          
+                          return (
+                            <CommandItem 
+                              key={option} 
+                              value={option}
+                              onSelect={() => {
+                                finishCellEdit(row.id, column.id, option);
+                              }}
+                              className="status-command-item"
+                            >
+                              <div className="flex items-center gap-2 w-full">
+                                <span
+                                  className="inline-block w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: bgColor }}
+                                />
+                                <span>{option}</span>
+                                {value === option && (
+                                  <Check className="ml-auto h-4 w-4" />
+                                )}
+                              </div>
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+          ) : (
+            <div className="flex justify-center items-center">
+              {renderStatusPill(value, column.colors)}
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // Regular cell rendering (non-status)
     return (
       <div
         style={{
@@ -1027,22 +1154,6 @@ export function MainGridView({
               onValueChange={(selectedValue) => {
                 // Apply optimistic update and save
                 finishCellEdit(row.id, column.id, selectedValue);
-              }}
-              onOpenChange={(open) => {
-                // Track dropdown state for keyboard navigation
-                setStatusDropdownOpen(open);
-                
-                if (!open) {
-                  // When dropdown closes without selection, clean up
-                  setEditingCell(null);
-                  
-                  // Force focus back to the grid
-                  if (mainViewRef.current) {
-                    setTimeout(() => {
-                      mainViewRef.current.focus();
-                    }, 10);
-                  }
-                }
               }}
             >
               <SelectTrigger className="grid-cell-input status-select" autoFocus>

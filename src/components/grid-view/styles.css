@@ -730,3 +730,98 @@ body.grid-scroll-active .main-grid-body {
 .main-grid-view:focus-within {
   z-index: 10 !important; /* Force to be lower than toolbar */
 }
+
+/* Status popover styling with close button */
+.status-options-popup {
+  width: 160px; /* Smaller width to match blue box size in image */
+  padding: 0;
+  background-color: white;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+  overflow: hidden;
+  animation: none !important; /* Remove animation for immediate appearance */
+  transform-origin: var(--radix-popover-content-transform-origin);
+  transform: translateY(0) !important; /* Prevent any transform that might shift position */
+  max-height: 250px; /* Limit the maximum height */
+}
+
+/* Status pill centering in grid cell */
+.grid-cell[data-column-id="status"] {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  padding: 0 !important; /* Remove default padding to ensure proper centering */
+}
+
+.status-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px; /* Reduced padding from 8px 12px */
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 13px; /* Reduced from 14px */
+  font-weight: 500;
+}
+
+.status-popup-close {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.status-popup-close:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.status-command {
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+
+/* Remove padding usually reserved for search input */
+.status-command [cmdk-list] {
+  padding-top: 0 !important;
+  gap: 0 !important;
+}
+
+.status-command-item {
+  padding: 4px 10px; /* Reduced padding from 8px 12px */
+  border-radius: 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  height: 28px; /* Explicitly set height to be shorter */
+  min-height: 28px;
+  font-size: 13px; /* Smaller font size */
+}
+
+.status-command-item:hover {
+  background-color: #B3DFD5 !important; /* Light teal color as specified */
+}
+
+.status-command-item[data-selected=true] {
+  background-color: #B3DFD5 !important; /* Use same color for selected state */
+}
+
+/* Fix z-index hierarchy for consistent popover behavior */
+[data-state="open"][data-trigger="status"] {
+  z-index: 49 !important;
+}
+
+/* Smaller checkmark icon */
+.status-command-item .ml-auto.h-4.w-4 {
+  height: 14px !important;
+  width: 14px !important;
+}
