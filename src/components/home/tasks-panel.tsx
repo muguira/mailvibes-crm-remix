@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { DeadlinePopup } from "./deadline-popup";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-fns";
 import { es } from 'date-fns/locale';
+import { CreateTaskDialog } from "./create-task-dialog";
 
 interface Task {
   id: string;
@@ -120,6 +121,28 @@ export function TasksPanel() {
     );
   };
 
+  const handleCreateTask = (newTask: {
+    title: string;
+    deadline?: string;
+    type: "follow-up" | "respond" | "task";
+    tag?: string;
+  }) => {
+    const task: Task = {
+      id: crypto.randomUUID(),
+      title: newTask.title,
+      deadline: newTask.deadline,
+      contact: "",
+      // Check if the task is overdue when creating
+      status: newTask.deadline && isPast(startOfDay(parseISO(newTask.deadline)))
+        ? "overdue"
+        : "upcoming",
+      type: newTask.type,
+      tag: newTask.tag
+    };
+
+    setTasks(prev => [...prev, task]);
+  };
+
   return (
     <div className="bg-background text-foreground rounded-lg overflow-hidden h-full flex flex-col shadow-lg">
       <div className="p-4 flex items-center gap-4">
@@ -155,10 +178,7 @@ export function TasksPanel() {
         </div>
 
         <div className="p-4 border-b border-border">
-          <button className="w-full text-left text-muted-foreground flex items-center gap-2 py-2 hover:text-foreground transition-colors">
-            <Plus size={20} />
-            Create task
-          </button>
+          <CreateTaskDialog onCreateTask={handleCreateTask} />
         </div>
 
         <div className="overflow-y-auto flex-1">
@@ -224,11 +244,11 @@ function TaskItem({ task, onStatusChange, onDeadlineChange }: TaskItemProps) {
   const getDueDateColor = () => {
     if (!deadline) return "text-muted-foreground";
 
+    if (task.status === "overdue" || isPast(startOfDay(deadline))) {
+      return "text-red-400";
+    }
     if (isToday(deadline) || isTomorrow(deadline)) {
       return "text-emerald-400";
-    }
-    if (task.status === "overdue") {
-      return "text-red-400";
     }
     return "text-muted-foreground";
   };
