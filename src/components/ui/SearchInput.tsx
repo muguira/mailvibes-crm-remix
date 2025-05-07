@@ -60,10 +60,10 @@ export function SearchInput({
     <div className={`relative flex items-center ${className}`}>
       {/* Search icon - always visible */}
       <div 
-        className={`${isMobile ? 'cursor-pointer p-2' : ''}`} 
+        className={`${isMobile ? 'cursor-pointer p-2' : 'absolute left-2 top-1/2 -translate-y-1/2 z-10'}`} 
         onClick={handleSearchIconClick}
       >
-        <Search className={`h-4 w-4 text-gray-400 ${isMobile ? 'mx-auto' : 'absolute left-2 top-1/2 -translate-y-1/2'}`} />
+        <Search className={`h-4 w-4 text-gray-400 ${isMobile ? 'mx-auto' : ''}`} />
       </div>
       
       {/* Search input - can be collapsed on mobile */}
