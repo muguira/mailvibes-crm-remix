@@ -23,6 +23,7 @@ interface Task {
     status?: "on-track" | "at-risk" | "off-track";
     description?: string;
     dependencies?: string[];
+    subtasks?: string[];
 }
 
 interface TaskEditPopupProps {
@@ -58,7 +59,9 @@ const STATUSES = [
 export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, allTasks = [] }: TaskEditPopupProps) {
     const [editedTask, setEditedTask] = useState<Task>({ ...task });
     const [openDependencies, setOpenDependencies] = useState(false);
+    const [openSubtasks, setOpenSubtasks] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [subtaskSearchQuery, setSubtaskSearchQuery] = useState("");
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -107,6 +110,21 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
         }
 
         const updatedTask = { ...editedTask, dependencies: newDependencies };
+        setEditedTask(updatedTask);
+        onSave(updatedTask);
+    };
+
+    const toggleSubtask = (taskId: string) => {
+        const currentSubtasks = editedTask.subtasks || [];
+        let newSubtasks: string[];
+
+        if (currentSubtasks.includes(taskId)) {
+            newSubtasks = currentSubtasks.filter(id => id !== taskId);
+        } else {
+            newSubtasks = [...currentSubtasks, taskId];
+        }
+
+        const updatedTask = { ...editedTask, subtasks: newSubtasks };
         setEditedTask(updatedTask);
         onSave(updatedTask);
     };
@@ -412,10 +430,97 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
                         )}
                     </div>
 
-                    <Button variant="outline" className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        Add subtask
-                    </Button>
+                    <div className="space-y-2">
+                        <span className="text-sm font-medium">Subtasks</span>
+                        <div className="relative w-full">
+                            <Popover open={openSubtasks} onOpenChange={setOpenSubtasks}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        className={cn(
+                                            "w-full justify-between",
+                                            openSubtasks && "bg-[#2A7B88] text-white border-[#2A7B88]"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {editedTask.subtasks?.length ? (
+                                                <span>{editedTask.subtasks.length} selected</span>
+                                            ) : (
+                                                <span>Add subtask</span>
+                                            )}
+                                        </div>
+                                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[400px] p-0" align="start">
+                                    <div className="p-2 border-b">
+                                        <Input
+                                            placeholder="Search tasks..."
+                                            value={subtaskSearchQuery}
+                                            onChange={(e) => setSubtaskSearchQuery(e.target.value)}
+                                            className="h-8"
+                                        />
+                                    </div>
+                                    <div className="max-h-[300px] overflow-y-auto py-1">
+                                        {allTasks
+                                            .filter(t =>
+                                                t.id !== task.id &&
+                                                t.title.toLowerCase().includes(subtaskSearchQuery.toLowerCase())
+                                            )
+                                            .map(t => (
+                                                <div
+                                                    key={t.id}
+                                                    role="option"
+                                                    className={cn(
+                                                        "flex items-center w-full px-2 py-2 cursor-pointer hover:bg-muted gap-2",
+                                                        editedTask.subtasks?.includes(t.id) && "bg-muted"
+                                                    )}
+                                                    onClick={() => toggleSubtask(t.id)}
+                                                >
+                                                    <div className={cn(
+                                                        "h-4 w-4 border rounded flex items-center justify-center",
+                                                        editedTask.subtasks?.includes(t.id)
+                                                            ? "bg-[#2A7B88] border-[#2A7B88]"
+                                                            : "border-input"
+                                                    )}>
+                                                        {editedTask.subtasks?.includes(t.id) && (
+                                                            <Check className="h-3 w-3 text-white" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 flex-1">
+                                                        <span className="flex-1">{t.title}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs px-2 py-0.5 rounded bg-muted">
+                                                                {t.type}
+                                                            </span>
+                                                            {t.displayStatus === "completed" && (
+                                                                <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500">
+                                                                    Completed
+                                                                </span>
+                                                            )}
+                                                            {t.displayStatus === "overdue" && (
+                                                                <span className="text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-500">
+                                                                    Overdue
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        {allTasks.filter(t =>
+                                            t.id !== task.id &&
+                                            t.title.toLowerCase().includes(subtaskSearchQuery.toLowerCase())
+                                        ).length === 0 && (
+                                                <div className="py-6 text-center text-sm text-muted-foreground">
+                                                    No tasks found.
+                                                </div>
+                                            )}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    </div>
 
                     <div className="space-y-2">
                         <span className="text-sm font-medium">Comments</span>
