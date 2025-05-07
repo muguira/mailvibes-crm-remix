@@ -1,4 +1,4 @@
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Task } from "./tasks-panel";
@@ -9,6 +9,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DeadlinePopup } from "./deadline-popup";
 import { cn } from "@/lib/utils";
 import { TaskDropdown } from "./task-dropdown";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface TaskEditPopupProps {
     task: Task;
@@ -64,6 +67,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: T
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-2xl bg-background text-foreground p-0">
+                <DialogTitle className="sr-only">Edit Task</DialogTitle>
                 <div className="flex items-center justify-between p-4 border-b border-border">
                     <Button
                         variant="ghost"
@@ -137,30 +141,101 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: T
 
                         <div className="space-y-2">
                             <span className="text-sm text-muted-foreground">Fields</span>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <div className="text-sm text-muted-foreground mb-1">Priority</div>
-                                    <select
-                                        value={editedTask.priority || "medium"}
-                                        onChange={(e) => handleInputChange("priority", e.target.value)}
-                                        className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        <option value="low">Low</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
-                                    </select>
+                            <div className="border rounded-lg overflow-hidden">
+                                <div className="grid grid-cols-2 border-b border-border">
+                                    <div className="flex items-center gap-2 px-4 py-2 text-muted-foreground">
+                                        <span className="text-sm">Priority</span>
+                                    </div>
+                                    <div className="flex items-center px-4 py-2">
+                                        <Select
+                                            value={editedTask.priority || "medium"}
+                                            onValueChange={(value) => handleInputChange("priority", value)}
+                                        >
+                                            <SelectTrigger className="w-[140px] h-7 text-sm">
+                                                <SelectValue placeholder="Select priority">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={cn(
+                                                            "w-2 h-2 rounded-full",
+                                                            editedTask.priority === "high" && "bg-red-500",
+                                                            editedTask.priority === "medium" && "bg-yellow-500",
+                                                            editedTask.priority === "low" && "bg-emerald-500",
+                                                            !editedTask.priority && "bg-gray-400"
+                                                        )} />
+                                                        {editedTask.priority ? editedTask.priority.charAt(0).toUpperCase() + editedTask.priority.slice(1) : "Medium"}
+                                                    </div>
+                                                </SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="low">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                                        <span>Low</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="medium">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                                                        <span>Medium</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="high">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-2 h-2 rounded-full bg-red-500" />
+                                                        <span>High</span>
+                                                    </div>
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div className="text-sm text-muted-foreground mb-1">Status</div>
-                                    <select
-                                        value={editedTask.status}
-                                        onChange={(e) => handleInputChange("status", e.target.value as Task["status"])}
-                                        className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        <option value="on-track">On track</option>
-                                        <option value="at-risk">At risk</option>
-                                        <option value="off-track">Off track</option>
-                                    </select>
+                                <div className="grid grid-cols-2">
+                                    <div className="flex items-center gap-2 px-4 py-2 text-muted-foreground">
+                                        <span className="text-sm">Status</span>
+                                    </div>
+                                    <div className="flex items-center px-4 py-2">
+                                        <Select
+                                            value={editedTask.status || "on-track"}
+                                            onValueChange={(value) => handleInputChange("status", value)}
+                                        >
+                                            <SelectTrigger className="w-[140px] h-7 text-sm">
+                                                <SelectValue placeholder="Select status">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={cn(
+                                                            "w-2 h-2 rounded-full",
+                                                            editedTask.status === "on-track" && "bg-emerald-500",
+                                                            editedTask.status === "at-risk" && "bg-yellow-500",
+                                                            editedTask.status === "off-track" && "bg-red-500",
+                                                            !editedTask.status && "bg-emerald-500"
+                                                        )} />
+                                                        {editedTask.status ?
+                                                            (editedTask.status === "on-track" ? "On track" :
+                                                                editedTask.status === "at-risk" ? "At risk" :
+                                                                    "Off track") : "On track"}
+                                                    </div>
+                                                </SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="on-track">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                                        <span>On track</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="at-risk">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                                                        <span>At risk</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="off-track">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-2 h-2 rounded-full bg-red-500" />
+                                                        <span>Off track</span>
+                                                    </div>
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
