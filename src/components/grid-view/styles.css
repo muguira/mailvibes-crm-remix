@@ -14,6 +14,7 @@
 /* Grid toolbar - fixed position below main navigation */
 .grid-toolbar {
   display: flex;
+  flex-direction: column; /* Allow for filter tags to appear below on mobile */
   align-items: center;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #e5e7eb;
@@ -26,7 +27,98 @@
   right: 0;
   width: 100%;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-  height: 60px; /* Explicit height to ensure consistent spacing */
+  min-height: 60px; /* Changed from fixed to minimum height for mobile adaptability */
+}
+
+/* Mobile toolbar optimizations */
+@media (max-width: 767px) {
+  /* Container for mobile toolbar buttons */
+  .grid-toolbar .flex.items-center.w-full {
+    height: 40px;
+    align-items: center;
+    padding-right: 8px;
+  }
+  
+  /* Ensure buttons are properly sized and aligned */
+  .grid-toolbar button.p-2,
+  .grid-toolbar .h-9.w-9 {
+    height: 36px;
+    width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Filter button next to search icon when collapsed */
+  .grid-toolbar .flex.items-center .ml-1 {
+    margin-left: 4px;
+  }
+  
+  /* Make sure search expands smoothly */
+  .grid-toolbar .absolute.left-10.right-0 {
+    animation: slideIn 0.2s ease-out;
+    height: 36px;
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Animation for search expansion */
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  /* Ensure focus stays on search when expanded */
+  .grid-toolbar .search-input-field:focus {
+    outline: none;
+    border-color: #32BAB0;
+  }
+  
+  /* Make dialog smaller on mobile */
+  [data-radix-dialog-content] {
+    max-width: 92vw !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+    padding: 16px !important;
+  }
+  
+  /* Dialog header smaller on mobile */
+  [data-radix-dialog-title] {
+    font-size: 18px !important;
+  }
+  
+  [data-radix-dialog-description] {
+    font-size: 14px !important;
+    margin-bottom: 8px !important;
+  }
+  
+  /* Fix spacing in dialog content */
+  [data-radix-dialog-content] .grid.gap-4 {
+    gap: 12px !important;
+  }
+  
+  /* Smaller labels and inputs in dialog */
+  [data-radix-dialog-content] label {
+    font-size: 14px !important;
+    margin-bottom: 2px !important;
+  }
+  
+  /* Prevent content overflow */
+  [data-radix-dialog-content] input,
+  [data-radix-dialog-content] select {
+    font-size: 14px !important;
+  }
+  
+  /* Button spacing in dialog footer */
+  [data-radix-dialog-footer].flex-col > button {
+    margin-top: 8px !important;
+  }
 }
 
 .toolbar-left,
@@ -41,6 +133,25 @@
 
 .toolbar-right {
   gap: 0.5rem;
+}
+
+/* Mobile-optimized search container */
+.search-container-mobile {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* Expand search on mobile when active */
+.search-expanded {
+  width: 100%;
+  transition: width 0.2s ease;
+}
+
+/* Prevent layout shift during mobile search */
+.search-placeholder {
+  width: 32px;
+  height: 32px;
 }
 
 /* Search field styling - updated */
@@ -70,6 +181,17 @@
 
 .search-input::placeholder {
   color: #9ca3af;
+}
+
+/* Mobile search icon */
+.mobile-search-icon {
+  color: #6b7280;
+  cursor: pointer;
+  min-width: 28px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* NEW: Grid components container */
@@ -924,4 +1046,67 @@ div[cmdk-list]:after {
 
 [data-radix-dialog-content] {
   z-index: 10003 !important;
+}
+
+/* Ensure calendar popups and date selectors appear above everything else */
+[data-radix-popper-content-wrapper] {
+  z-index: 10005 !important; /* Force very high z-index */
+}
+
+/* Specific calendar styles to ensure they're on top */
+.react-calendar, 
+[role="dialog"][aria-label*="calendar"],
+[data-radix-popper-content-wrapper] [role="dialog"] {
+  z-index: 10006 !important;
+}
+
+/* Ensure consistent calendar appearance */
+.react-calendar {
+  border: 1px solid #e5e7eb !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  background-color: white !important;
+}
+
+/* Ensure calendar can't be hidden by other elements */
+.react-calendar__month-view__days__day {
+  position: relative !important;
+  z-index: 10007 !important;
+}
+
+/* Fix for calendar popup rendering */
+[data-radix-popper-content-wrapper] {
+  transform-style: preserve-3d !important;
+  isolation: isolate !important;
+  will-change: transform !important;
+}
+
+/* Ensure date popovers always appear */
+[role="dialog"][aria-label*="calendar"] {
+  position: relative !important;
+  isolation: isolate !important;
+}
+
+/* Force smaller dialog on mobile */
+.w-\[90vw\].max-w-\[500px\] {
+  width: 85vw !important;
+  max-height: 80vh !important;
+  overflow-y: auto !important;
+}
+
+/* Styles for the filter button when placed next to search icon */
+.flex.items-center > .ml-1 .FilterPopupBase {
+  margin-left: 0;
+}
+
+/* Align search icon with filter icon */
+.grid-toolbar .flex.items-center .p-2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Force $ emoji color in the navbar */
+.text-\[\#32BAB0\] {
+  color: #32BAB0 !important;
 }
