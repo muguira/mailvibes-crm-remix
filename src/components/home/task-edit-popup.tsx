@@ -64,6 +64,12 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: T
         onSave(updatedTask);
     };
 
+    const handleLeaveTask = () => {
+        const updatedTask = { ...editedTask, contact: "" };
+        setEditedTask(updatedTask);
+        onSave(updatedTask);
+    };
+
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-2xl bg-background text-foreground p-0">
@@ -285,7 +291,13 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: T
                                 </Button>
                             </div>
                         </div>
-                        <Button variant="ghost" size="sm" className="text-muted-foreground">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground"
+                            onClick={handleLeaveTask}
+                            disabled={!editedTask.contact}
+                        >
                             Leave task
                         </Button>
                     </div>
