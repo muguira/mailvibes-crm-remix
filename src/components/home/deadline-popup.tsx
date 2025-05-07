@@ -51,20 +51,23 @@ export function DeadlinePopup({
                             color: "rgb(var(--teal))"
                         },
                         selected: {
-                            backgroundColor: "rgb(var(--primary))",
-                            color: "rgb(var(--primary-foreground))"
+                            backgroundColor: "#62BFAA",
+                            color: "white",
+                            borderRadius: "5px"
                         }
                     }}
                     classNames={{
-                        day_today: "bg-primary/ text-primary font-semibold",
-                        day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground"
+                        day_today: "text-[#62BFAA] font-semibold",
+                        day_selected: "!bg-[#62BFAA] text-white hover:!bg-[#62BFAA] hover:text-white focus:!bg-[#62BFAA] focus:text-white",
+                        day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-[#62BFAA]/70 hover:text-white focus-visible:bg-[#62BFAA] focus-visible:text-white rounded-[5px]",
+                        cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-transparent"
                     }}
                 />
                 {date && (
                     <div className="p-2 border-t border-border">
                         <Button
                             variant="ghost"
-                            className="w-full justify-start text-destructive hover:text-destructive"
+                            className="w-full justify-start text-destructive hover:text-destructive hover:bg-red-100"
                             onClick={() => handleSelect(undefined)}
                         >
                             Remove deadline
