@@ -1,9 +1,8 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Task } from "./tasks-panel";
 import { useState, useEffect } from "react";
-import { Check, X, Calendar, Plus, ChevronDown, AlertTriangle, User } from "lucide-react";
+import { Check, X, Calendar, Plus, ChevronDown, AlertTriangle, User, Search } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DeadlinePopup } from "./deadline-popup";
@@ -13,12 +12,26 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+interface Task {
+    id: string;
+    title: string;
+    deadline?: string;
+    displayStatus: "upcoming" | "overdue" | "completed";
+    contact?: string;
+    type?: string;
+    priority?: "low" | "medium" | "high";
+    status?: "on-track" | "at-risk" | "off-track";
+    description?: string;
+    dependencies?: string[];
+}
+
 interface TaskEditPopupProps {
     task: Task;
     open: boolean;
     onClose: () => void;
     onSave: (updatedTask: Task) => void;
     onStatusChange: (taskId: string, newStatus: Task["displayStatus"]) => void;
+    allTasks?: Task[];
 }
 
 // Sample data - in a real app, this would come from your backend
@@ -42,8 +55,10 @@ const STATUSES = [
     { value: "off-track", label: "Off track" },
 ];
 
-export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: TaskEditPopupProps) {
+export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, allTasks = [] }: TaskEditPopupProps) {
     const [editedTask, setEditedTask] = useState<Task>({ ...task });
+    const [openDependencies, setOpenDependencies] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         setEditedTask({ ...task });
@@ -66,6 +81,21 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: T
 
     const handleLeaveTask = () => {
         const updatedTask = { ...editedTask, contact: "" };
+        setEditedTask(updatedTask);
+        onSave(updatedTask);
+    };
+
+    const toggleDependency = (taskId: string) => {
+        const currentDependencies = editedTask.dependencies || [];
+        let newDependencies: string[];
+
+        if (currentDependencies.includes(taskId)) {
+            newDependencies = currentDependencies.filter(id => id !== taskId);
+        } else {
+            newDependencies = [...currentDependencies, taskId];
+        }
+
+        const updatedTask = { ...editedTask, dependencies: newDependencies };
         setEditedTask(updatedTask);
         onSave(updatedTask);
     };
@@ -145,12 +175,91 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: T
                         <div className="grid grid-cols-[100px_1fr] items-center gap-2">
                             <span className="text-sm text-muted-foreground">Dependencies</span>
                             <div className="relative w-full">
-                                <select
-                                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 appearance-none pr-8"
-                                >
-                                    <option value="">Add dependencies</option>
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50 pointer-events-none" />
+                                <Popover open={openDependencies} onOpenChange={setOpenDependencies}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            className={cn(
+                                                "w-full justify-between bg-[#2A7B88] text-white border-[#2A7B88]"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                {editedTask.dependencies?.length ? (
+                                                    <span>{editedTask.dependencies.length} selected</span>
+                                                ) : (
+                                                    <span>Add dependencies</span>
+                                                )}
+                                            </div>
+                                            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[400px] p-0" align="start">
+                                        <div className="p-2 border-b">
+                                            <Input
+                                                placeholder="Search tasks..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="h-8"
+                                            />
+                                        </div>
+                                        <div className="max-h-[300px] overflow-y-auto py-1">
+                                            {allTasks
+                                                .filter(t =>
+                                                    t.id !== task.id &&
+                                                    t.title.toLowerCase().includes(searchQuery.toLowerCase())
+                                                )
+                                                .map(t => (
+                                                    <div
+                                                        key={t.id}
+                                                        role="option"
+                                                        className={cn(
+                                                            "flex items-center w-full px-2 py-2 cursor-pointer hover:bg-muted gap-2",
+                                                            editedTask.dependencies?.includes(t.id) && "bg-muted"
+                                                        )}
+                                                        onClick={() => toggleDependency(t.id)}
+                                                    >
+                                                        <div className={cn(
+                                                            "h-4 w-4 border rounded flex items-center justify-center",
+                                                            editedTask.dependencies?.includes(t.id)
+                                                                ? "bg-[#2A7B88] border-[#2A7B88]"
+                                                                : "border-input"
+                                                        )}>
+                                                            {editedTask.dependencies?.includes(t.id) && (
+                                                                <Check className="h-3 w-3 text-white" />
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 flex-1">
+                                                            <span className="flex-1">{t.title}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs px-2 py-0.5 rounded bg-muted">
+                                                                    {t.type}
+                                                                </span>
+                                                                {t.displayStatus === "completed" && (
+                                                                    <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500">
+                                                                        Completed
+                                                                    </span>
+                                                                )}
+                                                                {t.displayStatus === "overdue" && (
+                                                                    <span className="text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-500">
+                                                                        Overdue
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            {allTasks.filter(t =>
+                                                t.id !== task.id &&
+                                                t.title.toLowerCase().includes(searchQuery.toLowerCase())
+                                            ).length === 0 && (
+                                                    <div className="py-6 text-center text-sm text-muted-foreground">
+                                                        No tasks found.
+                                                    </div>
+                                                )}
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
                             </div>
                         </div>
 

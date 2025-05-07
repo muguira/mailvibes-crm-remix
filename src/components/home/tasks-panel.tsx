@@ -271,6 +271,7 @@ export function TasksPanel() {
                 onTitleBlur={handleTaskTitleBlur}
                 onTitleKeyDown={handleTaskTitleKeyDown}
                 onTaskUpdate={handleTaskUpdate}
+                allTasks={tasks}
               />
             ))}
           </TabsContent>
@@ -286,6 +287,7 @@ export function TasksPanel() {
                 onTitleBlur={handleTaskTitleBlur}
                 onTitleKeyDown={handleTaskTitleKeyDown}
                 onTaskUpdate={handleTaskUpdate}
+                allTasks={tasks}
               />
             ))}
           </TabsContent>
@@ -301,6 +303,7 @@ export function TasksPanel() {
                 onTitleBlur={handleTaskTitleBlur}
                 onTitleKeyDown={handleTaskTitleKeyDown}
                 onTaskUpdate={handleTaskUpdate}
+                allTasks={tasks}
               />
             ))}
           </TabsContent>
@@ -320,6 +323,7 @@ interface TaskItemProps {
   onTitleBlur: (taskId: string) => void;
   onTitleKeyDown: (e: React.KeyboardEvent, taskId: string) => void;
   onTaskUpdate: (updatedTask: Task) => void;
+  allTasks: Task[];
 }
 
 function TaskItem({
@@ -331,7 +335,8 @@ function TaskItem({
   onTitleChange,
   onTitleBlur,
   onTitleKeyDown,
-  onTaskUpdate
+  onTaskUpdate,
+  allTasks
 }: TaskItemProps) {
   const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
   const deadline = task.deadline ? parseISO(task.deadline) : undefined;
@@ -445,6 +450,7 @@ function TaskItem({
         onClose={() => setIsEditPopupOpen(false)}
         onSave={onTaskUpdate}
         onStatusChange={onStatusChange}
+        allTasks={allTasks}
       />
     </div>
   );
