@@ -468,13 +468,19 @@ export function GridToolbar({
                 )}
               </div>
               
-              {/* Add Contact button for mobile */}
-              <Button 
-                className="bg-[#32BAB0] hover:bg-[#28a79d] text-white rounded-md h-9 w-9 p-0 flex items-center justify-center ml-2"
-                onClick={() => setIsAddContactOpen(true)}
-              >
-                <Plus className="h-5 w-5" />
-              </Button>
+              <div className="flex items-center ml-auto">
+                {/* Notification Bell for mobile - positioned left of the Add Contact button */}
+                <button className="p-2 rounded-full hover:bg-slate-light/20 text-gray-500">
+                  <Bell className="h-5 w-5" />
+                </button>
+                
+                <Button 
+                  className="bg-[#32BAB0] hover:bg-[#28a79d] text-white rounded-md h-9 w-9 p-0 flex items-center justify-center ml-2"
+                  onClick={() => setIsAddContactOpen(true)}
+                >
+                  <Plus className="h-5 w-5" />
+                </Button>
+              </div>
             </div>
           ) : (
             // Desktop layout remains the same
@@ -535,12 +541,8 @@ export function GridToolbar({
         )}
       </div>
       
-      {/* Mobile filter tags - only shown when space is limited */}
-      {filterCount > 0 && isMobile && (
-        <div className="flex gap-1 flex-wrap mt-2 pb-1 overflow-x-auto">
-          {getFilterTags()}
-        </div>
-      )}
+      {/* Mobile filter tags - REMOVED to hide on mobile */}
+      {/* Only show filter tags on desktop - now handled in desktop view only */}
       
       {/* Add Contact Dialog */}
       <Dialog open={isAddContactOpen} onOpenChange={setIsAddContactOpen}>

@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -91,6 +90,8 @@ export default {
 			fontFamily: {
 				sans: ['Proxima Nova', 'Inter', 'sans-serif'],
 				proxima: ['Proxima Nova', 'Inter', 'sans-serif'],
+				roboto: ['Roboto', 'sans-serif'],
+				'open-sans': ['Open Sans', 'sans-serif'],
 			},
 			boxShadow: {
 				'relate': '0 2px 10px rgba(0, 0, 0, 0.1)',

@@ -30,17 +30,13 @@ export function TopNavbar({ className }: TopNavbarProps) {
   return (
     <div className={cn("bg-[#054258] text-white w-full fixed top-0 left-0 right-0 z-[10000]", className)}>
       <div className="flex items-center h-12">
-        {/* Logo - replaced with $ emoji on mobile */}
-        <div className="flex items-center px-4">
-          {isMobile ? (
-            <span className="font-bold text-lg text-[#32BAB0]">$</span>
-          ) : (
-            <span className="font-semibold text-lg">SalesIQ</span>
-          )}
+        {/* Logo - $ emoticon for simplicity */}
+        <div className="flex items-center px-2">
+          <span className="font-bold text-2xl text-[#32BAB0]">$</span>
         </div>
 
-        {/* Navigation Items */}
-        <div className="flex">
+        {/* Navigation Items - moved more to the left */}
+        <div className="flex ml-1">
           <NavLink
             to="/"
             className={({ isActive }) =>
@@ -95,10 +91,12 @@ export function TopNavbar({ className }: TopNavbarProps) {
 
         {/* Right side icons with gap-4 and flush right */}
         <div className="ml-auto flex items-center gap-4 pr-4">
-          {/* Notification bell - always visible */}
-          <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
-            <Bell size={18} />
-          </button>
+          {/* Notification bell - only visible on desktop */}
+          {!isMobile && (
+            <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
+              <Bell size={18} />
+            </button>
+          )}
           
           {/* Only show Help and Settings on desktop */}
           {!isMobile && (
