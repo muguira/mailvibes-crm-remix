@@ -37,7 +37,6 @@ export function TaskEditPopup({ task, open, onClose, onSave }: TaskEditPopupProp
                     </Button>
 
                 </div>
-
                 <div className="p-6 space-y-6">
                     <Input
                         value={editedTask.title}
