@@ -92,8 +92,8 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: T
                     />
 
                     <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                            <span className="w-24 text-sm text-muted-foreground">Assignee</span>
+                        <div className="grid grid-cols-[100px_1fr] items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Assignee</span>
                             <select
                                 value={editedTask.contact || ""}
                                 onChange={(e) => handleInputChange("contact", e.target.value)}
@@ -104,22 +104,22 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: T
                             </select>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <span className="w-24 text-sm text-muted-foreground">Due date</span>
+                        <div className="grid grid-cols-[100px_1fr] items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Due date</span>
                             <DeadlinePopup
                                 date={editedTask.deadline ? new Date(editedTask.deadline) : undefined}
                                 onSelect={(date) => handleInputChange("deadline", date?.toISOString())}
                             >
-                                <Button variant="outline" className="gap-2">
+                                <Button variant="outline" className="gap-2 justify-start w-full">
                                     <Calendar className="h-4 w-4" />
                                     {editedTask.deadline ? new Date(editedTask.deadline).toLocaleDateString() : "Set date"}
-                                    <ChevronDown className="h-4 w-4" />
+                                    <ChevronDown className="h-4 w-4 ml-auto" />
                                 </Button>
                             </DeadlinePopup>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <span className="w-24 text-sm text-muted-foreground">Projects</span>
+                        <div className="grid grid-cols-[100px_1fr] items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Projects</span>
                             <select
                                 value={editedTask.type || ""}
                                 onChange={(e) => handleInputChange("type", e.target.value)}
@@ -130,8 +130,8 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: T
                             </select>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <span className="w-24 text-sm text-muted-foreground">Dependencies</span>
+                        <div className="grid grid-cols-[100px_1fr] items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Dependencies</span>
                             <select
                                 className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                             >
@@ -142,9 +142,9 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: T
                         <div className="space-y-2">
                             <span className="text-sm text-muted-foreground">Fields</span>
                             <div className="border rounded-lg overflow-hidden">
-                                <div className="grid grid-cols-2 border-b border-border">
-                                    <div className="flex items-center gap-2 px-4 py-2 text-muted-foreground">
-                                        <span className="text-sm">Priority</span>
+                                <div className="grid grid-cols-[100px_1fr] border-b border-border">
+                                    <div className="flex items-center px-4 py-2">
+                                        <span className="text-sm text-muted-foreground">Priority</span>
                                     </div>
                                     <div className="flex items-center px-4 py-2">
                                         <Select
@@ -188,9 +188,9 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: T
                                         </Select>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2">
-                                    <div className="flex items-center gap-2 px-4 py-2 text-muted-foreground">
-                                        <span className="text-sm">Status</span>
+                                <div className="grid grid-cols-[100px_1fr]">
+                                    <div className="flex items-center px-4 py-2">
+                                        <span className="text-sm text-muted-foreground">Status</span>
                                     </div>
                                     <div className="flex items-center px-4 py-2">
                                         <Select
