@@ -27,21 +27,15 @@ export function TaskEditPopup({ task, open, onClose, onSave }: TaskEditPopupProp
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-2xl bg-background text-foreground p-0">
                 <div className="flex items-center justify-between p-4 border-b border-border">
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="hover:bg-muted"
-                        >
-                            <Check className="h-4 w-4 mr-1" />
-                            Mark complete
-                        </Button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={onClose}>
-                            <X className="h-4 w-4" />
-                        </Button>
-                    </div>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="hover:bg-muted"
+                    >
+                        <Check className="h-4 w-4 mr-1" />
+                        Mark complete
+                    </Button>
+
                 </div>
 
                 <div className="p-6 space-y-6">
