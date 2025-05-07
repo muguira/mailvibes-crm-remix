@@ -10,6 +10,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { es } from 'date-fns/locale';
+import { X } from "lucide-react";
 
 interface DeadlinePopupProps {
     date?: Date;
@@ -37,6 +38,17 @@ export function DeadlinePopup({
                 {children}
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
+                <div className="flex items-center justify-between p-2 border-b border-border">
+                    <span className="text-sm font-medium">Select date</span>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 p-0 hover:bg-accent"
+                        onClick={() => setIsOpen(false)}
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
                 <Calendar
                     mode="single"
                     selected={date}
