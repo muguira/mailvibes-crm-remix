@@ -1,22 +1,24 @@
 import { Check, Circle, Plus, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { DeadlinePopup } from "./deadline-popup";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-fns";
 import { es } from 'date-fns/locale';
-import { CreateTaskDialog } from "./create-task-dialog";
+import { TaskEditPopup } from "./task-edit-popup";
 
-interface Task {
+export interface Task {
   id: string;
   title: string;
   deadline?: string; // ISO string
   contact: string;
   description?: string;
-  status: "upcoming" | "overdue" | "completed";
-  type: "follow-up" | "respond" | "task";
+  displayStatus: "upcoming" | "overdue" | "completed";
+  status: "on-track" | "at-risk" | "off-track";
+  type: "follow-up" | "respond" | "task" | "cross-functional";
   tag?: string; // For tags like "LATAM"
   hasCalendar?: boolean;
+  priority?: "low" | "medium" | "high";
 }
 
 // Sample task data
@@ -25,14 +27,16 @@ const initialTasks: Task[] = [
     id: "1",
     title: "Ivan Seguimiento",
     contact: "Ivan",
-    status: "upcoming",
+    displayStatus: "upcoming",
+    status: "on-track",
     type: "follow-up"
   },
   {
     id: "2",
     title: "QBR's",
     contact: "",
-    status: "upcoming",
+    displayStatus: "upcoming",
+    status: "on-track",
     type: "task",
     tag: "LATAM"
   },
@@ -40,7 +44,8 @@ const initialTasks: Task[] = [
     id: "3",
     title: "Seguimiento a Leandro",
     contact: "",
-    status: "upcoming",
+    displayStatus: "upcoming",
+    status: "on-track",
     type: "follow-up",
     tag: "LATAM"
   },
@@ -48,32 +53,36 @@ const initialTasks: Task[] = [
     id: "4",
     title: "Viaje CDMX",
     contact: "",
-    status: "upcoming",
+    displayStatus: "upcoming",
+    status: "on-track",
     type: "task"
   },
   {
     id: "5",
     title: "Platica o 1-a-1 con Vivek",
     contact: "",
-    status: "upcoming",
+    displayStatus: "upcoming",
+    status: "on-track",
     type: "task"
   }
 ];
 
 export function TasksPanel() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const newTaskInputRef = useRef<HTMLInputElement>(null);
 
   // Check for overdue tasks
   const checkOverdueTasks = () => {
     const now = new Date();
     setTasks(prevTasks =>
       prevTasks.map(task => {
-        if (task.status === "completed" || !task.deadline) return task;
+        if (task.displayStatus === "completed" || !task.deadline) return task;
 
         const deadlineDate = parseISO(task.deadline);
         // Compare with start of current day to match the calendar date concept
-        if (isPast(startOfDay(deadlineDate)) && task.status !== "overdue") {
-          return { ...task, status: "overdue" };
+        if (isPast(startOfDay(deadlineDate)) && task.displayStatus !== "overdue") {
+          return { ...task, displayStatus: "overdue" };
         }
         return task;
       })
@@ -87,14 +96,42 @@ export function TasksPanel() {
     return () => clearInterval(interval);
   }, []);
 
-  const upcomingTasks = tasks.filter(task => task.status === "upcoming");
-  const overdueTasks = tasks.filter(task => task.status === "overdue");
-  const completedTasks = tasks.filter(task => task.status === "completed");
+  const sortTasksByDate = (tasks: Task[], isEditing: boolean) => {
+    const today = startOfDay(new Date());
 
-  const handleTaskStatusChange = (taskId: string, newStatus: Task["status"]) => {
+    return [...tasks].sort((a, b) => {
+      // During editing, keep the new task at the top
+      if (isEditing) {
+        if (a.title === "") return -1;
+        if (b.title === "") return 1;
+      }
+
+      // If neither task has a deadline, maintain original order
+      if (!a.deadline && !b.deadline) return 0;
+      // Tasks with no deadline go to the end
+      if (!a.deadline) return 1;
+      if (!b.deadline) return -1;
+
+      const dateA = startOfDay(parseISO(a.deadline));
+      const dateB = startOfDay(parseISO(b.deadline));
+
+      // Calculate days from today for both dates
+      const daysFromTodayA = Math.floor((dateA.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const daysFromTodayB = Math.floor((dateB.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      // Sort by days from today (ascending)
+      return daysFromTodayA - daysFromTodayB;
+    });
+  };
+
+  const upcomingTasks = sortTasksByDate(tasks.filter(task => task.displayStatus === "upcoming"), isCreatingTask);
+  const overdueTasks = sortTasksByDate(tasks.filter(task => task.displayStatus === "overdue"), false);
+  const completedTasks = sortTasksByDate(tasks.filter(task => task.displayStatus === "completed"), false);
+
+  const handleTaskStatusChange = (taskId: string, newStatus: Task["displayStatus"]) => {
     setTasks(prevTasks =>
       prevTasks.map(task =>
-        task.id === taskId ? { ...task, status: newStatus } : task
+        task.id === taskId ? { ...task, displayStatus: newStatus } : task
       )
     );
   };
@@ -108,11 +145,11 @@ export function TasksPanel() {
         if (deadline) {
           const deadlineDate = parseISO(deadline);
           if (isPast(startOfDay(deadlineDate))) {
-            return { ...task, deadline, status: "overdue" };
+            return { ...task, deadline, displayStatus: "overdue" };
           }
           // If task was overdue but new deadline is in the future, move back to upcoming
-          if (task.status === "overdue" && !isPast(startOfDay(deadlineDate))) {
-            return { ...task, deadline, status: "upcoming" };
+          if (task.displayStatus === "overdue" && !isPast(startOfDay(deadlineDate))) {
+            return { ...task, deadline, displayStatus: "upcoming" };
           }
         }
 
@@ -121,26 +158,58 @@ export function TasksPanel() {
     );
   };
 
-  const handleCreateTask = (newTask: {
-    title: string;
-    deadline?: string;
-    type: "follow-up" | "respond" | "task";
-    tag?: string;
-  }) => {
-    const task: Task = {
+  const handleCreateNewTask = () => {
+    const newTask: Task = {
       id: crypto.randomUUID(),
-      title: newTask.title,
-      deadline: newTask.deadline,
+      title: "",
       contact: "",
-      // Check if the task is overdue when creating
-      status: newTask.deadline && isPast(startOfDay(parseISO(newTask.deadline)))
-        ? "overdue"
-        : "upcoming",
-      type: newTask.type,
-      tag: newTask.tag
+      displayStatus: "upcoming",
+      status: "on-track",
+      type: "task"
     };
+    setTasks(prev => [newTask, ...prev]);
+    setIsCreatingTask(true);
+    // Focus the input on the next render
+    setTimeout(() => {
+      newTaskInputRef.current?.focus();
+    }, 0);
+  };
 
-    setTasks(prev => [...prev, task]);
+  const handleTaskTitleChange = (taskId: string, newTitle: string) => {
+    setTasks(prev =>
+      prev.map(task =>
+        task.id === taskId
+          ? { ...task, title: newTitle }
+          : task
+      )
+    );
+  };
+
+  const handleTaskTitleBlur = (taskId: string) => {
+    setTasks(prev => prev.filter(task =>
+      task.id !== taskId || (task.id === taskId && task.title.trim() !== "")
+    ));
+    setIsCreatingTask(false);
+  };
+
+  const handleTaskTitleKeyDown = (e: React.KeyboardEvent, taskId: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      (e.target as HTMLInputElement).blur();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setTasks(prev => prev.filter(task => task.id !== taskId));
+      setIsCreatingTask(false);
+    }
+  };
+
+  const handleTaskUpdate = (updatedTask: Task) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === updatedTask.id ? { ...task, ...updatedTask } : task
+      )
+    );
   };
 
   return (
@@ -178,7 +247,14 @@ export function TasksPanel() {
         </div>
 
         <div className="p-4 border-b border-border">
-          <CreateTaskDialog onCreateTask={handleCreateTask} />
+          <button
+            className="w-full text-left text-muted-foreground flex items-center gap-2 py-2 hover:text-foreground transition-colors"
+            onClick={handleCreateNewTask}
+            disabled={isCreatingTask}
+          >
+            <Plus size={20} />
+            Create task
+          </button>
         </div>
 
         <div className="overflow-y-auto flex-1">
@@ -187,8 +263,14 @@ export function TasksPanel() {
               <TaskItem
                 key={task.id}
                 task={task}
+                isNew={isCreatingTask && task.id === upcomingTasks[0]?.id}
+                inputRef={isCreatingTask && task.id === upcomingTasks[0]?.id ? newTaskInputRef : undefined}
                 onStatusChange={handleTaskStatusChange}
                 onDeadlineChange={handleDeadlineChange}
+                onTitleChange={handleTaskTitleChange}
+                onTitleBlur={handleTaskTitleBlur}
+                onTitleKeyDown={handleTaskTitleKeyDown}
+                onTaskUpdate={handleTaskUpdate}
               />
             ))}
           </TabsContent>
@@ -200,6 +282,10 @@ export function TasksPanel() {
                 task={task}
                 onStatusChange={handleTaskStatusChange}
                 onDeadlineChange={handleDeadlineChange}
+                onTitleChange={handleTaskTitleChange}
+                onTitleBlur={handleTaskTitleBlur}
+                onTitleKeyDown={handleTaskTitleKeyDown}
+                onTaskUpdate={handleTaskUpdate}
               />
             ))}
           </TabsContent>
@@ -211,6 +297,10 @@ export function TasksPanel() {
                 task={task}
                 onStatusChange={handleTaskStatusChange}
                 onDeadlineChange={handleDeadlineChange}
+                onTitleChange={handleTaskTitleChange}
+                onTitleBlur={handleTaskTitleBlur}
+                onTitleKeyDown={handleTaskTitleKeyDown}
+                onTaskUpdate={handleTaskUpdate}
               />
             ))}
           </TabsContent>
@@ -222,11 +312,28 @@ export function TasksPanel() {
 
 interface TaskItemProps {
   task: Task;
-  onStatusChange: (taskId: string, newStatus: Task["status"]) => void;
+  isNew?: boolean;
+  inputRef?: React.RefObject<HTMLInputElement>;
+  onStatusChange: (taskId: string, newStatus: Task["displayStatus"]) => void;
   onDeadlineChange: (taskId: string, deadline: string | undefined) => void;
+  onTitleChange: (taskId: string, newTitle: string) => void;
+  onTitleBlur: (taskId: string) => void;
+  onTitleKeyDown: (e: React.KeyboardEvent, taskId: string) => void;
+  onTaskUpdate: (updatedTask: Task) => void;
 }
 
-function TaskItem({ task, onStatusChange, onDeadlineChange }: TaskItemProps) {
+function TaskItem({
+  task,
+  isNew,
+  inputRef,
+  onStatusChange,
+  onDeadlineChange,
+  onTitleChange,
+  onTitleBlur,
+  onTitleKeyDown,
+  onTaskUpdate
+}: TaskItemProps) {
+  const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
   const deadline = task.deadline ? parseISO(task.deadline) : undefined;
 
   const getDueDateDisplay = () => {
@@ -244,7 +351,7 @@ function TaskItem({ task, onStatusChange, onDeadlineChange }: TaskItemProps) {
   const getDueDateColor = () => {
     if (!deadline) return "text-muted-foreground";
 
-    if (task.status === "overdue" || isPast(startOfDay(deadline))) {
+    if (task.displayStatus === "overdue" || isPast(startOfDay(deadline))) {
       return "text-red-400";
     }
     if (isToday(deadline) || isTomorrow(deadline)) {
@@ -253,33 +360,59 @@ function TaskItem({ task, onStatusChange, onDeadlineChange }: TaskItemProps) {
     return "text-muted-foreground";
   };
 
-  const handleDeadlineChange = (date: Date | undefined) => {
-    onDeadlineChange(task.id, date?.toISOString());
+  const handleTaskSave = (updatedTask: Task) => {
+    // Update all task fields in the parent component
+    onTitleChange(updatedTask.id, updatedTask.title);
+    if (updatedTask.deadline !== task.deadline) {
+      onDeadlineChange(updatedTask.id, updatedTask.deadline);
+    }
   };
 
   return (
     <div className="px-4 py-3 border-b border-border hover:bg-muted/50 transition-colors">
       <div className="flex items-center gap-3">
         <button
-          onClick={() => onStatusChange(task.id, task.status === "completed" ? "upcoming" : "completed")}
+          onClick={() => onStatusChange(task.id, task.displayStatus === "completed" ? "upcoming" : "completed")}
           className="flex-shrink-0 hover:opacity-80 transition-opacity"
-          aria-label={task.status === "completed" ? "Mark as incomplete" : "Mark as complete"}
+          aria-label={task.displayStatus === "completed" ? "Mark as incomplete" : "Mark as complete"}
         >
-          {task.status === "completed" ? (
-            <div className="h-5 w-5 rounded-full border-2 border-primary flex items-center justify-center bg-primary">
-              <Check className="h-3 w-3 text-primary-foreground" />
-            </div>
-          ) : (
-            <Circle className="h-5 w-5 text-muted-foreground" />
-          )}
+          <div className={cn(
+            "h-5 w-5 rounded-full flex items-center justify-center transition-colors",
+            task.displayStatus === "completed"
+              ? "bg-emerald-500 border-emerald-500"
+              : "border-2 border-muted-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10"
+          )}>
+            <Check className={cn(
+              "h-3 w-3",
+              task.displayStatus === "completed"
+                ? "text-white"
+                : "text-muted-foreground hover:text-emerald-500/50"
+            )} />
+          </div>
         </button>
         <div className="flex-1">
-          <h3 className={cn(
-            "font-medium",
-            task.status === "completed" ? "line-through text-muted-foreground" : "text-foreground"
-          )}>
-            {task.title}
-          </h3>
+          {isNew ? (
+            <input
+              ref={inputRef}
+              type="text"
+              value={task.title}
+              onChange={(e) => onTitleChange(task.id, e.target.value)}
+              onBlur={() => onTitleBlur(task.id)}
+              onKeyDown={(e) => onTitleKeyDown(e, task.id)}
+              className="w-full bg-transparent border-none focus:outline-none text-foreground"
+              placeholder="Enter task title"
+            />
+          ) : (
+            <h3
+              onDoubleClick={() => setIsEditPopupOpen(true)}
+              className={cn(
+                "font-medium cursor-pointer select-none",
+                task.displayStatus === "completed" ? "line-through text-muted-foreground" : "text-foreground"
+              )}
+            >
+              {task.title}
+            </h3>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {task.tag && (
@@ -289,7 +422,7 @@ function TaskItem({ task, onStatusChange, onDeadlineChange }: TaskItemProps) {
           )}
           <DeadlinePopup
             date={deadline}
-            onSelect={handleDeadlineChange}
+            onSelect={(date) => onDeadlineChange(task.id, date?.toISOString())}
           >
             <button
               className={cn(
@@ -306,6 +439,13 @@ function TaskItem({ task, onStatusChange, onDeadlineChange }: TaskItemProps) {
           </DeadlinePopup>
         </div>
       </div>
+      <TaskEditPopup
+        task={task}
+        open={isEditPopupOpen}
+        onClose={() => setIsEditPopupOpen(false)}
+        onSave={onTaskUpdate}
+        onStatusChange={onStatusChange}
+      />
     </div>
   );
 }
