@@ -94,14 +94,17 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: T
                     <div className="space-y-4">
                         <div className="grid grid-cols-[100px_1fr] items-center gap-2">
                             <span className="text-sm text-muted-foreground">Assignee</span>
-                            <select
-                                value={editedTask.contact || ""}
-                                onChange={(e) => handleInputChange("contact", e.target.value)}
-                                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <option value="">Select...</option>
-                                <option value="franklin">franklin rodriguez</option>
-                            </select>
+                            <div className="relative w-full">
+                                <select
+                                    value={editedTask.contact || ""}
+                                    onChange={(e) => handleInputChange("contact", e.target.value)}
+                                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 appearance-none pr-8"
+                                >
+                                    <option value="">Select...</option>
+                                    <option value="franklin">franklin rodriguez</option>
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50 pointer-events-none" />
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-[100px_1fr] items-center gap-2">
@@ -110,33 +113,39 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange }: T
                                 date={editedTask.deadline ? new Date(editedTask.deadline) : undefined}
                                 onSelect={(date) => handleInputChange("deadline", date?.toISOString())}
                             >
-                                <Button variant="outline" className="gap-2 justify-start w-full">
+                                <Button variant="outline" className="gap-2 justify-start w-full relative pr-8">
                                     <Calendar className="h-4 w-4" />
-                                    {editedTask.deadline ? new Date(editedTask.deadline).toLocaleDateString() : "Set date"}
-                                    <ChevronDown className="h-4 w-4 ml-auto" />
+                                    <span className="flex-1 text-left">{editedTask.deadline ? new Date(editedTask.deadline).toLocaleDateString() : "Set date"}</span>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
                                 </Button>
                             </DeadlinePopup>
                         </div>
 
                         <div className="grid grid-cols-[100px_1fr] items-center gap-2">
                             <span className="text-sm text-muted-foreground">Projects</span>
-                            <select
-                                value={editedTask.type || ""}
-                                onChange={(e) => handleInputChange("type", e.target.value)}
-                                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <option value="">Select...</option>
-                                <option value="cross-functional">Cross-functional project plan</option>
-                            </select>
+                            <div className="relative w-full">
+                                <select
+                                    value={editedTask.type || ""}
+                                    onChange={(e) => handleInputChange("type", e.target.value)}
+                                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 appearance-none pr-8"
+                                >
+                                    <option value="">Select...</option>
+                                    <option value="cross-functional">Cross-functional project plan</option>
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50 pointer-events-none" />
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-[100px_1fr] items-center gap-2">
                             <span className="text-sm text-muted-foreground">Dependencies</span>
-                            <select
-                                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <option value="">Add dependencies</option>
-                            </select>
+                            <div className="relative w-full">
+                                <select
+                                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 appearance-none pr-8"
+                                >
+                                    <option value="">Add dependencies</option>
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50 pointer-events-none" />
+                            </div>
                         </div>
 
                         <div className="space-y-2">
