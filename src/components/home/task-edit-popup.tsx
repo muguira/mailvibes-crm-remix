@@ -224,7 +224,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
                                             variant="outline"
                                             role="combobox"
                                             className={cn(
-                                                "w-full justify-between bg-[#2A7B88] text-white border-[#2A7B88]"
+                                                "w-full justify-between border-input"
                                             )}
                                         >
                                             <div className="flex items-center gap-2">
@@ -423,7 +423,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
                         ) : (
                             <div
                                 onDoubleClick={handleDescriptionDoubleClick}
-                                className="min-h-[100px] p-3 border rounded-md cursor-text hover:border-input"
+                                className="min-h-[100px] p-3 rounded-md cursor-text hover:border-input"
                             >
                                 {editedTask.description || "What is this task about?"}
                             </div>
