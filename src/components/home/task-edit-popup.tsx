@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Check, X, Calendar, Plus, ChevronDown, AlertTriangle, User, Search } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -59,10 +59,21 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
     const [editedTask, setEditedTask] = useState<Task>({ ...task });
     const [openDependencies, setOpenDependencies] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [isEditingDescription, setIsEditingDescription] = useState(false);
+    const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
         setEditedTask({ ...task });
     }, [task]);
+
+    useEffect(() => {
+        if (isEditingDescription && descriptionInputRef.current) {
+            descriptionInputRef.current.focus();
+            // Place cursor at the end of the text
+            const length = descriptionInputRef.current.value.length;
+            descriptionInputRef.current.setSelectionRange(length, length);
+        }
+    }, [isEditingDescription]);
 
     const handleSave = () => {
         onSave(editedTask);
@@ -98,6 +109,20 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
         const updatedTask = { ...editedTask, dependencies: newDependencies };
         setEditedTask(updatedTask);
         onSave(updatedTask);
+    };
+
+    const handleDescriptionDoubleClick = () => {
+        setIsEditingDescription(true);
+    };
+
+    const handleDescriptionBlur = () => {
+        setIsEditingDescription(false);
+    };
+
+    const handleDescriptionKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Escape") {
+            setIsEditingDescription(false);
+        }
     };
 
     return (
@@ -367,12 +392,24 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
 
                     <div className="space-y-2">
                         <span className="text-sm text-muted-foreground">Description</span>
-                        <Textarea
-                            value={editedTask.description || ""}
-                            onChange={(e) => handleInputChange("description", e.target.value)}
-                            placeholder="What is this task about?"
-                            className="min-h-[100px] resize-none"
-                        />
+                        {isEditingDescription ? (
+                            <Textarea
+                                ref={descriptionInputRef}
+                                value={editedTask.description || ""}
+                                onChange={(e) => handleInputChange("description", e.target.value)}
+                                onBlur={handleDescriptionBlur}
+                                onKeyDown={handleDescriptionKeyDown}
+                                placeholder="What is this task about?"
+                                className="min-h-[100px] resize-none border-teal-500"
+                            />
+                        ) : (
+                            <div
+                                onDoubleClick={handleDescriptionDoubleClick}
+                                className="min-h-[100px] p-3 border rounded-md cursor-text hover:border-input"
+                            >
+                                {editedTask.description || "What is this task about?"}
+                            </div>
+                        )}
                     </div>
 
                     <Button variant="outline" className="gap-2">
