@@ -9,6 +9,8 @@ import { DeadlinePopup } from "./deadline-popup";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface Task {
     id: string;
@@ -22,6 +24,14 @@ interface Task {
     description?: string;
     dependencies?: string[];
     subtasks?: string[];
+    comments?: Comment[];
+}
+
+interface Comment {
+    id: string;
+    text: string;
+    author: string;
+    createdAt: string;
 }
 
 interface TaskEditPopupProps {
@@ -62,6 +72,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
     const [subtaskSearchQuery, setSubtaskSearchQuery] = useState("");
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
+    const [newComment, setNewComment] = useState("");
 
     useEffect(() => {
         setEditedTask({ ...task });
@@ -141,6 +152,33 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
         }
     };
 
+    const addComment = () => {
+        if (!newComment.trim()) return;
+
+        const comment: Comment = {
+            id: crypto.randomUUID(),
+            text: newComment.trim(),
+            author: "franklin rodriguez", // This should come from the current user
+            createdAt: new Date().toISOString()
+        };
+
+        const updatedTask = {
+            ...editedTask,
+            comments: [...(editedTask.comments || []), comment]
+        };
+
+        setEditedTask(updatedTask);
+        onSave(updatedTask);
+        setNewComment("");
+    };
+
+    const handleCommentKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            addComment();
+        }
+    };
+
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-2xl bg-background text-foreground p-0">
@@ -160,7 +198,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
                     </Button>
                 </div>
 
-                <div className="p-6 space-y-6">
+                <div className="p-6 pt-0 space-y-6">
                     <Input
                         value={editedTask.title}
                         onChange={(e) => handleInputChange("title", e.target.value)}
@@ -520,12 +558,46 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
                         </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-4">
                         <span className="text-sm font-medium">Comments</span>
-                        <Textarea
-                            placeholder="Add a comment..."
-                            className="min-h-[100px] resize-none"
-                        />
+                        <div className="flex flex-col h-[300px]">
+                            <div className="flex-1 overflow-y-auto pr-2">
+                                <div className="space-y-6">
+                                    {editedTask.comments?.map((comment) => (
+                                        <div key={comment.id} className="flex gap-3">
+                                            <Avatar className="h-8 w-8 flex-shrink-0">
+                                                <AvatarFallback>
+                                                    {comment.author.split(' ').map(n => n[0]).join('')}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1 space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium text-sm">{comment.author}</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {format(parseISO(comment.createdAt), "MMM d 'at' h:mmaaa", { locale: es })}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm">{comment.text}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex gap-3 pt-4 border-t mt-2">
+                                <Avatar className="h-8 w-8 flex-shrink-0">
+                                    <AvatarFallback>FR</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                    <Textarea
+                                        value={newComment}
+                                        onChange={(e) => setNewComment(e.target.value)}
+                                        onKeyDown={handleCommentKeyDown}
+                                        placeholder="Add a comment..."
+                                        className="min-h-[80px] resize-none border border-input bg-muted/50 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="flex items-center justify-between">
