@@ -5,8 +5,9 @@ import { cn } from "@/lib/utils";
 import { DeadlinePopup } from "./deadline-popup";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-fns";
 import { es } from 'date-fns/locale';
+import { TaskEditPopup } from "./task-edit-popup";
 
-interface Task {
+export interface Task {
   id: string;
   title: string;
   deadline?: string; // ISO string
@@ -311,6 +312,7 @@ function TaskItem({
   onTitleBlur,
   onTitleKeyDown
 }: TaskItemProps) {
+  const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
   const deadline = task.deadline ? parseISO(task.deadline) : undefined;
 
   const getDueDateDisplay = () => {
@@ -335,6 +337,14 @@ function TaskItem({
       return "text-emerald-400";
     }
     return "text-muted-foreground";
+  };
+
+  const handleTaskSave = (updatedTask: Task) => {
+    // Update the task in the parent component
+    onTitleChange(updatedTask.id, updatedTask.title);
+    if (updatedTask.deadline !== task.deadline) {
+      onDeadlineChange(updatedTask.id, updatedTask.deadline);
+    }
   };
 
   return (
@@ -372,10 +382,13 @@ function TaskItem({
               placeholder="Enter task title"
             />
           ) : (
-            <h3 className={cn(
-              "font-medium",
-              task.status === "completed" ? "line-through text-muted-foreground" : "text-foreground"
-            )}>
+            <h3
+              onDoubleClick={() => setIsEditPopupOpen(true)}
+              className={cn(
+                "font-medium cursor-pointer select-none",
+                task.status === "completed" ? "line-through text-muted-foreground" : "text-foreground"
+              )}
+            >
               {task.title}
             </h3>
           )}
@@ -405,6 +418,12 @@ function TaskItem({
           </DeadlinePopup>
         </div>
       </div>
+      <TaskEditPopup
+        task={task}
+        open={isEditPopupOpen}
+        onClose={() => setIsEditPopupOpen(false)}
+        onSave={handleTaskSave}
+      />
     </div>
   );
 }
