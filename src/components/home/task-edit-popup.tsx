@@ -183,7 +183,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-2xl bg-background text-foreground p-0">
                 <DialogTitle className="sr-only">Edit Task</DialogTitle>
-                <div className="flex items-center justify-between p-4 border-b border-border">
+                <div className="flex items-center justify-between p-2 border-b border-border">
                     <Button
                         variant="ghost"
                         size="sm"
@@ -558,7 +558,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
                         </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 border-t pt-6">
                         <span className="text-sm font-medium">Comments</span>
                         <div className="flex flex-col h-[300px]">
                             <div className="flex-1 overflow-y-auto pr-2">
