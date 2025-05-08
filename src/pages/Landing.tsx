@@ -1,6 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Group6 from '@/components/svgs/Group6.svg';
+import ContactScreen from '@/images/contact-screen.png';
+import Screenshot1 from '@/images/screen1.png';
+import Screenshot2 from '@/images/screen2.png';
+import Screenshot3 from '@/images/screen3.png';
+import Screenshot4 from '@/images/screen4.png';
 
 export default function Landing() {
     const navigate = useNavigate();
@@ -43,11 +48,27 @@ export default function Landing() {
                 {/* Navigation */}
                 <nav className="container mx-auto px-6 py-4">
                     <div className="flex justify-between items-center">
-                        <div className="flex items-center">
-                            <div className="w-8 h-8 rounded-full border-2 border-teal-primary flex items-center justify-center text-teal-primary text-lg font-bold">
-                                S
+                        <div className="flex items-center space-x-8">
+                            <div className="flex items-center">
+                                <div className="w-8 h-8 rounded-full border-2 border-teal-primary flex items-center justify-center text-teal-primary text-lg font-bold">
+                                    S
+                                </div>
+                                <span className="ml-2 font-semibold text-lg">SalesIQ</span>
                             </div>
-                            <span className="ml-2 font-semibold text-lg">SalesIQ</span>
+                            <div className="hidden md:flex items-center space-x-8">
+                                <button
+                                    onClick={() => navigate('/pricing')}
+                                    className="text-gray-300 hover:text-white transition-colors"
+                                >
+                                    Pricing
+                                </button>
+                                <button
+                                    onClick={() => navigate('/blog')}
+                                    className="text-gray-300 hover:text-white transition-colors"
+                                >
+                                    Blog
+                                </button>
+                            </div>
                         </div>
                         {user ? (
                             <div className="flex items-center gap-4">
@@ -94,15 +115,20 @@ export default function Landing() {
                                 </div>
                             </div>
                         ) : (
-                            <button
-                                onClick={() => navigate('/auth')}
-                                className="bg-teal-primary hover:bg-teal-primary/90 text-white px-6 py-2 rounded-lg transition-colors"
-                            >
-                                Sign In
-                            </button>
+                            <div className="flex items-center space-x-8">
+                                <button
+                                    onClick={() => navigate('/auth')}
+                                    className="bg-teal-primary hover:bg-teal-primary/90 text-white px-6 py-2 rounded-lg transition-colors"
+                                >
+                                    Sign In
+                                </button>
+                            </div>
                         )}
                     </div>
                 </nav>
+
+                {/* Editor Image Section */}
+
 
                 {/* Hero Section */}
                 <div className="container mx-auto px-6 py-24 text-center">
@@ -127,6 +153,29 @@ export default function Landing() {
                             >
                                 Schedule Demo
                             </button>
+                        </div>
+                    </div>
+                </div>
+
+
+                {/* Contact Screen Section */}
+                <div className="relative w-full max-w-6xl mx-auto px-6 mt-8 mb-12">
+                    <div className="relative">
+                        <div className="relative">
+                            <img
+                                src={ContactScreen}
+                                alt="SalesIQ Dashboard rounded-lg"
+                                className="w-full h-auto  shadow-2x border-2 border-[#67BAAA] rounded-lg"
+                                width={1000}
+                                height={500}
+                            />
+                            {/* Gradient Mask */}
+                            <div
+                                className="absolute bottom-0 left-0 right-0 h-[650px]"
+                                style={{
+                                    background: 'linear-gradient(to top, #184A5D 5%, #184A5D 2%, #184A5D 1%, rgba(13, 52, 65, 0.4) 60%, rgba(13, 52, 65, 0) 100%)'
+                                }}
+                            ></div>
                         </div>
                     </div>
                 </div>
@@ -317,6 +366,183 @@ export default function Landing() {
                         <div className="h-[400px] md:h-[500px]"></div>
                     </div>
                 </div>
+
+                {/* Analytics and Reporting Section */}
+                <div className="container mx-auto px-6 py-24 relative z-10">
+                    <div className="grid lg:grid-cols-2 gap-12 items-center">
+                        {/* Left Content */}
+                        <div className="space-y-6">
+                            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/80">
+                                AI-Powered Sales Analytics
+                            </h2>
+                            <div className="space-y-4">
+                                <p className="text-xl text-gray-300">
+                                    Generate intelligent reports and insights that help you maintain{' '}
+                                    <span className="text-teal-primary">complete control of your sales growth</span>{' '}
+                                    with real-time data visualization.
+                                </p>
+                                <p className="text-gray-300">
+                                    Start with our AI-enhanced pre-built dashboards or create your own custom views. Our intelligent system will automatically highlight key trends and opportunities.
+                                </p>
+                            </div>
+                            <div className="space-y-4 pt-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-teal-primary/20 flex items-center justify-center mt-1">
+                                        <svg className="w-4 h-4 text-teal-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-white">Real-time Analytics</h3>
+                                        <p className="text-gray-300">Monitor your sales performance with live updates and AI-driven insights</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-teal-primary/20 flex items-center justify-center mt-1">
+                                        <svg className="w-4 h-4 text-teal-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-white">Predictive Insights</h3>
+                                        <p className="text-gray-300">AI-powered forecasting to help you make data-driven decisions</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-teal-primary/20 flex items-center justify-center mt-1">
+                                        <svg className="w-4 h-4 text-teal-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-white">Custom Reports</h3>
+                                        <p className="text-gray-300">Create tailored reports with drag-and-drop simplicity</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right Image */}
+                        <div className="relative">
+                            <div className="relative rounded-lg overflow-hidden border-2 border-teal-primary/30 shadow-2xl">
+                                <div className="absolute inset-0 bg-gradient-to-tr from-navy-deep/80 via-transparent to-transparent z-10"></div>
+                                <img
+                                    src={Screenshot4}
+                                    alt="SalesIQ Analytics Dashboard"
+                                    className="w-full h-auto rounded-lg"
+                                />
+                            </div>
+                            {/* Decorative Elements */}
+                            <div className="absolute -top-4 -right-4 w-24 h-24 bg-teal-primary/20 rounded-full blur-2xl"></div>
+                            <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-teal-primary/10 rounded-full blur-2xl"></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Data Analysis Section */}
+                <div className="container mx-auto px-6 py-24 relative z-10">
+                    <div className="grid lg:grid-cols-2 gap-16 items-center">
+                        {/* Left Content */}
+                        <div className="space-y-6">
+                            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/80">
+                                Analyze Your Data
+                            </h2>
+                            <div className="space-y-4">
+                                <p className="text-xl text-gray-300">
+                                    Dive deep into your data and make better decisions. Our AI-powered platform helps you explore your information dynamically to identify trends and understand your results better.
+                                </p>
+                                <p className="text-gray-300">
+                                    Explore all your data using different{' '}
+                                    <span className="text-teal-primary">types of visualizations</span>{' '}
+                                    and filters by time periods. Our AI assistant will automatically highlight key insights and opportunities.
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-6 pt-6">
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-teal-primary/20 flex items-center justify-center">
+                                            <svg className="w-3 h-3 text-teal-primary" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                            </svg>
+                                        </div>
+                                        <span className="text-white">Smart Insights</span>
+                                    </div>
+                                    <p className="text-sm text-gray-300">AI-powered analysis highlighting key patterns</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-teal-primary/20 flex items-center justify-center">
+                                            <svg className="w-3 h-3 text-teal-primary" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                            </svg>
+                                        </div>
+                                        <span className="text-white">Multiple Charts</span>
+                                    </div>
+                                    <p className="text-sm text-gray-300">Visualize data in various formats</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-teal-primary/20 flex items-center justify-center">
+                                            <svg className="w-3 h-3 text-teal-primary" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                        <span className="text-white">Time Analysis</span>
+                                    </div>
+                                    <p className="text-sm text-gray-300">Track trends over custom periods</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-teal-primary/20 flex items-center justify-center">
+                                            <svg className="w-3 h-3 text-teal-primary" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                            </svg>
+                                        </div>
+                                        <span className="text-white">Custom Filters</span>
+                                    </div>
+                                    <p className="text-sm text-gray-300">Flexible data filtering options</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right Side - Graph Display */}
+                        <div className="relative">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="col-span-2">
+                                    <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
+                                        <div className="text-sm text-white mb-2">Sales Performance Timeline</div>
+                                        <img
+                                            src={Screenshot1}
+                                            alt="Sales Timeline"
+                                            className="w-full h-auto"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
+                                    <div className="text-sm text-white mb-2">Revenue Distribution</div>
+                                    <img
+                                        src={Screenshot2}
+                                        alt="Revenue Distribution"
+                                        className="w-full h-auto"
+                                    />
+                                </div>
+                                <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
+                                    <div className="text-sm text-white mb-2">Growth Prediction</div>
+                                    <img
+                                        src={Screenshot3}
+                                        alt="Growth Prediction"
+                                        className="w-full h-auto"
+                                    />
+                                </div>
+                            </div>
+                            {/* Decorative Elements */}
+                            <div className="absolute -top-4 -right-4 w-24 h-24 bg-teal-primary/20 rounded-full blur-2xl"></div>
+                            <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-teal-primary/10 rounded-full blur-2xl"></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Call to Action Section - if it exists */}
             </div>
         </div>
     );
