@@ -1,27 +1,26 @@
-
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { 
-  Home, 
-  List, 
-  BarChart, 
-  Settings, 
-  Bell, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  Home,
+  List,
+  BarChart,
+  Settings,
+  Bell,
+  ChevronLeft,
+  ChevronRight,
   HelpCircle,
   Users
 } from "lucide-react";
 
-const SidebarItem = ({ 
-  icon: Icon, 
-  label, 
-  to, 
-  collapsed 
-}: { 
-  icon: React.ElementType; 
-  label: string; 
+const SidebarItem = ({
+  icon: Icon,
+  label,
+  to,
+  collapsed
+}: {
+  icon: React.ElementType;
+  label: string;
   to: string;
   collapsed: boolean;
 }) => {
@@ -31,8 +30,8 @@ const SidebarItem = ({
       className={({ isActive }) =>
         cn(
           "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-          isActive 
-            ? "bg-teal-primary text-white" 
+          isActive
+            ? "bg-teal-primary text-white"
             : "text-white/80 hover:bg-navy-light/50 hover:text-white",
           collapsed && "justify-center"
         )
@@ -74,19 +73,19 @@ export function Sidebar() {
 
       {/* Nav items */}
       <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-1 px-2">
-        <SidebarItem icon={Home} label="Home" to="/" collapsed={collapsed} />
-        <SidebarItem icon={List} label="Lists" to="/lists" collapsed={collapsed} />
-        <SidebarItem icon={BarChart} label="Reports" to="/reports" collapsed={collapsed} />
-        <SidebarItem icon={Users} label="Candidates" to="/candidates" collapsed={collapsed} />
+        <SidebarItem icon={Home} label="Home" to="/dashboard" collapsed={collapsed} />
+        <SidebarItem icon={List} label="Lists" to="/dashboard/lists" collapsed={collapsed} />
+        <SidebarItem icon={BarChart} label="Reports" to="/dashboard/reports" collapsed={collapsed} />
+        <SidebarItem icon={Users} label="Candidates" to="/dashboard/candidates" collapsed={collapsed} />
 
         {!collapsed && (
           <div className="mt-6 mb-2 px-3 text-xs font-semibold text-white/50">
             SETTINGS
           </div>
         )}
-        <SidebarItem icon={Settings} label="Settings" to="/settings" collapsed={collapsed} />
-        <SidebarItem icon={Bell} label="Notifications" to="/notifications" collapsed={collapsed} />
-        <SidebarItem icon={HelpCircle} label="Help" to="/help" collapsed={collapsed} />
+        <SidebarItem icon={Settings} label="Settings" to="/dashboard/settings" collapsed={collapsed} />
+        <SidebarItem icon={Bell} label="Notifications" to="/dashboard/notifications" collapsed={collapsed} />
+        <SidebarItem icon={HelpCircle} label="Help" to="/dashboard/help" collapsed={collapsed} />
       </div>
 
       {/* Toggle collapse button */}

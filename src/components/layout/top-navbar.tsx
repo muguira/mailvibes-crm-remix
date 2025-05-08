@@ -16,13 +16,13 @@ export function TopNavbar({ className }: TopNavbarProps) {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     // Check initially
     checkMobile();
-    
+
     // Add resize listener
     window.addEventListener('resize', checkMobile);
-    
+
     // Clean up
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
@@ -38,18 +38,18 @@ export function TopNavbar({ className }: TopNavbarProps) {
         {/* Navigation Items - moved more to the left */}
         <div className="flex ml-1">
           <NavLink
-            to="/"
+            to="/dashboard"
             className={({ isActive }) =>
               `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
             }
           >
             Home
           </NavLink>
-          
+
           {/* Only show Reports on desktop */}
           {!isMobile && (
             <NavLink
-              to="/reports"
+              to="/dashboard/reports"
               className={({ isActive }) =>
                 `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
               }
@@ -57,29 +57,29 @@ export function TopNavbar({ className }: TopNavbarProps) {
               Reports
             </NavLink>
           )}
-          
+
           <NavLink
-            to="/leads"
+            to="/dashboard/leads"
             className={({ isActive }) =>
               `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
             }
           >
             Contacts
           </NavLink>
-          
+
           <NavLink
-            to="/lists"
+            to="/dashboard/lists"
             className={({ isActive }) =>
               `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
             }
           >
             Opportunities
           </NavLink>
-          
+
           {/* Only show Customers on desktop */}
           {!isMobile && (
             <NavLink
-              to="/customers"
+              to="/dashboard/customers"
               className={({ isActive }) =>
                 `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
               }
@@ -97,7 +97,7 @@ export function TopNavbar({ className }: TopNavbarProps) {
               <Bell size={18} />
             </button>
           )}
-          
+
           {/* Only show Help and Settings on desktop */}
           {!isMobile && (
             <>
@@ -109,14 +109,14 @@ export function TopNavbar({ className }: TopNavbarProps) {
               </button>
             </>
           )}
-          
+
           {/* Search button - only on desktop */}
           {!isMobile && (
             <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
               <Search size={18} />
             </button>
           )}
-          
+
           {/* Profile menu - always positioned at the far right */}
           <ProfileMenu />
         </div>
