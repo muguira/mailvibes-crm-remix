@@ -212,6 +212,10 @@ export function TasksPanel() {
     );
   };
 
+  const handleTaskDelete = (taskId: string) => {
+    setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+  };
+
   return (
     <div className="bg-background text-foreground rounded-lg overflow-hidden h-full flex flex-col shadow-lg">
       <div className="p-4 flex items-center gap-4">
@@ -271,6 +275,7 @@ export function TasksPanel() {
                 onTitleBlur={handleTaskTitleBlur}
                 onTitleKeyDown={handleTaskTitleKeyDown}
                 onTaskUpdate={handleTaskUpdate}
+                onDelete={handleTaskDelete}
                 allTasks={tasks}
               />
             ))}
@@ -287,6 +292,7 @@ export function TasksPanel() {
                 onTitleBlur={handleTaskTitleBlur}
                 onTitleKeyDown={handleTaskTitleKeyDown}
                 onTaskUpdate={handleTaskUpdate}
+                onDelete={handleTaskDelete}
                 allTasks={tasks}
               />
             ))}
@@ -303,6 +309,7 @@ export function TasksPanel() {
                 onTitleBlur={handleTaskTitleBlur}
                 onTitleKeyDown={handleTaskTitleKeyDown}
                 onTaskUpdate={handleTaskUpdate}
+                onDelete={handleTaskDelete}
                 allTasks={tasks}
               />
             ))}
@@ -323,6 +330,7 @@ interface TaskItemProps {
   onTitleBlur: (taskId: string) => void;
   onTitleKeyDown: (e: React.KeyboardEvent, taskId: string) => void;
   onTaskUpdate: (updatedTask: Task) => void;
+  onDelete: (taskId: string) => void;
   allTasks: Task[];
 }
 
@@ -336,6 +344,7 @@ function TaskItem({
   onTitleBlur,
   onTitleKeyDown,
   onTaskUpdate,
+  onDelete,
   allTasks
 }: TaskItemProps) {
   const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
@@ -450,6 +459,7 @@ function TaskItem({
         onClose={() => setIsEditPopupOpen(false)}
         onSave={onTaskUpdate}
         onStatusChange={onStatusChange}
+        onDelete={onDelete}
         allTasks={allTasks}
       />
     </div>

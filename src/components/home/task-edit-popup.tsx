@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
-import { Check, X, Calendar, Plus, ChevronDown, AlertTriangle, User, Search } from "lucide-react";
+import { Check, X, Calendar, Plus, ChevronDown, AlertTriangle, User, Search, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DeadlinePopup } from "./deadline-popup";
@@ -40,6 +40,7 @@ interface TaskEditPopupProps {
     onClose: () => void;
     onSave: (updatedTask: Task) => void;
     onStatusChange: (taskId: string, newStatus: Task["displayStatus"]) => void;
+    onDelete?: (taskId: string) => void;
     allTasks?: Task[];
 }
 
@@ -64,13 +65,14 @@ const STATUSES = [
     { value: "off-track", label: "Off track" },
 ];
 
-export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, allTasks = [] }: TaskEditPopupProps) {
+export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onDelete, allTasks = [] }: TaskEditPopupProps) {
     const [editedTask, setEditedTask] = useState<Task>({ ...task });
     const [openDependencies, setOpenDependencies] = useState(false);
     const [openSubtasks, setOpenSubtasks] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [subtaskSearchQuery, setSubtaskSearchQuery] = useState("");
     const [isEditingDescription, setIsEditingDescription] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
     const [newComment, setNewComment] = useState("");
 
@@ -179,24 +181,78 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
         }
     };
 
+    const handleDelete = () => {
+        setIsDeleting(true);
+    };
+
+    const handleUndelete = () => {
+        setIsDeleting(false);
+    };
+
+    const handlePermanentDelete = () => {
+        if (onDelete) {
+            onDelete(task.id);
+            onClose();
+        }
+    };
+
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-2xl bg-background text-foreground p-0">
-                <DialogTitle className="sr-only">Edit Task</DialogTitle>
-                <div className="flex items-center justify-between p-2 border-b border-border">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleMarkComplete}
-                        className={cn(
-                            "hover:bg-emerald-500/10 hover:text-emerald-500",
-                            task.displayStatus === "completed" && "text-emerald-500"
-                        )}
-                    >
-                        <Check className="h-4 w-4 mr-1" />
-                        {task.displayStatus === "completed" ? "Completed" : "Mark complete"}
-                    </Button>
+                <div>
+                    <DialogTitle className="sr-only">Edit Task</DialogTitle>
+                    <div className="flex items-center justify-between p-2 border-b border-border">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleMarkComplete}
+                            className={cn(
+                                "hover:bg-emerald-500/10 hover:text-emerald-500",
+                                task.displayStatus === "completed" && "text-emerald-500"
+                            )}
+                        >
+                            <Check className="h-4 w-4 mr-1" />
+                            {task.displayStatus === "completed" ? "Completed" : "Mark complete"}
+                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleDelete}
+                                className="text-muted-foreground hover:text-red-500 hover:bg-red-500/10 mr-10 mb-[4px]"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                    {isDeleting && (
+                        <div className="bg-red-50 p-2 flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-red-600">
+                                <Trash2 className="h-4 w-4" />
+                                <span className="text-sm">This task is deleted.</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleUndelete}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                    Undelete
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={handlePermanentDelete}
+                                >
+                                    Delete permanently
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
+
+
 
                 <div className="p-6 pt-0 space-y-6">
                     <Input
@@ -205,6 +261,8 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
                         className="text-2xl font-semibold border-none p-0 focus-visible:ring-0"
                         placeholder="Task title"
                     />
+
+
 
                     <div className="space-y-4">
                         <div className="grid grid-cols-[100px_1fr] items-center gap-2">
