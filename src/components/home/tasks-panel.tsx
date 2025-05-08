@@ -429,9 +429,9 @@ function TaskItem({
           )}
         </div>
         <div className="flex items-center gap-2">
-          {task.tag && (
-            <span className="px-3 py-1 bg-primary/10 text-primary rounded text-sm">
-              {task.tag}
+          {task.type && (
+            <span className="px-3 py-1 bg-primary/10 text-primary rounded text-sm capitalize">
+              {task.type.replace(/-/g, ' ')}
             </span>
           )}
           <DeadlinePopup
