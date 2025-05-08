@@ -558,7 +558,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, all
                         </div>
                     </div>
 
-                    <div className="space-y-4 border-t pt-6">
+                    <div className="space-y-3 border-t pt-6">
                         <span className="text-sm font-medium">Comments</span>
                         <div className="flex flex-col h-[300px]">
                             <div className="flex-1 overflow-y-auto pr-2">
