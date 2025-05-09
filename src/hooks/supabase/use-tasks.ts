@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,19 +5,9 @@ import { Task } from '@/components/home/tasks-panel';
 import { toast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isPast, parseISO, startOfDay } from 'date-fns';
+import { Database } from '@/integrations/supabase/types';
 
-export interface TaskData {
-  id: string;
-  title: string;
-  deadline?: string;
-  contact?: string;
-  description?: string;
-  display_status: "upcoming" | "overdue" | "completed";
-  status: "on-track" | "at-risk" | "off-track";
-  type: "follow-up" | "respond" | "task" | "cross-functional";
-  tag?: string;
-  priority?: "low" | "medium" | "high";
-}
+export type TaskData = Database['public']['Tables']['tasks']['Row'];
 
 export function useTasks() {
   const { user } = useAuth();
@@ -26,7 +15,7 @@ export function useTasks() {
 
   const fetchTasks = async (): Promise<TaskData[]> => {
     if (!user) return [];
-    
+
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
@@ -63,12 +52,12 @@ export function useTasks() {
   });
 
   const createTask = useMutation({
-    mutationFn: async (newTask: Omit<TaskData, "id">) => {
+    mutationFn: async (newTask: Omit<TaskData, "id" | "created_at" | "updated_at">) => {
       if (!user) throw new Error('User must be logged in');
-      
+
       const { data, error } = await supabase
         .from('tasks')
-        .insert([newTask])
+        .insert([{ ...newTask, user_id: user.id }])
         .select()
         .single();
 
@@ -90,9 +79,9 @@ export function useTasks() {
   });
 
   const updateTask = useMutation({
-    mutationFn: async (updatedTask: TaskData) => {
+    mutationFn: async (updatedTask: Omit<TaskData, "created_at" | "updated_at">) => {
       if (!user) throw new Error('User must be logged in');
-      
+
       const { data, error } = await supabase
         .from('tasks')
         .update(updatedTask)
@@ -120,7 +109,7 @@ export function useTasks() {
   const deleteTask = useMutation({
     mutationFn: async (taskId: string) => {
       if (!user) throw new Error('User must be logged in');
-      
+
       const { error } = await supabase
         .from('tasks')
         .delete()
@@ -147,8 +136,8 @@ export function useTasks() {
     tasks,
     isLoading,
     error,
-    createTask: (task: Omit<TaskData, "id">) => createTask.mutate(task),
-    updateTask: (task: TaskData) => updateTask.mutate(task),
+    createTask: (task: Omit<TaskData, "id" | "created_at" | "updated_at">) => createTask.mutate(task),
+    updateTask: (task: Omit<TaskData, "created_at" | "updated_at">) => updateTask.mutate(task),
     deleteTask: (taskId: string) => deleteTask.mutate(taskId)
   };
 }

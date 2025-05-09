@@ -1,4 +1,3 @@
-
 import { Check, Circle, Plus, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect, useRef } from "react";
@@ -109,7 +108,7 @@ export function TasksPanel() {
 
   const handleTaskStatusChange = (taskId: string, newStatus: Task["displayStatus"]) => {
     const taskToUpdate = tasks.find(task => task.id === taskId);
-    if (taskToUpdate) {
+    if (taskToUpdate && user) {
       updateTask({
         id: taskId,
         display_status: newStatus,
@@ -117,18 +116,19 @@ export function TasksPanel() {
         status: taskToUpdate.status,
         type: taskToUpdate.type,
         deadline: taskToUpdate.deadline,
-        contact: taskToUpdate.contact,
-        description: taskToUpdate.description,
-        tag: taskToUpdate.tag,
-        priority: taskToUpdate.priority
+        contact: taskToUpdate.contact || '',
+        description: taskToUpdate.description || '',
+        tag: taskToUpdate.tag || '',
+        priority: taskToUpdate.priority || 'medium',
+        user_id: user.id
       });
     }
   };
 
   const handleDeadlineChange = (taskId: string, deadline: string | undefined) => {
     const taskToUpdate = tasks.find(task => task.id === taskId);
-    if (!taskToUpdate) return;
-    
+    if (!taskToUpdate || !user) return;
+
     // When setting a new deadline, check if it's already overdue
     let newStatus = taskToUpdate.displayStatus;
     if (deadline) {
@@ -141,24 +141,25 @@ export function TasksPanel() {
         newStatus = "upcoming";
       }
     }
-    
+
     updateTask({
       id: taskId,
-      deadline: deadline,
+      deadline: deadline || '',
       display_status: newStatus,
       title: taskToUpdate.title,
       status: taskToUpdate.status,
       type: taskToUpdate.type,
-      contact: taskToUpdate.contact,
-      description: taskToUpdate.description,
-      tag: taskToUpdate.tag,
-      priority: taskToUpdate.priority
+      contact: taskToUpdate.contact || '',
+      description: taskToUpdate.description || '',
+      tag: taskToUpdate.tag || '',
+      priority: taskToUpdate.priority || 'medium',
+      user_id: user.id
     });
   };
 
   const handleCreateNewTask = () => {
     if (!user) return; // Don't allow creating tasks if not logged in
-    
+
     const newTask: Task = {
       id: crypto.randomUUID(),
       title: "",
@@ -182,14 +183,17 @@ export function TasksPanel() {
     tag?: string;
   }) => {
     if (!user) return; // Don't allow creating tasks if not logged in
-    
+
     createTask({
       title: task.title,
-      deadline: task.deadline,
+      deadline: task.deadline || '',
       type: task.type,
-      tag: task.tag,
+      tag: task.tag || '',
       display_status: "upcoming",
       status: "on-track",
+      contact: '',
+      description: '',
+      priority: 'medium',
       user_id: user.id
     });
   };
@@ -206,22 +210,27 @@ export function TasksPanel() {
 
   const handleTaskTitleBlur = (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
-    
-    if (task && task.title.trim() !== "") {
+
+    if (task && task.title.trim() !== "" && user) {
       // Create new task in Supabase
       createTask({
         title: task.title,
         type: task.type,
         display_status: "upcoming",
         status: "on-track",
-        user_id: user?.id || ''
+        contact: '',
+        deadline: '',
+        description: '',
+        tag: '',
+        priority: 'medium',
+        user_id: user.id
       });
     }
-    
-    setTasks(prev => prev.filter(task => 
+
+    setTasks(prev => prev.filter(task =>
       task.id !== taskId || (task.id === taskId && task.title.trim() !== "")
     ));
-    
+
     setIsCreatingTask(false);
   };
 
@@ -238,17 +247,20 @@ export function TasksPanel() {
   };
 
   const handleTaskUpdate = (updatedTask: Task) => {
+    if (!user) return;
+
     updateTask({
       id: updatedTask.id,
       title: updatedTask.title,
-      deadline: updatedTask.deadline,
-      contact: updatedTask.contact,
-      description: updatedTask.description,
+      deadline: updatedTask.deadline || '',
+      contact: updatedTask.contact || '',
+      description: updatedTask.description || '',
       display_status: updatedTask.displayStatus,
       status: updatedTask.status,
       type: updatedTask.type,
-      tag: updatedTask.tag,
-      priority: updatedTask.priority
+      tag: updatedTask.tag || '',
+      priority: updatedTask.priority || 'medium',
+      user_id: user.id
     });
   };
 
