@@ -1,5 +1,8 @@
+
+// Import all components from grid-view
 export * from './GridViewContainer';
-export * from './types';
-export * from './StaticColumns';
 export * from './MainGridView';
-export * from './ActionColumn';
+export * from './StaticColumns';
+export * from './grid-header';
+export * from './grid-toolbar';
+export * from './ContextMenu';
