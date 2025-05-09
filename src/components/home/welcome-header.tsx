@@ -69,7 +69,7 @@ export function WelcomeHeader({
         
         <div className="flex justify-center items-center mt-1 mb-1">
           <div className="bg-primary-700/30 rounded-full px-8 py-3">
-            <div className="flex items-center justify-center">
+            <div className="flex items-center justify-between gap-4">
               <div className="hidden md:block">
                 <Select 
                   value={timeView} 
@@ -83,6 +83,26 @@ export function WelcomeHeader({
                     <SelectItem value="month">My month</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              
+              <div className="hidden md:block h-6 w-px bg-primary-600/50"></div>
+              
+              <div className="hidden md:flex items-center gap-2">
+                <div className="p-1 rounded-full bg-primary-600/20">
+                  <CalendarDays className="w-4 h-4 text-gray-600" />
+                </div>
+                <span className="font-semibold text-gray-800">{taskCount}</span>
+                <span className="text-gray-700">tasks completed</span>
+              </div>
+              
+              <div className="hidden md:block h-6 w-px bg-primary-600/50"></div>
+              
+              <div className="hidden md:flex items-center gap-2">
+                <div className="p-1 rounded-full bg-primary-600/20">
+                  <Users className="w-4 h-4 text-gray-600" />
+                </div>
+                <span className="font-semibold text-gray-800">{collaboratorCount}</span>
+                <span className="text-gray-700">collaborators</span>
               </div>
             </div>
           </div>
