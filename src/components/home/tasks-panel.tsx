@@ -1,3 +1,4 @@
+
 import { Check, Circle, Plus, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect, useRef } from "react";
@@ -6,12 +7,15 @@ import { DeadlinePopup } from "./deadline-popup";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-fns";
 import { es } from 'date-fns/locale';
 import { TaskEditPopup } from "./task-edit-popup";
+import { useTasks } from "@/hooks/supabase/use-tasks";
+import { CreateTaskDialog } from "./create-task-dialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface Task {
   id: string;
   title: string;
   deadline?: string; // ISO string
-  contact: string;
+  contact?: string;
   description?: string;
   displayStatus: "upcoming" | "overdue" | "completed";
   status: "on-track" | "at-risk" | "off-track";
@@ -21,56 +25,31 @@ export interface Task {
   priority?: "low" | "medium" | "high";
 }
 
-// Sample task data
-const initialTasks: Task[] = [
-  {
-    id: "1",
-    title: "Ivan Seguimiento",
-    contact: "Ivan",
-    displayStatus: "upcoming",
-    status: "on-track",
-    type: "follow-up"
-  },
-  {
-    id: "2",
-    title: "QBR's",
-    contact: "",
-    displayStatus: "upcoming",
-    status: "on-track",
-    type: "task",
-    tag: "LATAM"
-  },
-  {
-    id: "3",
-    title: "Seguimiento a Leandro",
-    contact: "",
-    displayStatus: "upcoming",
-    status: "on-track",
-    type: "follow-up",
-    tag: "LATAM"
-  },
-  {
-    id: "4",
-    title: "Viaje CDMX",
-    contact: "",
-    displayStatus: "upcoming",
-    status: "on-track",
-    type: "task"
-  },
-  {
-    id: "5",
-    title: "Platica o 1-a-1 con Vivek",
-    contact: "",
-    displayStatus: "upcoming",
-    status: "on-track",
-    type: "task"
-  }
-];
-
 export function TasksPanel() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const { user } = useAuth();
+  const { tasks: supabaseTasks, isLoading, createTask, updateTask, deleteTask } = useTasks();
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const newTaskInputRef = useRef<HTMLInputElement>(null);
+
+  // Transform Supabase tasks to our Task interface format
+  useEffect(() => {
+    if (supabaseTasks) {
+      const formattedTasks = supabaseTasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        deadline: task.deadline,
+        contact: task.contact || '',
+        description: task.description,
+        displayStatus: task.display_status as Task['displayStatus'],
+        status: task.status as Task['status'],
+        type: task.type as Task['type'],
+        tag: task.tag,
+        priority: task.priority as Task['priority']
+      }));
+      setTasks(formattedTasks);
+    }
+  }, [supabaseTasks]);
 
   // Check for overdue tasks
   const checkOverdueTasks = () => {
@@ -129,36 +108,57 @@ export function TasksPanel() {
   const completedTasks = sortTasksByDate(tasks.filter(task => task.displayStatus === "completed"), false);
 
   const handleTaskStatusChange = (taskId: string, newStatus: Task["displayStatus"]) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId ? { ...task, displayStatus: newStatus } : task
-      )
-    );
+    const taskToUpdate = tasks.find(task => task.id === taskId);
+    if (taskToUpdate) {
+      updateTask({
+        id: taskId,
+        display_status: newStatus,
+        title: taskToUpdate.title,
+        status: taskToUpdate.status,
+        type: taskToUpdate.type,
+        deadline: taskToUpdate.deadline,
+        contact: taskToUpdate.contact,
+        description: taskToUpdate.description,
+        tag: taskToUpdate.tag,
+        priority: taskToUpdate.priority
+      });
+    }
   };
 
   const handleDeadlineChange = (taskId: string, deadline: string | undefined) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task => {
-        if (task.id !== taskId) return task;
-
-        // When setting a new deadline, check if it's already overdue
-        if (deadline) {
-          const deadlineDate = parseISO(deadline);
-          if (isPast(startOfDay(deadlineDate))) {
-            return { ...task, deadline, displayStatus: "overdue" };
-          }
-          // If task was overdue but new deadline is in the future, move back to upcoming
-          if (task.displayStatus === "overdue" && !isPast(startOfDay(deadlineDate))) {
-            return { ...task, deadline, displayStatus: "upcoming" };
-          }
-        }
-
-        return { ...task, deadline };
-      })
-    );
+    const taskToUpdate = tasks.find(task => task.id === taskId);
+    if (!taskToUpdate) return;
+    
+    // When setting a new deadline, check if it's already overdue
+    let newStatus = taskToUpdate.displayStatus;
+    if (deadline) {
+      const deadlineDate = parseISO(deadline);
+      if (isPast(startOfDay(deadlineDate))) {
+        newStatus = "overdue";
+      }
+      // If task was overdue but new deadline is in the future, move back to upcoming
+      else if (taskToUpdate.displayStatus === "overdue") {
+        newStatus = "upcoming";
+      }
+    }
+    
+    updateTask({
+      id: taskId,
+      deadline: deadline,
+      display_status: newStatus,
+      title: taskToUpdate.title,
+      status: taskToUpdate.status,
+      type: taskToUpdate.type,
+      contact: taskToUpdate.contact,
+      description: taskToUpdate.description,
+      tag: taskToUpdate.tag,
+      priority: taskToUpdate.priority
+    });
   };
 
   const handleCreateNewTask = () => {
+    if (!user) return; // Don't allow creating tasks if not logged in
+    
     const newTask: Task = {
       id: crypto.randomUUID(),
       title: "",
@@ -175,6 +175,25 @@ export function TasksPanel() {
     }, 0);
   };
 
+  const handleCreateTask = (task: {
+    title: string;
+    deadline?: string;
+    type: "follow-up" | "respond" | "task";
+    tag?: string;
+  }) => {
+    if (!user) return; // Don't allow creating tasks if not logged in
+    
+    createTask({
+      title: task.title,
+      deadline: task.deadline,
+      type: task.type,
+      tag: task.tag,
+      display_status: "upcoming",
+      status: "on-track",
+      user_id: user.id
+    });
+  };
+
   const handleTaskTitleChange = (taskId: string, newTitle: string) => {
     setTasks(prev =>
       prev.map(task =>
@@ -186,9 +205,23 @@ export function TasksPanel() {
   };
 
   const handleTaskTitleBlur = (taskId: string) => {
-    setTasks(prev => prev.filter(task =>
+    const task = tasks.find(t => t.id === taskId);
+    
+    if (task && task.title.trim() !== "") {
+      // Create new task in Supabase
+      createTask({
+        title: task.title,
+        type: task.type,
+        display_status: "upcoming",
+        status: "on-track",
+        user_id: user?.id || ''
+      });
+    }
+    
+    setTasks(prev => prev.filter(task => 
       task.id !== taskId || (task.id === taskId && task.title.trim() !== "")
     ));
+    
     setIsCreatingTask(false);
   };
 
@@ -205,15 +238,22 @@ export function TasksPanel() {
   };
 
   const handleTaskUpdate = (updatedTask: Task) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === updatedTask.id ? { ...task, ...updatedTask } : task
-      )
-    );
+    updateTask({
+      id: updatedTask.id,
+      title: updatedTask.title,
+      deadline: updatedTask.deadline,
+      contact: updatedTask.contact,
+      description: updatedTask.description,
+      display_status: updatedTask.displayStatus,
+      status: updatedTask.status,
+      type: updatedTask.type,
+      tag: updatedTask.tag,
+      priority: updatedTask.priority
+    });
   };
 
   const handleTaskDelete = (taskId: string) => {
-    setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+    deleteTask(taskId);
   };
 
   return (
@@ -251,69 +291,104 @@ export function TasksPanel() {
         </div>
 
         <div className="p-2 pt-3">
-          <button
-            className="w-full text-left text-muted-foreground flex items-center gap-2 py-1 hover:text-foreground transition-colors"
-            onClick={handleCreateNewTask}
-            disabled={isCreatingTask}
-          >
-            <Plus size={16} />
-            Create task
-          </button>
+          {user ? (
+            <>
+              <button
+                className="w-full text-left text-muted-foreground flex items-center gap-2 py-1 hover:text-foreground transition-colors"
+                onClick={handleCreateNewTask}
+                disabled={isCreatingTask}
+              >
+                <Plus size={16} />
+                Create task
+              </button>
+              <CreateTaskDialog onCreateTask={handleCreateTask} />
+            </>
+          ) : (
+            <div className="text-center text-sm text-muted-foreground py-2">
+              Please log in to create tasks
+            </div>
+          )}
         </div>
 
         <div className="overflow-y-auto" style={{ height: '392px' }}>
-          <TabsContent value="upcoming" className="m-0">
-            {upcomingTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                isNew={isCreatingTask && task.id === upcomingTasks[0]?.id}
-                inputRef={isCreatingTask && task.id === upcomingTasks[0]?.id ? newTaskInputRef : undefined}
-                onStatusChange={handleTaskStatusChange}
-                onDeadlineChange={handleDeadlineChange}
-                onTitleChange={handleTaskTitleChange}
-                onTitleBlur={handleTaskTitleBlur}
-                onTitleKeyDown={handleTaskTitleKeyDown}
-                onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
-                allTasks={tasks}
-              />
-            ))}
-          </TabsContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <>
+              <TabsContent value="upcoming" className="m-0">
+                {upcomingTasks.length > 0 ? (
+                  upcomingTasks.map((task) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      isNew={isCreatingTask && task.id === upcomingTasks[0]?.id}
+                      inputRef={isCreatingTask && task.id === upcomingTasks[0]?.id ? newTaskInputRef : undefined}
+                      onStatusChange={handleTaskStatusChange}
+                      onDeadlineChange={handleDeadlineChange}
+                      onTitleChange={handleTaskTitleChange}
+                      onTitleBlur={handleTaskTitleBlur}
+                      onTitleKeyDown={handleTaskTitleKeyDown}
+                      onTaskUpdate={handleTaskUpdate}
+                      onDelete={handleTaskDelete}
+                      allTasks={tasks}
+                    />
+                  ))
+                ) : (
+                  <div className="text-center text-sm text-muted-foreground py-8">
+                    No upcoming tasks
+                  </div>
+                )}
+              </TabsContent>
 
-          <TabsContent value="overdue" className="m-0">
-            {overdueTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onStatusChange={handleTaskStatusChange}
-                onDeadlineChange={handleDeadlineChange}
-                onTitleChange={handleTaskTitleChange}
-                onTitleBlur={handleTaskTitleBlur}
-                onTitleKeyDown={handleTaskTitleKeyDown}
-                onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
-                allTasks={tasks}
-              />
-            ))}
-          </TabsContent>
+              <TabsContent value="overdue" className="m-0">
+                {overdueTasks.length > 0 ? (
+                  overdueTasks.map((task) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      onStatusChange={handleTaskStatusChange}
+                      onDeadlineChange={handleDeadlineChange}
+                      onTitleChange={handleTaskTitleChange}
+                      onTitleBlur={handleTaskTitleBlur}
+                      onTitleKeyDown={handleTaskTitleKeyDown}
+                      onTaskUpdate={handleTaskUpdate}
+                      onDelete={handleTaskDelete}
+                      allTasks={tasks}
+                    />
+                  ))
+                ) : (
+                  <div className="text-center text-sm text-muted-foreground py-8">
+                    No overdue tasks
+                  </div>
+                )}
+              </TabsContent>
 
-          <TabsContent value="completed" className="m-0">
-            {completedTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onStatusChange={handleTaskStatusChange}
-                onDeadlineChange={handleDeadlineChange}
-                onTitleChange={handleTaskTitleChange}
-                onTitleBlur={handleTaskTitleBlur}
-                onTitleKeyDown={handleTaskTitleKeyDown}
-                onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
-                allTasks={tasks}
-              />
-            ))}
-          </TabsContent>
+              <TabsContent value="completed" className="m-0">
+                {completedTasks.length > 0 ? (
+                  completedTasks.map((task) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      onStatusChange={handleTaskStatusChange}
+                      onDeadlineChange={handleDeadlineChange}
+                      onTitleChange={handleTaskTitleChange}
+                      onTitleBlur={handleTaskTitleBlur}
+                      onTitleKeyDown={handleTaskTitleKeyDown}
+                      onTaskUpdate={handleTaskUpdate}
+                      onDelete={handleTaskDelete}
+                      allTasks={tasks}
+                    />
+                  ))
+                ) : (
+                  <div className="text-center text-sm text-muted-foreground py-8">
+                    No completed tasks
+                  </div>
+                )}
+              </TabsContent>
+            </>
+          )}
         </div>
       </Tabs>
     </div>

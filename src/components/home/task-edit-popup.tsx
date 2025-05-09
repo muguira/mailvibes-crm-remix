@@ -11,21 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-
-interface Task {
-    id: string;
-    title: string;
-    deadline?: string;
-    displayStatus: "upcoming" | "overdue" | "completed";
-    contact?: string;
-    type?: string;
-    priority?: "low" | "medium" | "high";
-    status?: "on-track" | "at-risk" | "off-track";
-    description?: string;
-    dependencies?: string[];
-    subtasks?: string[];
-    comments?: Comment[];
-}
+import { Task } from './tasks-panel';
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Comment {
     id: string;
@@ -75,7 +62,8 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     const [isDeleting, setIsDeleting] = useState(false);
     const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
     const [newComment, setNewComment] = useState("");
-
+    const { user } = useAuth();
+    
     useEffect(() => {
         setEditedTask({ ...task });
     }, [task]);
@@ -91,6 +79,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
 
     const handleSave = () => {
         onSave(editedTask);
+        onClose();
     };
 
     const handleMarkComplete = () => {
@@ -105,7 +94,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     };
 
     const handleLeaveTask = () => {
-        const updatedTask = { ...editedTask, contact: "" };
+        const updatedTask = { ...editedTask, contact: '' };
         setEditedTask(updatedTask);
         onSave(updatedTask);
     };
@@ -155,12 +144,12 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     };
 
     const addComment = () => {
-        if (!newComment.trim()) return;
+        if (!newComment.trim() || !user) return;
 
         const comment: Comment = {
             id: crypto.randomUUID(),
             text: newComment.trim(),
-            author: "franklin rodriguez", // This should come from the current user
+            author: user.email || "Anonymous",
             createdAt: new Date().toISOString()
         };
 
@@ -271,7 +260,9 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                                         className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 appearance-none pr-8"
                                     >
                                         <option value="">Select...</option>
-                                        <option value="franklin">franklin rodriguez</option>
+                                        <option value={user?.email || ""}>
+                                            {user?.email || "Current user"}
+                                        </option>
                                     </select>
                                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50 pointer-events-none" />
                                 </div>
@@ -300,6 +291,9 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                                         className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 appearance-none pr-8"
                                     >
                                         <option value="">Select...</option>
+                                        <option value="task">Task</option>
+                                        <option value="follow-up">Follow-up</option>
+                                        <option value="respond">Respond</option>
                                         <option value="cross-functional">Cross-functional project plan</option>
                                     </select>
                                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50 pointer-events-none" />
@@ -638,17 +632,19 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                                         ))}
                                     </div>
                                 </div>
-                                <div className="flex gap-3 pt-4 border-t mt-2">
-                                    <div className="flex-1">
-                                        <Textarea
-                                            value={newComment}
-                                            onChange={(e) => setNewComment(e.target.value)}
-                                            onKeyDown={handleCommentKeyDown}
-                                            placeholder="Add a comment..."
-                                            className="min-h-[80px] resize-none border border-input bg-muted/50 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
-                                        />
-                                    </div>
-                                </div>
+                                {user && (
+                                  <div className="flex gap-3 pt-4 border-t mt-2">
+                                      <div className="flex-1">
+                                          <Textarea
+                                              value={newComment}
+                                              onChange={(e) => setNewComment(e.target.value)}
+                                              onKeyDown={handleCommentKeyDown}
+                                              placeholder="Add a comment..."
+                                              className="min-h-[80px] resize-none border border-input bg-muted/50 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
+                                          />
+                                      </div>
+                                  </div>
+                                )}
                             </div>
                         </div>
 
@@ -656,9 +652,13 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                             <div className="flex items-center gap-2">
                                 <span className="text-sm text-muted-foreground">Collaborators</span>
                                 <div className="flex -space-x-2">
-                                    <Avatar className="h-6 w-6 border-2 border-background">
-                                        <AvatarFallback>FR</AvatarFallback>
-                                    </Avatar>
+                                    {user && (
+                                      <Avatar className="h-6 w-6 border-2 border-background">
+                                          <AvatarFallback>
+                                            {user.email?.substring(0, 2).toUpperCase() || "U"}
+                                          </AvatarFallback>
+                                      </Avatar>
+                                    )}
                                     <Button variant="outline" size="icon" className="h-6 w-6 rounded-full">
                                         <Plus className="h-4 w-4" />
                                     </Button>
@@ -679,4 +679,4 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
             </DialogContent>
         </Dialog>
     );
-} 
+}

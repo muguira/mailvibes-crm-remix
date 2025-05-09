@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { CalendarDays, Users, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -8,6 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTasks } from '@/hooks/supabase/use-tasks';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface WelcomeHeaderProps {
   username?: string;
@@ -16,13 +19,15 @@ interface WelcomeHeaderProps {
 }
 
 export function WelcomeHeader({ 
-  username = "Andres",
-  taskCount = 2,
   collaboratorCount = 0
 }: WelcomeHeaderProps) {
   const [timeView, setTimeView] = useState<'week' | 'month'>('week');
   const [greeting, setGreeting] = useState('Good morning');
   const [currentDate, setCurrentDate] = useState('');
+  const { tasks } = useTasks();
+  const { user } = useAuth();
+  const username = user?.email?.split('@')[0] || "Andres";
+  const taskCount = tasks.filter(task => task.display_status === "completed").length;
   
   // Update greeting based on time of day
   useEffect(() => {
