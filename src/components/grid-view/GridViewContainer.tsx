@@ -3,6 +3,7 @@ import { Column, GridRow, GridContainerProps } from './types';
 import { GridToolbar } from './grid-toolbar';
 import { StaticColumns } from './StaticColumns';
 import { MainGridView } from './MainGridView';
+import { INDEX_COLUMN_WIDTH } from './grid-constants';
 import './styles.css';
 
 export function GridViewContainer({
@@ -45,6 +46,9 @@ export function GridViewContainer({
   // Separate opportunity column from other columns
   const opportunityColumn = columns.find(col => col.id === 'opportunity');
   const gridColumns = columns.filter(col => col.id !== 'opportunity');
+  
+  // Width calculation for the static columns area
+  const staticColumnsWidth = INDEX_COLUMN_WIDTH + (opportunityColumn?.width || 0);
   
   // Resize observer for container
   useEffect(() => {
@@ -178,6 +182,26 @@ export function GridViewContainer({
     }
   };
   
+  // Handle columns reordering - ensure opportunity column remains unchanged
+  const handleColumnsReorder = (newColumnIds: string[]) => {
+    if (onColumnsReorder) {
+      // Make sure opportunity column stays in the correct position
+      const opportunityColumnIndex = columns.findIndex(col => col.id === 'opportunity');
+      const newColumns = newColumnIds
+        .filter(id => id !== 'opportunity') // Remove opportunity if it's in the list
+        .map(id => columns.find(col => col.id === id)!); // Map to full column objects
+      
+      // Re-insert opportunity at its original position if needed
+      if (opportunityColumnIndex >= 0 && opportunityColumn) {
+        // Only re-insert if it was in the original columns array
+        newColumns.splice(opportunityColumnIndex, 0, opportunityColumn);
+      }
+      
+      // Call the parent handler with the updated order
+      onColumnsReorder(newColumns.map(col => col.id));
+    }
+  };
+  
   // Handle scroll synchronization
   const handleScroll = ({ scrollTop: newScrollTop, scrollLeft: newScrollLeft }: { scrollTop: number, scrollLeft: number }) => {
     setScrollTop(newScrollTop);
@@ -207,18 +231,18 @@ export function GridViewContainer({
           onContextMenu={handleOpenContextMenu}
         />
         
-        {/* Main data grid */}
+        {/* Main data grid - adjust width to account for static columns */}
         <MainGridView
           columns={gridColumns}
           data={visibleData}
           scrollTop={scrollTop}
           scrollLeft={scrollLeft}
-          containerWidth={containerWidth}
+          containerWidth={(containerWidth - staticColumnsWidth) || 300}
           containerHeight={containerHeight}
           onScroll={handleScroll}
           onCellChange={onCellChange}
           onColumnChange={onColumnChange}
-          onColumnsReorder={onColumnsReorder}
+          onColumnsReorder={handleColumnsReorder}
           onAddColumn={onAddColumn}
           onDeleteColumn={onDeleteColumn}
           onContextMenu={handleOpenContextMenu}

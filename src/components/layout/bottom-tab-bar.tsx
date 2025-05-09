@@ -40,6 +40,17 @@ export function BottomTabBar() {
               >
                 {tab.name}
               </span>
+              {tab.name}
+              <tab.icon
+                className={`h-5 w-5 ${isActive ? "text-teal-primary" : "text-slate-medium"
+                  }`}
+              />
+              <span
+                className={`text-xs mt-1 ${isActive ? "text-teal-primary" : "text-slate-medium"
+                  }`}
+              >
+                {tab.name}
+              </span>
             </Link>
           );
         })}

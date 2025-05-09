@@ -317,65 +317,65 @@ export function MainGridView({
     const columnIndex = columns.findIndex(col => col.id === columnId);
     const nextColumnId = columnIndex < columns.length - 1 ? columns[columnIndex + 1].id : null;
     
+      if (onContextMenu) onContextMenu(null);
+      return;
+  };
+    
+    if (onAddColumn) {
+      onAddColumn(columnId);
+    }
     if (onContextMenu) onContextMenu(null);
-    return;
   };
   
-  if (onAddColumn) {
-    onAddColumn(columnId);
-  }
-  if (onContextMenu) onContextMenu(null);
-};
-
-const handleDeleteColumn = (columnId: string) => {
-  console.log(`Delete column: ${columnId}`);
-  if (onDeleteColumn) onDeleteColumn(columnId);
-  if (onContextMenu) onContextMenu(null);
-};
-
-const handleSortAZ = (columnId: string) => {
-  console.log(`Sort sheet A-Z by column: ${columnId}`);
-  if (onContextMenu) onContextMenu(null);
-};
-
-const handleSortZA = (columnId: string) => {
-  console.log(`Sort sheet Z-A by column: ${columnId}`);
-  if (onContextMenu) onContextMenu(null);
-};
-
-return (
-  <div className="main-grid-view">
-    {/* Header row */}
-    <div 
-      className="main-grid-header" 
-      ref={headerRef}
-      style={{ height: HEADER_HEIGHT, overflow: 'hidden' }}
-    >
+  const handleDeleteColumn = (columnId: string) => {
+    console.log(`Delete column: ${columnId}`);
+    if (onDeleteColumn) onDeleteColumn(columnId);
+    if (onContextMenu) onContextMenu(null);
+  };
+  
+  const handleSortAZ = (columnId: string) => {
+    console.log(`Sort sheet A-Z by column: ${columnId}`);
+    if (onContextMenu) onContextMenu(null);
+  };
+  
+  const handleSortZA = (columnId: string) => {
+    console.log(`Sort sheet Z-A by column: ${columnId}`);
+    if (onContextMenu) onContextMenu(null);
+  };
+  
+  return (
+    <div className="main-grid-view">
+      {/* Header row */}
+      <div 
+        className="main-grid-header" 
+        ref={headerRef}
+        style={{ height: HEADER_HEIGHT, overflow: 'hidden' }}
+      >
       <div className="grid-header-row" style={{ 
         width: totalWidth, 
         display: 'flex',
         boxSizing: 'border-box' 
       }}>
-        {columns.map((column, index) => (
-          <div
-            key={column.id}
-            className={`grid-header-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''}`}
+          {columns.map((column, index) => (
+            <div
+              key={column.id}
+              className={`grid-header-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''}`}
             style={{ 
               width: Math.floor(column.width),
               boxSizing: 'border-box'
             }}
-            draggable
-            onDragStart={(e) => handleHeaderDragStart(e, column.id)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => handleHeaderDrop(e, column.id)}
-            onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
-          >
-            {column.title}
-          </div>
-        ))}
+              draggable
+              onDragStart={(e) => handleHeaderDragStart(e, column.id)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => handleHeaderDrop(e, column.id)}
+              onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
+            >
+              {column.title}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-    
+      
     {/* Grid body with external scrollbar */}
     <div className="main-grid-body" style={{ position: 'relative', height: `calc(100% - ${HEADER_HEIGHT}px)` }}>
       <div style={{ 
@@ -406,25 +406,25 @@ return (
           {Cell}
         </Grid>
       </div>
+      </div>
+      
+      {/* Context Menu */}
+      {contextMenuColumn && contextMenuPosition && (
+        <ContextMenu
+          x={contextMenuPosition.x}
+          y={contextMenuPosition.y}
+          columnId={contextMenuColumn}
+          onClose={() => onContextMenu && onContextMenu(null)}
+          onCopy={handleCopyColumn}
+          onPaste={handlePasteColumn}
+          onInsertLeft={handleInsertLeft}
+          onInsertRight={handleInsertRight}
+          onDelete={handleDeleteColumn}
+          onSortAZ={handleSortAZ}
+          onSortZA={handleSortZA}
+          isVisible={!!contextMenuColumn}
+        />
+      )}
     </div>
-    
-    {/* Context Menu */}
-    {contextMenuColumn && contextMenuPosition && (
-      <ContextMenu
-        x={contextMenuPosition.x}
-        y={contextMenuPosition.y}
-        columnId={contextMenuColumn}
-        onClose={() => onContextMenu && onContextMenu(null)}
-        onCopy={handleCopyColumn}
-        onPaste={handlePasteColumn}
-        onInsertLeft={handleInsertLeft}
-        onInsertRight={handleInsertRight}
-        onDelete={handleDeleteColumn}
-        onSortAZ={handleSortAZ}
-        onSortZA={handleSortZA}
-        isVisible={!!contextMenuColumn}
-      />
-    )}
-  </div>
-);
+  );
 } 

@@ -43,40 +43,40 @@ export function EditableLeadsGrid() {
   const { rows, isLoading, updateCell } = useLeadsRows();
   
   const [searchTerm, setSearchTerm] = useState('');
-  
+    
   // Handle case where no data exists by generating dummy data
   useEffect(() => {
     if (!isLoading && rows.length === 0) {
       // Generate dummy leads if no data exists
-      const dummyLeads = generateDummyLeads();
+    const dummyLeads = generateDummyLeads();
     
       // Create rows for each dummy lead
       dummyLeads.forEach(lead => {
         const rowData: GridRow = {
-          id: lead.id,
-          opportunity: lead.name,
-          status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-          revenue: lead.revenue || Math.floor(Math.random() * 100000),
-          closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          owner: lead.owner || lead.name?.split(' ')[0] || '',
-          website: lead.website || 'https://example.com',
-          companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
-          linkedIn: 'https://linkedin.com/company/example',
-          employees: lead.employees || Math.floor(Math.random() * 1000),
-          lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          email: lead.email,
+      id: lead.id,
+      opportunity: lead.name,
+      status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+      revenue: lead.revenue || Math.floor(Math.random() * 100000),
+      closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      owner: lead.owner || lead.name?.split(' ')[0] || '',
+      website: lead.website || 'https://example.com',
+      companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
+      linkedIn: 'https://linkedin.com/company/example',
+      employees: lead.employees || Math.floor(Math.random() * 1000),
+      lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      email: lead.email,
         };
     
         // Add row to storage
         updateCell({ rowId: rowData.id, columnId: 'opportunity', value: rowData.opportunity });
-      });
+  });
     }
   }, [isLoading, rows, updateCell]);
   
   // Filter rows based on search term
   const filteredRows = rows.filter(row => {
     if (!searchTerm) return true;
-    
+  
     // Search across all columns
     return Object.entries(row).some(([key, value]) => {
       if (key === 'id' || !value) return false;
@@ -241,7 +241,7 @@ export function EditableLeadsGrid() {
     // Add the column at the right position
     setColumns(prevColumns => {
       const afterColumnIndex = prevColumns.findIndex(col => col.id === afterColumnId);
-      
+    
       // If column found in the list
       if (afterColumnIndex >= 0) {
         // Simple insertion after the target column
@@ -272,17 +272,17 @@ export function EditableLeadsGrid() {
       {/* Grid with all filtered rows */}
       <div className="h-full overflow-hidden grid-container">
         <GridViewContainer 
-          columns={columns} 
+        columns={columns} 
           data={filteredRows} // Use all filtered rows instead of paginated subset
-          listName="All Leads"
-          listType="Lead"
-          listId="leads-grid"
+        listName="All Leads"
+        listType="Lead"
+        listId="leads-grid"
           firstRowIndex={0} // Always start from 0 since we're showing all rows
-          onCellChange={handleCellChange}
-          onColumnChange={handleColumnChange}
-          onColumnsReorder={handleColumnsReorder}
-          onDeleteColumn={handleDeleteColumn}
-          onAddColumn={handleAddColumn}
+        onCellChange={handleCellChange}
+        onColumnChange={handleColumnChange}
+        onColumnsReorder={handleColumnsReorder}
+        onDeleteColumn={handleDeleteColumn}
+        onAddColumn={handleAddColumn}
           onSearchChange={setSearchTerm}
           searchTerm={searchTerm}
           className="h-full"

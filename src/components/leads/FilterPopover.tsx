@@ -230,9 +230,12 @@ export default function FilterPopover({ onApplyFilters }: FilterPopoverProps) {
                     }}
                   >
                     <Calendar
+                      key={`filter-cal-${Date.now()}`}
                       mode="single"
-                      selected={fromDate}
-                      onSelect={setFromDate}
+                      selected={null}
+                      onSelect={(date) => {
+                        setFromDate(date);
+                      }}
                       initialFocus
                     />
                   </PopoverContent>
@@ -263,9 +266,12 @@ export default function FilterPopover({ onApplyFilters }: FilterPopoverProps) {
                     }}
                   >
                     <Calendar
+                      key={`filter-cal-${Date.now()}`}
                       mode="single"
-                      selected={toDate}
-                      onSelect={setToDate}
+                      selected={null}
+                      onSelect={(date) => {
+                        setToDate(date);
+                      }}
                       initialFocus
                       disabled={(date) => 
                         fromDate ? date < fromDate : false
