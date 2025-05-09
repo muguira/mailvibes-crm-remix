@@ -16,13 +16,13 @@ export function TopNavbar({ className }: TopNavbarProps) {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     // Check initially
     checkMobile();
-    
+
     // Add resize listener
     window.addEventListener('resize', checkMobile);
-    
+
     // Clean up
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
@@ -34,35 +34,37 @@ export function TopNavbar({ className }: TopNavbarProps) {
         <div className="flex items-center px-2">
           <span className="font-bold text-2xl text-[#32BAB0]">$</span>
           {!isMobile && (
-            <span className="ml-1 font-sans text-sm">
-              <span className="font-bold">Sales</span> <span className="font-normal">Sheets</span>
-            </span>
+            <NavLink to="/">
+              <span className="ml-1 font-sans text-sm">
+                <span className="font-bold">Sales</span> <span className="font-normal">Sheets</span>
+              </span>
+            </NavLink>
           )}
         </div>
 
         {/* Navigation Items - moved more to the left */}
         <div className="flex ml-1">
           <NavLink
-            to="/"
+            to="/dashboard"
             className={({ isActive }) =>
               `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
             }
           >
             Home
           </NavLink>
-          
+
           {/* Only show Reports on desktop */}
           {!isMobile && (
-          <NavLink
-            to="/reports"
-            className={({ isActive }) =>
-              `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
-            }
-          >
-            Reports
-          </NavLink>
+            <NavLink
+              to="/reports"
+              className={({ isActive }) =>
+                `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
+              }
+            >
+              Reports
+            </NavLink>
           )}
-          
+
           <NavLink
             to="/leads"
             className={({ isActive }) =>
@@ -71,7 +73,7 @@ export function TopNavbar({ className }: TopNavbarProps) {
           >
             Contacts
           </NavLink>
-          
+
           <NavLink
             to="/lists"
             className={({ isActive }) =>
@@ -80,17 +82,17 @@ export function TopNavbar({ className }: TopNavbarProps) {
           >
             Opportunities
           </NavLink>
-          
+
           {/* Only show Customers on desktop */}
           {!isMobile && (
-          <NavLink
-            to="/customers"
-            className={({ isActive }) =>
-              `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
-            }
-          >
-            Customers
-          </NavLink>
+            <NavLink
+              to="/customers"
+              className={({ isActive }) =>
+                `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
+              }
+            >
+              Customers
+            </NavLink>
           )}
         </div>
 
@@ -98,30 +100,30 @@ export function TopNavbar({ className }: TopNavbarProps) {
         <div className="ml-auto flex items-center gap-4 pr-4">
           {/* Notification bell - only visible on desktop */}
           {!isMobile && (
-          <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
-            <Bell size={18} />
-          </button>
+            <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
+              <Bell size={18} />
+            </button>
           )}
-          
+
           {/* Only show Help and Settings on desktop */}
           {!isMobile && (
             <>
-          <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
-            <HelpCircle size={18} />
-          </button>
-          <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
-            <Settings size={18} />
-          </button>
+              <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
+                <HelpCircle size={18} />
+              </button>
+              <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
+                <Settings size={18} />
+              </button>
             </>
           )}
-          
+
           {/* Search button - only on desktop */}
           {!isMobile && (
-          <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
-            <Search size={18} />
-          </button>
+            <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
+              <Search size={18} />
+            </button>
           )}
-          
+
           {/* Profile menu - always positioned at the far right */}
           <ProfileMenu />
         </div>
