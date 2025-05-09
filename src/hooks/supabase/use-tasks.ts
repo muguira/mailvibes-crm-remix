@@ -52,7 +52,7 @@ export function useTasks() {
         return { ...task, display_status: "overdue" };
       }
       return task;
-    });
+    }) as TaskData[];
 
     return tasks;
   };
@@ -69,7 +69,14 @@ export function useTasks() {
 
       const taskWithUserId = {
         ...newTask,
-        user_id: user.id // Add user_id to the task
+        user_id: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        contact: newTask.contact || null,
+        deadline: newTask.deadline || null,
+        description: newTask.description || null,
+        tag: newTask.tag || null,
+        priority: newTask.priority || null
       };
 
       const { data, error } = await supabase
