@@ -103,7 +103,7 @@ export function MainGridView({
     };
   }, []);
   
-  // Update the finishCellEdit function to avoid auto-focusing the grid
+  // Update the finishCellEdit function to clear selection after status changes
   const finishCellEdit = (rowId: string, columnId: string, value: any, targetRowId?: string, targetColumnId?: string) => {
     // First apply optimistic update locally (immediately)
     const cellKey = `${rowId}-${columnId}`;
@@ -120,10 +120,16 @@ export function MainGridView({
     // Exit edit mode
     setEditingCell(null);
     
-    // Set selection based on target or current cell
-    if (targetRowId && targetColumnId) {
+    // Check if this is a status column change
+    const column = columns.find(col => col.id === columnId);
+    if (column?.id === 'status') {
+      // For status columns, completely clear the selection to prevent highlight issues
+      setSelectedCell(null);
+    } else if (targetRowId && targetColumnId) {
+      // For other columns, set selection based on target
       setSelectedCell({ rowId: targetRowId, columnId: targetColumnId });
     } else {
+      // Default selection to current cell
       setSelectedCell({ rowId, columnId });
     }
     
@@ -501,7 +507,7 @@ export function MainGridView({
     };
   }, [editingCell, onCellChange]);
   
-  // Improve handleCellClick to properly handle cell navigation when editing
+  // Update the handleCellClick function to properly handle status selection
   const handleCellClick = (rowId: string, columnId: string, e?: React.MouseEvent) => {
     // Stop propagation if provided
     if (e) {
@@ -549,6 +555,19 @@ export function MainGridView({
       setEditingCell(null);
     }
     
+    // Special handling for status column - open dropdown on first click
+    if (column?.id === 'status' && column.editable) {
+      // Clear any existing selection first to prevent highlighting issues
+      setSelectedCell(null);
+      
+      // Small delay before setting new selection and entering edit mode
+      setTimeout(() => {
+        setSelectedCell({ rowId, columnId });
+        setEditingCell({ rowId, columnId });
+      }, 10);
+      return;
+    }
+    
     // Check if clicking on a cell that's already selected
     const isClickingSameSelectedCell = selectedCell?.rowId === rowId && selectedCell?.columnId === columnId;
     
@@ -560,13 +579,9 @@ export function MainGridView({
       // Then set the new selection after a short delay
       setTimeout(() => {
         setSelectedCell({ rowId, columnId });
-        
-        // For status cells, we DO NOT enter edit mode on first click anymore
-        // This is now handled by double-click for status cells too
       }, 10);
     } else if (column?.editable) {
       // Double click behavior - entering edit mode on second click
-      // But for status column, this is handled by onDoubleClick on the cell
       setEditingCell({ rowId, columnId });
     }
   };
@@ -887,19 +902,19 @@ export function MainGridView({
   const renderStatusPill = (value: string, colors: Record<string, string>) => {
     if (!value) return null;
     
-    // Define custom colors for status values
+    // Define custom colors using Pastel Rainbow palette with opacity
     const customColors: Record<string, { bg: string, text: string }> = {
-      'New': { bg: '#9ca3af', text: '#ffffff' },
-      'In Progress': { bg: '#60a5fa', text: '#ffffff' },
-      'On Hold': { bg: '#fcd34d', text: '#000000' },
-      'Closed Won': { bg: '#34d399', text: '#ffffff' },
-      'Closed Lost': { bg: '#f87171', text: '#ffffff' }
+      'New': { bg: 'rgba(250, 237, 203, 0.7)', text: '#000000' },          // Light Cream
+      'In Progress': { bg: 'rgba(201, 228, 222, 0.7)', text: '#000000' },  // Light Mint
+      'On Hold': { bg: 'rgba(198, 222, 241, 0.7)', text: '#000000' },      // Light Blue
+      'Closed Won': { bg: 'rgba(219, 205, 240, 0.7)', text: '#000000' },   // Light Lavender
+      'Closed Lost': { bg: 'rgba(242, 198, 222, 0.7)', text: '#000000' }   // Light Pink
     };
     
     // Use custom color if available, otherwise fall back to column colors
     const customColor = customColors[value];
-    const backgroundColor = customColor?.bg || colors[value] || '#f3f4f6';
-    const textColor = customColor?.text || (isColorLight(backgroundColor) ? '#000000' : '#ffffff');
+    const backgroundColor = customColor?.bg || colors[value] || 'rgba(247, 217, 196, 0.7)'; // Fallback to Light Peach
+    const textColor = customColor?.text || '#000000'; // Dark text for light backgrounds
     
     return (
       <span
@@ -1022,15 +1037,15 @@ export function MainGridView({
                         {(column.options || []).map(option => {
                           // Use the same custom colors definition for consistency
                           const customColors: Record<string, { bg: string, text: string }> = {
-                            'New': { bg: '#9ca3af', text: '#ffffff' },
-                            'In Progress': { bg: '#60a5fa', text: '#ffffff' },
-                            'On Hold': { bg: '#fcd34d', text: '#000000' },
-                            'Closed Won': { bg: '#34d399', text: '#ffffff' },
-                            'Closed Lost': { bg: '#f87171', text: '#ffffff' }
+                            'New': { bg: 'rgba(250, 237, 203, 0.7)', text: '#000000' },          // Light Cream
+                            'In Progress': { bg: 'rgba(201, 228, 222, 0.7)', text: '#000000' },  // Light Mint
+                            'On Hold': { bg: 'rgba(198, 222, 241, 0.7)', text: '#000000' },      // Light Blue
+                            'Closed Won': { bg: 'rgba(219, 205, 240, 0.7)', text: '#000000' },   // Light Lavender
+                            'Closed Lost': { bg: 'rgba(242, 198, 222, 0.7)', text: '#000000' }   // Light Pink
                           };
                           
                           const customColor = customColors[option];
-                          const bgColor = customColor?.bg || column.colors?.[option] || '#e5e7eb';
+                          const bgColor = customColor?.bg || column.colors?.[option] || 'rgba(247, 217, 196, 0.7)'; // Fallback to Light Peach
                           
                           return (
                             <CommandItem 
@@ -1044,7 +1059,13 @@ export function MainGridView({
                               <div className="flex items-center gap-2 w-full">
                                 <span
                                   className="inline-block w-3 h-3 rounded-full"
-                                  style={{ backgroundColor: bgColor }}
+                                  style={{ 
+                                    backgroundColor: option === 'New' ? '#FAEDCB' :
+                                                     option === 'In Progress' ? '#C9E4DE' :
+                                                     option === 'On Hold' ? '#C6DEF1' :
+                                                     option === 'Closed Won' ? '#DBCDF0' :
+                                                     option === 'Closed Lost' ? '#F2C6DE' : '#F7D9C4' 
+                                  }}
                                 />
                                 <span>{option}</span>
                                 {value === option && (
@@ -1160,7 +1181,7 @@ export function MainGridView({
               </div>
             )
           ) : (
-            <div className="flex items-center px-2">
+            <div className="cell-content">
               {formatCellValue(value, column, row)}
             </div>
           )}
@@ -1202,7 +1223,9 @@ export function MainGridView({
         {isEditing ? (
           renderEditInput(row, column)
         ) : (
-          formatCellValue(value, column, row)
+          <div className="cell-content">
+            {formatCellValue(value, column, row)}
+          </div>
         )}
       </div>
     );
@@ -1562,23 +1585,29 @@ export function MainGridView({
                 {column.options?.map((option) => {
                   // Use the same custom colors definition for consistency
                   const customColors: Record<string, { bg: string, text: string }> = {
-                    'New': { bg: '#9ca3af', text: '#ffffff' },
-                    'In Progress': { bg: '#60a5fa', text: '#ffffff' },
-                    'On Hold': { bg: '#fcd34d', text: '#000000' },
-                    'Closed Won': { bg: '#34d399', text: '#ffffff' },
-                    'Closed Lost': { bg: '#f87171', text: '#ffffff' }
+                    'New': { bg: 'rgba(250, 237, 203, 0.7)', text: '#000000' },          // Light Cream
+                    'In Progress': { bg: 'rgba(201, 228, 222, 0.7)', text: '#000000' },  // Light Mint
+                    'On Hold': { bg: 'rgba(198, 222, 241, 0.7)', text: '#000000' },      // Light Blue
+                    'Closed Won': { bg: 'rgba(219, 205, 240, 0.7)', text: '#000000' },   // Light Lavender
+                    'Closed Lost': { bg: 'rgba(242, 198, 222, 0.7)', text: '#000000' }   // Light Pink
                   };
                   
                   const customColor = customColors[option];
-                  const bgColor = customColor?.bg || column.colors?.[option] || '#e5e7eb';
-                  const textColor = customColor?.text || (isColorLight(bgColor) ? '#000000' : '#ffffff');
+                  const bgColor = customColor?.bg || column.colors?.[option] || 'rgba(247, 217, 196, 0.7)'; // Fallback to Light Peach
+                  const textColor = customColor?.text || '#000000'; // Dark text for light backgrounds
                   
                   return (
                     <SelectItem key={option} value={option}>
                       <div className="flex items-center gap-2">
                         <span
                           className="inline-block w-3 h-3 rounded-full"
-                          style={{ backgroundColor: bgColor }}
+                          style={{ 
+                            backgroundColor: option === 'New' ? '#FAEDCB' :
+                                             option === 'In Progress' ? '#C9E4DE' :
+                                             option === 'On Hold' ? '#C6DEF1' :
+                                             option === 'Closed Won' ? '#DBCDF0' :
+                                             option === 'Closed Lost' ? '#F2C6DE' : '#F7D9C4' 
+                          }}
                         />
                         {option}
                       </div>

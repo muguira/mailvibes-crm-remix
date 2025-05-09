@@ -1,5 +1,5 @@
 // Grid layout constants
-export const ROW_HEIGHT = 32;
+export const ROW_HEIGHT = 36;
 export const HEADER_HEIGHT = 36;
 export const INDEX_COLUMN_WIDTH = 48;
 export const DEFAULT_COLUMN_WIDTH = 180;
@@ -14,15 +14,14 @@ export const COLORS = {
   selectedCell: 'rgba(103, 187, 170, 0.1)', // Teal with low opacity
 };
 
-// Status pill colors (soft pastel tones)
+// Status pill colors (Pastel Rainbow palette)
 export const STATUS_COLORS = {
-  green: { bg: '#F2FCE2', text: '#4C9B4C' },
-  yellow: { bg: '#FEF7CD', text: '#957D0C' },
-  orange: { bg: '#FEC6A1', text: '#B35C00' },
-  purple: { bg: '#E5DEFF', text: '#6B57D1' },
-  pink: { bg: '#FFDEE2', text: '#D1567B' },
-  blue: { bg: '#D3E4FD', text: '#0D66CC' },
-  gray: { bg: '#F1F0FB', text: '#6B6F76' }
+  cream: { bg: 'rgba(250, 237, 203, 0.7)', text: '#000000' },  // Light Cream
+  mint: { bg: 'rgba(201, 228, 222, 0.7)', text: '#000000' },   // Light Mint
+  blue: { bg: 'rgba(198, 222, 241, 0.7)', text: '#000000' },   // Light Blue
+  lavender: { bg: 'rgba(219, 205, 240, 0.7)', text: '#000000' }, // Light Lavender
+  pink: { bg: 'rgba(242, 198, 222, 0.7)', text: '#000000' },   // Light Pink
+  peach: { bg: 'rgba(247, 217, 196, 0.7)', text: '#000000' }   // Light Peach
 };
 
 // Keyboard shortcuts

@@ -127,25 +127,23 @@ export function GridViewContainer({
       });
     }
 
-    // Sort data to show newest items first by checking for timestamp in ID
+    // Sort data to show contacts in ascending order by their ID number
     result.sort((a, b) => {
-      // Check if IDs are timestamp-based (lead-timestamp format)
-      const aIsTimestamp = a.id.startsWith('lead-') && !isNaN(parseInt(a.id.split('-')[1]));
-      const bIsTimestamp = b.id.startsWith('lead-') && !isNaN(parseInt(b.id.split('-')[1]));
+      // Extract the numeric part from lead-XXX format (e.g., lead-001 → 1)
+      const getNumberFromId = (id: string) => {
+        if (id.startsWith('lead-')) {
+          const numericPart = id.replace('lead-', '');
+          // Parse as integer to remove leading zeros
+          return parseInt(numericPart, 10);
+        }
+        return 0; // Default for non-lead IDs
+      };
       
-      // If both are timestamp-based, sort by timestamp descending (newest first)
-      if (aIsTimestamp && bIsTimestamp) {
-        const aTimestamp = parseInt(a.id.split('-')[1]);
-        const bTimestamp = parseInt(b.id.split('-')[1]);
-        return bTimestamp - aTimestamp;
-      }
+      const aNum = getNumberFromId(a.id);
+      const bNum = getNumberFromId(b.id);
       
-      // If only one is timestamp-based, prioritize it
-      if (aIsTimestamp) return -1;
-      if (bIsTimestamp) return 1;
-      
-      // Default sort - keep original order
-      return 0;
+      // Sort numerically in ascending order
+      return aNum - bNum;
     });
 
     return result;

@@ -170,7 +170,7 @@ export function EditableLeadsGrid() {
             }
             if (row.companyName !== contact.company) {
               updates.push({ rowId: id, columnId: 'companyName', value: contact.company });
-            }
+    }
             if (row.jobTitle !== contact.jobTitle) {
               updates.push({ rowId: id, columnId: 'jobTitle', value: contact.jobTitle });
             }

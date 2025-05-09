@@ -68,7 +68,7 @@ export function useLeadsRows() {
       const { data, error } = await supabase
         .from('leads_rows')
         .select('*')
-        .order('row_id')
+        .order('created_at', { ascending: false }) // Order by creation date, newest first
         .eq('user_id', user.id);
 
       if (error) {
@@ -108,7 +108,12 @@ export function useLeadsRows() {
       if (savedRows) {
         const parsedRows = JSON.parse(savedRows);
         if (Array.isArray(parsedRows) && parsedRows.length > 0) {
-          return parsedRows;
+          // Sort rows with newer IDs at the top (assuming IDs are timestamp-based)
+          return parsedRows.sort((a, b) => {
+            const idA = a.id.replace('lead-', '');
+            const idB = b.id.replace('lead-', '');
+            return parseInt(idB, 10) - parseInt(idA, 10); // Sort by ID descending (newest first)
+          });
         }
       }
     } catch (error) {
@@ -388,49 +393,114 @@ export function useLeadsRows() {
     }
   });
 
-  // Add a new function for batch adding a contact
+  // Update the addContactMutation to ensure new contacts use sequential IDs at the top
   const addContactMutation = useMutation({
     mutationFn: async (newContact: Partial<GridRow>) => {
       if (!user) {
         // If not authenticated, update localStorage
         const currentRows = loadFromLocalStorage();
         
+        // Generate a sequential ID based on existing rows
+        // Find the minimum ID to ensure new contacts are always at the top
+        let minId = 1;
+        if (currentRows.length > 0) {
+          // Extract numeric parts of IDs
+          const numericIds = currentRows.map(row => {
+            const match = row.id.match(/lead-(\d+)/);
+            return match ? parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
+          });
+          
+          // If we have valid numeric IDs, find the minimum and subtract 1
+          if (numericIds.some(id => id !== Number.MAX_SAFE_INTEGER)) {
+            minId = Math.max(1, Math.min(...numericIds) - 1);
+          }
+        }
+        
+        // Create the new contact with the lowest ID
+        const contactWithId = {
+          ...newContact,
+          id: `lead-${minId}`
+        };
+        
         // Add new row at the beginning of the array (top of the grid)
-        const updatedRows = [newContact, ...currentRows];
+        const updatedRows = [contactWithId, ...currentRows];
         
         localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
-        return newContact;
+        return contactWithId;
       }
 
       try {
-        // Transform row ID to database-compatible format
-        const dbRowId = transformRowId(newContact.id as string);
+        // Generate a sequential ID based on existing rows
+        // First get all existing rows to find the minimum ID
+        const { data: existingRows } = await supabase
+          .from('leads_rows')
+          .select('row_id')
+          .eq('user_id', user.id)
+          .order('row_id', { ascending: true })
+          .limit(1);
+        
+        // Determine the new ID (lowest possible)
+        let newRowId = 1; // Default to 1
+        if (existingRows && existingRows.length > 0) {
+          // If there are existing rows, use one less than the minimum
+          const minExistingId = existingRows[0].row_id;
+          if (typeof minExistingId === 'number') {
+            newRowId = Math.max(1, minExistingId - 1);
+          }
+        }
+        
+        // Create the new contact with the lowest ID
+        const contactWithId = {
+          ...newContact,
+          id: `lead-${newRowId}`
+        };
         
         // Insert new row in a single operation
         const { error } = await supabase
           .from('leads_rows')
           .insert({
             user_id: user.id,
-            row_id: dbRowId,
-            data: newContact,
+            row_id: newRowId,
+            data: contactWithId,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           });
 
         if (error) throw error;
         
-        return newContact;
+        return contactWithId;
       } catch (error) {
         console.error('Error adding contact:', error);
         
         // Fall back to localStorage on error
         const currentRows = loadFromLocalStorage();
         
+        // Generate a sequential ID
+        let minId = 1;
+        if (currentRows.length > 0) {
+          // Extract numeric parts of IDs
+          const numericIds = currentRows.map(row => {
+            const match = row.id.match(/lead-(\d+)/);
+            return match ? parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
+          });
+          
+          // If we have valid numeric IDs, find the minimum and subtract 1
+          if (numericIds.some(id => id !== Number.MAX_SAFE_INTEGER)) {
+            minId = Math.max(1, Math.min(...numericIds) - 1);
+          }
+        }
+        
+        // Create the new contact with the lowest ID
+        const contactWithId = {
+          ...newContact,
+          id: `lead-${minId}`
+        };
+        
         // Add new row at the beginning of the array (top of the grid)
-        const updatedRows = [newContact, ...currentRows];
+        const updatedRows = [contactWithId, ...currentRows];
         
         localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
-        return newContact;
+        return contactWithId;
       }
     },
     onSuccess: () => {
