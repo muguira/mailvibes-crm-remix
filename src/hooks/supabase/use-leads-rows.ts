@@ -49,6 +49,35 @@ async function checkRowExistsInDb(userId: string, rowId: string | number) {
   }
 }
 
+// Add a utility function to properly sort rows by ID
+function sortRowsByIdAscending(rows: GridRow[]): GridRow[] {
+  return [...rows].sort((a, b) => {
+    // Extract numeric parts of row IDs for proper numeric sorting
+    const getNumericId = (id: string): number => {
+      const match = id.match(/lead-(\d+)/);
+      // Extract numeric part, or use a very high number for non-numeric IDs
+      return match ? parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
+    };
+    
+    const idA = getNumericId(a.id);
+    const idB = getNumericId(b.id);
+    
+    // Sort by ID in ascending order (lowest first)
+    return idA - idB;
+  });
+}
+
+// Add a utility function to get proper initial data
+const getProperOrderedData = (rawRows: GridRow[]): GridRow[] => {
+  if (!rawRows || rawRows.length === 0) return [];
+  
+  // Strip any test/temporary data that might cause flashing
+  const filteredRows = rawRows.filter(row => row.id !== "pedro" && !row.id.includes("test-"));
+  
+  // Sort rows by ID in ascending order 
+  return sortRowsByIdAscending(filteredRows);
+};
+
 /**
  * Hook for managing lead rows with Supabase persistence
  * Falls back to localStorage when not authenticated
@@ -61,35 +90,37 @@ export function useLeadsRows() {
   const fetchLeadsRows = async (): Promise<GridRow[]> => {
     if (!user) {
       // Fall back to localStorage if not authenticated
-      return loadFromLocalStorage();
+      return getProperOrderedData(loadFromLocalStorage());
     }
 
     try {
       const { data, error } = await supabase
         .from('leads_rows')
         .select('*')
-        .order('created_at', { ascending: false }) // Order by creation date, newest first
+        .order('row_id', { ascending: true }) // Order by row_id ascending to match frontend display
         .eq('user_id', user.id);
 
       if (error) {
         // Check if the error is due to the table not existing
         if (error.code === '42P01') { // PostgreSQL error code for "relation does not exist"
           console.log("Table doesn't exist yet, using local data");
-          return loadFromLocalStorage();
+          return getProperOrderedData(loadFromLocalStorage());
         }
         throw error;
       }
 
       // If we got an empty array, it might be first time use, so use localStorage
       if (!data || data.length === 0) {
-        return loadFromLocalStorage();
+        return getProperOrderedData(loadFromLocalStorage());
       }
 
-      // Transform data to expected GridRow format
-      return data.map(row => ({
+      // Transform data to expected GridRow format and ensure proper order
+      const transformedRows = data.map(row => ({
         id: `lead-${row.row_id}`, // Convert back to frontend format
         ...(typeof row.data === 'string' ? JSON.parse(row.data) : row.data)
       }));
+      
+      return getProperOrderedData(transformedRows);
     } catch (error) {
       console.error('Error fetching leads rows:', error);
       
@@ -97,7 +128,7 @@ export function useLeadsRows() {
       // Only show error toasts for write operations
       
       // Fall back to localStorage on error
-      return loadFromLocalStorage();
+      return getProperOrderedData(loadFromLocalStorage());
     }
   };
 
@@ -108,12 +139,8 @@ export function useLeadsRows() {
       if (savedRows) {
         const parsedRows = JSON.parse(savedRows);
         if (Array.isArray(parsedRows) && parsedRows.length > 0) {
-          // Sort rows with newer IDs at the top (assuming IDs are timestamp-based)
-          return parsedRows.sort((a, b) => {
-            const idA = a.id.replace('lead-', '');
-            const idB = b.id.replace('lead-', '');
-            return parseInt(idB, 10) - parseInt(idA, 10); // Sort by ID descending (newest first)
-          });
+          // Return properly sorted rows
+          return sortRowsByIdAscending(parsedRows);
         }
       }
     } catch (error) {
@@ -139,14 +166,17 @@ export function useLeadsRows() {
       email: lead.email,
     }));
     
+    // Sort the rows before saving or returning
+    const sortedRows = sortRowsByIdAscending(dummyRows);
+    
     // Save to localStorage as fallback
     try {
-      localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(dummyRows));
+      localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(sortedRows));
     } catch (error) {
       console.error('Failed to save initial rows to localStorage:', error);
     }
     
-    return dummyRows;
+    return sortedRows;
   };
 
   // Query to fetch lead rows

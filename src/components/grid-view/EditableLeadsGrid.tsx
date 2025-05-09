@@ -7,7 +7,7 @@ import {
   INDEX_COLUMN_WIDTH
 } from '@/components/grid-view/grid-constants';
 import { Link } from 'react-router-dom';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { mockContactsById, generateDummyLeads } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
@@ -83,48 +83,71 @@ export function EditableLeadsGrid() {
   const { rows, isLoading, updateCell } = useLeadsRows();
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [isGridReady, setIsGridReady] = useState(false);
+  
+  // Prevent any rendering of data until fully processed and sorted
+  const [processedRows, setProcessedRows] = useState<GridRow[]>([]);
     
+  // Process and sort rows once data is loaded
+  useEffect(() => {
+    if (!isLoading && rows.length > 0) {
+      // Deep clone rows to avoid reference issues
+      const rowsToProcess = JSON.parse(JSON.stringify(rows));
+      
+      // Sync contacts
+      rowsToProcess.forEach(syncContact);
+      
+      // Allow the browser to breathe before showing the grid
+      const timer = setTimeout(() => {
+        setProcessedRows(rowsToProcess);
+        setIsGridReady(true);
+      }, 500); // Increase to 500ms for more reliable loading
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, rows]);
+  
   // Handle case where no data exists by generating dummy data
   useEffect(() => {
     if (!isLoading && rows.length === 0) {
       // Generate dummy leads if no data exists
-    const dummyLeads = generateDummyLeads();
+      const dummyLeads = generateDummyLeads();
     
       // Create rows for each dummy lead
       dummyLeads.forEach(lead => {
         const rowData: GridRow = {
-      id: lead.id,
-      opportunity: lead.name,
-      status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-      revenue: lead.revenue || Math.floor(Math.random() * 100000),
-      closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      owner: lead.owner || lead.name?.split(' ')[0] || '',
-      website: lead.website || 'https://example.com',
-      companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
-      linkedIn: lead.linkedIn || 'linkedin.com/in/example',
-      employees: lead.employees || Math.floor(Math.random() * 1000),
-      lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      email: lead.email,
-      description: lead.description || `Description for ${lead.name}`,
-      jobTitle: lead.jobTitle || 'Manager',
-      industry: lead.industry || 'Technology',
-      phone: lead.phone || '+1-555-123-4567',
-      primaryLocation: lead.location || 'New York, NY',
-      facebook: lead.facebook || 'facebook.com/example',
-      instagram: lead.instagram || 'instagram.com/example',
-      twitter: lead.twitter || 'twitter.com/example',
-      associatedDeals: lead.associatedDeals || 'Deal 1, Deal 2',
-      source: lead.source || 'Website',
-    };
+          id: lead.id,
+          opportunity: lead.name,
+          status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+          revenue: lead.revenue || Math.floor(Math.random() * 100000),
+          closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          owner: lead.owner || lead.name?.split(' ')[0] || '',
+          website: lead.website || 'https://example.com',
+          companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
+          linkedIn: lead.linkedIn || 'linkedin.com/in/example',
+          employees: lead.employees || Math.floor(Math.random() * 1000),
+          lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          email: lead.email,
+          description: lead.description || `Description for ${lead.name}`,
+          jobTitle: lead.jobTitle || 'Manager',
+          industry: lead.industry || 'Technology',
+          phone: lead.phone || '+1-555-123-4567',
+          primaryLocation: lead.location || 'New York, NY',
+          facebook: lead.facebook || 'facebook.com/example',
+          instagram: lead.instagram || 'instagram.com/example',
+          twitter: lead.twitter || 'twitter.com/example',
+          associatedDeals: lead.associatedDeals || 'Deal 1, Deal 2',
+          source: lead.source || 'Website',
+        };
     
         // Add row to storage
         updateCell({ rowId: rowData.id, columnId: 'opportunity', value: rowData.opportunity });
-  });
+      });
     }
   }, [isLoading, rows, updateCell]);
   
-  // Filter rows based on search term
-  const filteredRows = rows.filter(row => {
+  // Filter rows based on search term (use processed rows instead)
+  const filteredRows = processedRows.filter(row => {
     if (!searchTerm) return true;
   
     // Search across all columns
@@ -133,107 +156,6 @@ export function EditableLeadsGrid() {
       return String(value).toLowerCase().includes(searchTerm.toLowerCase());
     });
   });
-  
-  // Sync mockContactsById with row data
-  useEffect(() => {
-    rows.forEach(syncContact);
-  }, [rows]);
-  
-  // Add a global listener for mockContactsByIdUpdated event
-  useEffect(() => {
-    // Create a custom event for notifying grid about mockContactsById updates
-    const handleMockContactsUpdate = () => {
-      // Force a refresh of rows by getting the latest mockContactsById data
-      console.log("Mock contacts updated event received in grid");
-      
-      // Create a collection of all row IDs for easy lookup
-      const rowIds = new Set(rows.map(row => row.id));
-      
-      // Synchronize with mockContactsById
-      Object.entries(mockContactsById).forEach(([id, contact]) => {
-        if (rowIds.has(id)) {
-          // This contact exists in our rows, update it properly
-          const row = rows.find(r => r.id === id);
-          if (row) {
-            // Create a batch of updates to apply at once
-            const updates: {rowId: string, columnId: string, value: any}[] = [];
-            
-            // Check and queue all potential updates
-            if (row.opportunity !== contact.name) {
-              updates.push({ rowId: id, columnId: 'opportunity', value: contact.name });
-            }
-            if (row.email !== contact.email) {
-              updates.push({ rowId: id, columnId: 'email', value: contact.email });
-            }
-            if (row.status !== contact.leadStatus) {
-              updates.push({ rowId: id, columnId: 'status', value: contact.leadStatus });
-            }
-            if (row.companyName !== contact.company) {
-              updates.push({ rowId: id, columnId: 'companyName', value: contact.company });
-    }
-            if (row.jobTitle !== contact.jobTitle) {
-              updates.push({ rowId: id, columnId: 'jobTitle', value: contact.jobTitle });
-            }
-            if (row.industry !== contact.industry) {
-              updates.push({ rowId: id, columnId: 'industry', value: contact.industry });
-            }
-            if (row.phone !== contact.phone) {
-              updates.push({ rowId: id, columnId: 'phone', value: contact.phone });
-            }
-            if (row.primaryLocation !== contact.primaryLocation) {
-              updates.push({ rowId: id, columnId: 'primaryLocation', value: contact.primaryLocation });
-            }
-            if (row.facebook !== contact.facebook) {
-              updates.push({ rowId: id, columnId: 'facebook', value: contact.facebook });
-            }
-            if (row.instagram !== contact.instagram) {
-              updates.push({ rowId: id, columnId: 'instagram', value: contact.instagram });
-            }
-            if (row.linkedIn !== contact.linkedIn) {
-              updates.push({ rowId: id, columnId: 'linkedIn', value: contact.linkedIn });
-            }
-            if (row.twitter !== contact.twitter) {
-              updates.push({ rowId: id, columnId: 'twitter', value: contact.twitter });
-            }
-            if (row.associatedDeals !== contact.associatedDeals) {
-              updates.push({ rowId: id, columnId: 'associatedDeals', value: contact.associatedDeals });
-            }
-            if (row.owner !== contact.owner) {
-              updates.push({ rowId: id, columnId: 'owner', value: contact.owner });
-            }
-            if (row.source !== contact.source) {
-              updates.push({ rowId: id, columnId: 'source', value: contact.source });
-            }
-            if (row.description !== contact.description) {
-              updates.push({ rowId: id, columnId: 'description', value: contact.description });
-            }
-            if (row.website !== contact.website) {
-              updates.push({ rowId: id, columnId: 'website', value: contact.website });
-            }
-            
-            // Apply all updates in sequence with small delays to ensure they all get processed
-            if (updates.length > 0) {
-              updates.forEach((update, index) => {
-                setTimeout(() => {
-                  updateCell(update);
-                }, index * 50); // Small delay between updates
-              });
-            }
-          }
-        }
-      });
-    };
-    
-    // Listen for the custom event
-    window.addEventListener('mockContactsUpdated', handleMockContactsUpdate);
-    
-    // Initial sync on mount
-    handleMockContactsUpdate();
-    
-    return () => {
-      window.removeEventListener('mockContactsUpdated', handleMockContactsUpdate);
-    };
-  }, [rows, updateCell]);
   
   // Define columns for the grid - with opportunity column marked as frozen
   const [columns, setColumns] = useState<Column[]>([
@@ -490,63 +412,14 @@ export function EditableLeadsGrid() {
     });
   };
   
-  // Enhanced synchronization between stream view and grid view
-  useEffect(() => {
-    // Add a handler for contact data changes
-    const handleContactChange = (event: CustomEvent) => {
-      const { contactId, field, value } = event.detail;
-      console.log(`Contact updated: ${contactId}, ${field}=${value}`);
-      
-      // Find row with matching contactId
-      const rowToUpdate = rows.find(row => row.id === contactId);
-      if (rowToUpdate) {
-        // Map from contact field names to grid column names
-        const fieldMapping: Record<string, string> = {
-          'name': 'opportunity',
-          'company': 'companyName',
-          'leadStatus': 'status',
-          // Add all other field mappings to ensure proper sync
-          'email': 'email',
-          'jobTitle': 'jobTitle',
-          'industry': 'industry',
-          'phone': 'phone',
-          'primaryLocation': 'primaryLocation',
-          'facebook': 'facebook',
-          'instagram': 'instagram',
-          'linkedin': 'linkedIn',
-          'twitter': 'twitter',
-          'website': 'website',
-          'associatedDeals': 'associatedDeals',
-          'owner': 'owner',
-          'source': 'source',
-          'description': 'description'
-        };
-        
-        // Get the corresponding column id
-        const columnId = fieldMapping[field];
-        if (columnId) {
-          // Update the cell
-          updateCell({ rowId: contactId, columnId, value });
-          console.log(`Updated grid cell: ${contactId}.${columnId} = ${value}`);
-        }
-      }
-    };
-    
-    // Listen for custom event with stronger typing
-    window.addEventListener('mockContactsUpdated', 
-      ((e: CustomEvent) => handleContactChange(e)) as EventListener
+  // Show better loading UI to cover any potential flash
+  if (isLoading || !isGridReady) {
+    return (
+      <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+        <div className="text-lg text-gray-600">Loading contacts...</div>
+      </div>
     );
-    
-    return () => {
-      window.removeEventListener('mockContactsUpdated', 
-        ((e: CustomEvent) => handleContactChange(e)) as EventListener
-      );
-    };
-  }, [rows, updateCell]);
-  
-  // Show loading message during initial data load
-  if (isLoading) {
-    return <div className="p-4 text-center">Loading leads data...</div>;
   }
   
   // Show empty state when there are no rows

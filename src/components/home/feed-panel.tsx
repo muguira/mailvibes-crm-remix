@@ -1,8 +1,8 @@
-
 import { useState } from "react";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar } from "@/components/shared/avatar";
+import { Card } from "@/components/ui/card";
 
 interface FeedItem {
   id: string;
@@ -89,7 +89,7 @@ export function FeedPanel() {
   const [activeTab, setActiveTab] = useState("my-feed");
   
   return (
-    <div className="bg-white rounded-lg shadow-relate overflow-hidden h-full flex flex-col">
+    <Card className="bg-white rounded-lg shadow-sm overflow-hidden h-full flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="border-b border-slate-light/30">
           <div className="flex justify-between items-center px-4 pt-4">
@@ -102,7 +102,7 @@ export function FeedPanel() {
 
         <div className="overflow-y-auto flex-1">
           <TabsContent value="my-feed" className="m-0">
-            <div className="px-4 py-3 bg-slate-light/10 border-b border-slate-light/30">
+            <div className="px-4 py-3 bg-[#f3f4f5] border-b border-slate-light/30">
               <h3 className="text-sm font-medium text-slate-medium">
                 {format(new Date(), "MMM d, yyyy")}
               </h3>
@@ -116,7 +116,7 @@ export function FeedPanel() {
           </TabsContent>
           
           <TabsContent value="all" className="m-0">
-            <div className="px-4 py-3 bg-slate-light/10 border-b border-slate-light/30">
+            <div className="px-4 py-3 bg-[#f3f4f5] border-b border-slate-light/30">
               <h3 className="text-sm font-medium text-slate-medium">
                 {format(new Date(), "MMM d, yyyy")}
               </h3>
@@ -130,7 +130,7 @@ export function FeedPanel() {
           </TabsContent>
         </div>
       </Tabs>
-    </div>
+    </Card>
   );
 }
 

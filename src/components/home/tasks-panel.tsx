@@ -217,51 +217,51 @@ export function TasksPanel() {
   };
 
   return (
-    <div className="bg-background text-foreground rounded-lg overflow-hidden h-full flex flex-col shadow-lg">
-      <div className="p-4 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+    <div className="bg-background text-foreground rounded-lg overflow-hidden flex flex-col shadow-lg h-[500px]">
+      <div className="p-3 pb-2 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
           {/* Add your profile image here */}
           <div className="w-full h-full bg-muted-foreground/20" />
         </div>
-        <h2 className="text-2xl font-semibold">My tasks</h2>
+        <h2 className="text-xl font-semibold">My tasks</h2>
       </div>
 
       <Tabs defaultValue="upcoming" className="flex-1">
         <div className="border-none">
-          <TabsList className="w-full flex p-0 bg-transparent border-b border-border">
+          <TabsList className="w-full flex p-0 bg-transparent">
             <TabsTrigger
               value="upcoming"
-              className="flex-1 py-3 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
+              className="flex-1 py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
             >
               Upcoming {upcomingTasks.length > 0 && `(${upcomingTasks.length})`}
             </TabsTrigger>
             <TabsTrigger
               value="overdue"
-              className="flex-1 py-3 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
+              className="flex-1 py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
             >
               Overdue {overdueTasks.length > 0 && `(${overdueTasks.length})`}
             </TabsTrigger>
             <TabsTrigger
               value="completed"
-              className="flex-1 py-3 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
+              className="flex-1 py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
             >
               Completed {completedTasks.length > 0 && `(${completedTasks.length})`}
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <div className="p-4 border-b border-border">
+        <div className="p-2 pt-3">
           <button
-            className="w-full text-left text-muted-foreground flex items-center gap-2 py-2 hover:text-foreground transition-colors"
+            className="w-full text-left text-muted-foreground flex items-center gap-2 py-1 hover:text-foreground transition-colors"
             onClick={handleCreateNewTask}
             disabled={isCreatingTask}
           >
-            <Plus size={20} />
+            <Plus size={16} />
             Create task
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1">
+        <div className="overflow-y-auto" style={{ height: '392px' }}>
           <TabsContent value="upcoming" className="m-0">
             {upcomingTasks.map((task) => (
               <TaskItem
@@ -383,7 +383,7 @@ function TaskItem({
   };
 
   return (
-    <div className="px-4 py-3 border-b border-border hover:bg-muted/50 transition-colors">
+    <div className="px-3 py-1.5 group">
       <div className="flex items-center gap-3">
         <button
           onClick={() => onStatusChange(task.id, task.displayStatus === "completed" ? "upcoming" : "completed")}
@@ -404,7 +404,7 @@ function TaskItem({
             )} />
           </div>
         </button>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           {isNew ? (
             <input
               ref={inputRef}
@@ -420,7 +420,7 @@ function TaskItem({
             <h3
               onDoubleClick={() => setIsEditPopupOpen(true)}
               className={cn(
-                "font-medium cursor-pointer select-none",
+                "font-medium cursor-pointer select-none truncate",
                 task.displayStatus === "completed" ? "line-through text-muted-foreground" : "text-foreground"
               )}
             >
@@ -428,10 +428,10 @@ function TaskItem({
             </h3>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {task.type && (
-            <span className="px-3 py-1 bg-primary/10 text-primary rounded text-sm capitalize">
-              {task.type.replace(/-/g, ' ')}
+            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs capitalize">
+              {task.type === "follow-up" ? "Follow Up" : task.type.replace(/-/g, ' ')}
             </span>
           )}
           <DeadlinePopup
@@ -440,19 +440,20 @@ function TaskItem({
           >
             <button
               className={cn(
-                "flex items-center gap-1 hover:opacity-80 transition-opacity",
+                "flex items-center gap-1 hover:opacity-80 transition-opacity text-xs ml-1",
                 getDueDateColor()
               )}
             >
               {deadline ? (
                 getDueDateDisplay()
               ) : (
-                <Calendar className="h-4 w-4" />
+                <Calendar className="h-3.5 w-3.5" />
               )}
             </button>
           </DeadlinePopup>
         </div>
       </div>
+      <div className="mt-2 mx-5 border-b border-border/50 group-last:border-0"></div>
       <TaskEditPopup
         task={task}
         open={isEditPopupOpen}

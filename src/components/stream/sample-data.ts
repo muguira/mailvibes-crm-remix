@@ -51,25 +51,29 @@ export interface LeadContact {
   data?: Record<string, any>;
 }
 
-export const generateDummyLeads = (n = 1_000): LeadContact[] =>
-  Array.from({ length: n }, (_, i) => {
-    const num = (i + 1).toString().padStart(3, '0');
-    return {
-      id: `lead-${num}`,
-      name: `John Doe ${num}`,
-      email: `john${num}@example.com`,
-      opportunity: `Website Form`,
-      status: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-      revenue: Math.floor(Math.random() * 100000),
+// Function to generate dummy leads correctly with ascending IDs
+export function generateDummyLeads(count = 20): any[] {
+  // Start IDs from 1 and go upward
+  const leads = [];
+  
+  for (let i = 1; i <= count; i++) {
+    // Format the ID with leading zeros
+    const formattedId = String(i).padStart(3, '0');
+    
+    leads.push({
+      id: `lead-${formattedId}`,
+      name: `John Doe ${formattedId}`,
+      email: `johndoe${formattedId}@example.com`,
+      status: [`New`, `In Progress`, `On Hold`, `Closed Won`, `Closed Lost`][Math.floor(Math.random() * 5)],
+      company: `Company ${formattedId}`,
       closeDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      owner: `John Doe ${num}`.split(' ')[0],
-      website: 'https://example.com',
-      companyName: `Company ${num}`,
-      linkedIn: 'https://linkedin.com/company/example',
-      employees: Math.floor(Math.random() * 1000),
-      lastContacted: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    };
-  });
+      revenue: Math.floor(Math.random() * 100000),
+      // Add other fields as needed
+    });
+  }
+  
+  return leads;
+}
 
 // Mock contacts mapped by ID for dynamic loading
 export const mockContactsById: Record<string, LeadContact> = {

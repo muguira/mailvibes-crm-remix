@@ -902,25 +902,14 @@ export function MainGridView({
   const renderStatusPill = (value: string, colors: Record<string, string>) => {
     if (!value) return null;
     
-    // Define custom colors using Pastel Rainbow palette with opacity
-    const customColors: Record<string, { bg: string, text: string }> = {
-      'New': { bg: 'rgba(250, 237, 203, 0.7)', text: '#000000' },          // Light Cream
-      'In Progress': { bg: 'rgba(201, 228, 222, 0.7)', text: '#000000' },  // Light Mint
-      'On Hold': { bg: 'rgba(198, 222, 241, 0.7)', text: '#000000' },      // Light Blue
-      'Closed Won': { bg: 'rgba(219, 205, 240, 0.7)', text: '#000000' },   // Light Lavender
-      'Closed Lost': { bg: 'rgba(242, 198, 222, 0.7)', text: '#000000' }   // Light Pink
-    };
-    
-    // Use custom color if available, otherwise fall back to column colors
-    const customColor = customColors[value];
-    const backgroundColor = customColor?.bg || colors[value] || 'rgba(247, 217, 196, 0.7)'; // Fallback to Light Peach
-    const textColor = customColor?.text || '#000000'; // Dark text for light backgrounds
+    const backgroundColor = colors[value] || '#f3f4f6';
+    const isLight = isColorLight(backgroundColor);
+    const textColor = isLight ? '#000000' : '#ffffff';
     
     return (
       <span
-        className="px-2 py-0.5 rounded-full text-xs font-medium status-pill"
+        className="px-2 py-0.5 rounded-full text-xs font-medium"
         style={{ backgroundColor, color: textColor }}
-        data-value={value}
       >
         {value}
       </span>
