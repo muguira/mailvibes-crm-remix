@@ -22,29 +22,29 @@ export function BottomTabBar() {
     <div className="fixed bottom-0 left-0 right-0 h-14 bg-white border-t border-[#EDEDEB] md:hidden">
       {/* Navigation tabs */}
       <div className="flex justify-around items-center h-full">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.href;
-          return (
-            <Link
-              key={tab.name}
-              to={tab.href}
-              className="flex flex-col items-center justify-center w-full h-full"
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab.href;
+        return (
+          <Link
+            key={tab.name}
+            to={tab.href}
+            className="flex flex-col items-center justify-center w-full h-full"
+          >
+            <tab.icon
+              className={`h-5 w-5 ${
+                isActive ? "text-teal-primary" : "text-slate-medium"
+              }`}
+            />
+            <span
+              className={`text-xs mt-1 ${
+                isActive ? "text-teal-primary" : "text-slate-medium"
+              }`}
             >
-              <tab.icon
-                className={`h-5 w-5 ${
-                  isActive ? "text-teal-primary" : "text-slate-medium"
-                }`}
-              />
-              <span
-                className={`text-xs mt-1 ${
-                  isActive ? "text-teal-primary" : "text-slate-medium"
-                }`}
-              >
-                {tab.name}
-              </span>
-            </Link>
-          );
-        })}
+              {tab.name}
+            </span>
+          </Link>
+        );
+      })}
       </div>
     </div>
   );

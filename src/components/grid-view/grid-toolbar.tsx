@@ -417,8 +417,8 @@ export function GridToolbar({
                         renderFilterValueSelector={renderFilterValueSelector}
                         triggerClassName="h-9 w-9 text-gray-500 flex items-center justify-center"
                         iconOnly={true}
-                      />
-                    </div>
+          />
+        </div>
                   )}
                 </div>
                 
@@ -664,7 +664,7 @@ export function GridToolbar({
                 </div>
               </div>
             </div>
-          </div>
+      </div>
           
           <DialogFooter className={isMobile ? "flex-col space-y-2" : ""}>
             <Button 

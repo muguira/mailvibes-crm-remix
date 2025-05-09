@@ -38,14 +38,25 @@ export function StaticColumns({
   const opportunityWidth = opportunityColumn?.width || 150;
 
   return (
-    <div className="static-columns-container">
+    <div 
+      className="static-columns-container"
+      style={{
+        width: `${INDEX_COLUMN_WIDTH + opportunityWidth}px`,
+        boxShadow: '3px 0 8px rgba(0,0,0,0.1)',
+        position: 'relative',
+        zIndex: 45
+      }}
+    >
       {/* Header row */}
       <div className="static-headers">
         <div 
           className="index-header" 
           style={{ 
             width: INDEX_COLUMN_WIDTH, 
-            height: HEADER_HEIGHT 
+            height: HEADER_HEIGHT,
+            position: 'sticky',
+            left: 0,
+            zIndex: 45
           }}
         >
           #
@@ -56,7 +67,10 @@ export function StaticColumns({
             className="opportunity-header" 
             style={{ 
               width: opportunityWidth, 
-              height: HEADER_HEIGHT 
+              height: HEADER_HEIGHT,
+              position: 'sticky',
+              left: INDEX_COLUMN_WIDTH,
+              zIndex: 45
             }}
             onContextMenu={(e) => {
               e.preventDefault();
@@ -77,7 +91,8 @@ export function StaticColumns({
           transform: `translateY(-${scrollTop}px)`,
           height: `${data.length * ROW_HEIGHT}px`,
           position: 'relative',
-          top: 0 
+          top: 0,
+          width: '100%'
         }}
       >
         {data.map((row, index) => (
@@ -89,7 +104,8 @@ export function StaticColumns({
               top: `${index * ROW_HEIGHT}px`,
               height: ROW_HEIGHT,
               width: '100%',
-              display: 'flex' 
+              display: 'flex',
+              zIndex: 44
             }}
           >
             {/* Index cell */}
@@ -97,7 +113,10 @@ export function StaticColumns({
               className="index-cell" 
               style={{ 
                 width: INDEX_COLUMN_WIDTH,
-                height: ROW_HEIGHT 
+                height: ROW_HEIGHT,
+                position: 'sticky',
+                left: 0,
+                zIndex: 44
               }}
             >
               {firstRowIndex + index + 1}
@@ -109,7 +128,10 @@ export function StaticColumns({
                 className="opportunity-cell" 
                 style={{ 
                   width: opportunityWidth,
-                  height: ROW_HEIGHT 
+                  height: ROW_HEIGHT,
+                  position: 'sticky',
+                  left: INDEX_COLUMN_WIDTH,
+                  zIndex: 44
                 }}
                 onContextMenu={(e) => handleContextMenu(e, row.id, opportunityColumn.id)}
                 onDoubleClick={() => handleDoubleClick(row.id)}
@@ -124,6 +146,21 @@ export function StaticColumns({
           </div>
         ))}
       </div>
+
+      {/* Add a visual drag guide div */}
+      <div 
+        className="drag-guide" 
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: '3px',
+          height: '100%',
+          background: 'linear-gradient(to right, rgba(0,0,0,0.05), rgba(0,0,0,0.15))',
+          pointerEvents: 'none',
+          zIndex: 48
+        }}
+      />
     </div>
   );
 } 

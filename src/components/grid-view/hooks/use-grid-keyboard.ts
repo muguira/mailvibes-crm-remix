@@ -97,7 +97,7 @@ export function useGridKeyboard({
           nextRowIndex = row - 1;
         } else if (row < rowCount - 1) {
           nextRowIndex = row + 1;
-        }
+          }
         
         // Get ID for next row
         const nextRowId = nextRowIndex;

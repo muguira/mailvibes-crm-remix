@@ -48,14 +48,14 @@ export function TopNavbar({ className }: TopNavbarProps) {
           
           {/* Only show Reports on desktop */}
           {!isMobile && (
-            <NavLink
-              to="/reports"
-              className={({ isActive }) =>
-                `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
-              }
-            >
-              Reports
-            </NavLink>
+          <NavLink
+            to="/reports"
+            className={({ isActive }) =>
+              `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
+            }
+          >
+            Reports
+          </NavLink>
           )}
           
           <NavLink
@@ -78,14 +78,14 @@ export function TopNavbar({ className }: TopNavbarProps) {
           
           {/* Only show Customers on desktop */}
           {!isMobile && (
-            <NavLink
-              to="/customers"
-              className={({ isActive }) =>
-                `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
-              }
-            >
-              Customers
-            </NavLink>
+          <NavLink
+            to="/customers"
+            className={({ isActive }) =>
+              `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
+            }
+          >
+            Customers
+          </NavLink>
           )}
         </div>
 
@@ -93,28 +93,28 @@ export function TopNavbar({ className }: TopNavbarProps) {
         <div className="ml-auto flex items-center gap-4 pr-4">
           {/* Notification bell - only visible on desktop */}
           {!isMobile && (
-            <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
-              <Bell size={18} />
-            </button>
+          <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
+            <Bell size={18} />
+          </button>
           )}
           
           {/* Only show Help and Settings on desktop */}
           {!isMobile && (
             <>
-              <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
-                <HelpCircle size={18} />
-              </button>
-              <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
-                <Settings size={18} />
-              </button>
+          <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
+            <HelpCircle size={18} />
+          </button>
+          <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
+            <Settings size={18} />
+          </button>
             </>
           )}
           
           {/* Search button - only on desktop */}
           {!isMobile && (
-            <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
-              <Search size={18} />
-            </button>
+          <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
+            <Search size={18} />
+          </button>
           )}
           
           {/* Profile menu - always positioned at the far right */}

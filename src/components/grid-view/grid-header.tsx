@@ -59,7 +59,9 @@ export function GridHeader({
 }: GridHeaderProps) {
   const [editingHeader, setEditingHeader] = useState<string | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
-  const [dragPreview, setDragPreview] = useState<HTMLDivElement | null>(null);
+  const [dragPreview, setDragPreview] = useState<HTMLElement | null>(null);
+  const [dropTargetPos, setDropTargetPos] = useState<{ x: number } | null>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
 
   // Handle column header edit (double click)
   const handleHeaderDoubleClick = (columnId: string) => {
@@ -115,16 +117,68 @@ export function GridHeader({
     e.dataTransfer.setDragImage(dragPreview, 50, 15);
   };
 
-  // Clean up drag preview when dragging ends
-  useEffect(() => {
-    const handleDragEnd = () => {
-      if (dragPreview) {
-        document.body.removeChild(dragPreview);
-        setDragPreview(null);
+  // Handle column drag over
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    
+    if (!draggedColumn) return;
+    
+    // Calculate the drop position for the blue indicator line
+    const headerRect = headerRef.current?.getBoundingClientRect();
+    if (headerRect) {
+      const mouseX = e.clientX - headerRect.left;
+      
+      // Find the column under the cursor
+      let accumulatedWidth = 0;
+      let targetColumnIndex = -1;
+      let indicatorX = 0;
+      
+      // Skip opportunity column if present
+      const nonFrozenColumns = columns.filter(col => col.id !== 'opportunity');
+      
+      for (let i = 0; i < nonFrozenColumns.length; i++) {
+        const colWidth = columnWidths[i] || nonFrozenColumns[i].width;
+        
+        // If mouse is in this column's area
+        if (mouseX >= accumulatedWidth && mouseX <= accumulatedWidth + colWidth) {
+          targetColumnIndex = i;
+          
+          // Determine if the drop should be before or after this column
+          // If cursor is in the left half, place before; otherwise, after
+          const isLeftHalf = mouseX - accumulatedWidth < colWidth / 2;
+          
+          if (isLeftHalf) {
+            indicatorX = accumulatedWidth;
+          } else {
+            indicatorX = accumulatedWidth + colWidth;
+          }
+          break;
+        }
+        
+        accumulatedWidth += colWidth;
       }
-      setDraggedColumn(null);
-    };
+      
+      // If cursor is past all columns, position at the end
+      if (targetColumnIndex === -1 && nonFrozenColumns.length > 0) {
+        indicatorX = accumulatedWidth;
+      }
+      
+      // Update drop target position for indicator
+      setDropTargetPos({ x: indicatorX });
+    }
+  };
 
+  const handleDragEnd = () => {
+    if (dragPreview) {
+      document.body.removeChild(dragPreview);
+      setDragPreview(null);
+    }
+    setDraggedColumn(null);
+    setDropTargetPos(null);
+  };
+
+  // Add drag end event listener
+  useEffect(() => {
     window.addEventListener('dragend', handleDragEnd);
     return () => {
       window.removeEventListener('dragend', handleDragEnd);
@@ -138,27 +192,23 @@ export function GridHeader({
     };
   }, [dragPreview]);
 
-  // Handle column drag over
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
   // Handle column drop for reordering
   const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
 
+    // Prevent dropping if there's no dragged column
     if (!draggedColumn || !onColumnsReorder || draggedColumn === targetColumnId) {
       setDraggedColumn(null);
       return;
     }
 
-    // Don't allow dropping onto the opportunity column if it's first
-    if (targetColumnId === 'opportunity' && columns[0].id === 'opportunity') {
+    // Don't allow dropping onto the opportunity column as it's frozen
+    if (targetColumnId === 'opportunity') {
       setDraggedColumn(null);
       return;
     }
 
+    // Get the dragged and target column indices
     const draggedColumnIndex = columns.findIndex(col => col.id === draggedColumn);
     const targetColumnIndex = columns.findIndex(col => col.id === targetColumnId);
 
@@ -167,11 +217,12 @@ export function GridHeader({
       return;
     }
 
-    // Reorder columns
+    // Reorder columns - the opportunity column should remain at its position
     const newColumns = [...columns];
     const [draggedCol] = newColumns.splice(draggedColumnIndex, 1);
     newColumns.splice(targetColumnIndex, 0, draggedCol);
 
+    // Make sure the 'opportunity' column stays in its position 
     onColumnsReorder(newColumns.map(col => col.id));
     setDraggedColumn(null);
   };
@@ -256,12 +307,16 @@ export function GridHeader({
   return (
     <div
       className="flex"
-      style={{ height: '36px' }}
+      style={{ height: '36px', position: 'relative' }}
+      ref={headerRef}
     >
       {columns.map((column, index) => {
-        // Check if this is the opportunity column (should be frozen)
+        // Determine if column should be frozen - the opportunity column and the first column are always frozen
         const isFrozen = column.frozen || column.id === 'opportunity';
         const isActive = activeContextMenu === column.id;
+        
+        // Calculate left position for sticky positioning
+        const leftPosition = column.id === 'opportunity' ? 48 : 0; // 48px for the opportunity column (after index)
         
         return (
           <div
@@ -275,7 +330,12 @@ export function GridHeader({
             `}
             style={{ 
               width: `${columnWidths[index] || column.width}px`,
-              ...(isFrozen ? { position: 'sticky', left: '48px', zIndex: 35 } : {})
+              ...(isFrozen ? { 
+                position: 'sticky', 
+                left: `${leftPosition}px`,
+                zIndex: 50,
+                boxShadow: '2px 0 4px rgba(0,0,0,0.1)'
+              } : {})
             }}
             draggable={!isFrozen}
             onDragStart={(e) => handleDragStart(e, column.id)}
@@ -325,6 +385,17 @@ export function GridHeader({
       >
         <Plus size={16} />
       </div>
+
+      {/* Blue line indicator for column drop position */}
+      {dropTargetPos && draggedColumn && (
+        <div 
+          className="column-drag-indicator"
+          style={{ 
+            left: `${dropTargetPos.x}px`,
+            height: '36px'
+          }}
+        />
+      )}
 
       {/* Render Context Menu if active */}
       {activeContextMenu && contextMenuPosition && (
