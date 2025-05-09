@@ -1,4 +1,3 @@
-
 // Sample contact data for use in stream views
 export const sampleContact = {
   id: "1",
@@ -43,6 +42,13 @@ export interface LeadContact {
   employees?: number;
   website?: string;
   linkedIn?: string;
+  description?: string;
+  primaryLocation?: string;
+  facebook?: string;
+  instagram?: string;
+  twitter?: string;
+  associatedDeals?: string;
+  data?: Record<string, any>;
 }
 
 export const generateDummyLeads = (n = 1_000): LeadContact[] =>

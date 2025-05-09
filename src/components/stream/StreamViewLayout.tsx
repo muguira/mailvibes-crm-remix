@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StreamProfileCard } from './index';
 import { AboutThisContact } from './index';
 import ActionRow from './ActionRow';
@@ -31,11 +30,51 @@ interface StreamViewLayoutProps {
     industry?: string;
     jobTitle?: string;
     address?: string;
+    description?: string;
+    facebook?: string;
+    instagram?: string;
+    linkedin?: string;
+    twitter?: string; // X platform
+    website?: string; // Website field
+    associatedDeals?: string;
+    primaryLocation?: string;
+    data?: Record<string, any>;
     activities?: Array<any>;
   }
 }
 
 export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
+  // State to trigger updates on avatar when contact data changes
+  const [updatedContact, setUpdatedContact] = useState(contact);
+
+  // Listen for mockContactsUpdated event to refresh the UI
+  useEffect(() => {
+    const handleContactUpdate = (event: CustomEvent) => {
+      const { contactId, field, value } = event.detail;
+      
+      if (contactId === contact.id) {
+        // Update local state to trigger component re-render
+        setUpdatedContact(prevContact => ({
+          ...prevContact,
+          [field]: value
+        }));
+        
+        console.log(`Profile card updated: ${field} = ${value}`);
+      }
+    };
+    
+    // Add event listener with type casting
+    window.addEventListener('mockContactsUpdated', 
+      ((e: CustomEvent) => handleContactUpdate(e)) as EventListener
+    );
+    
+    return () => {
+      window.removeEventListener('mockContactsUpdated', 
+        ((e: CustomEvent) => handleContactUpdate(e)) as EventListener
+      );
+    };
+  }, [contact.id]);
+
   // Early return if contact is undefined or null
   if (!contact) {
     return (
@@ -59,12 +98,23 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
     source = '—',
     industry = '—',
     owner = '—',
+    description = '—',
+    facebook = '—',
+    instagram = '—',
+    linkedin = '—',
+    twitter = '—',
+    website = '—',
+    jobTitle = '—',
+    associatedDeals = '—',
+    primaryLocation = '—',
     activities = [],
-  } = contact;
+    data = {},
+  } = { ...contact, ...updatedContact }; // Merge with updatedContact
 
   // Create a safe contact object with default values
   const safeContact = {
     ...contact,
+    ...updatedContact, // Include any updated values
     name,
     title,
     company,
@@ -76,6 +126,17 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
     source,
     industry,
     owner,
+    description,
+    facebook,
+    instagram,
+    linkedin,
+    linkedIn: linkedin,
+    twitter,
+    website,
+    jobTitle,
+    associatedDeals,
+    primaryLocation,
+    data,
     activities,
   };
 
