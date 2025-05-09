@@ -12,7 +12,7 @@ import NotFound from "@/pages/NotFound";
 import Auth from "@/pages/Auth";
 import ContactProfile from "@/pages/dashboard/ContactProfile";
 import StreamView from "@/pages/dashboard/StreamView"; // Import the new StreamView page
-
+import Landing from "@/pages/Landing";
 // Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,8 +30,9 @@ function App() {
         <Router>
           <div className="h-screen w-full font-proxima">
             <Routes>
+              <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<Index />} />
+              <Route path="/dashboard" element={<Index />} />
               <Route path="/lists" element={<Navigate to="/leads" replace />} />
               <Route path="/new-grid" element={<Navigate to="/leads" replace />} />
               <Route path="/leads" element={<Leads />} />
