@@ -6,48 +6,39 @@
   background-color: #fff;
   font-family: 'Inter', system-ui, sans-serif;
   user-select: none;
-  overflow: hidden;
-  /* Prevent outer scroll */
-  position: relative;
-  /* Ensure proper stacking context */
-  padding-top: 108px;
-  /* Account for both top navbar (48px) and toolbar (60px) */
+  overflow: hidden; /* Prevent outer scroll */
+  position: relative; /* Ensure proper stacking context */
+  padding-top: 108px; /* Account for both top navbar (48px) and toolbar (60px) */
 }
 
 /* Grid toolbar - fixed position below main navigation */
 .grid-toolbar {
   display: flex;
-  flex-direction: column;
-  /* Allow for filter tags to appear below on mobile */
+  flex-direction: column; /* Allow for filter tags to appear below on mobile */
   align-items: center;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #e5e7eb;
   justify-content: space-between;
   background-color: #fff;
-  z-index: 9999;
-  /* High z-index but just below the main navigation (10000) */
-  position: fixed;
-  /* Fixed position so it stays in place during scrolling */
-  top: 48px;
-  /* Position exactly below the main navigation (h-12 = 48px) */
+  z-index: 9999; /* High z-index but just below the main navigation (10000) */
+  position: fixed; /* Fixed position so it stays in place during scrolling */
+  top: 48px; /* Position exactly below the main navigation (h-12 = 48px) */
   left: 0;
   right: 0;
   width: 100%;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-  min-height: 60px;
-  /* Changed from fixed to minimum height for mobile adaptability */
+  min-height: 60px; /* Changed from fixed to minimum height for mobile adaptability */
 }
 
 /* Mobile toolbar optimizations */
 @media (max-width: 767px) {
-
   /* Container for mobile toolbar buttons */
   .grid-toolbar .flex.items-center.w-full {
     height: 40px;
     align-items: center;
     padding-right: 8px;
   }
-
+  
   /* Ensure buttons are properly sized and aligned */
   .grid-toolbar button.p-2,
   .grid-toolbar .h-9.w-9 {
@@ -57,12 +48,12 @@
     align-items: center;
     justify-content: center;
   }
-
+  
   /* Filter button next to search icon when collapsed */
   .grid-toolbar .flex.items-center .ml-1 {
     margin-left: 4px;
   }
-
+  
   /* Make sure search expands smoothly */
   .grid-toolbar .absolute.left-10.right-0 {
     animation: slideIn 0.2s ease-out;
@@ -70,26 +61,25 @@
     display: flex;
     align-items: center;
   }
-
+  
   /* Animation for search expansion */
   @keyframes slideIn {
     from {
       opacity: 0;
       transform: translateX(-10px);
     }
-
     to {
       opacity: 1;
       transform: translateX(0);
     }
   }
-
+  
   /* Ensure focus stays on search when expanded */
   .grid-toolbar .search-input-field:focus {
     outline: none;
     border-color: #32BAB0;
   }
-
+  
   /* Make dialog smaller on mobile */
   [data-radix-dialog-content] {
     max-width: 92vw !important;
@@ -97,36 +87,36 @@
     overflow-y: auto !important;
     padding: 16px !important;
   }
-
+  
   /* Dialog header smaller on mobile */
   [data-radix-dialog-title] {
     font-size: 18px !important;
   }
-
+  
   [data-radix-dialog-description] {
     font-size: 14px !important;
     margin-bottom: 8px !important;
   }
-
+  
   /* Fix spacing in dialog content */
   [data-radix-dialog-content] .grid.gap-4 {
     gap: 12px !important;
   }
-
+  
   /* Smaller labels and inputs in dialog */
   [data-radix-dialog-content] label {
     font-size: 14px !important;
     margin-bottom: 2px !important;
   }
-
+  
   /* Prevent content overflow */
   [data-radix-dialog-content] input,
   [data-radix-dialog-content] select {
     font-size: 14px !important;
   }
-
+  
   /* Button spacing in dialog footer */
-  [data-radix-dialog-footer].flex-col>button {
+  [data-radix-dialog-footer].flex-col > button {
     margin-top: 8px !important;
   }
 }
@@ -211,8 +201,7 @@
   flex: 1;
   overflow: hidden;
   position: relative;
-  border-top: 1px solid #e5e7eb;
-  /* Added top border to entire container */
+  border-top: 1px solid #e5e7eb; /* Added top border to entire container */
 }
 
 /* NEW: Static columns container */
@@ -220,10 +209,8 @@
   flex-shrink: 0;
   position: relative;
   height: 100%;
-  z-index: 40;
-  /* Higher than other grid elements */
-  border-right: 1px solid #e5e7eb;
-  /* Changed from 2px to 1px to match other borders */
+  z-index: 40; /* Higher than other grid elements */
+  border-right: 1px solid #e5e7eb; /* Changed from 2px to 1px to match other borders */
   background-color: #fff;
   overflow: hidden;
   /* Added box-shadow to static columns for visual depth */
@@ -235,8 +222,7 @@
   background-color: #f9fafb;
   border-top: 1px solid #e5e7eb;
   border-bottom: 1px solid #e5e7eb;
-  height: 36px;
-  /* HEADER_HEIGHT */
+  height: 36px; /* HEADER_HEIGHT */
   z-index: 41;
   position: relative;
 }
@@ -290,12 +276,9 @@
   background-color: #fff;
   border-right: 1px solid #e5e7eb;
   border-bottom: 1px solid #e5e7eb;
-  height: 36px;
-  /* Match increased cell height */
-  padding-bottom: 4px;
-  /* Extra padding for descenders */
-  padding-top: 4px;
-  /* Balance top padding */
+  height: 36px; /* Match increased cell height */
+  padding-bottom: 4px; /* Extra padding for descenders */
+  padding-top: 4px; /* Balance top padding */
 }
 
 .opportunity-cell {
@@ -311,13 +294,10 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   /* Use the same explicit values as other cells */
-  height: 36px;
-  /* Increased height */
+  height: 36px; /* Increased height */
   line-height: 1.5;
-  padding-bottom: 4px;
-  /* Extra bottom padding for descenders */
-  padding-top: 4px;
-  /* Balance top padding */
+  padding-bottom: 4px; /* Extra bottom padding for descenders */
+  padding-top: 4px; /* Balance top padding */
 }
 
 .opportunity-text {
@@ -333,13 +313,11 @@
 .main-grid-view {
   flex: 1;
   position: relative;
-  overflow: hidden;
-  /* Keep this as hidden */
+  overflow: hidden; /* Keep this as hidden */
   height: 100%;
   /* max-width restriction removed to allow scrolling all the way to the right */
   outline: none !important;
-  z-index: 10;
-  /* Lower z-index than toolbar */
+  z-index: 10; /* Lower z-index than toolbar */
 }
 
 /* Only show focus styles when actually focused via keyboard */
@@ -350,16 +328,13 @@
 /* Make sure focus doesn't hide toolbar */
 .main-grid-view:focus {
   /* Prevent any focus styles that might change z-index or positioning */
-  z-index: 10;
-  /* Keep lower than toolbar */
+  z-index: 10; /* Keep lower than toolbar */
 }
 
 .main-grid-header {
   overflow-x: scroll;
-  scrollbar-width: none;
-  /* Hide scrollbar in Firefox */
-  -ms-overflow-style: none;
-  /* Hide scrollbar in IE/Edge */
+  scrollbar-width: none; /* Hide scrollbar in Firefox */
+  -ms-overflow-style: none; /* Hide scrollbar in IE/Edge */
   background-color: #f9fafb;
   border-top: 1px solid #e5e7eb;
   border-bottom: 1px solid #e5e7eb;
@@ -375,8 +350,7 @@
 
 .main-grid-body {
   position: relative;
-  height: calc(100% - 36px);
-  /* 100% - HEADER_HEIGHT */
+  height: calc(100% - 36px); /* 100% - HEADER_HEIGHT */
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -384,36 +358,28 @@
 
 /* Full height container to ensure grid can show all rows */
 .h-full {
-  height: 100vh !important;
-  /* Force full viewport height */
+  height: 100vh !important; /* Force full viewport height */
 }
 
 .data-grid {
-  overflow: scroll !important;
-  /* Force scrolling to be enabled */
-  scrollbar-width: none !important;
-  /* Hide scrollbar in Firefox */
-  -ms-overflow-style: none !important;
-  /* Hide scrollbar in IE/Edge */
+  overflow: scroll !important; /* Force scrolling to be enabled */
+  scrollbar-width: none !important; /* Hide scrollbar in Firefox */
+  -ms-overflow-style: none !important; /* Hide scrollbar in IE/Edge */
   /* Add right padding to ensure content isn't hidden under the scrollbar area */
   padding-right: 0;
   /* Fix for Safari */
   -webkit-overflow-scrolling: touch;
   /* Ensure we can see the last rows */
-  padding-bottom: 40px !important;
-  /* Medium padding to ensure all rows are visible */
+  padding-bottom: 40px !important; /* Medium padding to ensure all rows are visible */
   /* Extra margin at the end to see the last rows completely */
   margin-bottom: 30px;
   /* Fix scrolling behavior */
   max-height: none !important;
   height: auto !important;
   min-height: 100% !important;
-  will-change: transform;
-  /* Optimize scrolling performance */
-  overscroll-behavior: auto;
-  /* Prevent scroll chaining */
-  scroll-behavior: auto !important;
-  /* Ensure natural scrolling */
+  will-change: transform; /* Optimize scrolling performance */
+  overscroll-behavior: auto; /* Prevent scroll chaining */
+  scroll-behavior: auto !important; /* Ensure natural scrolling */
 }
 
 /* Completely hide scrollbars for all browsers while keeping scroll functionality */
@@ -475,14 +441,12 @@
 .grid-header-row {
   display: flex;
   background-color: #f9fafb;
-  height: 36px;
-  /* HEADER_HEIGHT */
+  height: 36px; /* HEADER_HEIGHT */
   z-index: 30;
 }
 
 .grid-header-cell {
-  height: 36px;
-  /* HEADER_HEIGHT */
+  height: 36px; /* HEADER_HEIGHT */
   padding: 0 0.75rem;
   display: flex;
   align-items: center;
@@ -515,18 +479,13 @@
   text-overflow: ellipsis;
   display: flex;
   align-items: center;
-  user-select: none;
-  /* Prevent text selection */
-  position: relative;
-  /* Required for selected-cell style positioning */
+  user-select: none; /* Prevent text selection */
+  position: relative; /* Required for selected-cell style positioning */
   transition: none !important;
   /* Explicitly increase height and add bottom padding to ensure no text is cut off */
-  height: 36px;
-  /* Increased from ROW_HEIGHT (32px) */
-  padding-bottom: 4px;
-  /* Extra bottom padding for descenders */
-  padding-top: 4px;
-  /* Balance top padding */
+  height: 36px; /* Increased from ROW_HEIGHT (32px) */
+  padding-bottom: 4px; /* Extra bottom padding for descenders */
+  padding-top: 4px; /* Balance top padding */
 }
 
 .grid-cell-editable {
@@ -543,7 +502,7 @@
   position: static;
   padding: 0;
   margin: 0;
-  width: 100%;
+  width: 100%; 
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -553,18 +512,15 @@
   top: 0;
   height: 100%;
   box-sizing: border-box;
-  padding-left: 0.75rem;
-  /* Add consistent left padding */
-  line-height: 1.5;
-  /* Higher line height to ensure descenders are not cut off */
-  padding-bottom: 2px;
-  /* Add explicit bottom padding */
+  padding-left: 0.75rem; /* Add consistent left padding */
+  line-height: 1.5; /* Higher line height to ensure descenders are not cut off */
+  padding-bottom: 2px; /* Add explicit bottom padding */
 }
 
 /* No longer needed since we're using .cell-content */
-.grid-cell>div.cell-content,
-.grid-cell>span.cell-content,
-.grid-cell>a.cell-content {
+.grid-cell > div.cell-content,
+.grid-cell > span.cell-content,
+.grid-cell > a.cell-content {
   position: static;
   transform: none;
   transition: none !important;
@@ -575,24 +531,22 @@
 
 /* Keep text in the same position when cell is selected */
 .selected-cell .cell-content {
-  padding-left: 0.75rem;
-  /* Same padding as normal cells */
+  padding-left: 0.75rem; /* Same padding as normal cells */
   top: 0;
   left: 0;
   position: static;
 }
 
 /* Fixed positioning for cell content - improved */
-.grid-cell>div,
-.grid-cell>span,
-.grid-cell>a {
+.grid-cell > div, 
+.grid-cell > span, 
+.grid-cell > a {
   position: static;
   transform: none;
   transition: none !important;
   left: 0;
   right: 0;
-  width: 100%;
-  /* Full width of the cell */
+  width: 100%; /* Full width of the cell */
 }
 
 .grid-cell-editing {
@@ -692,8 +646,8 @@
 }
 
 /* Fix for border alignment */
-.static-columns-container,
-.main-grid-view,
+.static-columns-container, 
+.main-grid-view, 
 .action-column-container {
   box-sizing: border-box;
 }
@@ -705,18 +659,15 @@
   height: 100% !important;
   min-height: 100vh;
   position: relative;
-  padding-bottom: 10px;
-  /* Extra space at bottom to ensure last rows are visible */
-  max-width: 100%;
-  /* Ensure it doesn't overflow horizontally */
-  overflow-x: hidden;
-  /* Prevent horizontal overflow */
+  padding-bottom: 10px; /* Extra space at bottom to ensure last rows are visible */
+  max-width: 100%; /* Ensure it doesn't overflow horizontally */
+  overflow-x: hidden; /* Prevent horizontal overflow */
 }
 
 /* Add Sheets-like cell selection styling */
 .selected-cell {
   position: relative;
-  border: 2px solid #62BFAA !important;
+  border: 2px solid #62BFAA !important; 
   z-index: 15;
   box-shadow: none !important;
   outline: none !important;
@@ -724,9 +675,9 @@
 }
 
 /* Keep the content positioning consistent regardless of selection state */
-.selected-cell>div,
-.selected-cell>span,
-.selected-cell>a {
+.selected-cell > div,
+.selected-cell > span,
+.selected-cell > a {
   position: static;
   left: 0.75rem;
   width: calc(100% - 1.5rem);
@@ -775,7 +726,7 @@
 }
 
 /* Remove focus ring and borders from status select when active */
-.grid-cell-input.status-select:focus,
+.grid-cell-input.status-select:focus, 
 .grid-cell-input.status-select[data-state="open"] {
   border: none !important;
   box-shadow: none !important;
@@ -987,16 +938,11 @@ input.grid-cell-input {
 
 /* Add constant absolute protection for toolbar visibility */
 body.grid-view-active .grid-toolbar {
-  display: flex !important;
-  /* Always display */
-  visibility: visible !important;
-  /* Always visible */
-  opacity: 1 !important;
-  /* Always fully opaque */
-  position: fixed !important;
-  /* Ensure fixed position */
-  top: 48px !important;
-  /* Keep below main navigation */
+  display: flex !important; /* Always display */
+  visibility: visible !important; /* Always visible */
+  opacity: 1 !important; /* Always fully opaque */
+  position: fixed !important; /* Ensure fixed position */
+  top: 48px !important; /* Keep below main navigation */
 }
 
 /* Additional protection for scrolling operations */
@@ -1004,22 +950,17 @@ body.grid-scroll-active .grid-toolbar {
   display: flex !important;
   opacity: 1 !important;
   visibility: visible !important;
-  position: fixed !important;
+  position: fixed !important; 
   top: 48px !important;
-  z-index: 9999 !important;
-  /* High but below main nav */
-  transform: translateZ(0) !important;
-  /* Force hardware acceleration */
-  will-change: transform !important;
-  /* Hint to browser to optimize */
-  transition: none !important;
-  /* Prevent any animations */
+  z-index: 9999 !important; /* High but below main nav */
+  transform: translateZ(0) !important; /* Force hardware acceleration */
+  will-change: transform !important; /* Hint to browser to optimize */
+  transition: none !important; /* Prevent any animations */
 }
 
 /* Prevent focus from hiding toolbar */
 body.grid-keyboard-nav *:focus {
-  z-index: auto !important;
-  /* Reset any z-index changes from focus */
+  z-index: auto !important; /* Reset any z-index changes from focus */
 }
 
 /* Also prevent scrolling from affecting toolbar visibility */
@@ -1033,14 +974,12 @@ body.grid-scroll-active .main-grid-body {
 .main-grid-view:focus,
 .main-grid-view:focus-visible,
 .main-grid-view:focus-within {
-  z-index: 10 !important;
-  /* Force to be lower than toolbar */
+  z-index: 10 !important; /* Force to be lower than toolbar */
 }
 
 /* Status popover styling with close button */
 .status-options-popup {
-  width: 160px;
-  /* Smaller width to match blue box size in image */
+  width: 160px; /* Smaller width to match blue box size in image */
   padding: 0;
   background-color: white;
   border-radius: 6px;
@@ -1048,13 +987,10 @@ body.grid-scroll-active .main-grid-body {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   z-index: 50;
   overflow: hidden;
-  animation: none !important;
-  /* Remove animation for immediate appearance */
+  animation: none !important; /* Remove animation for immediate appearance */
   transform-origin: var(--radix-popover-content-transform-origin);
-  transform: translateY(0) !important;
-  /* Prevent any transform that might shift position */
-  max-height: 200px;
-  /* Limit the maximum height */
+  transform: translateY(0) !important; /* Prevent any transform that might shift position */
+  max-height: 200px; /* Limit the maximum height */
 }
 
 /* Status pill centering in grid cell */
@@ -1062,16 +998,14 @@ body.grid-scroll-active .main-grid-body {
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
-  padding: 0 !important;
-  /* Remove default padding to ensure proper centering */
+  padding: 0 !important; /* Remove default padding to ensure proper centering */
 }
 
 /* Status popup needs padding at the bottom to show border */
 .status-command [cmdk-list] {
   padding-top: 0 !important;
   gap: 0 !important;
-  padding-bottom: 0 !important;
-  /* Removed padding to move border up */
+  padding-bottom: 0 !important; /* Removed padding to move border up */
 }
 
 /* Fix status popup to ensure the bottom is visible */
@@ -1079,21 +1013,19 @@ body.grid-scroll-active .main-grid-body {
   border-radius: 0;
   border: none;
   box-shadow: none;
-  padding-bottom: 0;
-  /* Removed padding */
-  margin-bottom: 0;
-  /* Removed margin */
+  padding-bottom: 0; /* Removed padding */
+  margin-bottom: 0; /* Removed margin */
 }
 
 /* Remove bottom whitespace in the dropdown */
-.status-options-popup>div {
+.status-options-popup > div {
   margin-bottom: 0 !important;
   padding-bottom: 0 !important;
 }
 
 /* Remove white space from dropdown content wrapper */
 [data-radix-popper-content-wrapper] {
-  padding-bottom: 0 !important;
+  padding-bottom: 0 !important; 
   margin-bottom: 0 !important;
 }
 
@@ -1125,27 +1057,22 @@ div[cmdk-list]:after {
 
 /* Status popup item height - decrease to fit more in view */
 .status-command-item {
-  padding: 4px 10px;
-  /* Reduced padding from 8px 12px */
+  padding: 4px 10px; /* Reduced padding from 8px 12px */
   border-radius: 0;
   cursor: pointer;
   transition: background-color 0.15s ease;
-  height: 26px;
-  /* Slightly reduce height to match blue line */
+  height: 26px; /* Slightly reduce height to match blue line */
   min-height: 26px;
-  font-size: 13px;
-  /* Smaller font size */
+  font-size: 13px; /* Smaller font size */
 }
 
 .status-popup-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 10px;
-  /* Reduced padding from 8px 12px */
+  padding: 4px 10px; /* Reduced padding from 8px 12px */
   border-bottom: 1px solid #e5e7eb;
-  font-size: 13px;
-  /* Reduced from 14px */
+  font-size: 13px; /* Reduced from 14px */
   font-weight: 500;
 }
 
@@ -1157,7 +1084,7 @@ div[cmdk-list]:after {
 
 /* Adjust content container to eliminate any extra space at bottom */
 [data-radix-popper-content-wrapper] {
-  padding-bottom: 0 !important;
+  padding-bottom: 0 !important; 
   margin-bottom: 0 !important;
 }
 
@@ -1200,26 +1127,21 @@ div[cmdk-list]:after {
 }
 
 .status-command-item {
-  padding: 4px 10px;
-  /* Reduced padding from 8px 12px */
+  padding: 4px 10px; /* Reduced padding from 8px 12px */
   border-radius: 0;
   cursor: pointer;
   transition: background-color 0.15s ease;
-  height: 28px;
-  /* Explicitly set height to be shorter */
+  height: 28px; /* Explicitly set height to be shorter */
   min-height: 28px;
-  font-size: 13px;
-  /* Smaller font size */
+  font-size: 13px; /* Smaller font size */
 }
 
 .status-command-item:hover {
-  background-color: rgba(247, 217, 196, 0.7) !important;
-  /* Light Peach */
+  background-color: rgba(247, 217, 196, 0.7) !important; /* Light Peach */
 }
 
 .status-command-item[data-selected=true] {
-  background-color: rgba(247, 217, 196, 0.7) !important;
-  /* Light Peach */
+  background-color: rgba(247, 217, 196, 0.7) !important; /* Light Peach */
 }
 
 /* Fix z-index hierarchy for consistent popover behavior */
@@ -1252,12 +1174,11 @@ div[cmdk-list]:after {
 
 /* Ensure calendar popups and date selectors appear above everything else */
 [data-radix-popper-content-wrapper] {
-  z-index: 10005 !important;
-  /* Force very high z-index */
+  z-index: 10005 !important; /* Force very high z-index */
 }
 
 /* Specific calendar styles to ensure they're on top */
-.react-calendar,
+.react-calendar, 
 [role="dialog"][aria-label*="calendar"],
 [data-radix-popper-content-wrapper] [role="dialog"] {
   z-index: 10006 !important;
@@ -1298,7 +1219,7 @@ div[cmdk-list]:after {
 }
 
 /* Styles for the filter button when placed next to search icon */
-.flex.items-center>.ml-1 .FilterPopupBase {
+.flex.items-center > .ml-1 .FilterPopupBase {
   margin-left: 0;
 }
 
