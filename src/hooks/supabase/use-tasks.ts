@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Task } from '@/components/home/tasks-panel';
+import { Task } from '@/types/task';
 import { toast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isPast, parseISO, startOfDay } from 'date-fns';
@@ -18,6 +18,7 @@ export interface TaskData {
   type: "follow-up" | "respond" | "task" | "cross-functional";
   tag?: string;
   priority?: "low" | "medium" | "high";
+  user_id?: string; // Added user_id property
 }
 
 export function useTasks() {
@@ -66,9 +67,14 @@ export function useTasks() {
     mutationFn: async (newTask: Omit<TaskData, "id">) => {
       if (!user) throw new Error('User must be logged in');
       
+      const taskWithUserId = {
+        ...newTask,
+        user_id: user.id // Add user_id to the task
+      };
+      
       const { data, error } = await supabase
         .from('tasks')
-        .insert([newTask])
+        .insert([taskWithUserId])
         .select()
         .single();
 
@@ -93,9 +99,15 @@ export function useTasks() {
     mutationFn: async (updatedTask: TaskData) => {
       if (!user) throw new Error('User must be logged in');
       
+      // Ensure task has user_id
+      const taskWithUserId = {
+        ...updatedTask,
+        user_id: user.id
+      };
+      
       const { data, error } = await supabase
         .from('tasks')
-        .update(updatedTask)
+        .update(taskWithUserId)
         .eq('id', updatedTask.id)
         .select()
         .single();

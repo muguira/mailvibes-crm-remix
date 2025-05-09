@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,31 +11,34 @@ import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { mockContactsById } from "@/components/stream/sample-data";
 
+interface Contact {
+  id: string;
+  email?: string;
+  phone?: string;
+  owner?: string;
+  lastContacted?: string;
+  lifecycleStage?: string;
+  source?: string;
+  company?: string;
+  industry?: string;
+  jobTitle?: string;
+  address?: string;
+  description?: string;
+  facebook?: string;
+  instagram?: string;
+  linkedIn?: string;
+  twitter?: string; // X platform
+  website?: string; // Added website field
+  associatedDeals?: string;
+  primaryLocation?: string;
+  data?: Record<string, any>;
+  name?: string; // Added name field
+}
+
 interface AboutThisContactProps {
   compact?: boolean;
   leadStatus?: string;
-  contact: {
-    id: string;
-    email?: string;
-    phone?: string;
-    owner?: string;
-    lastContacted?: string;
-    lifecycleStage?: string;
-    source?: string;
-    company?: string;
-    industry?: string;
-    jobTitle?: string;
-    address?: string;
-    description?: string;
-    facebook?: string;
-    instagram?: string;
-    linkedIn?: string;
-    twitter?: string; // X platform
-    website?: string; // Added website field
-    associatedDeals?: string;
-    primaryLocation?: string;
-    data?: Record<string, any>;
-  };
+  contact: Contact;
 }
 
 export default function AboutThisContact({ 
@@ -44,33 +48,54 @@ export default function AboutThisContact({
 }: AboutThisContactProps) {
   const { user } = useAuth();
   const [editingField, setEditingField] = useState<string | null>(null);
-  const [fieldValues, setFieldValues] = useState<Record<string, any>>({});
+  const [fieldValues, setFieldValues] = useState<Partial<Contact>>({});
   const [isSaving, setIsSaving] = useState(false);
   const editControlRef = useRef<HTMLDivElement>(null);
 
-  // Initialize field values from contact data
+  // Initialize field values from contact data with safe destructuring
   useEffect(() => {
     if (contact) {
+      const {
+        name = '',
+        email = '',
+        description = '',
+        company = '',
+        jobTitle = '',
+        industry = '',
+        phone = '',
+        primaryLocation = '',
+        website = '',
+        facebook = '',
+        instagram = '',
+        linkedIn = '',
+        twitter = '',
+        associatedDeals = '',
+        owner = user?.email || '',
+        lastContacted = '',
+        source = '',
+        data = {}
+      } = contact;
+      
       setFieldValues({
-        name: contact.name || '',
-        email: contact.email || '',
+        name,
+        email,
         leadStatus: leadStatus || '',
-        description: contact.description || '',
-        company: contact.company || '',
-        jobTitle: contact.jobTitle || '',
-        industry: contact.industry || '',
-        phone: contact.phone || '',
-        primaryLocation: contact.primaryLocation || '',
-        website: contact.website || '', // Added website field
-        facebook: contact.facebook || '',
-        instagram: contact.instagram || '',
-        linkedin: contact.linkedIn || '',
-        twitter: contact.twitter || '',
-        associatedDeals: contact.associatedDeals || '',
-        owner: contact.owner || user?.email || '',
-        lastContacted: contact.lastContacted || '',
-        source: contact.source || '',
-        ...contact.data
+        description,
+        company,
+        jobTitle,
+        industry,
+        phone,
+        primaryLocation,
+        website,
+        facebook,
+        instagram,
+        linkedin: linkedIn,
+        twitter,
+        associatedDeals,
+        owner,
+        lastContacted,
+        source,
+        ...data
       });
     }
   }, [contact, leadStatus, user]);

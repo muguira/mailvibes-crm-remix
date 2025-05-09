@@ -1,4 +1,3 @@
-
 import { Check, Circle, Plus, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect, useRef } from "react";
@@ -7,23 +6,13 @@ import { DeadlinePopup } from "./deadline-popup";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-fns";
 import { es } from 'date-fns/locale';
 import { TaskEditPopup } from "./task-edit-popup";
-import { useTasks } from "@/hooks/supabase/use-tasks";
+import { useTasks, TaskData } from "@/hooks/supabase/use-tasks";
 import { CreateTaskDialog } from "./create-task-dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { Task } from "@/types/task"; // Import the unified Task type
 
-export interface Task {
-  id: string;
-  title: string;
-  deadline?: string; // ISO string
-  contact?: string;
-  description?: string;
-  displayStatus: "upcoming" | "overdue" | "completed";
-  status: "on-track" | "at-risk" | "off-track";
-  type: "follow-up" | "respond" | "task" | "cross-functional";
-  tag?: string; // For tags like "LATAM"
-  hasCalendar?: boolean;
-  priority?: "low" | "medium" | "high";
-}
+// Export the Task interface from the unified type
+export type { Task };
 
 export function TasksPanel() {
   const { user } = useAuth();
@@ -120,7 +109,8 @@ export function TasksPanel() {
         contact: taskToUpdate.contact,
         description: taskToUpdate.description,
         tag: taskToUpdate.tag,
-        priority: taskToUpdate.priority
+        priority: taskToUpdate.priority,
+        user_id: user?.id // Add user ID here
       });
     }
   };
@@ -152,7 +142,8 @@ export function TasksPanel() {
       contact: taskToUpdate.contact,
       description: taskToUpdate.description,
       tag: taskToUpdate.tag,
-      priority: taskToUpdate.priority
+      priority: taskToUpdate.priority,
+      user_id: user?.id // Add user ID here
     });
   };
 
@@ -190,7 +181,7 @@ export function TasksPanel() {
       tag: task.tag,
       display_status: "upcoming",
       status: "on-track",
-      user_id: user.id
+      user_id: user.id // Add user ID here
     });
   };
 
@@ -248,7 +239,8 @@ export function TasksPanel() {
       status: updatedTask.status,
       type: updatedTask.type,
       tag: updatedTask.tag,
-      priority: updatedTask.priority
+      priority: updatedTask.priority,
+      user_id: user?.id // Add user ID here
     });
   };
 
