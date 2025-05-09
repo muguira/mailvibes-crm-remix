@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Navigate } from "react-router-dom";
@@ -37,13 +36,15 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-light/10">
+    <div className="flex h-screen bg-slate-light/10 font-sans">
       <div className="w-full max-w-md m-auto p-8">
         <div className="mb-8 text-center">
-          <div className="w-12 h-12 rounded-full border-2 border-teal-primary mx-auto flex items-center justify-center text-teal-primary text-lg font-bold mb-4">
-            S
-          </div>
-          <h1 className="text-2xl font-bold text-navy-deep">SalesIQ</h1>
+          <span className="text-teal-primary text-3xl font-bold mb-4 inline-block">
+            $
+          </span>
+          <h1 className="text-2xl text-navy-deep font-sans">
+            <span className="font-bold">Sales</span> <span className="font-normal">Sheets</span>
+          </h1>
           <p className="text-slate-medium mt-2">Sign in to access your account</p>
         </div>
         

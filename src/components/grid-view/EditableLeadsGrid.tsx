@@ -3,6 +3,7 @@ import { GridViewContainer } from '@/components/grid-view/GridViewContainer';
 import { Column, GridRow } from '@/components/grid-view/types';
 import { 
   DEFAULT_COLUMN_WIDTH,
+  MOBILE_COLUMN_WIDTH,
   ROW_HEIGHT,
   INDEX_COLUMN_WIDTH
 } from '@/components/grid-view/grid-constants';
@@ -106,28 +107,28 @@ export function EditableLeadsGrid() {
       return () => clearTimeout(timer);
     }
   }, [isLoading, rows]);
-  
+    
   // Handle case where no data exists by generating dummy data
   useEffect(() => {
     if (!isLoading && rows.length === 0) {
       // Generate dummy leads if no data exists
-      const dummyLeads = generateDummyLeads();
+    const dummyLeads = generateDummyLeads();
     
       // Create rows for each dummy lead
       dummyLeads.forEach(lead => {
         const rowData: GridRow = {
-          id: lead.id,
-          opportunity: lead.name,
-          status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-          revenue: lead.revenue || Math.floor(Math.random() * 100000),
-          closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          owner: lead.owner || lead.name?.split(' ')[0] || '',
-          website: lead.website || 'https://example.com',
-          companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
+      id: lead.id,
+      opportunity: lead.name,
+      status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
+      revenue: lead.revenue || Math.floor(Math.random() * 100000),
+      closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      owner: lead.owner || lead.name?.split(' ')[0] || '',
+      website: lead.website || 'https://example.com',
+      companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
           linkedIn: lead.linkedIn || 'linkedin.com/in/example',
-          employees: lead.employees || Math.floor(Math.random() * 1000),
-          lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          email: lead.email,
+      employees: lead.employees || Math.floor(Math.random() * 1000),
+      lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      email: lead.email,
           description: lead.description || `Description for ${lead.name}`,
           jobTitle: lead.jobTitle || 'Manager',
           industry: lead.industry || 'Technology',
@@ -139,7 +140,7 @@ export function EditableLeadsGrid() {
           associatedDeals: lead.associatedDeals || 'Deal 1, Deal 2',
           source: lead.source || 'Website',
         };
-    
+  
         // Add row to storage
         updateCell({ rowId: rowData.id, columnId: 'opportunity', value: rowData.opportunity });
       });
@@ -163,7 +164,7 @@ export function EditableLeadsGrid() {
       id: 'opportunity',
       title: 'Contacts',
       type: 'text',
-      width: 180, // Changed from DEFAULT_COLUMN_WIDTH + 40 to exactly 180px
+      width: 180, // Keep contacts column at 180px
       editable: true,
       frozen: true,
       renderCell: (value, row) => (
@@ -320,6 +321,35 @@ export function EditableLeadsGrid() {
     },
   ]);
   
+  // Add effect to adjust column widths based on screen size
+  useEffect(() => {
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 768; // Standard mobile breakpoint
+      const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
+      
+      setColumns(prevColumns => {
+        return prevColumns.map(col => {
+          // For mobile, set contacts/opportunity column to 130px, otherwise keep at 180px
+          if (col.id === 'opportunity') {
+            return { ...col, width: isMobile ? 130 : 180 };
+          }
+          
+          // Update all other columns to use the appropriate width
+          return { ...col, width: columnWidth };
+        });
+      });
+    };
+    
+    // Initial call
+    handleResize();
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
   // Handle cell value changes - update Supabase and sync with mockContactsById
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
     // Update cell in Supabase or localStorage
@@ -379,12 +409,16 @@ export function EditableLeadsGrid() {
       return;
     }
     
-    // Always use a fixed width of 180px for new columns
+    // Set width based on screen size
+    const isMobile = window.innerWidth < 768;
+    const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
+    
+    // Always use width based on screen size for new columns
     const newColumn: Column = {
       id: uuidv4(),
       title: `New Column`,
       type: 'text',
-      width: 180, // Explicit 180px, not using DEFAULT_COLUMN_WIDTH
+      width: columnWidth, // Use screen size responsive width
       editable: true
     };
     

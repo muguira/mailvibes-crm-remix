@@ -19,15 +19,15 @@ const Index = () => {
           
           {/* Content Section - Positioned very close to My Week bar */}
           <div className="px-6 -mt-14">
-            <div className="flex flex-col md:flex-row gap-6 h-full">
+          <div className="flex flex-col md:flex-row gap-6 h-full">
               {/* Left Column - Tasks - Fixed width */}
               <div className="w-full md:w-[570px] flex-shrink-0">
-                <TasksPanel />
-              </div>
+              <TasksPanel />
+            </div>
 
               {/* Right Column - Feed - Takes remaining space */}
               <div className="w-full flex-1">
-                <FeedPanel />
+              <FeedPanel />
               </div>
             </div>
           </div>

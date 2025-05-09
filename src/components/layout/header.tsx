@@ -1,4 +1,3 @@
-
 import { Bell, Search, HelpCircle, Settings } from "lucide-react";
 import { CustomButton } from "@/components/ui/custom-button";
 import { ProfileMenu } from "./profile-menu";
@@ -11,7 +10,7 @@ export function Header({ title }: HeaderProps) {
   return (
     <header className="bg-white border-b border-slate-light/30 h-16 flex items-center px-4 justify-between shadow-sm">
       <div className="flex items-center">
-        {title && title !== "SalesIQ Dashboard" && title !== "SalesIQ Report" && (
+        {title && title !== "SalesSheets Dashboard" && title !== "SalesSheets Report" && (
           <h1 className="text-xl font-semibold text-navy-deep">
             {title}
           </h1>

@@ -1,4 +1,3 @@
-
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -21,16 +20,18 @@ export default function StreamView() {
         {/* TopNav is always rendered but hidden on mobile with CSS */}
         <TopNavbar className="md:flex hidden" />
         
-        {/* Main content area with padding to prevent content from being hidden behind the bottom bar on mobile */}
+        {/* Main content area with significantly more top padding */}
         <div
-          className={`p-6 ${isMobile ? "pb-20" : ""} overflow-auto`}
+          className={`p-6 pt-8 ${isMobile ? "pb-20" : ""} overflow-auto`}
         >
+          <div className="mt-4">
           <StreamHeader />
           
           <StreamViewLayout contact={contact || {
             id: 'not-found',
             name: '',
           }} />
+          </div>
         </div>
         
         {/* Bottom tab bar for mobile devices */}
