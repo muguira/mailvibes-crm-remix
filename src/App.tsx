@@ -2,16 +2,16 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/AuthContext";
-import Index from "@/pages/Index";
-import Lists from "@/pages/Lists";
+import Index from "@/pages/dashboard/Index";
+import Lists from "@/pages/dashboard/Lists";
 import NewGrid from "@/pages/NewGrid";
-import Leads from "@/pages/Leads";
-import Reports from "@/pages/Reports";
-import Profile from "@/pages/Profile";
+import Leads from "@/pages/dashboard/Leads";
+import Reports from "@/pages/dashboard/Reports";
+import Profile from "@/pages/dashboard/Profile";
 import NotFound from "@/pages/NotFound";
 import Auth from "@/pages/Auth";
-import ContactProfile from "@/pages/ContactProfile";
-import StreamView from "@/pages/StreamView"; // Import the new StreamView page
+import ContactProfile from "@/pages/dashboard/ContactProfile";
+import StreamView from "@/pages/dashboard/StreamView"; // Import the new StreamView page
 
 // Create a client
 const queryClient = new QueryClient({
