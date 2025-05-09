@@ -1,4 +1,4 @@
-import { Check, Circle, Plus, Calendar } from "lucide-react";
+import { Check, Plus, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
@@ -7,7 +7,6 @@ import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-
 import { es } from 'date-fns/locale';
 import { TaskEditPopup } from "./task-edit-popup";
 import { useTasks, TaskData } from "@/hooks/supabase/use-tasks";
-import { CreateTaskDialog } from "./create-task-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Task } from "@/types/task"; // Import the unified Task type
 
@@ -300,7 +299,6 @@ export function TasksPanel() {
                 <Plus size={16} />
                 Create task
               </button>
-              <CreateTaskDialog onCreateTask={handleCreateTask} />
             </>
           ) : (
             <div className="text-center text-sm text-muted-foreground py-2">
