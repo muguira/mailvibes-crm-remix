@@ -1163,6 +1163,23 @@ export function MainGridView({
                         }}
                         defaultMonth={value ? new Date(value) : new Date()}
                         initialFocus
+                        modifiersStyles={{
+                          today: {
+                            backgroundColor: "rgb(var(--teal) / 0.15)",
+                            color: "rgb(var(--teal))"
+                          },
+                          selected: {
+                            backgroundColor: "#62BFAA",
+                            color: "white",
+                            borderRadius: "5px"
+                          }
+                        }}
+                        classNames={{
+                          day_today: "text-[#62BFAA] font-semibold",
+                          day_selected: "!bg-[#62BFAA] text-white hover:!bg-[#62BFAA] hover:text-white focus:!bg-[#62BFAA] focus:text-white",
+                          day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-[#62BFAA]/70 hover:text-white focus-visible:bg-[#62BFAA] focus-visible:text-white rounded-[5px]",
+                          cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-transparent"
+                        }}
                       />
                     </div>
                   </PopoverContent>
