@@ -968,6 +968,7 @@ export function MainGridView({
           style={{
             ...style,
             height: ROW_HEIGHT,
+            border: '2px solid #e5e7eb',
             borderBottom: '1px solid #e5e7eb',
             borderRight: '1px solid #e5e7eb',
             boxSizing: 'border-box',
@@ -1086,6 +1087,7 @@ export function MainGridView({
           style={{
             ...style,
             height: ROW_HEIGHT,
+            border: '2px solid #e5e7eb',
             borderBottom: '1px solid #e5e7eb',
             borderRight: '1px solid #e5e7eb',
             boxSizing: 'border-box',
@@ -1135,7 +1137,7 @@ export function MainGridView({
                     alignOffset={-50}
                     sideOffset={5}
                   >
-                    <div className="date-popup-header p-3 border-b flex justify-between items-center">
+                    <div className="date-popup-header p-3 border-b flex justify-between items-center border-2">
                       <span className="text-sm font-medium">Select Date</span>
                       <button
                         className="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"
@@ -1145,7 +1147,7 @@ export function MainGridView({
                         <X size={14} />
                       </button>
                     </div>
-                    <div className="p-3">
+                    <div className="p-5">
                       <Calendar
                         mode="single"
                         // If clearDateSelection flag is true, don't pass any selected date
