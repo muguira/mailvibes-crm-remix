@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +15,7 @@ import { Plus } from "lucide-react";
 import { DeadlinePopup } from "./deadline-popup";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CreateTaskDialogProps {
     onCreateTask: (task: {
@@ -30,6 +32,7 @@ export function CreateTaskDialog({ onCreateTask }: CreateTaskDialogProps) {
     const [deadline, setDeadline] = React.useState<Date>();
     const [type, setType] = React.useState<"follow-up" | "respond" | "task">("task");
     const [tag, setTag] = React.useState<string>();
+    const { user } = useAuth();
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -46,6 +49,8 @@ export function CreateTaskDialog({ onCreateTask }: CreateTaskDialogProps) {
         setType("task");
         setTag(undefined);
     };
+
+    if (!user) return null;
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -116,4 +121,4 @@ export function CreateTaskDialog({ onCreateTask }: CreateTaskDialogProps) {
             </DialogContent>
         </Dialog>
     );
-} 
+}
