@@ -6,23 +6,13 @@ import { DeadlinePopup } from "./deadline-popup";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-fns";
 import { es } from 'date-fns/locale';
 import { TaskEditPopup } from "./task-edit-popup";
-import { useTasks } from "@/hooks/supabase/use-tasks";
+import { useTasks, TaskData } from "@/hooks/supabase/use-tasks";
 import { CreateTaskDialog } from "./create-task-dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { Task } from "@/types/task"; // Import the unified Task type
 
-export interface Task {
-  id: string;
-  title: string;
-  deadline?: string; // ISO string
-  contact?: string;
-  description?: string;
-  displayStatus: "upcoming" | "overdue" | "completed";
-  status: "on-track" | "at-risk" | "off-track";
-  type: "follow-up" | "respond" | "task" | "cross-functional";
-  tag?: string; // For tags like "LATAM"
-  hasCalendar?: boolean;
-  priority?: "low" | "medium" | "high";
-}
+// Export the Task interface from the unified type
+export type { Task };
 
 export function TasksPanel() {
   const { user } = useAuth();
@@ -116,11 +106,11 @@ export function TasksPanel() {
         status: taskToUpdate.status,
         type: taskToUpdate.type,
         deadline: taskToUpdate.deadline,
-        contact: taskToUpdate.contact || '',
-        description: taskToUpdate.description || '',
-        tag: taskToUpdate.tag || '',
-        priority: taskToUpdate.priority || 'medium',
-        user_id: user.id
+        contact: taskToUpdate.contact,
+        description: taskToUpdate.description,
+        tag: taskToUpdate.tag,
+        priority: taskToUpdate.priority,
+        user_id: user?.id // Add user ID here
       });
     }
   };
@@ -149,11 +139,11 @@ export function TasksPanel() {
       title: taskToUpdate.title,
       status: taskToUpdate.status,
       type: taskToUpdate.type,
-      contact: taskToUpdate.contact || '',
-      description: taskToUpdate.description || '',
-      tag: taskToUpdate.tag || '',
-      priority: taskToUpdate.priority || 'medium',
-      user_id: user.id
+      contact: taskToUpdate.contact,
+      description: taskToUpdate.description,
+      tag: taskToUpdate.tag,
+      priority: taskToUpdate.priority,
+      user_id: user?.id // Add user ID here
     });
   };
 
@@ -191,10 +181,7 @@ export function TasksPanel() {
       tag: task.tag || '',
       display_status: "upcoming",
       status: "on-track",
-      contact: '',
-      description: '',
-      priority: 'medium',
-      user_id: user.id
+      user_id: user.id // Add user ID here
     });
   };
 
@@ -258,9 +245,9 @@ export function TasksPanel() {
       display_status: updatedTask.displayStatus,
       status: updatedTask.status,
       type: updatedTask.type,
-      tag: updatedTask.tag || '',
-      priority: updatedTask.priority || 'medium',
-      user_id: user.id
+      tag: updatedTask.tag,
+      priority: updatedTask.priority,
+      user_id: user?.id // Add user ID here
     });
   };
 

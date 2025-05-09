@@ -1,13 +1,25 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Task } from '@/components/home/tasks-panel';
+import { Task } from '@/types/task';
 import { toast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isPast, parseISO, startOfDay } from 'date-fns';
 import { Database } from '@/integrations/supabase/types';
 
-export type TaskData = Database['public']['Tables']['tasks']['Row'];
+export interface TaskData {
+  id: string;
+  title: string;
+  deadline?: string;
+  contact?: string;
+  description?: string;
+  display_status: "upcoming" | "overdue" | "completed";
+  status: "on-track" | "at-risk" | "off-track";
+  type: "follow-up" | "respond" | "task" | "cross-functional";
+  tag?: string;
+  priority?: "low" | "medium" | "high";
+  user_id?: string; // Added user_id property
+}
 
 export function useTasks() {
   const { user } = useAuth();
@@ -55,9 +67,14 @@ export function useTasks() {
     mutationFn: async (newTask: Omit<TaskData, "id" | "created_at" | "updated_at">) => {
       if (!user) throw new Error('User must be logged in');
 
+      const taskWithUserId = {
+        ...newTask,
+        user_id: user.id // Add user_id to the task
+      };
+
       const { data, error } = await supabase
         .from('tasks')
-        .insert([{ ...newTask, user_id: user.id }])
+        .insert([taskWithUserId])
         .select()
         .single();
 
@@ -82,9 +99,15 @@ export function useTasks() {
     mutationFn: async (updatedTask: Omit<TaskData, "created_at" | "updated_at">) => {
       if (!user) throw new Error('User must be logged in');
 
+      // Ensure task has user_id
+      const taskWithUserId = {
+        ...updatedTask,
+        user_id: user.id
+      };
+
       const { data, error } = await supabase
         .from('tasks')
-        .update(updatedTask)
+        .update(taskWithUserId)
         .eq('id', updatedTask.id)
         .select()
         .single();
