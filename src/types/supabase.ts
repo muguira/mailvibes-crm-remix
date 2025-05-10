@@ -162,31 +162,130 @@ export interface Database {
           priority?: "low" | "medium" | "high"
         }
       }
-      // Add minimal definitions for these tables to satisfy references in code
       contacts: {
         Row: {
           id: string
           user_id: string
           name: string
-          email?: string
-          phone?: string
-          company?: string
-          status?: string
-          last_activity?: string
+          email?: string | null
+          phone?: string | null
+          company?: string | null
+          status?: string | null
+          last_activity?: string | null
           created_at: string
           updated_at: string
-          data?: Record<string, any>
+          data?: Json | null
+          list_id?: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          email?: string | null
+          phone?: string | null
+          company?: string | null
+          status?: string | null
+          last_activity?: string | null
+          created_at?: string
+          updated_at?: string
+          data?: Json | null
+          list_id?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          email?: string | null
+          phone?: string | null
+          company?: string | null
+          status?: string | null
+          last_activity?: string | null
+          created_at?: string
+          updated_at?: string
+          data?: Json | null
+          list_id?: string | null
         }
       }
       activities: {
         Row: {
           id: string
           user_id: string
-          contact_id?: string
+          contact_id?: string | null
           type: string
-          content?: string
+          content?: string | null
+          timestamp: string
           created_at: string
           updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          contact_id?: string | null
+          type: string
+          content?: string | null
+          timestamp?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          contact_id?: string | null
+          type?: string
+          content?: string | null
+          timestamp?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      user_activities: {
+        Row: {
+          id: string
+          user_id: string
+          user_name: string
+          user_email?: string | null
+          timestamp: string
+          activity_type: string
+          entity_id?: string | null
+          entity_type?: string | null
+          entity_name?: string | null
+          field_name?: string | null
+          old_value?: Json | null
+          new_value?: Json | null
+          details?: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          user_name: string
+          user_email?: string | null
+          timestamp?: string
+          activity_type: string
+          entity_id?: string | null
+          entity_type?: string | null
+          entity_name?: string | null
+          field_name?: string | null
+          old_value?: Json | null
+          new_value?: Json | null
+          details?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          user_name?: string
+          user_email?: string | null
+          timestamp?: string
+          activity_type?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          entity_name?: string | null
+          field_name?: string | null
+          old_value?: Json | null
+          new_value?: Json | null
+          details?: Json | null
+          created_at?: string
         }
       }
       grid_change_history: {
@@ -195,9 +294,27 @@ export interface Database {
           user_id: string
           grid_id: string
           field: string
-          old_value?: string
-          new_value?: string
+          old_value?: string | null
+          new_value?: string | null
           created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          grid_id: string
+          field: string
+          old_value?: string | null
+          new_value?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          grid_id?: string
+          field?: string
+          old_value?: string | null
+          new_value?: string | null
+          created_at?: string
         }
       }
     }

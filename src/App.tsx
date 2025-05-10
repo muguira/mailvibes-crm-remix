@@ -1,57 +1,34 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ActivityProvider } from "@/contexts/ActivityContext";
-import { PrivateRoute } from "@/components/PrivateRoute";
-import Index from "@/pages/dashboard/Index";
-import Lists from "@/pages/dashboard/Lists";
-import NewGrid from "@/pages/NewGrid";
-import Leads from "@/pages/dashboard/Leads";
-import Reports from "@/pages/dashboard/Reports";
-import Profile from "@/pages/dashboard/Profile";
-import NotFound from "@/pages/NotFound";
-import Auth from "@/pages/Auth";
-import ContactProfile from "@/pages/dashboard/ContactProfile";
-import StreamView from "@/pages/dashboard/StreamView"; // Import the new StreamView page
-import Landing from "@/pages/Landing";
-// Create a client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 1,
-    },
-  },
-});
 
-function App() {
+import { BrowserRouter, Routes, Route } from "react-router-dom"
+import Home from "@/pages/Home"
+import Dashboard from "@/pages/dashboard/Index"
+import Tasks from "@/pages/dashboard/Tasks"
+import Lists from "@/pages/dashboard/Lists"
+import StreamView from "@/pages/dashboard/StreamView"
+import Leads from "@/pages/dashboard/Leads"
+import NewGrid from "@/pages/NewGrid"
+import "./App.css";
+import { AuthProvider } from "./contexts/AuthContext"
+import { Toaster } from "@/components/ui/toaster"
+import { ActivityProvider } from "@/contexts/ActivityContext"
+
+export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ActivityProvider>
-          <Router>
-            <div className="h-screen w-full font-proxima">
-              <Routes>
-                <Route path="/" element={<Landing />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/dashboard" element={<PrivateRoute><Index /></PrivateRoute>} />
-                <Route path="/lists" element={<PrivateRoute><Navigate to="/leads" replace /></PrivateRoute>} />
-                <Route path="/new-grid" element={<PrivateRoute><Navigate to="/leads" replace /></PrivateRoute>} />
-                <Route path="/leads" element={<PrivateRoute><Leads /></PrivateRoute>} />
-                <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
-                <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
-                <Route path="/contact/:id" element={<PrivateRoute><ContactProfile /></PrivateRoute>} />
-                <Route path="/stream-view/:recordId?" element={<PrivateRoute><StreamView /></PrivateRoute>} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              <Toaster />
-            </div>
-          </Router>
-        </ActivityProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  );
+    <AuthProvider>
+      <ActivityProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard/tasks" element={<Tasks />} />
+            <Route path="/dashboard/lists" element={<Lists />} />
+            <Route path="/dashboard/leads" element={<Leads />} />
+            <Route path="/new-grid" element={<NewGrid />} />
+            <Route path="/stream-view/:recordId" element={<StreamView />} />
+          </Routes>
+        </BrowserRouter>
+        <Toaster />
+      </ActivityProvider>
+    </AuthProvider>
+  )
 }
-
-export default App;
