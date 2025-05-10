@@ -425,26 +425,28 @@ export function GridToolbar({
                 {/* Search input field - expanded when clicked */}
                 {isSearchExpanded && (
                   <div className="absolute left-10 right-0 z-10 bg-white transition-all duration-200 ease-in-out flex items-center">
-                    <input
-                      type="text"
-                      className="search-input-field w-full pl-2 pr-8 py-1 text-sm focus:outline-none border-b border-[#D7DCE4] transition-colors"
-                      placeholder="Search contacts..."
-                      value={searchTerm}
-                      onChange={(e) => onSearchChange(e.target.value)}
-                      onBlur={() => {
-                        if (searchTerm.length === 0) {
-                          setIsSearchExpanded(false);
-                        }
-                      }}
-                    />
-                    {searchTerm && (
-                      <button 
-                        onClick={() => onSearchChange('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-500"
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
+                    <div className="relative flex-grow">
+                      <input
+                        type="text"
+                        className="search-input-field w-full pl-0 pr-6 py-1 text-sm focus:outline-none border-b border-gray-300 focus:border-[#62bfaa]"
+                        placeholder="Search contacts..."
+                        value={searchTerm}
+                        onChange={(e) => onSearchChange(e.target.value)}
+                        onBlur={() => {
+                          if (searchTerm.length === 0) {
+                            setIsSearchExpanded(false);
+                          }
+                        }}
+                      />
+                      {searchTerm && (
+                        <button 
+                          onClick={() => onSearchChange('')}
+                          className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
                     
                     {/* Filter button - appears next to search when expanded */}
                     <div className="relative ml-1">
