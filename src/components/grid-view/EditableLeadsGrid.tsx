@@ -16,6 +16,7 @@ import { PAGE_SIZE, LEADS_STORAGE_KEY } from '@/constants/grid';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
 import { toast } from '@/components/ui/use-toast';
+import { useActivity } from "@/contexts/ActivityContext";
 
 // Sync a row with the mockContactsById mapping
 const syncContact = (row: GridRow): void => {
@@ -82,6 +83,9 @@ export function EditableLeadsGrid() {
   
   // Use our leads rows hook for Supabase persistence
   const { rows, isLoading, updateCell } = useLeadsRows();
+  
+  // Use activity tracking through context
+  const { logCellEdit, logContactAdd, logColumnAdd, logColumnDelete, logFilterChange } = useActivity();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isGridReady, setIsGridReady] = useState(false);
@@ -352,15 +356,24 @@ export function EditableLeadsGrid() {
   
   // Handle cell value changes - update Supabase and sync with mockContactsById
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
+    // Find the current value for logging the change
+    const row = rows.find(r => r.id === rowId);
+    const oldValue = row ? row[columnId] : undefined;
+            
     // Update cell in Supabase or localStorage
     updateCell({ rowId, columnId, value });
-      
+        
     // Update mockContactsById for Stream View integrity
-      const row = rows.find(r => r.id === rowId);
-      if (row) {
-        const updatedRow = { ...row, [columnId]: value };
-        syncContact(updatedRow);
-    }
+    const updatedRow = row ? { ...row, [columnId]: value } : { id: rowId, [columnId]: value };
+            syncContact(updatedRow);
+            
+    // Log the activity with contact name if available
+    logCellEdit(
+      rowId, 
+      columnId, 
+      value, 
+      oldValue
+    );
   };
 
   // Handle column updates (width, title, etc)
@@ -380,11 +393,21 @@ export function EditableLeadsGrid() {
       id => columns.find(col => col.id === id)!
     );
     setColumns(reorderedColumns);
+    
+    // Log the activity
+    logFilterChange({ type: 'columns_reorder', columns: columnIds });
   };
   
   // Handle column deletion
   const handleDeleteColumn = (columnId: string) => {
     if (columnId === 'opportunity') return; // Protect the opportunity column
+    
+    // Find column name for logging
+    const column = columns.find(col => col.id === columnId);
+    if (column) {
+      logColumnDelete(columnId, column.title);
+    }
+    
     setColumns(prev => prev.filter(col => col.id !== columnId));
   };
   
@@ -421,6 +444,9 @@ export function EditableLeadsGrid() {
       width: columnWidth, // Use screen size responsive width
       editable: true
     };
+    
+    // Log the activity
+    logColumnAdd(newColumn.id, newColumn.title);
     
     // Add the column at the right position
     setColumns(prevColumns => {

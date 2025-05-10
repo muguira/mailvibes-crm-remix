@@ -7,6 +7,7 @@ import StreamTimeline from './StreamTimeline';
 import StreamToolbar from './StreamToolbar';
 import FilterPanel from './FilterPanel';
 import { EmptyState } from "@/components/ui/empty-state";
+import { useActivity } from "@/contexts/ActivityContext";
 
 // Layout constants
 const LEFT_RAIL_WIDTH = 400; // px
@@ -46,11 +47,12 @@ interface StreamViewLayoutProps {
 export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
   // State to trigger updates on avatar when contact data changes
   const [updatedContact, setUpdatedContact] = useState(contact);
+  const { logCellEdit } = useActivity();
 
   // Listen for mockContactsUpdated event to refresh the UI
   useEffect(() => {
     const handleContactUpdate = (event: CustomEvent) => {
-      const { contactId, field, value } = event.detail;
+      const { contactId, field, value, oldValue } = event.detail;
       
       if (contactId === contact.id) {
         // Update local state to trigger component re-render
@@ -58,6 +60,14 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
           ...prevContact,
           [field]: value
         }));
+        
+        // Log the update to the activity feed
+        logCellEdit(
+          contactId,
+          field,
+          value,
+          oldValue
+        );
         
         console.log(`Profile card updated: ${field} = ${value}`);
       }
@@ -73,7 +83,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
         ((e: CustomEvent) => handleContactUpdate(e)) as EventListener
       );
     };
-  }, [contact.id]);
+  }, [contact.id, logCellEdit]);
 
   // Early return if contact is undefined or null
   if (!contact) {

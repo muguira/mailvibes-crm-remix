@@ -12,9 +12,9 @@ export default function Auth() {
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
 
-  // If user is already logged in, redirect to homepage
+  // If user is already logged in, redirect to dashboard
   if (user) {
-    return <Navigate to="/" />;
+    return <Navigate to="/dashboard" />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,9 +24,12 @@ export default function Auth() {
     try {
       if (isSignUp) {
         await signUp(email, password);
+        // Navigate to dashboard after signup
+        navigate("/dashboard");
       } else {
         await signIn(email, password);
-        navigate("/");
+        // Navigate to dashboard after signin
+        navigate("/dashboard");
       }
     } catch (error) {
       console.error("Authentication error:", error);

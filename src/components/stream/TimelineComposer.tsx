@@ -1,15 +1,29 @@
-
 import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SendHorizontal } from "lucide-react";
+import { useActivity } from "@/contexts/ActivityContext";
+import { useParams } from "react-router-dom";
+import { mockContactsById } from "@/components/stream/sample-data";
 
 export default function TimelineComposer() {
   const [text, setText] = useState("");
+  const { logNoteAdd } = useActivity();
+  const { recordId } = useParams();
   
   const handleSend = () => {
     if (text.trim()) {
       console.log("Comment:", text);
+      
+      // Log the note to the activity feed
+      if (recordId) {
+        const contact = mockContactsById[recordId];
+        const contactName = contact?.name || recordId.replace('lead-', 'Contact ');
+        
+        // Log the activity
+        logNoteAdd(recordId, contactName, text);
+      }
+      
       setText("");
     }
   };

@@ -7,11 +7,18 @@ import Screenshot2 from '@/images/screen2.png';
 import Screenshot3 from '@/images/screen3.png';
 import Screenshot4 from '@/images/screen4.png';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 
 export default function Landing() {
     const navigate = useNavigate();
     const { user, signOut } = useAuth();
+
+    // Redirect to dashboard if already logged in
+    useEffect(() => {
+        if (user) {
+            navigate('/dashboard');
+        }
+    }, [user, navigate]);
 
     // Refs for scroll animations
     const firstImageRef = useRef(null);

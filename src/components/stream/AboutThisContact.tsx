@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,19 +9,20 @@ import { Check, Edit2, X, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { mockContactsById } from "@/components/stream/sample-data";
+import { useActivity } from "@/contexts/ActivityContext";
 
 interface Contact {
   id: string;
-  email?: string;
-  phone?: string;
-  owner?: string;
-  lastContacted?: string;
-  lifecycleStage?: string;
-  source?: string;
-  company?: string;
-  industry?: string;
-  jobTitle?: string;
-  address?: string;
+    email?: string;
+    phone?: string;
+    owner?: string;
+    lastContacted?: string;
+    lifecycleStage?: string;
+    source?: string;
+    company?: string;
+    industry?: string;
+    jobTitle?: string;
+    address?: string;
   description?: string;
   facebook?: string;
   instagram?: string;
@@ -47,10 +47,12 @@ export default function AboutThisContact({
   contact
 }: AboutThisContactProps) {
   const { user } = useAuth();
+  const { logCellEdit } = useActivity();
   const [editingField, setEditingField] = useState<string | null>(null);
   const [fieldValues, setFieldValues] = useState<Partial<Contact>>({});
   const [isSaving, setIsSaving] = useState(false);
   const editControlRef = useRef<HTMLDivElement>(null);
+  const originalValues = useRef<Partial<Contact>>({});
 
   // Initialize field values from contact data with safe destructuring
   useEffect(() => {
@@ -76,7 +78,7 @@ export default function AboutThisContact({
         data = {}
       } = contact;
       
-      setFieldValues({
+      const newValues = {
         name,
         email,
         leadStatus: leadStatus || '',
@@ -96,9 +98,19 @@ export default function AboutThisContact({
         lastContacted,
         source,
         ...data
-      });
+      };
+      
+      setFieldValues(newValues);
+      originalValues.current = {...newValues};
     }
   }, [contact, leadStatus, user]);
+
+  // When starting to edit a field, store the original value
+  useEffect(() => {
+    if (editingField) {
+      originalValues.current[editingField] = fieldValues[editingField];
+    }
+  }, [editingField]);
 
   // Add click away listener
   useEffect(() => {
@@ -154,6 +166,15 @@ export default function AboutThisContact({
       return;
     }
 
+    // Get the original value before the edit
+    const oldValue = originalValues.current[field];
+    
+    // Skip if value hasn't changed
+    if (value === oldValue) {
+      setEditingField(null);
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -175,8 +196,21 @@ export default function AboutThisContact({
         
         // Dispatch a custom event to notify grid that mockContactsById was updated
         window.dispatchEvent(new CustomEvent('mockContactsUpdated', {
-          detail: { contactId: contact.id, field, value }
+          detail: { 
+            contactId: contact.id, 
+            field, 
+            value,
+            oldValue
+          }
         }));
+        
+        // Log to activity feed
+        logCellEdit(
+          contact.id,
+          field,
+          value,
+          oldValue
+        );
       }
       
       // Now try to save to Supabase in all cases (even for mock IDs)

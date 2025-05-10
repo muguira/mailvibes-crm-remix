@@ -1,33 +1,105 @@
-
 import React from 'react';
 import { Phone, Mail, CheckSquare, MoreHorizontal, StickyNote, CalendarClock, MessageCircle, Calendar } from 'lucide-react';
+import { useActivity } from "@/contexts/ActivityContext";
+import { useParams } from "react-router-dom";
+import { mockContactsById } from "@/components/stream/sample-data";
 
 interface ActionRowProps {
   className?: string;
   contact?: {
+    id?: string;
     email?: string;
     phone?: string;
+    name?: string;
   };
 }
 
 export default function ActionRow({ className = '', contact }: ActionRowProps) {
+  const { logActivity } = useActivity();
+  const { recordId } = useParams();
+  
+  const contactId = contact?.id || recordId;
+  const contactName = contact?.name || (contactId ? mockContactsById[contactId]?.name || `Contact ${contactId}` : 'Unknown Contact');
+  
+  // Log action to activity feed
+  const logContactAction = (actionType: string) => {
+    if (contactId) {
+      logActivity({
+        activityType: 'note_add',
+        entityId: contactId,
+        entityType: 'contact',
+        entityName: contactName,
+        fieldName: actionType,
+        newValue: `Performed ${actionType} action`
+      });
+    }
+  };
+
   // Action buttons configuration - all buttons for desktop
   const desktopActions = [
-    { icon: Phone, label: 'Call', href: contact?.phone ? `tel:${contact.phone}` : undefined },
-    { icon: Mail, label: 'Email', href: contact?.email ? `mailto:${contact.email}` : undefined },
-    { icon: CheckSquare, label: 'Task' },
-    { icon: StickyNote, label: 'Note' },
-    { icon: CalendarClock, label: 'Meeting' },
-    { icon: MoreHorizontal, label: 'More' },
+    { 
+      icon: Phone, 
+      label: 'Call', 
+      href: contact?.phone ? `tel:${contact.phone}` : undefined,
+      onClick: () => logContactAction('call') 
+    },
+    { 
+      icon: Mail, 
+      label: 'Email', 
+      href: contact?.email ? `mailto:${contact.email}` : undefined,
+      onClick: () => logContactAction('email')
+    },
+    { 
+      icon: CheckSquare, 
+      label: 'Task',
+      onClick: () => logContactAction('task')
+    },
+    { 
+      icon: StickyNote, 
+      label: 'Note',
+      onClick: () => logContactAction('note')
+    },
+    { 
+      icon: CalendarClock, 
+      label: 'Meeting',
+      onClick: () => logContactAction('meeting')
+    },
+    { 
+      icon: MoreHorizontal, 
+      label: 'More',
+      onClick: () => {}
+    },
   ];
 
   // Mobile shows 5 buttons in the specified order
   const mobileActions = [
-    { icon: Phone, label: 'Call', href: contact?.phone ? `tel:${contact.phone}` : undefined },
-    { icon: Calendar, label: 'Meeting' },
-    { icon: Mail, label: 'Email', href: contact?.email ? `mailto:${contact.email}` : undefined },
-    { icon: MessageCircle, label: 'Text' },
-    { icon: MoreHorizontal, label: 'More' },
+    { 
+      icon: Phone, 
+      label: 'Call', 
+      href: contact?.phone ? `tel:${contact.phone}` : undefined,
+      onClick: () => logContactAction('call')
+    },
+    { 
+      icon: Calendar, 
+      label: 'Meeting',
+      onClick: () => logContactAction('meeting')
+    },
+    { 
+      icon: Mail, 
+      label: 'Email', 
+      href: contact?.email ? `mailto:${contact.email}` : undefined,
+      onClick: () => logContactAction('email')
+    },
+    { 
+      icon: MessageCircle, 
+      label: 'Text',
+      onClick: () => logContactAction('text')
+    },
+    { 
+      icon: MoreHorizontal, 
+      label: 'More',
+      onClick: () => {}
+    },
   ];
 
   return (
@@ -39,6 +111,7 @@ export default function ActionRow({ className = '', contact }: ActionRowProps) {
             key={index}
             className="flex flex-col items-center justify-center p-2 group"
             onClick={() => {
+              action.onClick?.();
               if (action.href) window.location.href = action.href;
             }}
           >
@@ -57,6 +130,7 @@ export default function ActionRow({ className = '', contact }: ActionRowProps) {
             key={index}
             className="flex flex-col items-center justify-center p-2 group"
             onClick={() => {
+              action.onClick?.();
               if (action.href) window.location.href = action.href;
             }}
           >

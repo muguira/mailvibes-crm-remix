@@ -105,3 +105,4 @@ export const SearchInput: React.FC<SearchInputProps> = ({
     </form>
   );
 };
+ 
