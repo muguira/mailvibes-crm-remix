@@ -38,21 +38,20 @@ export function StaticColumns({
   const opportunityWidth = opportunityColumn?.width || 150;
 
   return (
-    <div 
+    <div
       className="static-columns-container"
       style={{
         width: `${INDEX_COLUMN_WIDTH + opportunityWidth}px`,
-        boxShadow: '3px 0 8px rgba(0,0,0,0.1)',
         position: 'relative',
         zIndex: 45
       }}
     >
       {/* Header row */}
       <div className="static-headers">
-        <div 
-          className="index-header" 
-          style={{ 
-            width: INDEX_COLUMN_WIDTH, 
+        <div
+          className="index-header"
+          style={{
+            width: INDEX_COLUMN_WIDTH,
             height: HEADER_HEIGHT,
             position: 'sticky',
             left: 0,
@@ -61,12 +60,12 @@ export function StaticColumns({
         >
           #
         </div>
-        
+
         {opportunityColumn && (
-          <div 
-            className="opportunity-header" 
-            style={{ 
-              width: opportunityWidth, 
+          <div
+            className="opportunity-header"
+            style={{
+              width: opportunityWidth,
               height: HEADER_HEIGHT,
               position: 'sticky',
               left: INDEX_COLUMN_WIDTH,
@@ -83,11 +82,11 @@ export function StaticColumns({
           </div>
         )}
       </div>
-      
+
       {/* Scrollable body that syncs with main grid */}
-      <div 
+      <div
         className="static-rows-container"
-        style={{ 
+        style={{
           transform: `translateY(-${scrollTop}px)`,
           height: `${data.length * ROW_HEIGHT}px`,
           position: 'relative',
@@ -96,10 +95,10 @@ export function StaticColumns({
         }}
       >
         {data.map((row, index) => (
-          <div 
-            key={row.id} 
-            className="static-row" 
-            style={{ 
+          <div
+            key={row.id}
+            className="static-row"
+            style={{
               position: 'absolute',
               top: `${index * ROW_HEIGHT}px`,
               height: ROW_HEIGHT,
@@ -109,9 +108,9 @@ export function StaticColumns({
             }}
           >
             {/* Index cell */}
-            <div 
-              className="index-cell" 
-              style={{ 
+            <div
+              className="index-cell"
+              style={{
                 width: INDEX_COLUMN_WIDTH,
                 height: ROW_HEIGHT,
                 position: 'sticky',
@@ -121,12 +120,12 @@ export function StaticColumns({
             >
               {firstRowIndex + index + 1}
             </div>
-            
+
             {/* Opportunity cell */}
             {opportunityColumn && (
-              <div 
-                className="opportunity-cell" 
-                style={{ 
+              <div
+                className="opportunity-cell"
+                style={{
                   width: opportunityWidth,
                   height: ROW_HEIGHT,
                   position: 'sticky',
@@ -148,8 +147,8 @@ export function StaticColumns({
       </div>
 
       {/* Add a visual drag guide div */}
-      <div 
-        className="drag-guide" 
+      <div
+        className="drag-guide"
         style={{
           position: 'absolute',
           top: 0,

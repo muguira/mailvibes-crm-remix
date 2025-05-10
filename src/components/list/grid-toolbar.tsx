@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Filter, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { ColumnDef } from "./grid/types";
 
 interface GridToolbarProps {
@@ -9,9 +9,9 @@ interface GridToolbarProps {
   onAddItem?: () => void;
 }
 
-export function GridToolbar({ 
-  listType, 
-  columns, 
+export function GridToolbar({
+  listType,
+  columns,
   onAddItem
 }: GridToolbarProps) {
   // Count columns with filter property if it exists, otherwise assume 0
@@ -23,17 +23,17 @@ export function GridToolbar({
         {/* This toolbar is now used only for displaying optional list-specific actions */}
         {/* Search and filters are handled by the parent component */}
       </div>
-      
+
       <div className="flex items-center space-x-2">
         {/* Label for columns count */}
         <span className="text-sm text-slate-400">
           {columns.length} columns • {listType || 'Item'}
         </span>
-        
+
         {/* Add Item Button */}
         {onAddItem && (
-          <Button 
-            onClick={onAddItem} 
+          <Button
+            onClick={onAddItem}
             size="sm"
             className="bg-teal-primary hover:bg-teal-primary/80 text-white text-xs px-2"
           >
