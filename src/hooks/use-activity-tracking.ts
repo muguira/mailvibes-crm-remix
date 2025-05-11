@@ -1,315 +1,210 @@
-
-import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from './use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { v4 as uuidv4 } from 'uuid';
 
-export interface Activity {
+export interface ActivityItem {
   id: string;
-  user_id: string;
-  user_name: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
   timestamp: string;
-  activity_type: string;
-  entity_id?: string;
-  entity_type?: string;
-  entity_name?: string;
-  field_name?: string;
-  old_value?: any;
-  new_value?: any;
-  details?: any;
+  activityType: 'cell_edit' | 'contact_add' | 'filter_change' | 'column_add' | 'column_delete' | 'note_add' | 'login';
+  entityId?: string;
+  entityType?: 'contact' | 'lead' | 'column' | 'filter';
+  entityName?: string;
+  fieldName?: string; 
+  oldValue?: any;
+  newValue?: any;
+  details?: Record<string, any>;
 }
+
+// Local storage key for activity items when offline
+const ACTIVITY_STORAGE_KEY = 'crm-activity-log';
 
 export function useActivityTracking() {
   const { user } = useAuth();
-  const [isLogging, setIsLogging] = useState(false);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Function to log a change to a cell
-  const logCellEdit = useCallback(
-    async (entityId: string, fieldName: string, newValue: any, oldValue: any) => {
-      if (!user) return null;
+  // Load activities on mount and when user changes
+  useEffect(() => {
+    fetchActivities();
+  }, [user?.id]);
 
-      try {
-        setIsLogging(true);
+  // Fetch activities from Supabase or localStorage
+  const fetchActivities = async () => {
+    setIsLoading(true);
+    
+    if (!user) {
+      // Not logged in, use localStorage
+      const localActivities = loadFromLocalStorage();
+      setActivities(localActivities);
+      setIsLoading(false);
+      return;
+    }
 
-        // Prepare the activity data
-        const activity = {
-          user_id: user.id,
-          user_name: user.email || 'User',
-          timestamp: new Date().toISOString(),
-          activity_type: 'edit',
-          entity_id: entityId,
-          entity_type: 'contact',
-          field_name: fieldName,
-          old_value: oldValue,
-          new_value: newValue,
-        };
+    try {
+      // Fetch from Supabase
+      const { data, error } = await supabase
+        .from('user_activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('timestamp', { ascending: false })
+        .limit(100);
 
-        // Try to insert into Supabase
-        try {
-          const { error } = await supabase.from('user_activities').insert(activity);
+      if (error) throw error;
 
-          if (error) {
-            console.error('Could not log activity to Supabase:', error);
-            // Fall back to local storage
-            const localActivities = JSON.parse(localStorage.getItem('activities') || '[]');
-            localActivities.push({ ...activity, id: crypto.randomUUID() });
-            localStorage.setItem('activities', JSON.stringify(localActivities));
-          }
-        } catch (error) {
-          console.error('Error logging activity:', error);
-          // Fall back to local storage
-          const localActivities = JSON.parse(localStorage.getItem('activities') || '[]');
-          localActivities.push({ ...activity, id: crypto.randomUUID() });
-          localStorage.setItem('activities', JSON.stringify(localActivities));
-        }
+      setActivities(data || []);
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+      // Fall back to localStorage
+      const localActivities = loadFromLocalStorage();
+      setActivities(localActivities);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        return true;
-      } catch (e) {
-        console.error('Error in logCellEdit:', e);
-        return false;
-      } finally {
-        setIsLogging(false);
-      }
-    },
-    [user]
-  );
+  // Helper to load from localStorage
+  const loadFromLocalStorage = (): ActivityItem[] => {
+    try {
+      const saved = localStorage.getItem(ACTIVITY_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error('Failed to load activities from localStorage:', error);
+      return [];
+    }
+  };
 
-  // Function to log a contact being added
-  const logContactAdd = useCallback(
-    async (entityId: string, contactName: string) => {
-      if (!user) return null;
+  // Log a new activity
+  const logActivity = async (activity: Omit<ActivityItem, 'id' | 'userId' | 'userName' | 'userEmail' | 'timestamp'>) => {
+    if (!user) {
+      return; // Don't log when not logged in
+    }
+    
+    const newActivity: ActivityItem = {
+      id: uuidv4(),
+      userId: user.id,
+      userName: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+      userEmail: user.email || '',
+      timestamp: new Date().toISOString(),
+      ...activity
+    };
 
-      try {
-        setIsLogging(true);
-
-        // Prepare the activity data
-        const activity = {
-          user_id: user.id,
-          user_name: user.email || 'User',
-          timestamp: new Date().toISOString(),
-          activity_type: 'create',
-          entity_id: entityId,
-          entity_type: 'contact',
-          entity_name: contactName,
-        };
-
-        // Try to insert into Supabase
-        try {
-          const { error } = await supabase.from('user_activities').insert(activity);
-
-          if (error) {
-            console.error('Could not log activity to Supabase:', error);
-            // Fall back to local storage
-            const localActivities = JSON.parse(localStorage.getItem('activities') || '[]');
-            localActivities.push({ ...activity, id: crypto.randomUUID() });
-            localStorage.setItem('activities', JSON.stringify(localActivities));
-          }
-        } catch (error) {
-          console.error('Error logging activity:', error);
-          // Fall back to local storage
-          const localActivities = JSON.parse(localStorage.getItem('activities') || '[]');
-          localActivities.push({ ...activity, id: crypto.randomUUID() });
-          localStorage.setItem('activities', JSON.stringify(localActivities));
-        }
-
-        return true;
-      } catch (e) {
-        console.error('Error in logContactAdd:', e);
-        return false;
-      } finally {
-        setIsLogging(false);
-      }
-    },
-    [user]
-  );
-
-  // Function to log a column being added
-  const logColumnAdd = useCallback(
-    async (columnId: string, columnName: string) => {
-      if (!user) return null;
-
-      try {
-        setIsLogging(true);
-
-        // Prepare the activity data
-        const activity = {
-          user_id: user.id,
-          user_name: user.email || 'User',
-          timestamp: new Date().toISOString(),
-          activity_type: 'column_add',
-          entity_id: columnId,
-          entity_type: 'column',
-          entity_name: columnName,
-        };
-
-        // Try to insert into Supabase
-        try {
-          const { error } = await supabase.from('user_activities').insert(activity);
-
-          if (error) {
-            console.error('Could not log activity to Supabase:', error);
-            // Fall back to local storage
-            const localActivities = JSON.parse(localStorage.getItem('activities') || '[]');
-            localActivities.push({ ...activity, id: crypto.randomUUID() });
-            localStorage.setItem('activities', JSON.stringify(localActivities));
-          }
-        } catch (error) {
-          console.error('Error logging activity:', error);
-          // Fall back to local storage
-          const localActivities = JSON.parse(localStorage.getItem('activities') || '[]');
-          localActivities.push({ ...activity, id: crypto.randomUUID() });
-          localStorage.setItem('activities', JSON.stringify(localActivities));
-        }
-
-        return true;
-      } catch (e) {
-        console.error('Error in logColumnAdd:', e);
-        return false;
-      } finally {
-        setIsLogging(false);
-      }
-    },
-    [user]
-  );
-
-  // Function to log a column being deleted
-  const logColumnDelete = useCallback(
-    async (columnId: string, columnName: string) => {
-      if (!user) return null;
-
-      try {
-        setIsLogging(true);
-
-        // Prepare the activity data
-        const activity = {
-          user_id: user.id,
-          user_name: user.email || 'User',
-          timestamp: new Date().toISOString(),
-          activity_type: 'column_delete',
-          entity_id: columnId,
-          entity_type: 'column',
-          entity_name: columnName,
-        };
-
-        // Try to insert into Supabase
-        try {
-          const { error } = await supabase.from('user_activities').insert(activity);
-
-          if (error) {
-            console.error('Could not log activity to Supabase:', error);
-            // Fall back to local storage
-            const localActivities = JSON.parse(localStorage.getItem('activities') || '[]');
-            localActivities.push({ ...activity, id: crypto.randomUUID() });
-            localStorage.setItem('activities', JSON.stringify(localActivities));
-          }
-        } catch (error) {
-          console.error('Error logging activity:', error);
-          // Fall back to local storage
-          const localActivities = JSON.parse(localStorage.getItem('activities') || '[]');
-          localActivities.push({ ...activity, id: crypto.randomUUID() });
-          localStorage.setItem('activities', JSON.stringify(localActivities));
-        }
-
-        return true;
-      } catch (e) {
-        console.error('Error in logColumnDelete:', e);
-        return false;
-      } finally {
-        setIsLogging(false);
-      }
-    },
-    [user]
-  );
-
-  // Function to log filter changes
-  const logFilterChange = useCallback(
-    async (filterDetails: { type: string; [key: string]: any }) => {
-      if (!user) return null;
-
-      try {
-        setIsLogging(true);
-
-        // Prepare the activity data
-        const activity = {
-          user_id: user.id,
-          user_name: user.email || 'User',
-          timestamp: new Date().toISOString(),
-          activity_type: 'filter_change',
-          entity_type: 'filter',
-          details: filterDetails,
-        };
-
-        // Try to insert into Supabase
-        try {
-          const { error } = await supabase.from('user_activities').insert(activity);
-
-          if (error) {
-            console.error('Could not log activity to Supabase:', error);
-            // Fall back to local storage
-            const localActivities = JSON.parse(localStorage.getItem('activities') || '[]');
-            localActivities.push({ ...activity, id: crypto.randomUUID() });
-            localStorage.setItem('activities', JSON.stringify(localActivities));
-          }
-        } catch (error) {
-          console.error('Error logging activity:', error);
-          // Fall back to local storage
-          const localActivities = JSON.parse(localStorage.getItem('activities') || '[]');
-          localActivities.push({ ...activity, id: crypto.randomUUID() });
-          localStorage.setItem('activities', JSON.stringify(localActivities));
-        }
-
-        return true;
-      } catch (e) {
-        console.error('Error in logFilterChange:', e);
-        return false;
-      } finally {
-        setIsLogging(false);
-      }
-    },
-    [user]
-  );
-
-  // Function to get recent activities
-  const getRecentActivities = useCallback(
-    async (limit: number = 100) => {
-      if (!user) return [];
-
-      try {
-        // Try to fetch from Supabase first
-        const { data, error } = await supabase
+    try {
+      // Store in Supabase if logged in
+      if (user) {
+        const { error } = await supabase
           .from('user_activities')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('timestamp', { ascending: false })
-          .limit(limit);
+          .insert(newActivity);
 
-        if (error) {
-          console.error('Could not fetch activities from Supabase:', error);
-          
-          // Fall back to local storage
-          const localActivities = JSON.parse(localStorage.getItem('activities') || '[]');
-          return localActivities.slice(0, limit);
-        }
-
-        return data;
-      } catch (e) {
-        console.error('Error fetching activities:', e);
-        
-        // Fall back to local storage
-        const localActivities = JSON.parse(localStorage.getItem('activities') || '[]');
-        return localActivities.slice(0, limit);
+        if (error) throw error;
       }
-    },
-    [user]
-  );
+
+      // Always update local state for immediate UI feedback
+      setActivities(prev => [newActivity, ...prev].slice(0, 100));
+
+      // Also store in localStorage as backup
+      const localActivities = loadFromLocalStorage();
+      localStorage.setItem(
+        ACTIVITY_STORAGE_KEY,
+        JSON.stringify([newActivity, ...localActivities].slice(0, 100))
+      );
+
+    } catch (error) {
+      console.error('Error logging activity:', error);
+      
+      // Still update local state and localStorage on error
+      setActivities(prev => [newActivity, ...prev].slice(0, 100));
+      
+      const localActivities = loadFromLocalStorage();
+      localStorage.setItem(
+        ACTIVITY_STORAGE_KEY,
+        JSON.stringify([newActivity, ...localActivities].slice(0, 100))
+      );
+    }
+  };
+
+  // Log cell edit activity
+  const logCellEdit = (rowId: string, columnId: string, value: any, oldValue: any) => {
+    logActivity({
+      activityType: 'cell_edit',
+      entityId: rowId,
+      entityType: 'contact',
+      fieldName: columnId,
+      oldValue,
+      newValue: value
+    });
+  };
+
+  // Log contact add activity
+  const logContactAdd = (contactId: string, contactName: string) => {
+    logActivity({
+      activityType: 'contact_add',
+      entityId: contactId,
+      entityType: 'contact',
+      entityName: contactName
+    });
+  };
+
+  // Log column add activity
+  const logColumnAdd = (columnId: string, columnName: string) => {
+    logActivity({
+      activityType: 'column_add',
+      entityId: columnId,
+      entityType: 'column',
+      entityName: columnName
+    });
+  };
+
+  // Log column delete activity
+  const logColumnDelete = (columnId: string, columnName: string) => {
+    logActivity({
+      activityType: 'column_delete',
+      entityId: columnId,
+      entityType: 'column',
+      entityName: columnName
+    });
+  };
+
+  // Log filter change
+  const logFilterChange = (filters: any) => {
+    logActivity({
+      activityType: 'filter_change',
+      entityType: 'filter',
+      details: filters
+    });
+  };
+
+  // Log note add
+  const logNoteAdd = (entityId: string, entityName: string, note: string) => {
+    logActivity({
+      activityType: 'note_add',
+      entityId,
+      entityType: 'contact',
+      entityName,
+      newValue: note
+    });
+  };
+
+  // Log login activity
+  const logLogin = () => {
+    logActivity({
+      activityType: 'login'
+    });
+  };
 
   return {
+    activities,
+    isLoading,
+    refreshActivities: fetchActivities,
     logCellEdit,
     logContactAdd,
     logColumnAdd,
     logColumnDelete,
     logFilterChange,
-    getRecentActivities,
-    isLogging
+    logNoteAdd,
+    logLogin
   };
-}
+} 

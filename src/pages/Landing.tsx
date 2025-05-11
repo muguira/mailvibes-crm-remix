@@ -13,13 +13,6 @@ export default function Landing() {
     const navigate = useNavigate();
     const { user, signOut } = useAuth();
 
-    // Redirect to dashboard if already logged in
-    useEffect(() => {
-        if (user) {
-            navigate('/dashboard');
-        }
-    }, [user, navigate]);
-
     // Refs for scroll animations
     const firstImageRef = useRef(null);
     const secondSectionRef = useRef(null);
@@ -44,7 +37,11 @@ export default function Landing() {
     };
 
     // If user is already authenticated, redirect to dashboard
-
+    useEffect(() => {
+        if (user) {
+            navigate('/dashboard');
+        }
+    }, [user, navigate]);
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-navy-deep to-navy-light text-white relative overflow-hidden">

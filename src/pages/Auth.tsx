@@ -24,11 +24,9 @@ export default function Auth() {
     try {
       if (isSignUp) {
         await signUp(email, password);
-        // Navigate to dashboard after signup
         navigate("/dashboard");
       } else {
         await signIn(email, password);
-        // Navigate to dashboard after signin
         navigate("/dashboard");
       }
     } catch (error) {

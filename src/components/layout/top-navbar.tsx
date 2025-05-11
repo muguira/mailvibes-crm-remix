@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { Bell, Settings, HelpCircle, Search } from "lucide-react";
 import { ProfileMenu } from "./profile-menu";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,8 @@ interface TopNavbarProps {
 
 export function TopNavbar({ className }: TopNavbarProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const location = useLocation();
+  const isDashboardOrAuth = location.pathname === "/" || location.pathname.includes("/auth");
 
   // Detect mobile devices based on screen width
   useEffect(() => {
@@ -30,16 +32,9 @@ export function TopNavbar({ className }: TopNavbarProps) {
   return (
     <div className={cn("bg-[#054258] text-white w-full fixed top-0 left-0 right-0 z-[10000]", className)}>
       <div className="flex items-center h-12">
-        {/* Logo with Sales Sheets text */}
+        {/* Logo only - no text */}
         <div className="flex items-center px-2">
           <span className="font-bold text-2xl text-[#32BAB0]">$</span>
-          {!isMobile && (
-            <NavLink to="/">
-              <span className="ml-1 font-sans text-sm">
-                <span className="font-bold">Sales</span> <span className="font-normal">Sheets</span>
-              </span>
-            </NavLink>
-          )}
         </div>
 
         {/* Navigation Items - moved more to the left */}
@@ -53,7 +48,7 @@ export function TopNavbar({ className }: TopNavbarProps) {
             Home
           </NavLink>
 
-          {/* Only show Reports on desktop */}
+          {/* Reports link - completely removed on mobile */}
           {!isMobile && (
             <NavLink
               to="/reports"

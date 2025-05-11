@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useActivityTracking } from '@/hooks/use-activity-tracking';
 
@@ -25,4 +24,4 @@ export function useActivity() {
   }
   
   return context;
-}
+} 

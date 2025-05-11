@@ -1,5 +1,4 @@
 import { TopNavbar } from "@/components/layout/top-navbar";
-import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import StreamHeader from '@/components/stream/StreamHeader';
 import { useParams } from 'react-router-dom';
@@ -17,25 +16,21 @@ export default function StreamView() {
   return (
     <div className="flex h-screen bg-slate-light/20">
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* TopNav is always rendered but hidden on mobile with CSS */}
-        <TopNavbar className="md:flex hidden" />
+        {/* TopNav is fixed at the top */}
+        <TopNavbar />
         
-        {/* Main content area with significantly more top padding */}
-        <div
-          className={`p-6 pt-8 ${isMobile ? "pb-20" : ""} overflow-auto`}
-        >
-          <div className="mt-4">
-          <StreamHeader />
-          
-          <StreamViewLayout contact={contact || {
-            id: 'not-found',
-            name: '',
-          }} />
+        {/* Main content area with scrolling */}
+        <div className="overflow-auto flex-1">
+          {/* Content with proper padding to account for fixed navbar */}
+          <div className={`px-6 pt-12 ${isMobile ? "pb-6" : "pb-6"}`}>
+            <StreamHeader />
+            
+            <StreamViewLayout contact={contact || {
+              id: 'not-found',
+              name: '',
+            }} />
           </div>
         </div>
-        
-        {/* Bottom tab bar for mobile devices */}
-        {isMobile && <BottomTabBar />}
       </div>
     </div>
   );

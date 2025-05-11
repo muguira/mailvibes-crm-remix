@@ -1,44 +1,93 @@
-
 import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { SearchInput } from "@/components/ui/SearchInput";
-import { Filter, Download, Share, Plus } from 'lucide-react';
+import { LayoutGrid } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { FilterPopupBase, FilterColumn } from '@/components/ui/FilterPopupBase';
 
-interface StreamToolbarProps {
-  className?: string;
-}
+export default function StreamToolbar() {
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [filterValues, setFilterValues] = useState<Record<string, any>>({});
 
-export default function StreamToolbar({ className = '' }: StreamToolbarProps) {
-  const [searchTerm, setSearchTerm] = useState('');
+  // TODO: Wire searchQuery to activitiesStore and implement timeline filtering in future sprint
+
+  // Define columns for the filter popup
+  const columns: FilterColumn[] = [
+    { id: 'type', title: 'Activity Type' },
+    { id: 'date', title: 'Date' },
+    { id: 'status', title: 'Status' },
+  ];
+
+  const handleClearFilters = () => {
+    setSelectedColumns([]);
+    setFilterValues({});
+    setIsFilterOpen(false);
+  };
+
+  const handleApplyFilters = () => {
+    // TODO: Wire selectedFilters to leadsStore timeline
+    setIsFilterOpen(false);
+  };
 
   return (
-    <div className={`flex items-center justify-between p-4 border-b ${className}`}>
-      <div className="flex items-center gap-4">
+    <div className="h-12 border-b border-slate-light/30 flex items-center justify-between px-4 bg-white">
+      {/* Left section */}
+      <div className="flex items-center gap-3">
+        {/* Grid view icon - navigates to /leads */}
+        <button 
+          className="p-1 rounded hover:bg-slate-light/20" 
+          onClick={() => navigate('/leads')}
+          aria-label="View as grid"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="20" 
+            height="20" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            className="text-slate-medium"
+          >
+            <rect width="7" height="7" x="3" y="3" rx="1" />
+            <rect width="7" height="7" x="14" y="3" rx="1" />
+            <rect width="7" height="7" x="14" y="14" rx="1" />
+            <rect width="7" height="7" x="3" y="14" rx="1" />
+          </svg>
+        </button>
+        
+        {/* Search bar using SearchInput component */}
         <SearchInput 
-          value={searchTerm}
-          onChange={setSearchTerm}
-          placeholder="Search activities..."
-          className="w-80"
-        />
-        <Button size="sm" variant="outline" className="gap-2">
-          <Filter className="w-4 h-4" />
-          Filter
-        </Button>
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search lead"
+          width="w-[200px]"
+          />
       </div>
       
+      {/* Right section */}
       <div className="flex items-center gap-2">
-        <Button size="sm" variant="outline" className="gap-2">
-          <Download className="w-4 h-4" />
-          Export
-        </Button>
-        <Button size="sm" variant="outline" className="gap-2">
-          <Share className="w-4 h-4" />
-          Share
-        </Button>
-        <Button size="sm" className="gap-2 bg-[#33B9B0] hover:bg-[#2aa39b] text-white">
-          <Plus className="w-4 h-4" />
-          Add Activity
-        </Button>
+        <span className="text-xs bg-slate-light/30 text-slate-dark px-2 py-1 rounded-full">
+          29 Activities
+        </span>
+        
+        {/* Filter popup using FilterPopupBase component */}
+        <FilterPopupBase 
+          columns={columns}
+          isOpen={isFilterOpen}
+          onOpenChange={setIsFilterOpen}
+          selectedColumns={selectedColumns}
+          onSelectedColumnsChange={setSelectedColumns}
+          filterValues={filterValues}
+          onFilterValuesChange={setFilterValues}
+          onApplyFilters={handleApplyFilters}
+          onClearFilters={handleClearFilters}
+          triggerClassName="h-8 px-3"
+        />
       </div>
     </div>
   );

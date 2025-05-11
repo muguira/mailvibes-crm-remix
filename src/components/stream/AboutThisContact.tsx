@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,28 +13,26 @@ import { useActivity } from "@/contexts/ActivityContext";
 
 interface Contact {
   id: string;
-  email?: string;
-  phone?: string;
-  owner?: string;
-  lastContacted?: string;
-  lifecycleStage?: string;
-  source?: string;
-  company?: string;
-  industry?: string;
-  jobTitle?: string;
-  address?: string;
+    email?: string;
+    phone?: string;
+    owner?: string;
+    lastContacted?: string;
+    lifecycleStage?: string;
+    source?: string;
+    company?: string;
+    industry?: string;
+    jobTitle?: string;
+    address?: string;
   description?: string;
   facebook?: string;
   instagram?: string;
   linkedIn?: string;
-  twitter?: string;
-  website?: string;
+  twitter?: string; // X platform
+  website?: string; // Added website field
   associatedDeals?: string;
   primaryLocation?: string;
   data?: Record<string, any>;
-  name?: string;
-  leadStatus?: string;
-  [key: string]: any; // Index signature for dynamic field access
+  name?: string; // Added name field
 }
 
 interface AboutThisContactProps {
@@ -78,14 +75,13 @@ export default function AboutThisContact({
         owner = user?.email || '',
         lastContacted = '',
         source = '',
-        data = {},
-        leadStatus: contactLeadStatus = leadStatus || '',
+        data = {}
       } = contact;
       
-      const newValues: Partial<Contact> = {
+      const newValues = {
         name,
         email,
-        leadStatus: contactLeadStatus,
+        leadStatus: leadStatus || '',
         description,
         company,
         jobTitle,
@@ -186,8 +182,14 @@ export default function AboutThisContact({
       if (mockContactsById[contact.id]) {
         const updatedContact = { ...mockContactsById[contact.id] };
         
-        // Update the field in the contact
-        updatedContact[field] = value;
+        // Determine where to store the value
+        if (field === 'leadStatus') {
+          updatedContact.leadStatus = value;
+        } else if (field === 'name') {
+          updatedContact.name = value;
+        } else {
+          updatedContact[field as keyof typeof updatedContact] = value;
+        }
         
         // Update the mock data
         mockContactsById[contact.id] = updatedContact;
@@ -453,7 +455,7 @@ export default function AboutThisContact({
     { id: 'industry', label: 'Industry', type: 'text' },
     { id: 'phone', label: 'Phone numbers', type: 'text' },
     { id: 'primaryLocation', label: 'Primary location', type: 'text' },
-    { id: 'website', label: 'Website', type: 'text' },
+    { id: 'website', label: 'Website', type: 'text' }, // Added website field
     { id: 'facebook', label: 'Facebook', type: 'text' },
     { id: 'instagram', label: 'Instagram', type: 'text' },
     { id: 'linkedin', label: 'LinkedIn', type: 'text' },
