@@ -48,18 +48,6 @@ export function TopNavbar({ className }: TopNavbarProps) {
             Home
           </NavLink>
 
-          {/* Reports link - completely removed on mobile */}
-          {!isMobile && (
-            <NavLink
-              to="/reports"
-              className={({ isActive }) =>
-                `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
-              }
-            >
-              Reports
-            </NavLink>
-          )}
-
           <NavLink
             to="/leads"
             className={({ isActive }) =>
@@ -87,6 +75,18 @@ export function TopNavbar({ className }: TopNavbarProps) {
               }
             >
               Customers
+            </NavLink>
+          )}
+          
+          {/* Reports link - completely removed on mobile, now positioned after Customers */}
+          {!isMobile && (
+            <NavLink
+              to="/reports"
+              className={({ isActive }) =>
+                `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
+              }
+            >
+              Reports
             </NavLink>
           )}
         </div>
