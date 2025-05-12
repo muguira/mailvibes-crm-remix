@@ -981,6 +981,7 @@ export function MainGridView({
             e.stopPropagation();
             // Enter edit mode on double-click
             if (column?.editable) {
+
               setEditingCell({ rowId: row.id, columnId: column.id });
             }
           }}
@@ -1299,7 +1300,10 @@ export function MainGridView({
     // Common focus handler to select all text when input is focused
     const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
       // Select all text when input receives focus
-      setTimeout(() => e.target.select(), 0);
+      setTimeout(() => {
+        const length = e.target.value.length;
+        e.target.setSelectionRange(length, length);
+      }, 0);
     };
 
     switch (column.type) {
