@@ -81,6 +81,11 @@ export function MainGridView({
     timestamp: number;
   } | null>(null);
 
+  const editingCellRef = useRef<{
+    rowId: string;
+    columnId: string;
+  } | null>(null);
+
   // Add a special effect to preserve toolbar visibility on initial render
   useEffect(() => {
     // This helps ensure the toolbar stays visible when the component mounts
@@ -447,6 +452,17 @@ export function MainGridView({
         return;
       }
 
+      // If target is inside the calendar popup or date-related elements, don't close it
+      if (
+        target.closest('.date-options-popup') ||
+        target.closest('.rdp') || // Calendar component class
+        target.closest('.rdp-day') || // Calendar day class
+        target.closest('.rdp-nav') || // Calendar navigation class
+        target.closest('.date-popup-header')
+      ) {
+        return;
+      }
+
       // If target is already handled by a cell click, ignore
       if (target.closest('.grid-cell')) {
         return;
@@ -557,6 +573,20 @@ export function MainGridView({
 
       // Exit edit mode
       setEditingCell(null);
+    }
+
+    // Special handling for date column - open calendar on first click
+    if (column?.type === 'date' && column.editable) {
+      // Clear any existing selection first to prevent highlighting issues
+      setSelectedCell(null);
+
+      // Directly enter edit mode for date cells
+      setEditingCell({
+        rowId,
+        columnId,
+        clearDateSelection: true // Add flag to clear date selection
+      });
+      return;
     }
 
     // Special handling for status column - open dropdown on first click
@@ -966,6 +996,7 @@ export function MainGridView({
     const isSelected = selectedCell?.rowId === row.id && selectedCell?.columnId === column.id;
     const value = row[column.id];
 
+
     // Special handler for status column - only open on double click
     if (column.id === 'status') {
       return (
@@ -1156,14 +1187,11 @@ export function MainGridView({
                         // If clearDateSelection flag is true, don't pass any selected date
                         selected={editingCell?.clearDateSelection ? undefined : (value ? new Date(value) : undefined)}
                         onSelect={(date) => {
+                          console.log("date", date);
                           if (date) {
                             const formattedDate = format(date, 'yyyy-MM-dd'); // Store in ISO format for data consistency
-                            // Immediately close the popup and apply the change
-                            setEditingCell(null);
+                            // Close the popup and apply the change when a date is selected
                             finishCellEdit(row.id, column.id, formattedDate);
-                          } else {
-                            setEditingCell(null);
-                            finishCellEdit(row.id, column.id, '');
                           }
                         }}
                         defaultMonth={value ? new Date(value) : new Date()}
