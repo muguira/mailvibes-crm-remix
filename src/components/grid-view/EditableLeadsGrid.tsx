@@ -10,7 +10,7 @@ import {
 import { Link } from 'react-router-dom';
 import { ExternalLink, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { mockContactsById, generateDummyLeads } from '@/components/stream/sample-data';
+import { mockContactsById } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
 import { PAGE_SIZE, LEADS_STORAGE_KEY } from '@/constants/grid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,7 +24,7 @@ const syncContact = (row: GridRow): void => {
     // Create a new contact object if it doesn't exist
     mockContactsById[row.id] = { 
       id: row.id,
-      name: row.opportunity || '—',
+      name: row.name || '—',
       email: row.email || '—',
     };
   }
@@ -32,11 +32,10 @@ const syncContact = (row: GridRow): void => {
   // Update the contact object with row values
   mockContactsById[row.id] = {
     ...mockContactsById[row.id],
-    name: row.opportunity || '—',
+    name: row.name || '—',
     email: row.email || '—',
-    company: row.companyName || '—',
+    company: row.company || '—',
     owner: row.owner || '—',
-    opportunity: row.opportunity || '—',
     leadStatus: row.status,
     revenue: row.revenue,
     description: row.description || '—',
@@ -46,7 +45,7 @@ const syncContact = (row: GridRow): void => {
     primaryLocation: row.primaryLocation || '—',
     facebook: row.facebook || '—',
     instagram: row.instagram || '—',
-    linkedIn: row.linkedIn || '—',
+    linkedIn: row.linkedin || '—',
     twitter: row.twitter || '—',
     website: row.website || '—',
     associatedDeals: row.associatedDeals || '—',
@@ -80,93 +79,50 @@ const renderSocialLink = (value: any, row: any) => {
 export function EditableLeadsGrid() {
   // Get authentication state
   const { user } = useAuth();
+  const { logCellEdit, logColumnAdd, logColumnDelete, logFilterChange } = useActivity();
   
-  // Use our leads rows hook for Supabase persistence
-  const { rows, isLoading, updateCell } = useLeadsRows();
-  
-  // Use activity tracking through context
-  const { logCellEdit, logContactAdd, logColumnAdd, logColumnDelete, logFilterChange } = useActivity();
-  
-  const [searchTerm, setSearchTerm] = useState('');
+  // Set up state for grid
   const [isGridReady, setIsGridReady] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   
-  // Prevent any rendering of data until fully processed and sorted
-  const [processedRows, setProcessedRows] = useState<GridRow[]>([]);
-    
-  // Process and sort rows once data is loaded
+  // Use our custom hook for leads data
+  const { 
+    rows, 
+    loading, 
+    PAGE_SIZE,
+    updateCell,
+    addContact,
+    refreshData
+  } = useLeadsRows();
+  
+  // Set grid ready state when data is loaded
   useEffect(() => {
-    if (!isLoading && rows.length > 0) {
-      // Deep clone rows to avoid reference issues
-      const rowsToProcess = JSON.parse(JSON.stringify(rows));
-      
-      // Sync contacts
-      rowsToProcess.forEach(syncContact);
-      
-      // Allow the browser to breathe before showing the grid
-      const timer = setTimeout(() => {
-        setProcessedRows(rowsToProcess);
-        setIsGridReady(true);
-      }, 500); // Increase to 500ms for more reliable loading
-      
-      return () => clearTimeout(timer);
+    if (!loading) {
+      setIsGridReady(true);
     }
-  }, [isLoading, rows]);
-    
-  // Handle case where no data exists by generating dummy data
+  }, [loading]);
+
+  // Listen for contact-added events to refresh the grid
   useEffect(() => {
-    if (!isLoading && rows.length === 0) {
-      // Generate dummy leads if no data exists
-    const dummyLeads = generateDummyLeads();
-    
-      // Create rows for each dummy lead
-      dummyLeads.forEach(lead => {
-        const rowData: GridRow = {
-      id: lead.id,
-      opportunity: lead.name,
-      status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-      revenue: lead.revenue || Math.floor(Math.random() * 100000),
-      closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      owner: lead.owner || lead.name?.split(' ')[0] || '',
-      website: lead.website || 'https://example.com',
-      companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
-          linkedIn: lead.linkedIn || 'linkedin.com/in/example',
-      employees: lead.employees || Math.floor(Math.random() * 1000),
-      lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      email: lead.email,
-          description: lead.description || `Description for ${lead.name}`,
-          jobTitle: lead.jobTitle || 'Manager',
-          industry: lead.industry || 'Technology',
-          phone: lead.phone || '+1-555-123-4567',
-          primaryLocation: lead.location || 'New York, NY',
-          facebook: lead.facebook || 'facebook.com/example',
-          instagram: lead.instagram || 'instagram.com/example',
-          twitter: lead.twitter || 'twitter.com/example',
-          associatedDeals: lead.associatedDeals || 'Deal 1, Deal 2',
-          source: lead.source || 'Website',
-        };
-  
-        // Add row to storage
-        updateCell({ rowId: rowData.id, columnId: 'opportunity', value: rowData.opportunity });
-      });
-    }
-  }, [isLoading, rows, updateCell]);
-  
-  // Filter rows based on search term (use processed rows instead)
-  const filteredRows = processedRows.filter(row => {
-    if (!searchTerm) return true;
-  
-    // Search across all columns
-    return Object.entries(row).some(([key, value]) => {
-      if (key === 'id' || !value) return false;
-      return String(value).toLowerCase().includes(searchTerm.toLowerCase());
-    });
-  });
+    const handleContactAdded = (event: Event) => {
+      // Force refresh of the data
+      refreshData();
+    };
+
+    // Add event listener
+    document.addEventListener('contact-added', handleContactAdded);
+
+    // Clean up
+    return () => {
+      document.removeEventListener('contact-added', handleContactAdded);
+    };
+  }, [refreshData]);
   
   // Define columns for the grid - with opportunity column marked as frozen
   const [columns, setColumns] = useState<Column[]>([
     {
-      id: 'opportunity',
-      title: 'Contacts',
+      id: 'name',
+      title: 'Contact',
       type: 'text',
       width: 180, // Keep contacts column at 180px
       editable: true,
@@ -200,7 +156,7 @@ export function EditableLeadsGrid() {
       editable: true,
     },
     {
-      id: 'companyName',
+      id: 'company',
       title: 'Company',
       type: 'text',
       width: DEFAULT_COLUMN_WIDTH,
@@ -258,7 +214,7 @@ export function EditableLeadsGrid() {
       renderCell: renderSocialLink,
     },
     {
-      id: 'linkedIn',
+      id: 'linkedin',
       title: 'LinkedIn',
       type: 'text',
       width: DEFAULT_COLUMN_WIDTH,
@@ -334,7 +290,7 @@ export function EditableLeadsGrid() {
       setColumns(prevColumns => {
         return prevColumns.map(col => {
           // For mobile, set contacts/opportunity column to 130px, otherwise keep at 180px
-          if (col.id === 'opportunity') {
+          if (col.id === 'name') {
             return { ...col, width: isMobile ? 130 : 180 };
           }
           
@@ -354,19 +310,20 @@ export function EditableLeadsGrid() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Handle cell value changes - update Supabase and sync with mockContactsById
+  // Handle cell edit
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
-    // Find the current value for logging the change
+    // Find the old value for activity logging
     const row = rows.find(r => r.id === rowId);
-    const oldValue = row ? row[columnId] : undefined;
-            
-    // Update cell in Supabase or localStorage
+    const oldValue = row ? row[columnId] : null;
+    
+    // Save to Supabase through our hook
     updateCell({ rowId, columnId, value });
-        
-    // Update mockContactsById for Stream View integrity
-    const updatedRow = row ? { ...row, [columnId]: value } : { id: rowId, [columnId]: value };
-            syncContact(updatedRow);
-            
+    
+    // Sync with mockContactsById
+    const updatedRow = rows.find(r => r.id === rowId) || { id: rowId };
+    updatedRow[columnId] = value;
+    syncContact(updatedRow as GridRow);
+    
     // Log the activity with contact name if available
     logCellEdit(
       rowId, 
@@ -376,104 +333,69 @@ export function EditableLeadsGrid() {
     );
   };
 
-  // Handle column updates (width, title, etc)
-  const handleColumnChange = (columnId: string, updates: Partial<Column>) => {
-    setColumns(prev => 
-      prev.map(col => 
-        col.id === columnId 
-          ? { ...col, ...updates }
-          : col
-      )
-    );
-  };
-  
-  // Handle column reordering
+  // Handle columns reordering
   const handleColumnsReorder = (columnIds: string[]) => {
-    const reorderedColumns: Column[] = columnIds.map(
-      id => columns.find(col => col.id === id)!
-    );
-    setColumns(reorderedColumns);
+    setColumns(columns.map(col => ({
+      ...col,
+      order: columnIds.indexOf(col.id)
+    })).sort((a, b) => a.order - b.order));
     
     // Log the activity
     logFilterChange({ type: 'columns_reorder', columns: columnIds });
   };
-  
+
   // Handle column deletion
   const handleDeleteColumn = (columnId: string) => {
-    if (columnId === 'opportunity') return; // Protect the opportunity column
+    // Don't delete the primary columns
+    if (['name', 'status', 'company'].includes(columnId)) {
+      toast({
+        title: "Cannot delete primary column",
+        description: "This column is required and cannot be removed.",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    // Find column name for logging
+    // Log the column deletion
     const column = columns.find(col => col.id === columnId);
     if (column) {
       logColumnDelete(columnId, column.title);
     }
     
-    setColumns(prev => prev.filter(col => col.id !== columnId));
+    // Remove from columns array
+    setColumns(columns.filter(col => col.id !== columnId));
   };
-  
+
   // Handle adding a new column
   const handleAddColumn = (afterColumnId: string) => {
-    // Don't allow adding columns after lastContacted
-    if (afterColumnId === 'lastContacted') {
-      console.log("Cannot add columns after lastContacted");
-      return;
-    }
+    // Create a new unique column ID
+    const columnId = `column-${uuidv4().substring(0, 8)}`;
     
-    // Log for debugging
-    console.log(`Adding column after: ${afterColumnId}`);
-    
-    // Check if adding before lastContacted
-    const lastContactedIdx = columns.findIndex(col => col.id === 'lastContacted');
-    const afterColumnIdx = columns.findIndex(col => col.id === afterColumnId);
-    
-    // Don't allow adding columns that would push lastContacted further right
-    if (lastContactedIdx >= 0 && afterColumnIdx >= lastContactedIdx) {
-      console.log("Cannot add columns that would push lastContacted further right");
-      return;
-    }
-    
-    // Set width based on screen size
-    const isMobile = window.innerWidth < 768;
-    const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
-    
-    // Always use width based on screen size for new columns
+    // Create the new column - defaulting to text type
     const newColumn: Column = {
-      id: uuidv4(),
+      id: columnId,
       title: `New Column`,
       type: 'text',
-      width: columnWidth, // Use screen size responsive width
-      editable: true
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true,
     };
+    
+    // Find the index where we need to insert
+    const afterIndex = columns.findIndex(col => col.id === afterColumnId);
     
     // Log the activity
     logColumnAdd(newColumn.id, newColumn.title);
     
     // Add the column at the right position
-    setColumns(prevColumns => {
-      const afterColumnIndex = prevColumns.findIndex(col => col.id === afterColumnId);
-    
-      // If column found in the list
-      if (afterColumnIndex >= 0) {
-        // Simple insertion after the target column
-        let result = [...prevColumns];
-        result.splice(afterColumnIndex + 1, 0, newColumn);
-        return result;
-      }
-      
-      // Fallback - add at beginning (after opportunity)
-      const opportunityIndex = prevColumns.findIndex(col => col.id === 'opportunity');
-      if (opportunityIndex >= 0) {
-        let result = [...prevColumns];
-        result.splice(opportunityIndex + 1, 0, newColumn);
-        return result;
-      }
-      
-      return [...prevColumns, newColumn];
-    });
+    setColumns([
+      ...columns.slice(0, afterIndex + 1),
+      newColumn,
+      ...columns.slice(afterIndex + 1)
+    ]);
   };
   
   // Show better loading UI to cover any potential flash
-  if (isLoading || !isGridReady) {
+  if (loading || !isGridReady) {
     return (
       <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
         <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
@@ -482,79 +404,21 @@ export function EditableLeadsGrid() {
     );
   }
   
-  // Show empty state when there are no rows
+  // Show empty state when there are no rows - GridViewContainer now has its own empty state UI
   if (rows.length === 0) {
     return (
       <div className="flex flex-col h-full">
-        {/* Banner to restore test data */}
-        <div className="bg-yellow-100 p-3 mb-2 flex justify-between items-center">
-          <span className="text-sm">No contacts. Restore test data?</span>
-          <button
-            className="bg-[#33B9B0] hover:bg-[#2aa39b] text-white px-3 py-1 rounded text-sm"
-            onClick={() => {
-              // Generate dummy leads and add them
-              const dummyLeads = generateDummyLeads(5); // Just create 5 test contacts
-              
-              // Add them to the system
-              dummyLeads.forEach(lead => {
-                const rowData: GridRow = {
-                  id: lead.id,
-                  opportunity: lead.name,
-                  status: lead.status || 'New',
-                  // Add other required fields
-                  email: lead.email,
-                  companyName: lead.company || '',
-                  linkedIn: lead.linkedIn || 'linkedin.com/in/example',
-                  // Fill in additional fields
-                };
-                
-                // Use existing updateCell function to add the contact
-                updateCell({ rowId: rowData.id, columnId: 'opportunity', value: rowData.opportunity });
-              });
-              
-              // Refresh to show the new data
-              setTimeout(() => window.location.reload(), 500);
-            }}
-          >
-            Restore Test Data
-          </button>
-        </div>
-        
-        {/* Empty state UI */}
-        <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            width="64" 
-            height="64" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="1.5" 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            className="text-gray-300 mb-4"
-          >
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
-          <h3 className="text-lg font-medium mb-2 text-gray-700">No contacts added yet</h3>
-          <a 
-            href="#" 
-            className="text-[#33B9B0] hover:underline"
-            onClick={(e) => {
-              e.preventDefault();
-              // Open the Add Contact dialog - we'll reuse the existing functionality
-              const addContactButton = document.querySelector('[aria-label="Add Contact"]') as HTMLButtonElement;
-              if (addContactButton) {
-                addContactButton.click();
-              }
-            }}
-          >
-            Add new contact
-          </a>
-        </div>
+        {/* Empty state is now handled by GridViewContainer */}
+        <GridViewContainer
+          columns={columns}
+          data={[]}
+          listName="Contacts"
+          onCellChange={handleCellChange}
+          onColumnsReorder={handleColumnsReorder}
+          onAddColumn={handleAddColumn}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
       </div>
     );
   }
@@ -563,15 +427,13 @@ export function EditableLeadsGrid() {
     <div className="h-full w-full">
       <GridViewContainer 
         columns={columns} 
-        data={filteredRows}
+        data={rows}
         listName="All Leads"
         listType="Lead"
         listId="leads-grid"
         firstRowIndex={0}
         onCellChange={handleCellChange}
-        onColumnChange={handleColumnChange}
         onColumnsReorder={handleColumnsReorder}
-        onDeleteColumn={handleDeleteColumn}
         onAddColumn={handleAddColumn}
         onSearchChange={setSearchTerm}
         searchTerm={searchTerm}

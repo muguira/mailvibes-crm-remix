@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 
 interface StaticColumnsProps {
   data: GridRow[];
-  opportunityColumn?: Column;
+  opportunityColumn?: Column;  // This can be either opportunity or name(contact) column
   scrollTop: number;
   firstRowIndex: number;
   onCellChange?: (rowId: string, columnId: string, value: any) => void;
@@ -28,20 +28,27 @@ export function StaticColumns({
     }
   };
 
-  // Handle double click for opportunity editing (could implement inline edit)
+  // Handle double click for contact/opportunity editing (could implement inline edit)
   const handleDoubleClick = (rowId: string) => {
-    console.log('Double clicked opportunity cell:', rowId);
+    console.log('Double clicked contact/opportunity cell:', rowId);
     // Here you could implement an inline edit functionality
   };
 
-  // Get opportunity width
-  const opportunityWidth = opportunityColumn?.width || 150;
+  // Exit early if no opportunity/contact column
+  if (!opportunityColumn) return null;
+
+  // Get contact/opportunity width
+  const contactWidth = opportunityColumn?.width || 150;
+
+  // Determine if this is a name (contact) or opportunity column
+  const isNameColumn = opportunityColumn.id === 'name';
+  const columnTitle = isNameColumn ? 'Contact' : opportunityColumn.title;
 
   return (
     <div
       className="static-columns-container"
       style={{
-        width: `${INDEX_COLUMN_WIDTH + opportunityWidth}px`,
+        width: `${INDEX_COLUMN_WIDTH + contactWidth}px`,
         position: 'relative',
         zIndex: 45
       }}
@@ -61,26 +68,24 @@ export function StaticColumns({
           #
         </div>
 
-        {opportunityColumn && (
-          <div
-            className="opportunity-header"
-            style={{
-              width: opportunityWidth,
-              height: HEADER_HEIGHT,
-              position: 'sticky',
-              left: INDEX_COLUMN_WIDTH,
-              zIndex: 45
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              if (onContextMenu) {
-                onContextMenu(opportunityColumn.id, { x: e.clientX, y: e.clientY });
-              }
-            }}
-          >
-            {opportunityColumn.title}
-          </div>
-        )}
+        <div
+          className="opportunity-header"
+          style={{
+            width: contactWidth,
+            height: HEADER_HEIGHT,
+            position: 'sticky',
+            left: INDEX_COLUMN_WIDTH,
+            zIndex: 45
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            if (onContextMenu) {
+              onContextMenu(opportunityColumn.id, { x: e.clientX, y: e.clientY });
+            }
+          }}
+        >
+          {columnTitle}
+        </div>
       </div>
 
       {/* Scrollable body that syncs with main grid */}
@@ -121,27 +126,33 @@ export function StaticColumns({
               {firstRowIndex + index + 1}
             </div>
 
-            {/* Opportunity cell */}
-            {opportunityColumn && (
-              <div
-                className="opportunity-cell"
-                style={{
-                  width: opportunityWidth,
-                  height: ROW_HEIGHT,
-                  position: 'sticky',
-                  left: INDEX_COLUMN_WIDTH,
-                  zIndex: 44
-                }}
-                onContextMenu={(e) => handleContextMenu(e, row.id, opportunityColumn.id)}
-                onDoubleClick={() => handleDoubleClick(row.id)}
-              >
-                {opportunityColumn.renderCell ? (
-                  opportunityColumn.renderCell(row[opportunityColumn.id], row)
-                ) : (
-                  <span className="opportunity-text">{row[opportunityColumn.id]}</span>
-                )}
-              </div>
-            )}
+            {/* Contact/Opportunity cell */}
+            <div
+              className="opportunity-cell"
+              style={{
+                width: contactWidth,
+                height: ROW_HEIGHT,
+                position: 'sticky',
+                left: INDEX_COLUMN_WIDTH,
+                zIndex: 44
+              }}
+              onContextMenu={(e) => handleContextMenu(e, row.id, opportunityColumn.id)}
+              onDoubleClick={() => handleDoubleClick(row.id)}
+            >
+              {opportunityColumn.renderCell ? (
+                opportunityColumn.renderCell(row[opportunityColumn.id], row)
+              ) : (
+                <span className="opportunity-text">
+                  {isNameColumn ? (
+                    <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
+                      {row[opportunityColumn.id]}
+                    </Link>
+                  ) : (
+                    row[opportunityColumn.id]
+                  )}
+                </span>
+              )}
+            </div>
           </div>
         ))}
       </div>

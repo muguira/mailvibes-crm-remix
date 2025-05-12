@@ -43,12 +43,16 @@ export function GridViewContainer({
   const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null);
   
-  // Separate opportunity column from other columns
-  const opportunityColumn = columns.find(col => col.id === 'opportunity');
-  const gridColumns = columns.filter(col => col.id !== 'opportunity');
+  // Find the frozen column - first look for 'name', then fall back to 'opportunity' for backward compatibility
+  const contactColumn = columns.find(col => col.id === 'name' && col.frozen) || 
+                        columns.find(col => col.id === 'opportunity');
+  
+  // Filter out the contact column from other columns
+  const gridColumns = columns.filter(col => col.id !== 'name' || !col.frozen)
+                             .filter(col => col.id !== 'opportunity');
   
   // Width calculation for the static columns area
-  const staticColumnsWidth = INDEX_COLUMN_WIDTH + (opportunityColumn?.width || 0);
+  const staticColumnsWidth = INDEX_COLUMN_WIDTH + (contactColumn?.width || 0);
   
   // Resize observer for container
   useEffect(() => {
@@ -180,19 +184,19 @@ export function GridViewContainer({
     }
   };
   
-  // Handle columns reordering - ensure opportunity column remains unchanged
+  // Handle columns reordering - ensure frozen column remains unchanged
   const handleColumnsReorder = (newColumnIds: string[]) => {
     if (onColumnsReorder) {
-      // Make sure opportunity column stays in the correct position
-      const opportunityColumnIndex = columns.findIndex(col => col.id === 'opportunity');
+      // Make sure contact column stays in the correct position
+      const contactColumnIndex = columns.findIndex(col => (col.id === 'name' && col.frozen) || col.id === 'opportunity');
       const newColumns = newColumnIds
-        .filter(id => id !== 'opportunity') // Remove opportunity if it's in the list
+        .filter(id => id !== 'name' && id !== 'opportunity') // Remove contact/opportunity if it's in the list
         .map(id => columns.find(col => col.id === id)!); // Map to full column objects
       
-      // Re-insert opportunity at its original position if needed
-      if (opportunityColumnIndex >= 0 && opportunityColumn) {
+      // Re-insert contact at its original position if needed
+      if (contactColumnIndex >= 0 && contactColumn) {
         // Only re-insert if it was in the original columns array
-        newColumns.splice(opportunityColumnIndex, 0, opportunityColumn);
+        newColumns.splice(contactColumnIndex, 0, contactColumn);
       }
       
       // Call the parent handler with the updated order
@@ -219,34 +223,68 @@ export function GridViewContainer({
       />
       
       <div className="grid-components-container">
-        {/* Left static columns (index + opportunity) */}
-        <StaticColumns 
-          data={visibleData}
-          opportunityColumn={opportunityColumn}
-          scrollTop={scrollTop}
-          firstRowIndex={firstRowIndex}
-          onCellChange={onCellChange}
-          onContextMenu={handleOpenContextMenu}
-        />
-        
-        {/* Main data grid - adjust width to account for static columns */}
-        <MainGridView
-          columns={gridColumns}
-          data={visibleData}
-          scrollTop={scrollTop}
-          scrollLeft={scrollLeft}
-          containerWidth={(containerWidth - staticColumnsWidth) || 300}
-          containerHeight={containerHeight}
-          onScroll={handleScroll}
-          onCellChange={onCellChange}
-          onColumnChange={onColumnChange}
-          onColumnsReorder={handleColumnsReorder}
-          onAddColumn={onAddColumn}
-          onDeleteColumn={onDeleteColumn}
-          onContextMenu={handleOpenContextMenu}
-          contextMenuColumn={contextMenuColumn}
-          contextMenuPosition={contextMenuPosition}
-        />
+        {visibleData.length === 0 ? (
+          // Empty state message when there are no contacts
+          <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] w-full">
+            <div className="rounded-full bg-gray-100 p-6 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#32BAB0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </div>
+            <h2 className="text-2xl font-semibold mb-2">No contacts yet</h2>
+            <p className="text-gray-500 text-center max-w-md mb-6">Let's add a contact as our first step to more customers.</p>
+            <button 
+              className="bg-[#32BAB0] hover:bg-[#28a79d] text-white rounded-md px-6 py-2 flex items-center gap-2"
+              onClick={() => {
+                // Find the main Add Contact button in the header and click it
+                const addContactButton = document.querySelector('.grid-toolbar button.bg-\\[\\#32BAB0\\]') as HTMLButtonElement;
+                if (addContactButton) {
+                  addContactButton.click();
+                }
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add Contact
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Left static columns (index + contact/opportunity) */}
+            <StaticColumns 
+              data={visibleData}
+              opportunityColumn={contactColumn}
+              scrollTop={scrollTop}
+              firstRowIndex={firstRowIndex}
+              onCellChange={onCellChange}
+              onContextMenu={handleOpenContextMenu}
+            />
+            
+            {/* Main data grid - adjust width to account for static columns */}
+            <MainGridView
+              columns={gridColumns}
+              data={visibleData}
+              scrollTop={scrollTop}
+              scrollLeft={scrollLeft}
+              containerWidth={(containerWidth - staticColumnsWidth) || 300}
+              containerHeight={containerHeight}
+              onScroll={handleScroll}
+              onCellChange={onCellChange}
+              onColumnChange={onColumnChange}
+              onColumnsReorder={handleColumnsReorder}
+              onAddColumn={onAddColumn}
+              onDeleteColumn={onDeleteColumn}
+              onContextMenu={handleOpenContextMenu}
+              contextMenuColumn={contextMenuColumn}
+              contextMenuPosition={contextMenuPosition}
+            />
+          </>
+        )}
       </div>
     </div>
   );

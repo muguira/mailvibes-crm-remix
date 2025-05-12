@@ -118,7 +118,7 @@ export function GridToolbar({
     // Create a unique ID for the new contact
     const newContactId = `lead-${Date.now()}`;
     
-    // Combine first and last name for opportunity field or use email if names empty
+    // Combine first and last name for the name field
     let fullName = `${contactForm.firstName} ${contactForm.lastName}`.trim();
     
     // Use email as the name if first/last name fields are empty
@@ -126,13 +126,13 @@ export function GridToolbar({
       fullName = contactForm.email;
     }
     
-    // Create the new contact row with all properties
+    // Create the new contact row with all properties - use name instead of opportunity
     const newContact = {
       id: newContactId,
-      opportunity: fullName,
+      name: fullName, // IMPORTANT: Use name field instead of opportunity
       email: contactForm.email,
       status: contactForm.status,
-      companyName: contactForm.company,
+      company: contactForm.company, // Use company instead of companyName
       revenue: contactForm.revenue ? parseInt(contactForm.revenue, 10) : 0,
       owner: '',
       closeDate: new Date().toISOString().split('T')[0],
@@ -160,6 +160,18 @@ export function GridToolbar({
       revenue: ''
     });
     setIsAddContactOpen(false);
+    
+    // Force a re-render of the grid without a full page reload
+    setTimeout(() => {
+      // Dispatch a custom event that can be listened for in the parent component
+      const refreshEvent = new CustomEvent('contact-added', { detail: newContact });
+      document.dispatchEvent(refreshEvent);
+      
+      // If there were no contacts before, simulate a page navigation to trigger the grid view to reload
+      if (document.querySelector('.grid-components-container .flex-col')) {
+        window.location.href = window.location.href.split('#')[0];
+      }
+    }, 200);
   };
   
   // Sync with active filters when they change externally

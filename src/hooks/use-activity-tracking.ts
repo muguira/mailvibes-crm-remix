@@ -83,6 +83,7 @@ export function useActivityTracking() {
       return; // Don't log when not logged in
     }
     
+    // Create new activity object
     const newActivity: ActivityItem = {
       id: uuidv4(),
       userId: user.id,
@@ -91,38 +92,61 @@ export function useActivityTracking() {
       timestamp: new Date().toISOString(),
       ...activity
     };
+    
+    // Update local state immediately for UI feedback
+    setActivities(prev => [newActivity, ...prev].slice(0, 100));
+    
+    // Store in localStorage as backup
+    const localActivities = loadFromLocalStorage();
+    localStorage.setItem(
+      ACTIVITY_STORAGE_KEY,
+      JSON.stringify([newActivity, ...localActivities].slice(0, 100))
+    );
 
+    // Enable Supabase activity logging now that we've fixed the core functionality
     try {
       // Store in Supabase if logged in
       if (user) {
+        // Get the ID mapping to ensure we have the correct database IDs
+        const idMapping = JSON.parse(localStorage.getItem('id-mapping') || '{}');
+        
+        // If entityId exists and has a mapping, use the mapped ID
+        let entityId = activity.entityId;
+        if (entityId && idMapping[entityId]) {
+          entityId = idMapping[entityId];
+        }
+        
+        // Format the activity for Supabase
+        const supabaseActivity = {
+          id: newActivity.id,
+          user_id: newActivity.userId,
+          user_name: newActivity.userName,
+          user_email: newActivity.userEmail || null,
+          timestamp: newActivity.timestamp,
+          activity_type: newActivity.activityType,
+          entity_id: entityId || null,
+          entity_type: newActivity.entityType || null,
+          entity_name: newActivity.entityName || null,
+          field_name: newActivity.fieldName || null,
+          old_value: newActivity.oldValue ? JSON.stringify(newActivity.oldValue) : null,
+          new_value: newActivity.newValue ? JSON.stringify(newActivity.newValue) : null,
+          details: newActivity.details ? JSON.stringify(newActivity.details) : null
+        };
+
+        console.log("Logging activity to Supabase:", supabaseActivity);
+        
         const { error } = await supabase
           .from('user_activities')
-          .insert(newActivity);
+          .upsert(supabaseActivity, { onConflict: 'id' });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error logging activity to Supabase:', error);
+          // Don't throw the error - we still have the activity in local state
+        }
       }
-
-      // Always update local state for immediate UI feedback
-      setActivities(prev => [newActivity, ...prev].slice(0, 100));
-
-      // Also store in localStorage as backup
-      const localActivities = loadFromLocalStorage();
-      localStorage.setItem(
-        ACTIVITY_STORAGE_KEY,
-        JSON.stringify([newActivity, ...localActivities].slice(0, 100))
-      );
-
     } catch (error) {
       console.error('Error logging activity:', error);
-      
-      // Still update local state and localStorage on error
-      setActivities(prev => [newActivity, ...prev].slice(0, 100));
-      
-      const localActivities = loadFromLocalStorage();
-      localStorage.setItem(
-        ACTIVITY_STORAGE_KEY,
-        JSON.stringify([newActivity, ...localActivities].slice(0, 100))
-      );
+      // Activity is already in local state and localStorage, so we continue
     }
   };
 

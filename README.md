@@ -71,3 +71,30 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+# Supabase RLS Setup for Contacts Table
+
+To properly set up Row Level Security for the contacts table in Supabase, run the following SQL in your Supabase SQL Editor:
+
+```sql
+-- Create proper contacts RLS policy
+create policy "Auth users can access their own contacts"
+on contacts 
+for all -- applies to all operations
+to authenticated -- authenticated users only
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
+
+-- Alternative policy for upsert operations
+create policy "Auth users can upsert their own contacts"
+on contacts 
+for insert
+to authenticated 
+with check (user_id = auth.uid());
+```
+
+This will ensure that:
+1. Only authenticated users can access the contacts table
+2. Users can only see and modify their own contacts (where user_id = their auth.uid())
+3. All operations (select, insert, update, delete) are covered by the policy
+4. The policy enforces user_id = auth.uid() for both reading and writing data

@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { mockContactsById } from "@/components/stream/sample-data";
 import { useActivity } from "@/contexts/ActivityContext";
+import { updateContact } from '@/helpers/updateContact';
 
 interface Contact {
   id: string;
@@ -33,6 +34,8 @@ interface Contact {
   primaryLocation?: string;
   data?: Record<string, any>;
   name?: string; // Added name field
+  leadStatus?: string; // Added leadStatus
+  [key: string]: any; // Allow dynamic properties to be added
 }
 
 interface AboutThisContactProps {
@@ -188,7 +191,7 @@ export default function AboutThisContact({
         } else if (field === 'name') {
           updatedContact.name = value;
         } else {
-          updatedContact[field as keyof typeof updatedContact] = value;
+          updatedContact[field] = value;
         }
         
         // Update the mock data
@@ -215,30 +218,40 @@ export default function AboutThisContact({
       
       // Now try to save to Supabase in all cases (even for mock IDs)
       if (user) {
+        // Get the mapping of UI ID to database ID
+        const idMapping = JSON.parse(localStorage.getItem('id-mapping') || '{}');
+        const dbId = idMapping[contact.id] || contact.id;
+        
+        console.log(`Attempting to save field ${field} for contact ${contact.id} (DB ID: ${dbId})`);
+        
         // Determine if this is a main field or a data field
         const mainFields = ['email', 'phone', 'company', 'source', 'industry', 'jobTitle', 'leadStatus', 'website'];
-        let updateData: Record<string, any> = {};
-
-        if (mainFields.includes(field)) {
-          // Update direct column
-          updateData[field] = value;
-        } else {
-          // Update data JSON field
-          const currentData = contact.data || {};
-          updateData.data = {
-            ...currentData,
-            [field]: value
-          };
-        }
-
+        
         try {
-          // Try to update the contact in Supabase
-          const { error } = await supabase
-            .from('contacts')
-            .update(updateData)
-            .eq('id', contact.id);
-
-          if (error) throw error;
+          if (mainFields.includes(field)) {
+            // Map the field name if needed (e.g., jobTitle to job_title)
+            const mappedField = field === 'jobTitle' ? 'job_title' : field;
+            
+            // Use the shared updateContact helper with explicit user_id
+            await updateContact({ 
+              id: contact.id,
+              user_id: user.id, // CRITICAL: include user_id for RLS policies
+              name: contact.name || 'Untitled Contact', // Ensure name is included
+              [mappedField]: value
+            });
+          } else {
+            // For fields that go in the data JSON
+            const currentData = contact.data || {};
+            await updateContact({
+              id: contact.id,
+              user_id: user.id, // CRITICAL: include user_id for RLS policies
+              name: contact.name || 'Untitled Contact', // Ensure name is included
+              data: {
+                ...currentData,
+                [field]: value
+              }
+            });
+          }
 
           // Show success toast
           toast({
@@ -465,6 +478,33 @@ export default function AboutThisContact({
     { id: 'lastContacted', label: 'Last contacted', type: 'text', readOnly: true },
     { id: 'source', label: 'Source', type: 'text' },
   ];
+
+  useEffect(() => {
+    // Debug the Supabase connection
+    const debugSupabase = async () => {
+      try {
+        console.log("Testing Supabase connection...");
+        
+        // First, just check if we can connect at all
+        const { data, error } = await supabase
+          .from('contacts')
+          .select('id, name')
+          .eq('user_id', user.id)
+          .limit(5);
+        
+        if (error) {
+          console.error("SUPABASE ERROR:", error);
+          return;
+        }
+        
+        console.log("Connection successful:", data);
+      } catch (e) {
+        console.error("Unexpected error:", e);
+      }
+    };
+    
+    debugSupabase();
+  }, []);
 
   return (
     <Card>

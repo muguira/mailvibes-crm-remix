@@ -61,7 +61,7 @@ export function TasksPanel() {
     checkOverdueTasks();
     const interval = setInterval(checkOverdueTasks, 60000); // Check every minute
     return () => clearInterval(interval);
-  }, []);
+  }, []); // Empty dependency array to run only on mount
 
   const sortTasksByDate = (tasks: Task[], isEditing: boolean) => {
     const today = startOfDay(new Date());
@@ -118,14 +118,14 @@ export function TasksPanel() {
     const taskToUpdate = tasks.find(task => task.id === taskId);
     if (!taskToUpdate || !user) return;
 
-    // When setting a new deadline, check if it's already overdue
+        // When setting a new deadline, check if it's already overdue
     let newStatus = taskToUpdate.displayStatus;
-    if (deadline) {
-      const deadlineDate = parseISO(deadline);
-      if (isPast(startOfDay(deadlineDate))) {
+        if (deadline) {
+          const deadlineDate = parseISO(deadline);
+          if (isPast(startOfDay(deadlineDate))) {
         newStatus = "overdue";
-      }
-      // If task was overdue but new deadline is in the future, move back to upcoming
+          }
+          // If task was overdue but new deadline is in the future, move back to upcoming
       else if (taskToUpdate.displayStatus === "overdue") {
         newStatus = "upcoming";
       }
@@ -291,14 +291,14 @@ export function TasksPanel() {
         <div className="p-2 pt-3">
           {user ? (
             <>
-              <button
+          <button
                 className="w-full text-left text-muted-foreground flex items-center gap-2 py-1 hover:text-foreground transition-colors"
-                onClick={handleCreateNewTask}
-                disabled={isCreatingTask}
-              >
+            onClick={handleCreateNewTask}
+            disabled={isCreatingTask}
+          >
                 <Plus size={16} />
-                Create task
-              </button>
+            Create task
+          </button>
             </>
           ) : (
             <div className="text-center text-sm text-muted-foreground py-2">
@@ -314,76 +314,76 @@ export function TasksPanel() {
             </div>
           ) : (
             <>
-              <TabsContent value="upcoming" className="m-0">
+          <TabsContent value="upcoming" className="m-0">
                 {upcomingTasks.length > 0 ? (
                   upcomingTasks.map((task) => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      isNew={isCreatingTask && task.id === upcomingTasks[0]?.id}
-                      inputRef={isCreatingTask && task.id === upcomingTasks[0]?.id ? newTaskInputRef : undefined}
-                      onStatusChange={handleTaskStatusChange}
-                      onDeadlineChange={handleDeadlineChange}
-                      onTitleChange={handleTaskTitleChange}
-                      onTitleBlur={handleTaskTitleBlur}
-                      onTitleKeyDown={handleTaskTitleKeyDown}
-                      onTaskUpdate={handleTaskUpdate}
-                      onDelete={handleTaskDelete}
-                      allTasks={tasks}
-                    />
+              <TaskItem
+                key={task.id}
+                task={task}
+                isNew={isCreatingTask && task.id === upcomingTasks[0]?.id}
+                inputRef={isCreatingTask && task.id === upcomingTasks[0]?.id ? newTaskInputRef : undefined}
+                onStatusChange={handleTaskStatusChange}
+                onDeadlineChange={handleDeadlineChange}
+                onTitleChange={handleTaskTitleChange}
+                onTitleBlur={handleTaskTitleBlur}
+                onTitleKeyDown={handleTaskTitleKeyDown}
+                onTaskUpdate={handleTaskUpdate}
+                onDelete={handleTaskDelete}
+                allTasks={tasks}
+              />
                   ))
                 ) : (
                   <div className="text-center text-sm text-muted-foreground py-8">
                     No upcoming tasks
                   </div>
                 )}
-              </TabsContent>
+          </TabsContent>
 
-              <TabsContent value="overdue" className="m-0">
+          <TabsContent value="overdue" className="m-0">
                 {overdueTasks.length > 0 ? (
                   overdueTasks.map((task) => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      onStatusChange={handleTaskStatusChange}
-                      onDeadlineChange={handleDeadlineChange}
-                      onTitleChange={handleTaskTitleChange}
-                      onTitleBlur={handleTaskTitleBlur}
-                      onTitleKeyDown={handleTaskTitleKeyDown}
-                      onTaskUpdate={handleTaskUpdate}
-                      onDelete={handleTaskDelete}
-                      allTasks={tasks}
-                    />
+              <TaskItem
+                key={task.id}
+                task={task}
+                onStatusChange={handleTaskStatusChange}
+                onDeadlineChange={handleDeadlineChange}
+                onTitleChange={handleTaskTitleChange}
+                onTitleBlur={handleTaskTitleBlur}
+                onTitleKeyDown={handleTaskTitleKeyDown}
+                onTaskUpdate={handleTaskUpdate}
+                onDelete={handleTaskDelete}
+                allTasks={tasks}
+              />
                   ))
                 ) : (
                   <div className="text-center text-sm text-muted-foreground py-8">
                     No overdue tasks
                   </div>
                 )}
-              </TabsContent>
+          </TabsContent>
 
-              <TabsContent value="completed" className="m-0">
+          <TabsContent value="completed" className="m-0">
                 {completedTasks.length > 0 ? (
                   completedTasks.map((task) => (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      onStatusChange={handleTaskStatusChange}
-                      onDeadlineChange={handleDeadlineChange}
-                      onTitleChange={handleTaskTitleChange}
-                      onTitleBlur={handleTaskTitleBlur}
-                      onTitleKeyDown={handleTaskTitleKeyDown}
-                      onTaskUpdate={handleTaskUpdate}
-                      onDelete={handleTaskDelete}
-                      allTasks={tasks}
-                    />
+              <TaskItem
+                key={task.id}
+                task={task}
+                onStatusChange={handleTaskStatusChange}
+                onDeadlineChange={handleDeadlineChange}
+                onTitleChange={handleTaskTitleChange}
+                onTitleBlur={handleTaskTitleBlur}
+                onTitleKeyDown={handleTaskTitleKeyDown}
+                onTaskUpdate={handleTaskUpdate}
+                onDelete={handleTaskDelete}
+                allTasks={tasks}
+              />
                   ))
                 ) : (
                   <div className="text-center text-sm text-muted-foreground py-8">
                     No completed tasks
                   </div>
                 )}
-              </TabsContent>
+          </TabsContent>
             </>
           )}
         </div>

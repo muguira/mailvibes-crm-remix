@@ -6,7 +6,10 @@ import { toast } from "../use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { GridRow } from "@/components/grid-view/types";
 import { LEADS_STORAGE_KEY } from "@/constants/grid";
-import { generateDummyLeads } from "@/components/stream/sample-data";
+import { useState, useEffect } from 'react';
+import { LeadContact } from '@/components/stream/sample-data';
+import { mockContactsById } from '@/components/stream/sample-data';
+import { updateContact } from '@/helpers/updateContact';
 
 /**
  * Helper function to transform row IDs to database-compatible format
@@ -36,10 +39,10 @@ function transformRowId(id: string): string | number {
 async function checkRowExistsInDb(userId: string, rowId: string | number) {
   try {
     const { data } = await supabase
-      .from('leads_rows')
-      .select('row_id')
+      .from('contacts')
+      .select('id')
       .eq('user_id', userId)
-      .eq('row_id', rowId)
+      .eq('id', rowId)
       .single();
     
     return !!data; // Return true if data exists
@@ -78,6 +81,30 @@ const getProperOrderedData = (rawRows: GridRow[]): GridRow[] => {
   return sortRowsByIdAscending(filteredRows);
 };
 
+// Constants
+export const PAGE_SIZE = 100;
+
+// Local storage fallback functions
+const loadRowsFromLocal = (): LeadContact[] => {
+  try {
+    const savedRows = localStorage.getItem(LEADS_STORAGE_KEY);
+    if (savedRows) {
+      return JSON.parse(savedRows);
+    }
+  } catch (error) {
+    console.error('Failed to load rows from localStorage:', error);
+  }
+  return [];
+};
+
+const saveRowsToLocal = (rows: LeadContact[]): void => {
+  try {
+    localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(rows));
+  } catch (error) {
+    console.error('Failed to save rows to localStorage:', error);
+  }
+};
+
 /**
  * Hook for managing lead rows with Supabase persistence
  * Falls back to localStorage when not authenticated
@@ -85,466 +112,387 @@ const getProperOrderedData = (rawRows: GridRow[]): GridRow[] => {
 export function useLeadsRows() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [rows, setRows] = useState<LeadContact[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('');
   
-  // Load data from Supabase
-  const fetchLeadsRows = async (): Promise<GridRow[]> => {
-    if (!user) {
-      // Fall back to localStorage if not authenticated
-      return getProperOrderedData(loadFromLocalStorage());
-    }
-
+  // Update mockContactsById whenever rows change
+  useEffect(() => {
+    rows.forEach(row => {
+      mockContactsById[row.id] = row;
+    });
+  }, [rows]);
+  
+  // Function to fetch data from Supabase
+  const fetchLeadsRows = async () => {
+    setLoading(true);
+    
     try {
-      const { data, error } = await supabase
-        .from('leads_rows')
-        .select('*')
-        .order('row_id', { ascending: true }) // Order by row_id ascending to match frontend display
-        .eq('user_id', user.id);
-
-      if (error) {
-        // Check if the error is due to the table not existing
-        if (error.code === '42P01') { // PostgreSQL error code for "relation does not exist"
-          console.log("Table doesn't exist yet, using local data");
-          return getProperOrderedData(loadFromLocalStorage());
-        }
-        throw error;
-      }
-
-      // If we got an empty array, it might be first time use, so use localStorage
-      if (!data || data.length === 0) {
-        return getProperOrderedData(loadFromLocalStorage());
-      }
-
-      // Transform data to expected GridRow format and ensure proper order
-      const transformedRows = data.map(row => ({
-        id: `lead-${row.row_id}`, // Convert back to frontend format
-        ...(typeof row.data === 'string' ? JSON.parse(row.data) : row.data)
-      }));
-      
-      return getProperOrderedData(transformedRows);
-    } catch (error) {
-      console.error('Error fetching leads rows:', error);
-      
-      // Don't show the error toast during fetch - it's annoying on initial load
-      // Only show error toasts for write operations
-      
-      // Fall back to localStorage on error
-      return getProperOrderedData(loadFromLocalStorage());
-    }
-  };
-
-  // Helper to load from localStorage
-  const loadFromLocalStorage = (): GridRow[] => {
-    try {
-      const savedRows = localStorage.getItem(LEADS_STORAGE_KEY);
-      if (savedRows) {
-        const parsedRows = JSON.parse(savedRows);
-        if (Array.isArray(parsedRows) && parsedRows.length > 0) {
-          // Return properly sorted rows
-          return sortRowsByIdAscending(parsedRows);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load rows from localStorage:', error);
-    }
-    
-    // Generate dummy data if nothing in localStorage
-    const dummyLeads = generateDummyLeads();
-    
-    // Convert to GridRow format
-    const dummyRows = dummyLeads.map(lead => ({
-      id: lead.id,
-      opportunity: lead.name,
-      status: lead.status || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'][Math.floor(Math.random() * 5)],
-      revenue: lead.revenue || Math.floor(Math.random() * 100000),
-      closeDate: lead.closeDate || new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      owner: lead.owner || lead.name?.split(' ')[0] || '',
-      website: lead.website || 'https://example.com',
-      companyName: lead.company || `Company ${lead.id.split('-')[1]}`,
-      linkedIn: 'https://linkedin.com/company/example',
-      employees: lead.employees || Math.floor(Math.random() * 1000),
-      lastContacted: lead.lastContacted || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      email: lead.email,
-    }));
-    
-    // Sort the rows before saving or returning
-    const sortedRows = sortRowsByIdAscending(dummyRows);
-    
-    // Save to localStorage as fallback
-    try {
-      localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(sortedRows));
-    } catch (error) {
-      console.error('Failed to save initial rows to localStorage:', error);
-    }
-    
-    return sortedRows;
-  };
-
-  // Query to fetch lead rows
-  const leadsRowsQuery = useQuery({
-    queryKey: ['leads_rows', user?.id],
-    queryFn: fetchLeadsRows,
-    staleTime: 1000 * 60, // 1 minute
-  });
-
-  // Mutation to upsert a row
-  const upsertRowMutation = useMutation({
-    mutationFn: async (row: GridRow) => {
-      if (!user) {
-        // If not authenticated, update localStorage
-        const currentRows = loadFromLocalStorage();
-        const updatedRows = currentRows.map(r => r.id === row.id ? row : r);
+      // First try to fetch from Supabase using contacts table
+      if (user) {
+        // Don't clear ID mappings on load - this was causing issues
+        // Instead we'll use a stable mapping system
         
-        // If the row doesn't exist, add it
-        if (!currentRows.some(r => r.id === row.id)) {
-          updatedRows.push(row);
-        }
-        
-        localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
-        return row;
-      }
-
-      try {
-        // Transform row ID to database-compatible format
-        const dbRowId = transformRowId(row.id);
-        
-        // Check if the row exists
-        const { data: existingRow } = await supabase
-          .from('leads_rows')
-          .select('*')
+        let query = supabase
+          .from('contacts')
+          .select('id, name, email, phone, company, status, user_id, data, created_at, updated_at')
           .eq('user_id', user.id)
-          .eq('row_id', dbRowId)
-          .maybeSingle();
-
-        if (existingRow) {
-          // Update existing row
-          const { error } = await supabase
-            .from('leads_rows')
-            .update({
-              data: row,
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', user.id)
-            .eq('row_id', dbRowId);
-
-          if (error) throw error;
-        } else {
-          // Insert new row
-          const { error } = await supabase
-            .from('leads_rows')
-            .insert({
-              user_id: user.id,
-              row_id: dbRowId,
-              data: row,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-
-          if (error) throw error;
+          .order('created_at', { ascending: false });
+          
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error("SUPABASE ERROR:", error);
+          throw error;
         }
         
-        return row;
-      } catch (error) {
-        console.error('Error upserting lead row:', error);
-        toast({
-          title: 'Save Error',
-          description: 'Failed to save your changes. Using offline storage.',
-          variant: 'destructive',
-        });
-        
-        // Fall back to localStorage on error
-        const currentRows = loadFromLocalStorage();
-        const updatedRows = currentRows.map(r => r.id === row.id ? row : r);
-        
-        // If the row doesn't exist, add it
-        if (!currentRows.some(r => r.id === row.id)) {
-          updatedRows.push(row);
-        }
-        
-        localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      // Invalidate and refetch
-      queryClient.invalidateQueries({ queryKey: ['leads_rows', user?.id] });
-    }
-  });
-
-  // Update a specific cell in a row
-  const updateCellMutation = useMutation({
-    mutationFn: async ({ rowId, columnId, value }: { rowId: string; columnId: string; value: any }) => {
-      if (!user) {
-        // If not authenticated, update localStorage
-        const currentRows = loadFromLocalStorage();
-        const rowIndex = currentRows.findIndex(r => r.id === rowId);
-        
-        if (rowIndex >= 0) {
-          // Updating an existing row
-          const updatedRow = { 
-            ...currentRows[rowIndex], 
-            [columnId]: value 
-          };
+        // If we have data in Supabase, use it
+        if (data && data.length > 0) {
+          // Get existing ID mapping
+          const existingMapping = JSON.parse(localStorage.getItem('id-mapping') || '{}');
           
-          const updatedRows = [
-            ...currentRows.slice(0, rowIndex),
-            updatedRow,
-            ...currentRows.slice(rowIndex + 1)
-          ];
+          // Create a reverse mapping for lookups (DB ID -> UI ID)
+          const reverseMapping = Object.entries(existingMapping).reduce((acc, [uiId, dbId]) => {
+            acc[dbId as string] = uiId;
+            return acc;
+          }, {} as Record<string, string>);
           
-          localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
-          return updatedRow;
-        } else {
-          // Creating a new row - add it at the top
-          const newRow = { 
-            id: rowId,
-            [columnId]: value 
-          };
-          
-          // Add new row at the beginning of the array (top of the grid)
-          const updatedRows = [newRow, ...currentRows];
-          
-          localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
-          return newRow;
-        }
-      }
-
-      try {
-        // Transform rowId to database-compatible format
-        const dbRowId = transformRowId(rowId);
-        
-        // Check if the row exists in the database
-        const rowExists = await checkRowExistsInDb(user.id, dbRowId);
-        
-        if (rowExists) {
-          // Get existing row data first
-          const { data: existingRow } = await supabase
-            .from('leads_rows')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('row_id', dbRowId)
-            .maybeSingle();
-
-          // Update existing row's specific column
-          const currentData = typeof existingRow.data === 'string' 
-            ? JSON.parse(existingRow.data) 
-            : existingRow.data || {};
+          // Convert contacts to LeadContact format with stable IDs
+          const processedRows = data.map((contact, index) => {
+            // Check if this DB ID already has a UI ID mapping
+            let uiId = reverseMapping[contact.id];
             
-          const updatedData = {
-            ...currentData,
-            [columnId]: value
-          };
-
-          // Use transformed row_id and user_id for the update condition
-          const { error } = await supabase
-            .from('leads_rows')
-            .update({
-              data: updatedData,
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', user.id)
-            .eq('row_id', dbRowId);
-
-          if (error) throw error;
-          
-          return { 
-            id: rowId, // Keep original format for frontend
-            ...updatedData 
-          };
-        } else {
-          // Create a unique row ID if there might be a conflict
-          // Use a timestamp-based approach to avoid conflicts
-          const uniqueRowId = typeof dbRowId === 'number' ? 
-            dbRowId : // Use numeric ID if available
-            `${Date.now()}_${Math.floor(Math.random() * 1000)}`; // Generate unique ID
-          
-          // Row doesn't exist yet, create it
-          const newRowData = { 
-            id: rowId, // Keep original format in the data
-            [columnId]: value 
-          };
-          
-          // Use upsert to handle conflicts 
-          const { error } = await supabase
-            .from('leads_rows')
-            .upsert({
-              user_id: user.id,
-              row_id: uniqueRowId,
-              data: newRowData,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'user_id,row_id',  // Specify conflict keys
-              ignoreDuplicates: false        // Update on conflict
-            });
-
-          if (error) throw error;
-          
-          return newRowData;
-        }
-      } catch (error) {
-        console.error('Error updating cell:', error);
-        
-        // Fall back to localStorage on error without showing error toast
-        const currentRows = loadFromLocalStorage();
-        const rowIndex = currentRows.findIndex(r => r.id === rowId);
-        
-        if (rowIndex >= 0) {
-          const updatedRow = { 
-            ...currentRows[rowIndex], 
-            [columnId]: value 
-          };
-          
-          const updatedRows = [
-            ...currentRows.slice(0, rowIndex),
-            updatedRow,
-            ...currentRows.slice(rowIndex + 1)
-          ];
-          
-          localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
-          return updatedRow;
-        } else {
-          // Creating a new row on error - add it at the top
-          const newRow = { 
-            id: rowId,
-            [columnId]: value 
-          };
-          
-          // Add new row at the beginning of the array (top of the grid)
-          const updatedRows = [newRow, ...currentRows];
-          
-          localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
-          return newRow;
-        }
-      }
-    },
-    onSuccess: () => {
-      // Invalidate and refetch
-      queryClient.invalidateQueries({ queryKey: ['leads_rows', user?.id] });
-    }
-  });
-
-  // Update the addContactMutation to ensure new contacts use sequential IDs at the top
-  const addContactMutation = useMutation({
-    mutationFn: async (newContact: Partial<GridRow>) => {
-      if (!user) {
-        // If not authenticated, update localStorage
-        const currentRows = loadFromLocalStorage();
-        
-        // Generate a sequential ID based on existing rows
-        // Find the minimum ID to ensure new contacts are always at the top
-        let minId = 1;
-        if (currentRows.length > 0) {
-          // Extract numeric parts of IDs
-          const numericIds = currentRows.map(row => {
-            const match = row.id.match(/lead-(\d+)/);
-            return match ? parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
+            // If no existing mapping, create a stable one based on index
+            if (!uiId) {
+              uiId = `lead-${String(index + 1).padStart(3, '0')}`;
+              existingMapping[uiId] = contact.id;
+            }
+            
+            const leadContact: LeadContact = {
+              id: uiId, // Use the stable UI ID
+              name: contact.name,
+              email: contact.email || '',
+              phone: contact.phone || '',
+              company: contact.company || '',
+              status: contact.status || '',
+              // Use existing data field or create empty object
+              ...(contact.data || {})
+            };
+            return leadContact;
           });
           
-          // If we have valid numeric IDs, find the minimum and subtract 1
-          if (numericIds.some(id => id !== Number.MAX_SAFE_INTEGER)) {
-            minId = Math.max(1, Math.min(...numericIds) - 1);
-          }
+          // Save the updated ID mapping
+          localStorage.setItem('id-mapping', JSON.stringify(existingMapping));
+          
+          setRows(processedRows);
+          
+          // Keep mockContactsById in sync
+          processedRows.forEach(row => {
+            mockContactsById[row.id] = row;
+          });
+        } else {
+          // Start with an empty array - don't generate dummy data
+          setRows([]);
+          
+          // Clear mockContactsById to ensure no dummy data
+          Object.keys(mockContactsById).forEach(key => {
+            delete mockContactsById[key];
+          });
         }
-        
-        // Create the new contact with the lowest ID
-        const contactWithId = {
-          ...newContact,
-          id: `lead-${minId}`
-        };
-        
-        // Add new row at the beginning of the array (top of the grid)
-        const updatedRows = [contactWithId, ...currentRows];
-        
-        localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
-        return contactWithId;
+      } else {
+        // Not logged in - start with empty state
+        setRows([]);
       }
-
-      try {
-        // Generate a sequential ID based on existing rows
-        // First get all existing rows to find the minimum ID
-        const { data: existingRows } = await supabase
-          .from('leads_rows')
-          .select('row_id')
-          .eq('user_id', user.id)
-          .order('row_id', { ascending: true })
-          .limit(1);
+    } catch (fetchError) {
+      console.error('Error fetching from Supabase:', fetchError);
+      // Start with empty state on error
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Load data on component mount
+  useEffect(() => {
+    fetchLeadsRows();
+  }, [user?.id]);
+  
+  // Function to force refresh the data
+  const refreshData = () => {
+    // This will reload the data from Supabase
+    fetchLeadsRows();
+  };
+  
+  // Save a row to both Supabase and localStorage
+  const saveRow = async (rowIndex: number, updatedRow: LeadContact) => {
+    // Update local state first for immediate UI feedback
+    setRows(prevRows => {
+      const newRows = [...prevRows];
+      newRows[rowIndex] = updatedRow;
+      return newRows;
+    });
+    
+    // Update mockContactsById for Stream View
+    mockContactsById[updatedRow.id] = updatedRow;
+    
+    try {
+      // Save to Supabase contacts table if user is authenticated
+      if (user) {
+        // Extract basic contact fields
+        const { id, name, email, phone, company, status } = updatedRow;
         
-        // Determine the new ID (lowest possible)
-        let newRowId = 1; // Default to 1
-        if (existingRows && existingRows.length > 0) {
-          // If there are existing rows, use one less than the minimum
-          const minExistingId = existingRows[0].row_id;
-          if (typeof minExistingId === 'number') {
-            newRowId = Math.max(1, minExistingId - 1);
-          }
+        // Everything else goes in the data field
+        const data = { ...updatedRow };
+        
+        // Remove fields that are columns in the contacts table
+        delete data.id;
+        delete data.name;
+        delete data.email;
+        delete data.phone;
+        delete data.company;
+        delete data.status;
+        
+        const { error } = await supabase
+          .from('contacts')
+          .upsert({
+            id,
+            name: name || '',
+            email: email || '',
+            phone: phone || '',
+            company: company || '',
+            status: status || '',
+            user_id: user.id,
+            data,
+            updated_at: new Date().toISOString()
+          });
+        
+        if (error) {
+          throw error;
         }
+      } else {
+        // Fall back to localStorage if not authenticated
+        saveRowsToLocal(rows);
+      }
+    } catch (error) {
+      console.error('Failed to save to Supabase, saving to localStorage instead:', error);
+      
+      // Fall back to localStorage
+      saveRowsToLocal(rows);
+    }
+  };
+  
+  // Get filtered and paginated data
+  const getFilteredRows = () => {
+    if (!filter) return rows;
+    
+    return rows.filter(row => 
+      Object.values(row).some(value => 
+        String(value).toLowerCase().includes(filter.toLowerCase())
+      )
+    );
+  };
+
+  // Update a specific cell in a row - this is what we need to add
+  const updateCell = async ({ rowId, columnId, value }: { rowId: string; columnId: string; value: any }) => {
+    // Find the row if it exists in our current state
+    const existingRowIndex = rows.findIndex(row => row.id === rowId);
+    let updatedRow;
+    
+    if (existingRowIndex >= 0) {
+      // Update existing row
+      updatedRow = {
+        ...rows[existingRowIndex],
+        [columnId]: value
+      };
+      
+      // Update local state
+      setRows(prevRows => {
+        const newRows = [...prevRows];
+        newRows[existingRowIndex] = updatedRow;
+        return newRows;
+      });
+    } else {
+      // Create a new row
+      updatedRow = {
+        id: rowId,
+        [columnId]: value,
+        name: 'Untitled Contact', // Add default name to prevent constraint violation
+      };
+      
+      // Add to local state
+      setRows(prevRows => [updatedRow, ...prevRows]);
+    }
+    
+    // Immediately update mockContactsById for Stream View to ensure consistent data
+    // This is critical to keep both views in sync
+    if (mockContactsById[rowId]) {
+      mockContactsById[rowId] = {
+        ...mockContactsById[rowId],
+        [columnId]: value
+      };
+    } else {
+      mockContactsById[rowId] = { 
+        id: rowId,
+        name: updatedRow.name || 'Untitled Contact', // Ensure name exists
+        [columnId]: value
+      };
+    }
+    
+    // DEBUG: Add this to test simple connection
+    if (columnId === 'name') {
+      console.log("-----SUPABASE DEBUG-----");
+      console.log("Testing simple query to contacts table...");
+      const { data: testData, error: testError } = await supabase
+        .from('contacts')
+        .select('id, name')
+        .limit(5);
+      
+      if (testError) {
+        console.error("Test query failed:", JSON.stringify(testError, null, 2));
+      } else {
+        console.log("Test query successful:", testData);
+      }
+      console.log("------------------------");
+    }
+    
+    try {
+      // Use our new helper function from updateContact.ts
+      // This will handle whether fields go directly in columns or in the data JSON object
+      const response = await updateContact({
+        id: rowId,
+        [columnId]: value,
+        name: updatedRow.name, // Ensure name is included for non-null constraint
+        user_id: user.id // Include user_id for RLS policies
+      });
+      
+      if (response.error) {
+        throw response.error;
+      }
+    } catch (error) {
+      console.error('Error updating cell:', error);
+      // Fall back to localStorage
+      saveRowsToLocal(rows);
+      
+      // Show error toast
+      toast({
+        title: "Error",
+        description: "Failed to update contact in database. Changes saved locally.",
+        variant: "destructive"
+      });
+    }
+    
+    return updatedRow;
+  };
+
+  // Add a new contact
+  const addContact = async (newContact: LeadContact) => {
+    try {
+      if (user) {
+        // Generate a new row number that's always 1 less than the smallest existing row number
+        // This ensures new contacts always appear at the top
+        const smallestRowNum = rows.reduce((min, row) => {
+          const match = row.id.match(/lead-(\d+)/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            return num < min ? num : min;
+          }
+          return min;
+        }, 999); // Start with a large number
         
-        // Create the new contact with the lowest ID
-        const contactWithId = {
+        const rowNumber = Math.max(1, smallestRowNum - 1);
+        
+        // Create a stable ID that will always sort to the top
+        const uiId = `lead-${String(rowNumber).padStart(3, '0')}`;
+        
+        // Generate a database UUID for storage
+        const dbId = uuidv4();
+        
+        // Store the mapping
+        const idMapping = JSON.parse(localStorage.getItem('id-mapping') || '{}');
+        idMapping[uiId] = dbId;
+        localStorage.setItem('id-mapping', JSON.stringify(idMapping));
+        
+        // Make sure the contact has a proper name
+        const contactToSave = {
           ...newContact,
-          id: `lead-${newRowId}`
+          id: uiId,
+          name: newContact.name || 'Untitled Contact' // Ensure name field is used
         };
         
-        // Insert new row in a single operation
+        console.log("Adding new contact with name:", contactToSave.name);
+        
+        // Add to local state first for immediate UI feedback - always at the beginning
+        setRows(prevRows => [contactToSave, ...prevRows]);
+        
+        // Update mockContactsById for Stream View
+        mockContactsById[uiId] = contactToSave;
+        
+        // Extract fields for Supabase
+        const { name, email, phone, company, status } = contactToSave;
+        
+        // Create data object for other fields
+        const data = { ...contactToSave };
+        delete data.id;
+        delete data.name;
+        delete data.email;
+        delete data.phone;
+        delete data.company;
+        delete data.status;
+        
+        // Save to Supabase
         const { error } = await supabase
-          .from('leads_rows')
+          .from('contacts')
           .insert({
+            id: dbId,
+            name: name || 'Untitled Contact',
+            email: email || '',
+            phone: phone || '',
+            company: company || '',
+            status: status || '',
             user_id: user.id,
-            row_id: newRowId,
-            data: contactWithId,
+            data,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           });
-
-        if (error) throw error;
-        
-        return contactWithId;
-      } catch (error) {
-        console.error('Error adding contact:', error);
-        
-        // Fall back to localStorage on error
-        const currentRows = loadFromLocalStorage();
-        
-        // Generate a sequential ID
-        let minId = 1;
-        if (currentRows.length > 0) {
-          // Extract numeric parts of IDs
-          const numericIds = currentRows.map(row => {
-            const match = row.id.match(/lead-(\d+)/);
-            return match ? parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
-          });
           
-          // If we have valid numeric IDs, find the minimum and subtract 1
-          if (numericIds.some(id => id !== Number.MAX_SAFE_INTEGER)) {
-            minId = Math.max(1, Math.min(...numericIds) - 1);
-          }
+        if (error) {
+          console.error('Error adding contact to Supabase:', error);
+          // Still keep the contact in local state
         }
-        
-        // Create the new contact with the lowest ID
-        const contactWithId = {
-          ...newContact,
-          id: `lead-${minId}`
+      } else {
+        // Not logged in, just add to local state
+        const uiId = newContact.id || `lead-${crypto.randomUUID().substring(0, 8)}`;
+        const contactToSave = { 
+          ...newContact, 
+          id: uiId,
+          name: newContact.name || 'Untitled Contact' // Ensure name field is used
         };
         
-        // Add new row at the beginning of the array (top of the grid)
-        const updatedRows = [contactWithId, ...currentRows];
-        
-        localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updatedRows));
-        return contactWithId;
+        setRows(prevRows => [contactToSave, ...prevRows]);
+        mockContactsById[uiId] = contactToSave;
+        saveRowsToLocal(rows);
       }
-    },
-    onSuccess: () => {
-      // Invalidate and refetch
-      queryClient.invalidateQueries({ queryKey: ['leads_rows', user?.id] });
+    } catch (error) {
+      console.error('Error adding contact:', error);
+      // Show error toast
+      toast({
+        title: "Error",
+        description: "Failed to add contact. Please try again.",
+        variant: "destructive"
+      });
     }
-  });
+  };
 
   return {
-    rows: leadsRowsQuery.data || [],
-    isLoading: leadsRowsQuery.isLoading,
-    isError: leadsRowsQuery.isError,
-    upsertRow: upsertRowMutation.mutate,
-    updateCell: updateCellMutation.mutate,
-    addContact: addContactMutation.mutate,
+    rows,
+    loading,
+    saveRow,
+    filter,
+    setFilter,
+    getFilteredRows,
+    PAGE_SIZE,
+    updateCell, // Export the updateCell function
+    addContact, // Export the addContact function
+    refreshData, // Export the refresh function
   };
 } 
