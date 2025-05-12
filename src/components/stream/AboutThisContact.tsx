@@ -14,16 +14,16 @@ import { updateContact } from '@/helpers/updateContact';
 
 interface Contact {
   id: string;
-    email?: string;
-    phone?: string;
-    owner?: string;
-    lastContacted?: string;
-    lifecycleStage?: string;
-    source?: string;
-    company?: string;
-    industry?: string;
-    jobTitle?: string;
-    address?: string;
+  email?: string;
+  phone?: string;
+  owner?: string;
+  lastContacted?: string;
+  lifecycleStage?: string;
+  source?: string;
+  company?: string;
+  industry?: string;
+  jobTitle?: string;
+  address?: string;
   description?: string;
   facebook?: string;
   instagram?: string;
@@ -44,9 +44,9 @@ interface AboutThisContactProps {
   contact: Contact;
 }
 
-export default function AboutThisContact({ 
-  compact = false, 
-  leadStatus = "N/A",
+export default function AboutThisContact({
+  compact = false,
+  leadStatus = "",
   contact
 }: AboutThisContactProps) {
   const { user } = useAuth();
@@ -80,7 +80,7 @@ export default function AboutThisContact({
         source = '',
         data = {}
       } = contact;
-      
+
       const newValues = {
         name,
         email,
@@ -102,9 +102,9 @@ export default function AboutThisContact({
         source,
         ...data
       };
-      
+
       setFieldValues(newValues);
-      originalValues.current = {...newValues};
+      originalValues.current = { ...newValues };
     }
   }, [contact, leadStatus, user]);
 
@@ -171,7 +171,7 @@ export default function AboutThisContact({
 
     // Get the original value before the edit
     const oldValue = originalValues.current[field];
-    
+
     // Skip if value hasn't changed
     if (value === oldValue) {
       setEditingField(null);
@@ -184,7 +184,7 @@ export default function AboutThisContact({
       // First, update the mock contact data which is used for UI display
       if (mockContactsById[contact.id]) {
         const updatedContact = { ...mockContactsById[contact.id] };
-        
+
         // Determine where to store the value
         if (field === 'leadStatus') {
           updatedContact.leadStatus = value;
@@ -193,20 +193,20 @@ export default function AboutThisContact({
         } else {
           updatedContact[field] = value;
         }
-        
+
         // Update the mock data
         mockContactsById[contact.id] = updatedContact;
-        
+
         // Dispatch a custom event to notify grid that mockContactsById was updated
         window.dispatchEvent(new CustomEvent('mockContactsUpdated', {
-          detail: { 
-            contactId: contact.id, 
-            field, 
+          detail: {
+            contactId: contact.id,
+            field,
             value,
             oldValue
           }
         }));
-        
+
         // Log to activity feed
         logCellEdit(
           contact.id,
@@ -215,25 +215,25 @@ export default function AboutThisContact({
           oldValue
         );
       }
-      
+
       // Now try to save to Supabase in all cases (even for mock IDs)
       if (user) {
         // Get the mapping of UI ID to database ID
         const idMapping = JSON.parse(localStorage.getItem('id-mapping') || '{}');
         const dbId = idMapping[contact.id] || contact.id;
-        
+
         console.log(`Attempting to save field ${field} for contact ${contact.id} (DB ID: ${dbId})`);
-        
+
         // Determine if this is a main field or a data field
         const mainFields = ['email', 'phone', 'company', 'source', 'industry', 'jobTitle', 'leadStatus', 'website'];
-        
+
         try {
           if (mainFields.includes(field)) {
             // Map the field name if needed (e.g., jobTitle to job_title)
             const mappedField = field === 'jobTitle' ? 'job_title' : field;
-            
+
             // Use the shared updateContact helper with explicit user_id
-            await updateContact({ 
+            await updateContact({
               id: contact.id,
               user_id: user.id, // CRITICAL: include user_id for RLS policies
               name: contact.name || 'Untitled Contact', // Ensure name is included
@@ -260,7 +260,7 @@ export default function AboutThisContact({
           });
         } catch (supabaseError) {
           console.error("Supabase error:", supabaseError);
-          
+
           // Show success toast anyway since we updated the mock data
           toast({
             title: "Success",
@@ -296,22 +296,22 @@ export default function AboutThisContact({
 
   // Function to format URLs to include protocol if missing
   const formatUrl = (url: string): string => {
-    if (!url || url === '—') return '';
+    if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
     return `https://${url}`;
   };
 
   // Function to render social media links
   const renderSocialLink = (value: string, fieldName: string) => {
-    if (!value || value === '—') return <span className="text-slate-400">Set {fieldName}...</span>;
-    
+    if (!value) return <span className="text-slate-400">Set {fieldName}...</span>;
+
     const formattedUrl = formatUrl(value);
     return (
       <div className="flex items-center w-full">
         <span className="text-[#33B9B0] truncate">{value}</span>
-        <a 
-          href={formattedUrl} 
-          target="_blank" 
+        <a
+          href={formattedUrl}
+          target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           className="text-[#33B9B0] hover:text-[#2aa39b] ml-1"
@@ -334,7 +334,7 @@ export default function AboutThisContact({
       switch (type) {
         case 'textarea':
           return (
-            <Textarea 
+            <Textarea
               value={value}
               onChange={(e) => handleFieldChange(field, e.target.value)}
               placeholder={placeholder}
@@ -342,10 +342,10 @@ export default function AboutThisContact({
               autoFocus
               onKeyDown={handleKeyDown}
               onBlur={handleBlur}
-              style={{ 
-                resize: 'none', 
-                boxShadow: 'none', 
-                lineHeight: 'inherit', 
+              style={{
+                resize: 'none',
+                boxShadow: 'none',
+                lineHeight: 'inherit',
                 fontSize: 'inherit',
                 fontFamily: 'inherit',
                 fontWeight: 'inherit',
@@ -356,7 +356,7 @@ export default function AboutThisContact({
           );
         case 'select':
           return (
-            <Select 
+            <Select
               value={value}
               onValueChange={(val) => {
                 handleFieldChange(field, val);
@@ -365,8 +365,8 @@ export default function AboutThisContact({
               open={true}
             >
               <SelectTrigger autoFocus className="border-0 border-b border-[#32BAB0] focus:ring-0 px-0 py-0 rounded-none shadow-none font-inherit"
-                style={{ 
-                  lineHeight: 'inherit', 
+                style={{
+                  lineHeight: 'inherit',
                   fontSize: 'inherit',
                   fontFamily: 'inherit',
                   fontWeight: 'inherit',
@@ -385,7 +385,7 @@ export default function AboutThisContact({
           );
         default:
           return (
-            <Input 
+            <Input
               type={type}
               value={value}
               onChange={(e) => handleFieldChange(field, e.target.value)}
@@ -394,9 +394,9 @@ export default function AboutThisContact({
               autoFocus
               onKeyDown={handleKeyDown}
               onBlur={handleBlur}
-              style={{ 
-                boxShadow: 'none', 
-                lineHeight: 'inherit', 
+              style={{
+                boxShadow: 'none',
+                lineHeight: 'inherit',
                 fontSize: 'inherit',
                 fontFamily: 'inherit',
                 fontWeight: 'inherit',
@@ -414,11 +414,11 @@ export default function AboutThisContact({
         <div className="text-muted-foreground">
           <span>{label}</span>
         </div>
-        
+
         {isEditing ? (
           <div ref={editControlRef} className="relative" style={{ paddingTop: '2px', paddingBottom: '3px' }}>
             {renderEditControl()}
-            <button 
+            <button
               onClick={cancelEditing}
               className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100"
               aria-label="Cancel"
@@ -427,13 +427,13 @@ export default function AboutThisContact({
             </button>
           </div>
         ) : (
-          <div 
+          <div
             className={`py-1 border-b ${!isReadOnly ? 'cursor-text hover:bg-slate-50' : ''}`}
             onClick={isReadOnly ? undefined : () => setEditingField(field)}
-            style={{ 
-              minHeight: '1.5em', 
-              paddingTop: '2px', 
-              paddingBottom: '3px' 
+            style={{
+              minHeight: '1.5em',
+              paddingTop: '2px',
+              paddingBottom: '3px'
             }}
           >
             {value ? (
@@ -484,25 +484,25 @@ export default function AboutThisContact({
     const debugSupabase = async () => {
       try {
         console.log("Testing Supabase connection...");
-        
+
         // First, just check if we can connect at all
         const { data, error } = await supabase
           .from('contacts')
           .select('id, name')
           .eq('user_id', user.id)
           .limit(5);
-        
+
         if (error) {
           console.error("SUPABASE ERROR:", error);
           return;
         }
-        
+
         console.log("Connection successful:", data);
       } catch (e) {
         console.error("Unexpected error:", e);
       }
     };
-    
+
     debugSupabase();
   }, []);
 
@@ -527,14 +527,14 @@ export default function AboutThisContact({
                 {fields.slice(0, Math.ceil(fields.length / 2)).map((field) => (
                   <div key={field.id}>
                     {renderEditableField(field.id, field.label, field.type, field.options)}
-                </div>
+                  </div>
                 ))}
               </div>
               <div>
                 {fields.slice(Math.ceil(fields.length / 2)).map((field) => (
                   <div key={field.id}>
                     {renderEditableField(field.id, field.label, field.type, field.options)}
-                </div>
+                  </div>
                 ))}
               </div>
             </div>
