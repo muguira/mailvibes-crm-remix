@@ -74,6 +74,13 @@ export function MainGridView({
   // Add optimistic updates state to immediately show changes locally
   const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, any>>({});
 
+  // Add last double-clicked cell state to track the last cell that was double-clicked
+  const doubleClickRef = useRef<{
+    rowId: string;
+    columnId: string;
+    timestamp: number;
+  } | null>(null);
+
   // Add a special effect to preserve toolbar visibility on initial render
   useEffect(() => {
     // This helps ensure the toolbar stays visible when the component mounts
@@ -953,6 +960,7 @@ export function MainGridView({
     const column = columns[columnIndex];
     if (!column) return null;
 
+
     const cellId = `${row.id}-${column.id}`;
     const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
     const isSelected = selectedCell?.rowId === row.id && selectedCell?.columnId === column.id;
@@ -981,7 +989,7 @@ export function MainGridView({
             e.stopPropagation();
             // Enter edit mode on double-click
             if (column?.editable) {
-              setEditingCell({ rowId: row.id, columnId: column.id });
+              // setEditingCell({ rowId: row.id, columnId: column.id });
             }
           }}
           onContextMenu={(e) => {
@@ -1298,8 +1306,29 @@ export function MainGridView({
 
     // Common focus handler to select all text when input is focused
     const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-      // Select all text when input receives focus
-      setTimeout(() => e.target.select(), 0);
+      setTimeout(() => {
+        // Check if this is a second double-click within a short time window
+        if (
+          doubleClickRef.current?.rowId === row.id &&
+          doubleClickRef?.current.columnId === column.id &&
+          Date.now() - doubleClickRef.current.timestamp < 600 // 600ms window for double-click
+        ) {
+          // Second double-click - select all text
+          e.target.select();
+          // Reset the last double-clicked cell
+          doubleClickRef.current = null;
+        } else {
+          // First double-click - move cursor to end
+          const length = e.target.value.length;
+          e.target.setSelectionRange(length, length);
+          // Update the last double-clicked cell
+          doubleClickRef.current = {
+            rowId: row.id,
+            columnId: column.id,
+            timestamp: Date.now()
+          };
+        }
+      }, 0);
     };
 
     switch (column.type) {
