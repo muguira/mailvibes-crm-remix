@@ -83,6 +83,33 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      },
+      contacts: {
+        Row: {
+          id: string
+          user_id: string
+          list_id: string | null
+          name: string
+          company: string | null
+          email: string | null
+          phone: string | null
+          status: string | null
+          last_activity: string | null;   // ISO date-time
+          data: any | null;               // JSONB blob
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<
+          Database['public']['Tables']['contacts']['Row'],
+          'id' | 'created_at' | 'updated_at'
+        > & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<
+          Database['public']['Tables']['contacts']['Row']
+        >
       }
     }
     Views: {
