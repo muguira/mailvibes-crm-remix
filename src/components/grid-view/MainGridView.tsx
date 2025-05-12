@@ -24,7 +24,7 @@ import {
   CommandItem
 } from '@/components/ui/command';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 interface MainGridViewProps {
   columns: Column[];
@@ -918,10 +918,11 @@ export function MainGridView({
         return renderStatusPill(value, column.colors || {});
       case 'date':
         try {
-          // Try to parse the date and format it consistently
-          const date = new Date(value);
-          if (!isNaN(date.getTime())) {
-            return format(date, 'MMM d, yyyy');
+          if (value) {
+            const date = parseISO(value);
+            if (!isNaN(date.getTime())) {
+              return format(date, 'MMM d, yyyy');
+            }
           }
         } catch (e) {
           // If there's any error in parsing, just return the original value
@@ -1185,16 +1186,14 @@ export function MainGridView({
                       <Calendar
                         mode="single"
                         // If clearDateSelection flag is true, don't pass any selected date
-                        selected={editingCell?.clearDateSelection ? undefined : (value ? new Date(value) : undefined)}
+                        selected={editingCell?.clearDateSelection ? undefined : (value ? parseISO(value) : undefined)}
                         onSelect={(date) => {
-                          console.log("date", date);
                           if (date) {
-                            const formattedDate = format(date, 'yyyy-MM-dd'); // Store in ISO format for data consistency
-                            // Close the popup and apply the change when a date is selected
+                            const formattedDate = format(date, 'yyyy-MM-dd');
                             finishCellEdit(row.id, column.id, formattedDate);
                           }
                         }}
-                        defaultMonth={value ? new Date(value) : new Date()}
+                        defaultMonth={value ? parseISO(value) : new Date()}
                         initialFocus
 
                         modifiersStyles={{
@@ -1379,7 +1378,7 @@ export function MainGridView({
         let displayValue = value as string;
         try {
           if (displayValue) {
-            const date = new Date(displayValue);
+            const date = parseISO(displayValue);
             if (!isNaN(date.getTime())) {
               // Format for display in the input as MM-DD-YYYY
               displayValue = format(date, 'MM-dd-yyyy');
