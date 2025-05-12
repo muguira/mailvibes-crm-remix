@@ -17,7 +17,6 @@ export function StaticColumns({
   opportunityColumn,
   scrollTop,
   firstRowIndex,
-  onCellChange,
   onContextMenu
 }: StaticColumnsProps) {
   // Handle context menu event
@@ -93,6 +92,7 @@ export function StaticColumns({
         className="static-rows-container"
         style={{
           transform: `translateY(-${scrollTop}px)`,
+          borderRight: '1px solid #e5e7eb',
           height: `${data.length * ROW_HEIGHT}px`,
           position: 'relative',
           top: 0,
