@@ -522,6 +522,9 @@
   padding-bottom: 4px;
   /* Extra bottom padding for descenders */
   padding-top: 4px;
+  box-shadow: 0px 0px 0px 1px rgb(255, 255, 255) inset !important;
+  -webkit-box-shadow: 0px 0px 0px 1px rgb(255, 255, 255) inset !important;
+  -moz-box-shadow: 0px 0px 0px 1px rgb(255, 255, 255) inset !important;
   /* Balance top padding */
 }
 
@@ -712,9 +715,10 @@
 /* Add Sheets-like cell selection styling */
 .selected-cell {
   position: relative;
-  border: 1px solid #62BFAA !important;
   z-index: 15;
-  box-shadow: none !important;
+  box-shadow: 0px 0px 0px 1px rgba(98, 191, 170, 1) inset !important;
+  -webkit-box-shadow: 0px 0px 0px 1px rgba(98, 191, 170, 1) inset !important;
+  -moz-box-shadow: 0px 0px 0px 1px rgba(98, 191, 170, 1) inset !important;
   outline: none !important;
   transition: none !important;
 }
