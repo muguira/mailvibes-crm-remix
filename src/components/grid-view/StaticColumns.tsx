@@ -156,21 +156,6 @@ export function StaticColumns({
           </div>
         ))}
       </div>
-
-      {/* Add a visual drag guide div */}
-      <div
-        className="drag-guide"
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          width: '3px',
-          height: '100%',
-          background: 'linear-gradient(to right, rgba(0,0,0,0.05), rgba(0,0,0,0.15))',
-          pointerEvents: 'none',
-          zIndex: 48
-        }}
-      />
     </div>
   );
 } 
