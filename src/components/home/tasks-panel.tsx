@@ -9,6 +9,7 @@ import { TaskEditPopup } from "./task-edit-popup";
 import { useTasks, TaskData } from "@/hooks/supabase/use-tasks";
 import { useAuth } from "@/contexts/AuthContext";
 import { Task } from "@/types/task"; // Import the unified Task type
+import { useActivity } from "@/contexts/ActivityContext";
 
 // Export the Task interface from the unified type
 export type { Task };
@@ -16,6 +17,7 @@ export type { Task };
 export function TasksPanel() {
   const { user } = useAuth();
   const { tasks: supabaseTasks, isLoading, createTask, updateTask, deleteTask } = useTasks();
+  const { logCellEdit, logContactAdd, logColumnAdd, logColumnDelete, logFilterChange, logNoteAdd } = useActivity();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const newTaskInputRef = useRef<HTMLInputElement>(null);
@@ -114,21 +116,27 @@ export function TasksPanel() {
   const handleTaskStatusChange = useCallback((taskId: string, newStatus: Task["display_status"]) => {
     const taskToUpdate = tasks.find(task => task.id === taskId);
     if (taskToUpdate && user) {
-      updateTask({
+      const updatedTask = {
         id: taskId,
-        display_status: newStatus,
         title: taskToUpdate.title,
-        status: taskToUpdate.status,
         type: taskToUpdate.type,
-        deadline: taskToUpdate.deadline,
-        contact: taskToUpdate.contact,
-        description: taskToUpdate.description,
-        tag: taskToUpdate.tag,
-        priority: taskToUpdate.priority,
-        user_id: user.id
-      });
+        display_status: newStatus,
+        status: taskToUpdate.status,
+        user_id: user.id,
+        // Optional fields
+        deadline: taskToUpdate.deadline || null,
+        contact: taskToUpdate.contact || null,
+        description: taskToUpdate.description || null,
+        tag: taskToUpdate.tag || null,
+        priority: taskToUpdate.priority || null
+      };
+
+      updateTask(updatedTask);
+
+      // Log the status change activity
+      logCellEdit(taskId, 'status', newStatus, taskToUpdate.display_status);
     }
-  }, [tasks, user, updateTask]);
+  }, [tasks, user, updateTask, logCellEdit]);
 
   const handleDeadlineChange = useCallback((taskId: string, deadline: string | undefined) => {
     const taskToUpdate = tasks.find(task => task.id === taskId);
@@ -163,7 +171,7 @@ export function TasksPanel() {
   }, [tasks, user, updateTask]);
 
   const handleCreateNewTask = useCallback(() => {
-    if (!user) return;
+    if (!user || isCreatingTask) return;
 
     const newTask: Task = {
       id: crypto.randomUUID(),
@@ -174,13 +182,13 @@ export function TasksPanel() {
       type: "task",
       user_id: user.id
     };
+
     setTasks(prev => [newTask, ...prev]);
     setIsCreatingTask(true);
-    // Focus the input on the next render
     setTimeout(() => {
       newTaskInputRef.current?.focus();
     }, 0);
-  }, [user]);
+  }, [user, isCreatingTask]);
 
   const handleTaskTitleChange = useCallback((taskId: string, newTitle: string) => {
     setTasks(prev =>
@@ -193,59 +201,87 @@ export function TasksPanel() {
   }, []);
 
   const handleTaskTitleBlur = useCallback((taskId: string) => {
-    const task = tasks.find(t => t.id === taskId);
-
-    if (task && task.title.trim() !== "" && user) {
-      createTask({
-        title: task.title,
-        type: task.type,
-        display_status: "upcoming",
-        status: "on-track",
-        contact: '',
-        deadline: '',
-        description: '',
-        tag: '',
-        priority: 'medium',
-        user_id: user.id
-      });
-    }
-
-    setTasks(prev => prev.filter(task =>
-      task.id !== taskId || (task.id === taskId && task.title.trim() !== "")
-    ));
-
-    setIsCreatingTask(false);
-  }, [tasks, user, createTask]);
+    // On blur, do nothing - let the task stay in edit mode
+    // This allows the user to keep typing without creating the task
+  }, []);
 
   const handleTaskTitleKeyDown = useCallback((e: React.KeyboardEvent, taskId: string) => {
-    if (e.key === "Enter") {
+    const task = tasks.find(t => t.id === taskId);
+
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      (e.target as HTMLInputElement).blur();
-    }
-    if (e.key === "Escape") {
+      if (task && task.title.trim() !== "" && user) {
+        const newTask = {
+          title: task.title.trim(),
+          type: "task" as const,
+          display_status: "upcoming" as const,
+          status: "on-track" as const,
+          user_id: user.id,
+          contact: null,
+          deadline: null,
+          description: null,
+          tag: null,
+          priority: null
+        };
+
+        createTask(newTask);
+        logNoteAdd(taskId, task.title, 'Created new task');
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+        setIsCreatingTask(false);
+      }
+    } else if (e.key === "Escape") {
       e.preventDefault();
-      setTasks(prev => prev.filter(task => task.id !== taskId));
+      setTasks(prev => prev.filter(t => t.id !== taskId));
       setIsCreatingTask(false);
     }
-  }, []);
+  }, [tasks, user, createTask, logNoteAdd]);
 
   const handleTaskUpdate = useCallback((updatedTask: Task) => {
     if (!user) return;
 
-    updateTask({
+    const originalTask = tasks.find(t => t.id === updatedTask.id);
+    if (!originalTask) return;
+
+    const taskToUpdate = {
       id: updatedTask.id,
       title: updatedTask.title,
-      deadline: updatedTask.deadline || '',
-      contact: updatedTask.contact || '',
-      description: updatedTask.description || '',
+      type: updatedTask.type,
       display_status: updatedTask.display_status,
       status: updatedTask.status,
-      type: updatedTask.type,
-      tag: updatedTask.tag,
-      priority: updatedTask.priority,
-      user_id: user.id
-    });
-  }, [user, updateTask]);
+      user_id: user.id,
+      // Optional fields
+      deadline: updatedTask.deadline || null,
+      contact: updatedTask.contact || null,
+      description: updatedTask.description || null,
+      tag: updatedTask.tag || null,
+      priority: updatedTask.priority || null
+    };
+
+    updateTask(taskToUpdate);
+
+    // Log changes for each modified field
+    if (originalTask.title !== updatedTask.title) {
+      logCellEdit(updatedTask.id, 'title', updatedTask.title, originalTask.title);
+    }
+    if (originalTask.deadline !== updatedTask.deadline) {
+      logCellEdit(updatedTask.id, 'deadline', updatedTask.deadline, originalTask.deadline);
+    }
+    if (originalTask.contact !== updatedTask.contact) {
+      logCellEdit(updatedTask.id, 'contact', updatedTask.contact, originalTask.contact);
+    }
+    if (originalTask.description !== updatedTask.description) {
+      logCellEdit(updatedTask.id, 'description', updatedTask.description, originalTask.description);
+    }
+    if (originalTask.type !== updatedTask.type) {
+      logCellEdit(updatedTask.id, 'type', updatedTask.type, originalTask.type);
+    }
+    if (originalTask.tag !== updatedTask.tag) {
+      logCellEdit(updatedTask.id, 'tag', updatedTask.tag, originalTask.tag);
+    }
+    if (originalTask.priority !== updatedTask.priority) {
+      logCellEdit(updatedTask.id, 'priority', updatedTask.priority, originalTask.priority);
+    }
+  }, [user, tasks, updateTask, logCellEdit]);
 
   if (isLoading) {
     return (
@@ -451,37 +487,42 @@ function TaskItem({
   return (
     <div className="px-3 py-1.5 group">
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => onStatusChange(task.id, task.display_status === "completed" ? "upcoming" : "completed")}
-          className="flex-shrink-0 hover:opacity-80 transition-opacity"
-          aria-label={task.display_status === "completed" ? "Mark as incomplete" : "Mark as complete"}
-        >
-          <div className={cn(
-            "h-5 w-5 rounded-full flex items-center justify-center transition-colors",
-            task.display_status === "completed"
-              ? "bg-emerald-500 border-emerald-500"
-              : "border-2 border-muted-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10"
-          )}>
-            <Check className={cn(
-              "h-3 w-3",
+        {!isNew && (
+          <button
+            onClick={() => onStatusChange(task.id, task.display_status === "completed" ? "upcoming" : "completed")}
+            className="flex-shrink-0 hover:opacity-80 transition-opacity"
+            aria-label={task.display_status === "completed" ? "Mark as incomplete" : "Mark as complete"}
+          >
+            <div className={cn(
+              "h-5 w-5 rounded-full flex items-center justify-center transition-colors",
               task.display_status === "completed"
-                ? "text-white"
-                : "text-muted-foreground hover:text-emerald-500/50"
-            )} />
-          </div>
-        </button>
+                ? "bg-emerald-500 border-emerald-500"
+                : "border-2 border-muted-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10"
+            )}>
+              <Check className={cn(
+                "h-3 w-3",
+                task.display_status === "completed"
+                  ? "text-white"
+                  : "text-muted-foreground hover:text-emerald-500/50"
+              )} />
+            </div>
+          </button>
+        )}
         <div className="flex-1 min-w-0">
           {isNew ? (
-            <input
-              ref={inputRef}
-              type="text"
-              value={task.title}
-              onChange={(e) => onTitleChange(task.id, e.target.value)}
-              onBlur={() => onTitleBlur(task.id)}
-              onKeyDown={(e) => onTitleKeyDown(e, task.id)}
-              className="w-full bg-transparent border-none focus:outline-none text-foreground"
-              placeholder="Enter task title"
-            />
+            <div className="flex items-center gap-2 w-full">
+              <input
+                ref={inputRef}
+                type="text"
+                value={task.title}
+                onChange={(e) => onTitleChange(task.id, e.target.value)}
+                onBlur={() => onTitleBlur(task.id)}
+                onKeyDown={(e) => onTitleKeyDown(e, task.id)}
+                className="w-full bg-transparent border-none focus:outline-none text-foreground"
+                placeholder="Enter task title and press Enter to create"
+                autoFocus
+              />
+            </div>
           ) : (
             <h3
               onDoubleClick={() => setIsEditPopupOpen(true)}
