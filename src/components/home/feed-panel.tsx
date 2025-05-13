@@ -25,7 +25,7 @@ const groupSimilarActivities = (activities: ActivityItem[]) => {
       // Group activities if they are the same type and within 5 minutes of each other
       if (
         activity.activityType === prevActivity.activityType &&
-        activity.activityType === 'login' &&
+        (activity.activityType === 'login' || activity.activityType === 'logout') &&
         timeDiff <= 5 &&
         activity.userId === prevActivity.userId
       ) {
@@ -63,6 +63,7 @@ const ActivityFeedItem = memo(({ activity, groupedActivities }: { activity: Acti
       case 'note_add':
         return <MessageSquare className="h-4 w-4" />;
       case 'login':
+      case 'logout':
         return <LogIn className="h-4 w-4" />;
       default:
         return <BarChart className="h-4 w-4" />;
@@ -120,6 +121,11 @@ const ActivityFeedItem = memo(({ activity, groupedActivities }: { activity: Acti
           return <span>logged in {groupedActivities.length} times</span>;
         }
         return <span>logged in to the system</span>;
+      case 'logout':
+        if (groupedActivities && groupedActivities.length > 1) {
+          return <span>logged out {groupedActivities.length} times</span>;
+        }
+        return <span>logged out of the system</span>;
       default:
         return <span>performed an action</span>;
     }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Navigate } from "react-router-dom";
 import { CustomButton } from "@/components/ui/custom-button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useActivity } from "@/contexts/ActivityContext";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -10,6 +10,7 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const { signIn, signUp, user } = useAuth();
+  const { logLogin } = useActivity();
   const navigate = useNavigate();
 
   // If user is already logged in, redirect to dashboard
@@ -26,11 +27,11 @@ export default function Auth() {
       if (isSignUp) {
         console.log('Auth: Attempting sign up');
         await signUp(email, password);
+        await logLogin();
         navigate("/dashboard");
       } else {
         console.log('Auth: Attempting sign in');
         await signIn(email, password);
-        console.log('Auth: Sign in successful, navigating to dashboard');
         navigate("/dashboard");
       }
     } catch (error) {
@@ -38,6 +39,7 @@ export default function Auth() {
     } finally {
       setIsLoading(false);
     }
+    await logLogin();
   };
 
   return (

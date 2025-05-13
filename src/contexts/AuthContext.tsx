@@ -65,6 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+
+      // The LoginTracker component will handle logging the login activity
+      // since it listens to auth state changes
+
       toast({
         title: "Welcome back",
         description: "You have successfully signed in",
@@ -81,6 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
+      // The LogoutTracker component will handle logging the logout activity
+      // since it listens to auth state changes
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       toast({

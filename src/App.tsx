@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ActivityProvider } from "@/contexts/ActivityContext";
 import { LoginTracker } from "@/components/activity/LoginTracker";
+import { LogoutTracker } from "@/components/activity/LogoutTracker";
 import { PrivateRoute } from "@/components/PrivateRoute";
 import { AuthenticatedRedirect } from "@/components/AuthenticatedRedirect";
 import Index from "@/pages/dashboard/Index";
@@ -33,6 +34,7 @@ function App() {
       <ActivityProvider>
         <AuthProvider>
           <LoginTracker />
+          <LogoutTracker />
           <Router>
             <div className="h-screen w-full font-proxima">
               <Routes>

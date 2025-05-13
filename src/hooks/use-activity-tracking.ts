@@ -9,7 +9,7 @@ export interface ActivityItem {
   userName: string;
   userEmail: string;
   timestamp: string;
-  activityType: 'cell_edit' | 'contact_add' | 'filter_change' | 'column_add' | 'column_delete' | 'note_add' | 'login';
+  activityType: 'cell_edit' | 'contact_add' | 'filter_change' | 'column_add' | 'column_delete' | 'note_add' | 'login' | 'logout';
   entityId?: string;
   entityType?: 'contact' | 'lead' | 'column' | 'filter';
   entityName?: string;
@@ -113,7 +113,17 @@ export function useActivityTracking() {
 
   // Memoize logActivity
   const logActivity = useCallback(async (activity: Omit<ActivityItem, 'id' | 'userId' | 'userName' | 'userEmail' | 'timestamp'>) => {
-    if (!currentUser) {
+    console.log('LogActivity');
+    let user = currentUser;
+
+    // If no user in state, try to get it from current session
+    if (!user) {
+      console.log('No user in state, checking current session');
+      const { data: { session } } = await supabase.auth.getSession();
+      user = session?.user ?? null;
+    }
+
+    if (!user) {
       console.log('No user found, cannot log activity');
       return;
     }
@@ -121,19 +131,16 @@ export function useActivityTracking() {
     console.log('Logging activity:', activity);
     const newActivity: ActivityItem = {
       id: uuidv4(),
-      userId: currentUser.id,
-      userName: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'User',
-      userEmail: currentUser.email || '',
+      userId: user.id,
+      userName: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+      userEmail: user.email || '',
       timestamp: new Date().toISOString(),
       ...activity
     };
-    console.log('Created new activity:', newActivity);
 
     // Update local state using functional update
     setActivities(prev => {
-      console.log('Previous activities:', prev);
       const updated = [newActivity, ...prev].slice(0, 100);
-      console.log('Updated activities:', updated);
       return updated;
     });
 
@@ -241,6 +248,16 @@ export function useActivityTracking() {
     });
   }, [logActivity]);
 
+  const logLogout = useCallback(() => {
+    console.log('Logging logout activity');
+    logActivity({
+      activityType: 'logout',
+      details: {
+        timestamp: new Date().toISOString()
+      }
+    });
+  }, [logActivity]);
+
   // Return memoized value
   return useMemo(() => ({
     activities,
@@ -253,6 +270,7 @@ export function useActivityTracking() {
     logFilterChange,
     logNoteAdd,
     logLogin,
+    logLogout,
     currentUser
   }), [
     activities,
@@ -265,6 +283,7 @@ export function useActivityTracking() {
     logFilterChange,
     logNoteAdd,
     logLogin,
+    logLogout,
     currentUser
   ]);
 } 
