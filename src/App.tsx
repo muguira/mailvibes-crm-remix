@@ -8,8 +8,6 @@ import { LogoutTracker } from "@/components/activity/LogoutTracker";
 import { PrivateRoute } from "@/components/PrivateRoute";
 import { AuthenticatedRedirect } from "@/components/AuthenticatedRedirect";
 import Index from "@/pages/dashboard/Index";
-import Lists from "@/pages/dashboard/Lists";
-import NewGrid from "@/pages/NewGrid";
 import Leads from "@/pages/dashboard/Leads";
 import Reports from "@/pages/dashboard/Reports";
 import Profile from "@/pages/dashboard/Profile";
