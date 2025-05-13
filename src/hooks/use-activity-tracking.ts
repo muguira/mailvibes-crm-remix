@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,7 +13,7 @@ export interface ActivityItem {
   entityId?: string;
   entityType?: 'contact' | 'lead' | 'column' | 'filter';
   entityName?: string;
-  fieldName?: string; 
+  fieldName?: string;
   oldValue?: any;
   newValue?: any;
   details?: Record<string, any>;
@@ -27,47 +27,8 @@ export function useActivityTracking() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load activities on mount and when user changes
-  useEffect(() => {
-    fetchActivities();
-  }, [user?.id]);
-
-  // Fetch activities from Supabase or localStorage
-  const fetchActivities = async () => {
-    setIsLoading(true);
-    
-    if (!user) {
-      // Not logged in, use localStorage
-      const localActivities = loadFromLocalStorage();
-      setActivities(localActivities);
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      // Fetch from Supabase
-      const { data, error } = await supabase
-        .from('user_activities')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('timestamp', { ascending: false })
-        .limit(100);
-
-      if (error) throw error;
-
-      setActivities(data || []);
-    } catch (error) {
-      console.error('Error fetching activities:', error);
-      // Fall back to localStorage
-      const localActivities = loadFromLocalStorage();
-      setActivities(localActivities);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Helper to load from localStorage
-  const loadFromLocalStorage = (): ActivityItem[] => {
+  // Memoize loadFromLocalStorage since it doesn't depend on any state
+  const loadFromLocalStorage = useCallback((): ActivityItem[] => {
     try {
       const saved = localStorage.getItem(ACTIVITY_STORAGE_KEY);
       return saved ? JSON.parse(saved) : [];
@@ -75,15 +36,69 @@ export function useActivityTracking() {
       console.error('Failed to load activities from localStorage:', error);
       return [];
     }
-  };
+  }, []);
 
-  // Log a new activity
-  const logActivity = async (activity: Omit<ActivityItem, 'id' | 'userId' | 'userName' | 'userEmail' | 'timestamp'>) => {
+  // Memoize fetchActivities
+  const fetchActivities = useCallback(async () => {
+    setIsLoading(true);
+
     if (!user) {
-      return; // Don't log when not logged in
+      console.log('No user logged in, using localStorage');
+      const localActivities = loadFromLocalStorage();
+      setActivities(localActivities);
+      setIsLoading(false);
+      return;
     }
-    
-    // Create new activity object
+
+    try {
+      console.log('Fetching activities for user:', user.id);
+      const { data, error } = await supabase
+        .from('user_activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('timestamp', { ascending: false })
+        .limit(100);
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      const transformedActivities: ActivityItem[] = (data || []).map(activity => ({
+        id: activity.id,
+        userId: activity.user_id,
+        userName: activity.user_name,
+        userEmail: activity.user_email || '',
+        timestamp: activity.timestamp,
+        activityType: activity.activity_type as ActivityItem['activityType'],
+        entityId: activity.entity_id || undefined,
+        entityType: activity.entity_type as ActivityItem['entityType'] || undefined,
+        entityName: activity.entity_name || undefined,
+        fieldName: activity.field_name || undefined,
+        oldValue: activity.old_value ? JSON.parse(activity.old_value as string) : undefined,
+        newValue: activity.new_value ? JSON.parse(activity.new_value as string) : undefined,
+        details: activity.details ? JSON.parse(activity.details as string) : undefined
+      }));
+
+      setActivities(transformedActivities);
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+      const localActivities = loadFromLocalStorage();
+      setActivities(localActivities);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, loadFromLocalStorage]);
+
+  // Fetch activities on mount and when user changes
+  useEffect(() => {
+    fetchActivities();
+  }, [fetchActivities]);
+
+  // Memoize logActivity
+  const logActivity = useCallback(async (activity: Omit<ActivityItem, 'id' | 'userId' | 'userName' | 'userEmail' | 'timestamp'>) => {
+    if (!user) return;
+
     const newActivity: ActivityItem = {
       id: uuidv4(),
       userId: user.id,
@@ -92,10 +107,10 @@ export function useActivityTracking() {
       timestamp: new Date().toISOString(),
       ...activity
     };
-    
-    // Update local state immediately for UI feedback
+
+    // Update local state using functional update
     setActivities(prev => [newActivity, ...prev].slice(0, 100));
-    
+
     // Store in localStorage as backup
     const localActivities = loadFromLocalStorage();
     localStorage.setItem(
@@ -103,20 +118,14 @@ export function useActivityTracking() {
       JSON.stringify([newActivity, ...localActivities].slice(0, 100))
     );
 
-    // Enable Supabase activity logging now that we've fixed the core functionality
     try {
-      // Store in Supabase if logged in
       if (user) {
-        // Get the ID mapping to ensure we have the correct database IDs
         const idMapping = JSON.parse(localStorage.getItem('id-mapping') || '{}');
-        
-        // If entityId exists and has a mapping, use the mapped ID
         let entityId = activity.entityId;
         if (entityId && idMapping[entityId]) {
           entityId = idMapping[entityId];
         }
-        
-        // Format the activity for Supabase
+
         const supabaseActivity = {
           id: newActivity.id,
           user_id: newActivity.userId,
@@ -133,25 +142,21 @@ export function useActivityTracking() {
           details: newActivity.details ? JSON.stringify(newActivity.details) : null
         };
 
-        console.log("Logging activity to Supabase:", supabaseActivity);
-        
         const { error } = await supabase
           .from('user_activities')
           .upsert(supabaseActivity, { onConflict: 'id' });
 
         if (error) {
           console.error('Error logging activity to Supabase:', error);
-          // Don't throw the error - we still have the activity in local state
         }
       }
     } catch (error) {
       console.error('Error logging activity:', error);
-      // Activity is already in local state and localStorage, so we continue
     }
-  };
+  }, [user, loadFromLocalStorage]);
 
-  // Log cell edit activity
-  const logCellEdit = (rowId: string, columnId: string, value: any, oldValue: any) => {
+  // Memoize all the logging functions
+  const logCellEdit = useCallback((rowId: string, columnId: string, value: any, oldValue: any) => {
     logActivity({
       activityType: 'cell_edit',
       entityId: rowId,
@@ -160,49 +165,44 @@ export function useActivityTracking() {
       oldValue,
       newValue: value
     });
-  };
+  }, [logActivity]);
 
-  // Log contact add activity
-  const logContactAdd = (contactId: string, contactName: string) => {
+  const logContactAdd = useCallback((contactId: string, contactName: string) => {
     logActivity({
       activityType: 'contact_add',
       entityId: contactId,
       entityType: 'contact',
       entityName: contactName
     });
-  };
+  }, [logActivity]);
 
-  // Log column add activity
-  const logColumnAdd = (columnId: string, columnName: string) => {
+  const logColumnAdd = useCallback((columnId: string, columnName: string) => {
     logActivity({
       activityType: 'column_add',
       entityId: columnId,
       entityType: 'column',
       entityName: columnName
     });
-  };
+  }, [logActivity]);
 
-  // Log column delete activity
-  const logColumnDelete = (columnId: string, columnName: string) => {
+  const logColumnDelete = useCallback((columnId: string, columnName: string) => {
     logActivity({
       activityType: 'column_delete',
       entityId: columnId,
       entityType: 'column',
       entityName: columnName
     });
-  };
+  }, [logActivity]);
 
-  // Log filter change
-  const logFilterChange = (filters: any) => {
+  const logFilterChange = useCallback((filters: any) => {
     logActivity({
       activityType: 'filter_change',
       entityType: 'filter',
       details: filters
     });
-  };
+  }, [logActivity]);
 
-  // Log note add
-  const logNoteAdd = (entityId: string, entityName: string, note: string) => {
+  const logNoteAdd = useCallback((entityId: string, entityName: string, note: string) => {
     logActivity({
       activityType: 'note_add',
       entityId,
@@ -210,16 +210,16 @@ export function useActivityTracking() {
       entityName,
       newValue: note
     });
-  };
+  }, [logActivity]);
 
-  // Log login activity
-  const logLogin = () => {
+  const logLogin = useCallback(() => {
     logActivity({
       activityType: 'login'
     });
-  };
+  }, [logActivity]);
 
-  return {
+  // Return memoized value
+  return useMemo(() => ({
     activities,
     isLoading,
     refreshActivities: fetchActivities,
@@ -230,5 +230,16 @@ export function useActivityTracking() {
     logFilterChange,
     logNoteAdd,
     logLogin
-  };
+  }), [
+    activities,
+    isLoading,
+    fetchActivities,
+    logCellEdit,
+    logContactAdd,
+    logColumnAdd,
+    logColumnDelete,
+    logFilterChange,
+    logNoteAdd,
+    logLogin
+  ]);
 } 
