@@ -1,14 +1,53 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
-import { format, parseISO, differenceInDays } from "date-fns";
+import { format, parseISO, differenceInDays, differenceInMinutes } from "date-fns";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar } from "@/components/shared/avatar";
 import { Card } from "@/components/ui/card";
 import { useActivityTracking, ActivityItem } from "@/hooks/use-activity-tracking";
-import { Edit, MessageSquare, UserPlus, Plus, Trash2, Filter, BarChart, ChevronDown, ChevronRight } from "lucide-react";
+import { Edit, MessageSquare, UserPlus, Plus, Trash2, Filter, BarChart, ChevronDown, ChevronRight, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Helper function to group activities
+const groupSimilarActivities = (activities: ActivityItem[]) => {
+  const grouped: ActivityItem[][] = [];
+  let currentGroup: ActivityItem[] = [];
+
+  activities.forEach((activity, index) => {
+    if (index === 0) {
+      currentGroup = [activity];
+    } else {
+      const prevActivity = activities[index - 1];
+      const timeDiff = differenceInMinutes(
+        parseISO(activity.timestamp),
+        parseISO(prevActivity.timestamp)
+      );
+
+      // Group activities if they are the same type and within 5 minutes of each other
+      if (
+        activity.activityType === prevActivity.activityType &&
+        activity.activityType === 'login' &&
+        timeDiff <= 5 &&
+        activity.userId === prevActivity.userId
+      ) {
+        currentGroup.push(activity);
+      } else {
+        if (currentGroup.length > 0) {
+          grouped.push(currentGroup);
+        }
+        currentGroup = [activity];
+      }
+    }
+  });
+
+  if (currentGroup.length > 0) {
+    grouped.push(currentGroup);
+  }
+
+  return grouped;
+};
+
 // Memoize the ActivityFeedItem component
-const ActivityFeedItem = memo(({ activity }: { activity: ActivityItem }) => {
+const ActivityFeedItem = memo(({ activity, groupedActivities }: { activity: ActivityItem, groupedActivities?: ActivityItem[] }) => {
   // Get activity icon based on type
   const getActivityIcon = () => {
     switch (activity.activityType) {
@@ -23,6 +62,8 @@ const ActivityFeedItem = memo(({ activity }: { activity: ActivityItem }) => {
         return <Filter className="h-4 w-4" />;
       case 'note_add':
         return <MessageSquare className="h-4 w-4" />;
+      case 'login':
+        return <LogIn className="h-4 w-4" />;
       default:
         return <BarChart className="h-4 w-4" />;
     }
@@ -34,9 +75,13 @@ const ActivityFeedItem = memo(({ activity }: { activity: ActivityItem }) => {
       case 'cell_edit':
         return (
           <span>
-            updated <span className="text-teal-primary">{activity.fieldName}</span>
-            {activity.entityName && (
-              <> for <span className="text-teal-primary">{activity.entityName}</span></>
+            {activity.details?.message || (
+              <>
+                updated <span className="text-teal-primary">{activity.fieldName}</span>
+                {activity.entityName && (
+                  <> for <span className="text-teal-primary">{activity.entityName}</span></>
+                )}
+              </>
             )}
           </span>
         );
@@ -71,6 +116,9 @@ const ActivityFeedItem = memo(({ activity }: { activity: ActivityItem }) => {
           </span>
         );
       case 'login':
+        if (groupedActivities && groupedActivities.length > 1) {
+          return <span>logged in {groupedActivities.length} times</span>;
+        }
         return <span>logged in to the system</span>;
       default:
         return <span>performed an action</span>;
@@ -107,7 +155,7 @@ export function FeedPanel() {
   const [activeTab, setActiveTab] = useState("my-feed");
   const { activities, isLoading } = useActivityTracking();
   const { user } = useAuth();
-  const [groupedActivities, setGroupedActivities] = useState<Record<string, ActivityItem[]>>({});
+  const [groupedActivities, setGroupedActivities] = useState<Record<string, ActivityItem[][]>>({});
   const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
 
   // Memoize the filtered activities
@@ -118,17 +166,27 @@ export function FeedPanel() {
     return activities;
   }, [activities, activeTab, user]);
 
-  // Group activities by date
+  // Group activities by date and similar actions
   useEffect(() => {
     if (!filteredActivities.length) return;
 
-    const grouped: Record<string, ActivityItem[]> = {};
-    filteredActivities.forEach(activity => {
+    const grouped: Record<string, ActivityItem[][]> = {};
+    const sortedActivities = [...filteredActivities].sort((a, b) =>
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+
+    const groupedByDate = sortedActivities.reduce((acc, activity) => {
       const date = new Date(activity.timestamp).toISOString().split('T')[0];
-      if (!grouped[date]) {
-        grouped[date] = [];
+      if (!acc[date]) {
+        acc[date] = [];
       }
-      grouped[date].push(activity);
+      acc[date].push(activity);
+      return acc;
+    }, {} as Record<string, ActivityItem[]>);
+
+    // Group similar activities within each day
+    Object.entries(groupedByDate).forEach(([date, dateActivities]) => {
+      grouped[date] = groupSimilarActivities(dateActivities);
     });
 
     setGroupedActivities(grouped);
@@ -143,7 +201,6 @@ export function FeedPanel() {
     setCollapsedDays(newCollapsedState);
   }, [filteredActivities]);
 
-  // Memoize the tab change handler
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
   }, []);
@@ -182,7 +239,7 @@ export function FeedPanel() {
         </Tabs>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {Object.entries(groupedActivities).map(([date, dateActivities]) => (
+        {Object.entries(groupedActivities).map(([date, groupedDateActivities]) => (
           <div key={date} className="border-b last:border-0">
             <button
               onClick={() => toggleDayCollapse(date)}
@@ -193,11 +250,17 @@ export function FeedPanel() {
                 {differenceInDays(new Date(), parseISO(date)) === 0
                   ? "Today"
                   : format(parseISO(date), "MMMM d, yyyy")}
-                <span className="text-xs text-gray-400">({dateActivities.length} activities)</span>
+                <span className="text-xs text-gray-400">
+                  ({groupedDateActivities.reduce((sum, group) => sum + group.length, 0)} activities)
+                </span>
               </p>
             </button>
-            {!collapsedDays[date] && dateActivities.map((activity) => (
-              <ActivityFeedItem key={activity.id} activity={activity} />
+            {!collapsedDays[date] && groupedDateActivities.map((group) => (
+              <ActivityFeedItem
+                key={group[0].id}
+                activity={group[0]}
+                groupedActivities={group.length > 1 ? group : undefined}
+              />
             ))}
           </div>
         ))}

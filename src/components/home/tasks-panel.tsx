@@ -123,7 +123,6 @@ export function TasksPanel() {
         display_status: newStatus,
         status: taskToUpdate.status,
         user_id: user.id,
-        // Optional fields
         deadline: taskToUpdate.deadline || null,
         contact: taskToUpdate.contact || null,
         description: taskToUpdate.description || null,
@@ -133,8 +132,15 @@ export function TasksPanel() {
 
       updateTask(updatedTask);
 
-      // Log the status change activity
-      logCellEdit(taskId, 'status', newStatus, taskToUpdate.display_status);
+      // Log task status change activity
+      const statusChangeText = newStatus === "completed" ? "Completed task" : "Reopened task";
+      logCellEdit(
+        taskId,
+        'status',
+        newStatus,
+        taskToUpdate.display_status,
+        `${statusChangeText}: ${taskToUpdate.title}`
+      );
     }
   }, [tasks, user, updateTask, logCellEdit]);
 
@@ -225,7 +231,8 @@ export function TasksPanel() {
         };
 
         createTask(newTask);
-        logNoteAdd(taskId, task.title, 'Created new task');
+        // Log task creation activity
+        logNoteAdd(taskId, task.title, `Created new task: ${task.title}`);
         setTasks(prev => prev.filter(t => t.id !== taskId));
         setIsCreatingTask(false);
       }
@@ -249,7 +256,6 @@ export function TasksPanel() {
       display_status: updatedTask.display_status,
       status: updatedTask.status,
       user_id: user.id,
-      // Optional fields
       deadline: updatedTask.deadline || null,
       contact: updatedTask.contact || null,
       description: updatedTask.description || null,
@@ -259,29 +265,86 @@ export function TasksPanel() {
 
     updateTask(taskToUpdate);
 
-    // Log changes for each modified field
+    // Log changes for each modified field with descriptive messages
     if (originalTask.title !== updatedTask.title) {
-      logCellEdit(updatedTask.id, 'title', updatedTask.title, originalTask.title);
+      logCellEdit(
+        updatedTask.id,
+        'title',
+        updatedTask.title,
+        originalTask.title,
+        `Updated task title from "${originalTask.title}" to "${updatedTask.title}"`
+      );
     }
     if (originalTask.deadline !== updatedTask.deadline) {
-      logCellEdit(updatedTask.id, 'deadline', updatedTask.deadline, originalTask.deadline);
+      logCellEdit(
+        updatedTask.id,
+        'deadline',
+        updatedTask.deadline,
+        originalTask.deadline,
+        `Updated task deadline for "${updatedTask.title}"`
+      );
     }
     if (originalTask.contact !== updatedTask.contact) {
-      logCellEdit(updatedTask.id, 'contact', updatedTask.contact, originalTask.contact);
+      logCellEdit(
+        updatedTask.id,
+        'contact',
+        updatedTask.contact,
+        originalTask.contact,
+        `Updated related contact for task "${updatedTask.title}"`
+      );
     }
     if (originalTask.description !== updatedTask.description) {
-      logCellEdit(updatedTask.id, 'description', updatedTask.description, originalTask.description);
+      logCellEdit(
+        updatedTask.id,
+        'description',
+        updatedTask.description,
+        originalTask.description,
+        `Updated description for task "${updatedTask.title}"`
+      );
     }
     if (originalTask.type !== updatedTask.type) {
-      logCellEdit(updatedTask.id, 'type', updatedTask.type, originalTask.type);
+      logCellEdit(
+        updatedTask.id,
+        'type',
+        updatedTask.type,
+        originalTask.type,
+        `Changed task type from "${originalTask.type}" to "${updatedTask.type}"`
+      );
     }
     if (originalTask.tag !== updatedTask.tag) {
-      logCellEdit(updatedTask.id, 'tag', updatedTask.tag, originalTask.tag);
+      logCellEdit(
+        updatedTask.id,
+        'tag',
+        updatedTask.tag,
+        originalTask.tag,
+        `Updated tag for task "${updatedTask.title}"`
+      );
     }
     if (originalTask.priority !== updatedTask.priority) {
-      logCellEdit(updatedTask.id, 'priority', updatedTask.priority, originalTask.priority);
+      logCellEdit(
+        updatedTask.id,
+        'priority',
+        updatedTask.priority,
+        originalTask.priority,
+        `Changed priority from "${originalTask.priority || 'none'}" to "${updatedTask.priority || 'none'}"`
+      );
     }
   }, [user, tasks, updateTask, logCellEdit]);
+
+  const handleDeleteTask = useCallback((taskId: string) => {
+    const taskToDelete = tasks.find(task => task.id === taskId);
+    if (taskToDelete) {
+      deleteTask(taskId);
+      // Log task deletion activity
+      logCellEdit(
+        taskId,
+        'status',
+        'deleted',
+        taskToDelete.display_status,
+        `Deleted task: ${taskToDelete.title}`
+      );
+    }
+  }, [tasks, deleteTask, logCellEdit]);
 
   if (isLoading) {
     return (
@@ -360,7 +423,7 @@ export function TasksPanel() {
                   onTitleBlur={handleTaskTitleBlur}
                   onTitleKeyDown={handleTaskTitleKeyDown}
                   onTaskUpdate={handleTaskUpdate}
-                  onDelete={deleteTask}
+                  onDelete={handleDeleteTask}
                   allTasks={tasks}
                 />
               ))
@@ -383,7 +446,7 @@ export function TasksPanel() {
                   onTitleBlur={handleTaskTitleBlur}
                   onTitleKeyDown={handleTaskTitleKeyDown}
                   onTaskUpdate={handleTaskUpdate}
-                  onDelete={deleteTask}
+                  onDelete={handleDeleteTask}
                   allTasks={tasks}
                 />
               ))
@@ -406,7 +469,7 @@ export function TasksPanel() {
                   onTitleBlur={handleTaskTitleBlur}
                   onTitleKeyDown={handleTaskTitleKeyDown}
                   onTaskUpdate={handleTaskUpdate}
-                  onDelete={deleteTask}
+                  onDelete={handleDeleteTask}
                   allTasks={tasks}
                 />
               ))
