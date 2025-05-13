@@ -86,6 +86,8 @@ export function MainGridView({
     columnId: string;
   } | null>(null);
 
+  // Add a ref to track the last edit time
+
   // Add a special effect to preserve toolbar visibility on initial render
   useEffect(() => {
     // This helps ensure the toolbar stays visible when the component mounts
@@ -126,30 +128,22 @@ export function MainGridView({
       onCellChange(rowId, columnId, value);
     }
 
-    // Exit edit mode
-    setEditingCell(null);
-
-    // Check if this is a status column change
+    // Get the column to check if it's a date type
     const column = columns.find(col => col.id === columnId);
-    if (column?.id === 'status') {
-      // For status columns, completely clear the selection to prevent highlight issues
-      setSelectedCell(null);
-    } else if (targetRowId && targetColumnId) {
-      // For other columns, set selection based on target
-      setSelectedCell({ rowId: targetRowId, columnId: targetColumnId });
-    } else {
-      // Default selection to current cell
-      setSelectedCell({ rowId, columnId });
+
+    // For date columns, clear editing state immediately but delay selection update
+    if (column?.type === 'date') {
+      setEditingCell(null);
+      // Don't update selection state for date columns
+      return;
     }
 
-    // IMPORTANT: Do NOT force focus on the grid - this can make toolbar disappear
-    // Only set focus if the element is already focused or we're in a keyboard navigation flow
-    const isKeyboardNavigation = document.activeElement &&
-      (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT');
-
-    if (isKeyboardNavigation && mainViewRef.current) {
-      // Only focus the grid for keyboard navigation, not clicks
-      mainViewRef.current.focus();
+    // For other columns, proceed with normal selection handling
+    setEditingCell(null);
+    if (targetRowId && targetColumnId) {
+      setSelectedCell({ rowId: targetRowId, columnId: targetColumnId });
+    } else {
+      setSelectedCell({ rowId, columnId });
     }
 
     // Clear optimistic update after server sync should complete
@@ -1158,8 +1152,7 @@ export function MainGridView({
               renderEditInput(row, column)
             ) : (
               <div className="w-full h-full flex justify-center items-center">
-                {/* Create a completely stateless calendar that doesn't maintain its own selected date */}
-                <Popover open={true} modal={true}>
+                <Popover>
                   <PopoverTrigger asChild>
                     <div className="cursor-pointer flex justify-center items-center">
                       {formatCellValue(value, column, row)}
@@ -1171,6 +1164,8 @@ export function MainGridView({
                     side="bottom"
                     alignOffset={-50}
                     sideOffset={5}
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    onCloseAutoFocus={(e) => e.preventDefault()}
                   >
                     <div className="date-popup-header p-3 border-b flex justify-between items-center border-2">
                       <span className="text-sm font-medium">Select Date</span>
@@ -1185,7 +1180,6 @@ export function MainGridView({
                     <div className="p-5">
                       <Calendar
                         mode="single"
-                        // If clearDateSelection flag is true, don't pass any selected date
                         selected={editingCell?.clearDateSelection ? undefined : (value ? parseISO(value) : undefined)}
                         onSelect={(date) => {
                           if (date) {
@@ -1195,7 +1189,6 @@ export function MainGridView({
                         }}
                         defaultMonth={value ? parseISO(value) : new Date()}
                         initialFocus
-
                         modifiersStyles={{
                           today: {
                             backgroundColor: "rgb(var(--teal) / 0.15)",
