@@ -81,11 +81,6 @@ export function MainGridView({
     timestamp: number;
   } | null>(null);
 
-  const editingCellRef = useRef<{
-    rowId: string;
-    columnId: string;
-  } | null>(null);
-
   // Add a ref to track the last edit time
 
   // Add a special effect to preserve toolbar visibility on initial render
@@ -1109,7 +1104,6 @@ export function MainGridView({
         </div>
       );
     }
-
     // Special handler for date columns
     if (column.type === 'date') {
       return (
@@ -1146,7 +1140,10 @@ export function MainGridView({
             }
           }}
         >
+
+
           {isEditing ? (
+
             // Only show the calendar if we're not in direct typing mode
             editingCell?.directTyping ? (
               renderEditInput(row, column)
