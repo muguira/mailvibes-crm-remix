@@ -9,6 +9,51 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      contacts: {
+        Row: {
+          company: string | null
+          created_at: string
+          data: Json | null
+          email: string | null
+          id: string
+          last_activity: string | null
+          list_id: string | null
+          name: string
+          phone: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          data?: Json | null
+          email?: string | null
+          id?: string
+          last_activity?: string | null
+          list_id?: string | null
+          name: string
+          phone?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          data?: Json | null
+          email?: string | null
+          id?: string
+          last_activity?: string | null
+          list_id?: string | null
+          name?: string
+          phone?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       leads_rows: {
         Row: {
           created_at: string
@@ -83,33 +128,57 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      },
-      contacts: {
+      }
+      user_activities: {
         Row: {
+          activity_type: string
+          created_at: string | null
+          details: Json | null
+          entity_id: string | null
+          entity_name: string | null
+          entity_type: string | null
+          field_name: string | null
           id: string
+          new_value: Json | null
+          old_value: Json | null
+          timestamp: string | null
+          user_email: string | null
           user_id: string
-          list_id: string | null
-          name: string
-          company: string | null
-          email: string | null
-          phone: string | null
-          status: string | null
-          last_activity: string | null;   // ISO date-time
-          data: any | null;               // JSONB blob
-          created_at: string
-          updated_at: string
+          user_name: string
         }
-        Insert: Omit<
-          Database['public']['Tables']['contacts']['Row'],
-          'id' | 'created_at' | 'updated_at'
-        > & {
+        Insert: {
+          activity_type: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_name?: string | null
+          entity_type?: string | null
+          field_name?: string | null
           id?: string
-          created_at?: string
-          updated_at?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          timestamp?: string | null
+          user_email?: string | null
+          user_id: string
+          user_name: string
         }
-        Update: Partial<
-          Database['public']['Tables']['contacts']['Row']
-        >
+        Update: {
+          activity_type?: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_name?: string | null
+          entity_type?: string | null
+          field_name?: string | null
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          timestamp?: string | null
+          user_email?: string | null
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
       }
     }
     Views: {

@@ -1,4 +1,5 @@
 
+// Define the Task type with consistent naming
 export interface Task {
   id: string;
   title: string;
@@ -14,6 +15,9 @@ export interface Task {
   subtasks?: Task[];
   comments?: { id: string; body: string; author: string }[];
   user_id: string;
+  
+  // For compatibility with old code
+  displayStatus?: 'upcoming' | 'overdue' | 'completed';
 }
 
 export type TaskData = Task;

@@ -29,11 +29,13 @@ export function TasksPanel() {
         deadline: task.deadline,
         contact: task.contact || '',
         description: task.description,
-        displayStatus: task.display_status as Task['displayStatus'],
+        display_status: task.display_status as Task['display_status'],
+        displayStatus: task.display_status as Task['display_status'], // Add for backward compatibility
         status: task.status as Task['status'],
         type: task.type as Task['type'],
         tag: task.tag,
-        priority: task.priority as Task['priority']
+        priority: task.priority as Task['priority'],
+        user_id: task.user_id
       }));
       setTasks(formattedTasks);
     }
@@ -44,12 +46,16 @@ export function TasksPanel() {
     const now = new Date();
     setTasks(prevTasks =>
       prevTasks.map(task => {
-        if (task.displayStatus === "completed" || !task.deadline) return task;
+        if (task.display_status === "completed" || !task.deadline) return task;
 
         const deadlineDate = parseISO(task.deadline);
         // Compare with start of current day to match the calendar date concept
-        if (isPast(startOfDay(deadlineDate)) && task.displayStatus !== "overdue") {
-          return { ...task, displayStatus: "overdue" };
+        if (isPast(startOfDay(deadlineDate)) && task.display_status !== "overdue") {
+          return { 
+            ...task, 
+            display_status: "overdue",
+            displayStatus: "overdue" // Update both fields for compatibility
+          };
         }
         return task;
       })
@@ -91,11 +97,11 @@ export function TasksPanel() {
     });
   };
 
-  const upcomingTasks = sortTasksByDate(tasks.filter(task => task.displayStatus === "upcoming"), isCreatingTask);
-  const overdueTasks = sortTasksByDate(tasks.filter(task => task.displayStatus === "overdue"), false);
-  const completedTasks = sortTasksByDate(tasks.filter(task => task.displayStatus === "completed"), false);
+  const upcomingTasks = sortTasksByDate(tasks.filter(task => task.display_status === "upcoming"), isCreatingTask);
+  const overdueTasks = sortTasksByDate(tasks.filter(task => task.display_status === "overdue"), false);
+  const completedTasks = sortTasksByDate(tasks.filter(task => task.display_status === "completed"), false);
 
-  const handleTaskStatusChange = (taskId: string, newStatus: Task["displayStatus"]) => {
+  const handleTaskStatusChange = (taskId: string, newStatus: Task["display_status"]) => {
     const taskToUpdate = tasks.find(task => task.id === taskId);
     if (taskToUpdate && user) {
       updateTask({
@@ -119,14 +125,14 @@ export function TasksPanel() {
     if (!taskToUpdate || !user) return;
 
         // When setting a new deadline, check if it's already overdue
-    let newStatus = taskToUpdate.displayStatus;
+    let newStatus = taskToUpdate.display_status;
         if (deadline) {
           const deadlineDate = parseISO(deadline);
           if (isPast(startOfDay(deadlineDate))) {
         newStatus = "overdue";
           }
           // If task was overdue but new deadline is in the future, move back to upcoming
-      else if (taskToUpdate.displayStatus === "overdue") {
+      else if (taskToUpdate.display_status === "overdue") {
         newStatus = "upcoming";
       }
     }
@@ -153,9 +159,11 @@ export function TasksPanel() {
       id: crypto.randomUUID(),
       title: "",
       contact: "",
-      displayStatus: "upcoming",
+      display_status: "upcoming",
+      displayStatus: "upcoming", // For compatibility
       status: "on-track",
-      type: "task"
+      type: "task",
+      user_id: user.id
     };
     setTasks(prev => [newTask, ...prev]);
     setIsCreatingTask(true);
@@ -241,7 +249,7 @@ export function TasksPanel() {
       deadline: updatedTask.deadline || '',
       contact: updatedTask.contact || '',
       description: updatedTask.description || '',
-      display_status: updatedTask.displayStatus,
+      display_status: updatedTask.display_status,
       status: updatedTask.status,
       type: updatedTask.type,
       tag: updatedTask.tag,
@@ -396,7 +404,7 @@ interface TaskItemProps {
   task: Task;
   isNew?: boolean;
   inputRef?: React.RefObject<HTMLInputElement>;
-  onStatusChange: (taskId: string, newStatus: Task["displayStatus"]) => void;
+  onStatusChange: (taskId: string, newStatus: Task["display_status"]) => void;
   onDeadlineChange: (taskId: string, deadline: string | undefined) => void;
   onTitleChange: (taskId: string, newTitle: string) => void;
   onTitleBlur: (taskId: string) => void;
@@ -437,7 +445,7 @@ function TaskItem({
   const getDueDateColor = () => {
     if (!deadline) return "text-muted-foreground";
 
-    if (task.displayStatus === "overdue" || isPast(startOfDay(deadline))) {
+    if (task.display_status === "overdue" || isPast(startOfDay(deadline))) {
       return "text-red-400";
     }
     if (isToday(deadline) || isTomorrow(deadline)) {
@@ -458,19 +466,19 @@ function TaskItem({
     <div className="px-3 py-1.5 group">
       <div className="flex items-center gap-3">
         <button
-          onClick={() => onStatusChange(task.id, task.displayStatus === "completed" ? "upcoming" : "completed")}
+          onClick={() => onStatusChange(task.id, task.display_status === "completed" ? "upcoming" : "completed")}
           className="flex-shrink-0 hover:opacity-80 transition-opacity"
-          aria-label={task.displayStatus === "completed" ? "Mark as incomplete" : "Mark as complete"}
+          aria-label={task.display_status === "completed" ? "Mark as incomplete" : "Mark as complete"}
         >
           <div className={cn(
             "h-5 w-5 rounded-full flex items-center justify-center transition-colors",
-            task.displayStatus === "completed"
+            task.display_status === "completed"
               ? "bg-emerald-500 border-emerald-500"
               : "border-2 border-muted-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10"
           )}>
             <Check className={cn(
               "h-3 w-3",
-              task.displayStatus === "completed"
+              task.display_status === "completed"
                 ? "text-white"
                 : "text-muted-foreground hover:text-emerald-500/50"
             )} />
@@ -493,7 +501,7 @@ function TaskItem({
               onDoubleClick={() => setIsEditPopupOpen(true)}
               className={cn(
                 "font-medium cursor-pointer select-none truncate",
-                task.displayStatus === "completed" ? "line-through text-muted-foreground" : "text-foreground"
+                task.display_status === "completed" ? "line-through text-muted-foreground" : "text-foreground"
               )}
             >
               {task.title}
