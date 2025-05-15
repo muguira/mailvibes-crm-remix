@@ -1,17 +1,20 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
-import { format, parseISO, differenceInDays } from "date-fns";
+import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar } from "@/components/shared/avatar";
 import { Card } from "@/components/ui/card";
 import { useActivityTracking, ActivityItem } from "@/hooks/use-activity-tracking";
-import { Edit, MessageSquare, UserPlus, Plus, Filter, BarChart, LogIn } from "lucide-react";
+import { Edit, MessageSquare, UserPlus, Plus, Filter, BarChart, LogIn, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
+import { useComments, Comment } from "@/hooks/supabase/use-comments";
 
 // Memoize the ActivityFeedItem component
 const ActivityFeedItem = memo(({ activity }: { activity: ActivityItem }) => {
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [comment, setComment] = useState("");
+  const { user } = useAuth();
+  const { comments, isLoading, createComment, deleteComment } = useComments(activity.id);
 
   // Get activity icon based on type
   const getActivityIcon = () => {
@@ -85,10 +88,9 @@ const ActivityFeedItem = memo(({ activity }: { activity: ActivityItem }) => {
     }
   };
 
-  const handleAddComment = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && comment.trim()) {
-      // TODO: Implement comment functionality
-      console.log('Adding comment:', comment);
+  const handleAddComment = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && comment.trim() && user) {
+      await createComment(comment.trim());
       setComment('');
       setShowCommentInput(false);
     }
@@ -118,27 +120,53 @@ const ActivityFeedItem = memo(({ activity }: { activity: ActivityItem }) => {
             </span>
           </div>
 
-          {/* Comment section */}
-          <div className="mt-2">
-            {showCommentInput ? (
-              <div className="flex gap-2">
-                <Input
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  onKeyDown={handleAddComment}
-                  placeholder="Add a comment..."
-                  className="text-sm flex-1"
+          {/* Comments section */}
+          <div className="mt-2 space-y-2">
+            {comments?.map((comment) => (
+              <div key={comment.id} className="flex items-start gap-2 group">
+                <Avatar
+                  name={comment.user?.email || ''}
+                  className="h-6 w-6"
                 />
-                <button
-                  onClick={() => {
-                    if (comment.trim()) {
-                      handleAddComment({ key: 'Enter' } as React.KeyboardEvent<HTMLInputElement>);
-                    }
-                  }}
-                  className="px-3 py-1 text-sm bg-teal-primary text-white rounded-md hover:bg-teal-dark transition-colors"
-                >
-                  Add
-                </button>
+                <div className="flex-1 bg-gray-50 rounded-md p-2">
+                  <div className="flex items-start justify-between">
+                    <span className="text-sm font-medium">
+                      {comment.user?.email?.split('@')[0]}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">
+                        {formatDistanceToNow(parseISO(comment.created_at), { addSuffix: true })}
+                      </span>
+                      {user?.id === comment.user_id && (
+                        <button
+                          onClick={() => deleteComment(comment.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-600"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700 mt-1">{comment.content}</p>
+                </div>
+              </div>
+            ))}
+
+            {user && (showCommentInput ? (
+              <div className="flex gap-2 mt-2">
+                <Avatar
+                  name={user.email || ''}
+                  className="h-6 w-6"
+                />
+                <div className="flex-1">
+                  <Input
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    onKeyDown={handleAddComment}
+                    placeholder="Write a comment..."
+                    className="text-sm"
+                  />
+                </div>
               </div>
             ) : (
               <button
@@ -146,9 +174,9 @@ const ActivityFeedItem = memo(({ activity }: { activity: ActivityItem }) => {
                 className="text-sm text-gray-500 hover:text-teal-primary transition-colors flex items-center gap-1"
               >
                 <MessageSquare className="h-3 w-3" />
-                Add comment
+                {comments?.length ? `${comments.length} comment${comments.length === 1 ? '' : 's'}` : 'Add comment'}
               </button>
-            )}
+            ))}
           </div>
         </div>
       </div>
