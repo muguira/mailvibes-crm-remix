@@ -1,6 +1,5 @@
-
 // Update task-edit-popup.tsx to handle both display_status and displayStatus
-import { useState, useRef, useEffect } from "react";
+import * as React from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,29 +12,37 @@ import { CalendarIcon, CheckIcon, AlertCircle, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Task } from "@/types/task";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Combobox } from "@/components/ui/combobox";
+import { useContactSearch } from "@/hooks/use-contact-search";
+
+// Extend the Task type to include contactId
+interface ExtendedTask extends Task {
+  contactId?: string;
+}
 
 interface TaskEditPopupProps {
-  task: Task;
+  task: ExtendedTask;
   open: boolean;
   onClose: () => void;
-  onSave: (task: Task) => void;
+  onSave: (task: ExtendedTask) => void;
   onStatusChange: (taskId: string, status: Task["display_status"]) => void;
   onDelete: (taskId: string) => void;
   allTasks: Task[];
 }
 
 export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onDelete, allTasks }: TaskEditPopupProps) {
-  const [editedTask, setEditedTask] = useState<Task>({...task});
-  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-  const titleInputRef = useRef<HTMLInputElement>(null);
+  const [editedTask, setEditedTask] = React.useState<ExtendedTask>({ ...task });
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = React.useState(false);
+  const titleInputRef = React.useRef<HTMLInputElement>(null);
+  const { contacts, isLoading, searchContacts } = useContactSearch();
 
   // Reset the form when the task changes
-  useEffect(() => {
-    setEditedTask({...task});
+  React.useEffect(() => {
+    setEditedTask({ ...task });
   }, [task]);
 
   // Focus the title input when the dialog opens
-  useEffect(() => {
+  React.useEffect(() => {
     if (open && titleInputRef.current) {
       setTimeout(() => {
         titleInputRef.current?.focus();
@@ -43,15 +50,15 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     }
   }, [open]);
 
-  const handleChange = (field: keyof Task, value: any) => {
+  const handleChange = (field: keyof ExtendedTask, value: any) => {
     setEditedTask(prev => ({ ...prev, [field]: value }));
 
     // Special handling for display_status to maintain both fields
     if (field === 'display_status') {
-      setEditedTask(prev => ({ 
-        ...prev, 
+      setEditedTask(prev => ({
+        ...prev,
         display_status: value,
-        displayStatus: value 
+        displayStatus: value
       }));
     }
   };
@@ -61,9 +68,11 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     const taskToSave = {
       ...editedTask,
       display_status: editedTask.display_status,
-      displayStatus: editedTask.display_status
+      displayStatus: editedTask.display_status,
+      // Map contactId to contact field if needed
+      contact: editedTask.contactId
     };
-    
+
     onSave(taskToSave);
     onClose();
   };
@@ -73,6 +82,31 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     onDelete(task.id);
     onClose();
   };
+
+  const contactItems = React.useMemo(() =>
+    (contacts || []).map(contact => ({
+      value: contact.id,
+      label: contact.name +
+        (contact.company ? ` (${contact.company})` : '') +
+        (contact.email ? ` - ${contact.email}` : '')
+    })) || [],
+    [contacts]
+  );
+
+  const handleSearch = React.useCallback((search: string) => {
+    if (search === undefined) return;
+    searchContacts(search);
+  }, [searchContacts]);
+
+  // Initialize contactId from contact field if needed
+  React.useEffect(() => {
+    if (task.contact && !task.contactId) {
+      setEditedTask(prev => ({
+        ...prev,
+        contactId: task.contact
+      }));
+    }
+  }, [task]);
 
   return (
     <>
@@ -91,7 +125,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                 className="w-full"
               />
             </div>
-            
+
             <div>
               <label className="text-sm font-medium mb-1 block">Description</label>
               <Textarea
@@ -101,7 +135,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                 className="w-full min-h-[80px]"
               />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">Status</label>
@@ -134,7 +168,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium mb-1 block">Type</label>
                 <Select
@@ -153,7 +187,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                 </Select>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">Deadline</label>
@@ -183,8 +217,8 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                     />
                     {editedTask.deadline && (
                       <div className="p-2 border-t flex justify-end">
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           onClick={() => handleChange('deadline', undefined)}
                         >
@@ -195,7 +229,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                   </PopoverContent>
                 </Popover>
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium mb-1 block">Priority</label>
                 <Select
@@ -213,17 +247,23 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                 </Select>
               </div>
             </div>
-            
+
             <div>
               <label className="text-sm font-medium mb-1 block">Contact</label>
-              <Input
-                value={editedTask.contact || ''}
-                onChange={(e) => handleChange('contact', e.target.value)}
-                placeholder="Associated contact"
-                className="w-full"
+              <Combobox
+                items={contactItems}
+                value={editedTask.contactId}
+                onValueChange={(value) => {
+                  handleChange('contactId', value || '');
+                  handleChange('contact', value || ''); // Update both fields
+                }}
+                onSearch={handleSearch}
+                placeholder="Search contacts..."
+                emptyText={isLoading ? "Loading contacts..." : "No contacts found"}
+                isLoading={isLoading}
               />
             </div>
-            
+
             <div className="flex justify-between pt-4">
               <Button
                 variant="outline"
@@ -234,7 +274,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                 <Trash2 className="h-4 w-4 mr-1" />
                 Delete
               </Button>
-              
+
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={onClose}>
                   Cancel
@@ -247,7 +287,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
           </div>
         </DialogContent>
       </Dialog>
-      
+
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
