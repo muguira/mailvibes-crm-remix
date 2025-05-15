@@ -1,311 +1,269 @@
 
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+// Update task-edit-popup.tsx to handle both display_status and displayStatus
+import { useState, useRef, useEffect } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, X, Trash2, Check } from "lucide-react";
-import { format } from "date-fns";
-import { DeadlinePopup } from "./deadline-popup";
-import { parseISO } from "date-fns";
-import { Task } from "@/types/task"; // Import the unified Task type
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format, parseISO } from "date-fns";
+import { CalendarIcon, CheckIcon, AlertCircle, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Task } from "@/types/task";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface TaskEditPopupProps {
   task: Task;
   open: boolean;
   onClose: () => void;
   onSave: (task: Task) => void;
-  onStatusChange: (taskId: string, newStatus: Task["displayStatus"]) => void;
+  onStatusChange: (taskId: string, status: Task["display_status"]) => void;
   onDelete: (taskId: string) => void;
   allTasks: Task[];
 }
 
-export function TaskEditPopup({
-  task,
-  open,
-  onClose,
-  onSave,
-  onStatusChange,
-  onDelete,
-  allTasks,
-}: TaskEditPopupProps) {
-  const [editedTask, setEditedTask] = useState<Task>({ ...task });
-  const hasChanges = JSON.stringify(task) !== JSON.stringify(editedTask);
+export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onDelete, allTasks }: TaskEditPopupProps) {
+  const [editedTask, setEditedTask] = useState<Task>({...task});
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
+  // Reset the form when the task changes
   useEffect(() => {
-    setEditedTask({ ...task });
+    setEditedTask({...task});
   }, [task]);
 
+  // Focus the title input when the dialog opens
   useEffect(() => {
     if (open && titleInputRef.current) {
-      // Focus title input when dialog opens
       setTimeout(() => {
         titleInputRef.current?.focus();
       }, 100);
     }
   }, [open]);
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setEditedTask((prev) => ({ ...prev, [name]: value }));
-  };
+  const handleChange = (field: keyof Task, value: any) => {
+    setEditedTask(prev => ({ ...prev, [field]: value }));
 
-  const handleSelectChange = (name: string, value: string) => {
-    setEditedTask((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleDeadlineChange = (date: Date | undefined) => {
-    setEditedTask((prev) => ({
-      ...prev,
-      deadline: date ? date.toISOString() : undefined,
-    }));
+    // Special handling for display_status to maintain both fields
+    if (field === 'display_status') {
+      setEditedTask(prev => ({ 
+        ...prev, 
+        display_status: value,
+        displayStatus: value 
+      }));
+    }
   };
 
   const handleSave = () => {
-    onSave(editedTask);
+    // Ensure both display_status and displayStatus are set for compatibility
+    const taskToSave = {
+      ...editedTask,
+      display_status: editedTask.display_status,
+      displayStatus: editedTask.display_status
+    };
+    
+    onSave(taskToSave);
     onClose();
   };
 
   const handleDelete = () => {
+    setIsDeleteAlertOpen(false);
     onDelete(task.id);
     onClose();
   };
 
-  const handleMarkCompleted = () => {
-    const newStatus = task.displayStatus === "completed" ? "upcoming" : "completed";
-    onStatusChange(task.id, newStatus);
-    onClose();
-  };
-
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle className="text-xl">Edit Task</DialogTitle>
-        </DialogHeader>
-
-        <div className="mt-4 space-y-4">
-          {/* Title */}
-          <div>
-            <label htmlFor="title" className="text-sm font-medium">
-              Title
-            </label>
-            <Input
-              ref={titleInputRef}
-              id="title"
-              name="title"
-              value={editedTask.title}
-              onChange={handleInputChange}
-              className="mt-1"
-              placeholder="Task title"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Type */}
+    <>
+      <Dialog open={open} onOpenChange={(isOpen) => {
+        if (!isOpen) onClose();
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <div className="space-y-4 py-2">
             <div>
-              <label htmlFor="type" className="text-sm font-medium">
-                Type
-              </label>
-              <select
-                id="type"
-                name="type"
-                value={editedTask.type}
-                onChange={(e) => handleSelectChange("type", e.target.value as Task["type"])}
-                className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="task">Task</option>
-                <option value="follow-up">Follow-up</option>
-                <option value="respond">Respond</option>
-                <option value="cross-functional">Cross-functional</option>
-              </select>
+              <label className="text-sm font-medium mb-1 block">Title</label>
+              <Input
+                ref={titleInputRef}
+                value={editedTask.title}
+                onChange={(e) => handleChange('title', e.target.value)}
+                placeholder="Task title"
+                className="w-full"
+              />
             </div>
-
-            {/* Status */}
+            
             <div>
-              <label htmlFor="status" className="text-sm font-medium">
-                Status
-              </label>
-              <select
-                id="status"
-                name="status"
-                value={editedTask.status}
-                onChange={(e) => handleSelectChange("status", e.target.value as Task["status"])}
-                className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="on-track">On Track</option>
-                <option value="at-risk">At Risk</option>
-                <option value="off-track">Off Track</option>
-              </select>
+              <label className="text-sm font-medium mb-1 block">Description</label>
+              <Textarea
+                value={editedTask.description || ''}
+                onChange={(e) => handleChange('description', e.target.value)}
+                placeholder="Task description"
+                className="w-full min-h-[80px]"
+              />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Deadline */}
-            <div>
-              <label className="text-sm font-medium">Deadline</label>
-              <DeadlinePopup
-                date={editedTask.deadline ? parseISO(editedTask.deadline) : undefined}
-                onSelect={handleDeadlineChange}
-              >
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-between text-left font-normal mt-1"
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Status</label>
+                <Select
+                  value={editedTask.display_status}
+                  onValueChange={(value) => handleChange('display_status', value)}
                 >
-                  <span>
-                    {editedTask.deadline
-                      ? format(parseISO(editedTask.deadline), "PPP")
-                      : "No deadline"}
-                  </span>
-                  <Calendar className="h-4 w-4" />
-                </Button>
-              </DeadlinePopup>
-            </div>
-
-            {/* Priority */}
-            <div>
-              <label htmlFor="priority" className="text-sm font-medium">
-                Priority
-              </label>
-              <select
-                id="priority"
-                name="priority"
-                value={editedTask.priority || "medium"}
-                onChange={(e) => handleSelectChange("priority", e.target.value as Task["priority"])}
-                className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Contact */}
-          <div>
-            <label htmlFor="contact" className="text-sm font-medium">
-              Related Contact
-            </label>
-            <Input
-              id="contact"
-              name="contact"
-              value={editedTask.contact || ""}
-              onChange={handleInputChange}
-              className="mt-1"
-              placeholder="Contact name"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label htmlFor="description" className="text-sm font-medium">
-              Description
-            </label>
-            <Textarea
-              id="description"
-              name="description"
-              value={editedTask.description || ""}
-              onChange={handleInputChange}
-              className="min-h-[100px] mt-1"
-              placeholder="Task description"
-            />
-          </div>
-
-          {/* Tag */}
-          <div>
-            <label htmlFor="tag" className="text-sm font-medium">
-              Tag
-            </label>
-            <Input
-              id="tag"
-              name="tag"
-              value={editedTask.tag || ""}
-              onChange={handleInputChange}
-              className="mt-1"
-              placeholder="e.g. LATAM"
-            />
-          </div>
-
-          {/* Dependencies (placeholder) */}
-          {task.dependencies && (
-            <div>
-              <label className="text-sm font-medium">Dependencies</label>
-              <div className="mt-1 text-sm text-muted-foreground">
-                {task.dependencies.length > 0 ? "Has dependencies" : "No dependencies"}
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="upcoming">
+                      <div className="flex items-center gap-2">
+                        <CheckIcon className="h-4 w-4 text-blue-500" />
+                        <span>Upcoming</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="overdue">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <span>Overdue</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="completed">
+                      <div className="flex items-center gap-2">
+                        <CheckIcon className="h-4 w-4 text-green-500" />
+                        <span>Completed</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-1 block">Type</label>
+                <Select
+                  value={editedTask.type}
+                  onValueChange={(value: Task['type']) => handleChange('type', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="task">Task</SelectItem>
+                    <SelectItem value="follow-up">Follow Up</SelectItem>
+                    <SelectItem value="respond">Respond</SelectItem>
+                    <SelectItem value="cross-functional">Cross-functional</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          )}
-
-          {/* Subtasks (placeholder) */}
-          {task.subtasks && (
-            <div>
-              <label className="text-sm font-medium">Subtasks</label>
-              <div className="mt-1 text-sm text-muted-foreground">
-                {task.subtasks.length > 0 ? "Has subtasks" : "No subtasks"}
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Deadline</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !editedTask.deadline && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {editedTask.deadline ? (
+                        format(parseISO(editedTask.deadline), "PPP")
+                      ) : (
+                        <span>No deadline</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={editedTask.deadline ? parseISO(editedTask.deadline) : undefined}
+                      onSelect={(date) => handleChange('deadline', date ? date.toISOString() : undefined)}
+                      initialFocus
+                    />
+                    {editedTask.deadline && (
+                      <div className="p-2 border-t flex justify-end">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleChange('deadline', undefined)}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-1 block">Priority</label>
+                <Select
+                  value={editedTask.priority || 'medium'}
+                  onValueChange={(value: Task['priority']) => handleChange('priority', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          )}
-
-          {/* Comments (placeholder) */}
-          {task.comments && (
+            
             <div>
-              <label className="text-sm font-medium">Comments</label>
-              <div className="mt-1 text-sm text-muted-foreground">
-                {task.comments.length > 0 ? `${task.comments.length} comments` : "No comments"}
-              </div>
+              <label className="text-sm font-medium mb-1 block">Contact</label>
+              <Input
+                value={editedTask.contact || ''}
+                onChange={(e) => handleChange('contact', e.target.value)}
+                placeholder="Associated contact"
+                className="w-full"
+              />
             </div>
-          )}
-
-          <div className="flex justify-between pt-4">
-            <div>
+            
+            <div className="flex justify-between pt-4">
               <Button
-                type="button"
-                variant="destructive"
+                variant="outline"
                 size="sm"
-                onClick={handleDelete}
+                onClick={() => setIsDeleteAlertOpen(true)}
+                className="text-destructive hover:bg-destructive/10"
               >
                 <Trash2 className="h-4 w-4 mr-1" />
                 Delete
               </Button>
-            </div>
-            <div className="flex space-x-2">
-              <Button
-                type="button"
-                variant={task.displayStatus === "completed" ? "outline" : "secondary"}
-                onClick={handleMarkCompleted}
-              >
-                {task.displayStatus === "completed" ? (
-                  <>
-                    <X className="h-4 w-4 mr-1" /> Mark Incomplete
-                  </>
-                ) : (
-                  <>
-                    <Check className="h-4 w-4 mr-1" /> Mark Complete
-                  </>
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="default"
-                onClick={handleSave}
-                disabled={!hasChanges}
-              >
-                Save Changes
-              </Button>
+              
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={handleSave}>
+                  Save Changes
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this task? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

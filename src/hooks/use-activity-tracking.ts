@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import type { User } from '@supabase/supabase-js';
 
-export interface ActivityItem {
+interface ActivityItemBase {
   id: string;
   userId: string;
   userName: string;
@@ -19,9 +19,10 @@ export interface ActivityItem {
   details?: Record<string, any>;
 }
 
-// Local storage key for activity items when offline
-const ACTIVITY_STORAGE_KEY = 'crm-activity-log';
+// ActivityItem is now defined directly rather than re-exporting UserActivity
+export type ActivityItem = ActivityItemBase;
 
+// This hook provides a wrapper around useUserActivities for backward compatibility
 export function useActivityTracking() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,7 +47,7 @@ export function useActivityTracking() {
   // Memoize loadFromLocalStorage since it doesn't depend on any state
   const loadFromLocalStorage = useCallback((): ActivityItem[] => {
     try {
-      const saved = localStorage.getItem(ACTIVITY_STORAGE_KEY);
+      const saved = localStorage.getItem('user_activities');
       return saved ? JSON.parse(saved) : [];
     } catch (error) {
       console.error('Failed to load activities from localStorage:', error);
@@ -262,7 +263,7 @@ export function useActivityTracking() {
   return useMemo(() => ({
     activities,
     isLoading,
-    refreshActivities: fetchActivities,
+    fetchActivities,
     logCellEdit,
     logContactAdd,
     logColumnAdd,
