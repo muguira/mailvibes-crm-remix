@@ -1,6 +1,6 @@
 import { Check, Plus, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { DeadlinePopup } from "./deadline-popup";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-fns";
@@ -9,6 +9,7 @@ import { TaskEditPopup } from "./task-edit-popup";
 import { useTasks, TaskData } from "@/hooks/supabase/use-tasks";
 import { useAuth } from "@/contexts/AuthContext";
 import { Task } from "@/types/task"; // Import the unified Task type
+import { useActivity } from "@/contexts/ActivityContext";
 
 // Export the Task interface from the unified type
 export type { Task };
@@ -16,117 +17,146 @@ export type { Task };
 export function TasksPanel() {
   const { user } = useAuth();
   const { tasks: supabaseTasks, isLoading, createTask, updateTask, deleteTask } = useTasks();
+  const { logCellEdit, logContactAdd, logColumnAdd, logColumnDelete, logFilterChange, logNoteAdd } = useActivity();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const newTaskInputRef = useRef<HTMLInputElement>(null);
 
-  // Transform Supabase tasks to our Task interface format
-  useEffect(() => {
-    if (supabaseTasks) {
-      const formattedTasks = supabaseTasks.map((task) => ({
-        id: task.id,
-        title: task.title,
-        deadline: task.deadline,
-        contact: task.contact || '',
-        description: task.description,
-        displayStatus: task.display_status as Task['displayStatus'],
-        status: task.status as Task['status'],
-        type: task.type as Task['type'],
-        tag: task.tag,
-        priority: task.priority as Task['priority']
-      }));
-      setTasks(formattedTasks);
-    }
-  }, [supabaseTasks]);
+  // Memoize the formatted tasks to prevent unnecessary re-renders
+  const formattedTasks = useMemo(() => {
+    if (!supabaseTasks || !user) return [];
 
-  // Check for overdue tasks
-  const checkOverdueTasks = () => {
-    const now = new Date();
+    return supabaseTasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      deadline: task.deadline,
+      contact: task.contact || '',
+      description: task.description,
+      display_status: task.display_status as Task['display_status'],
+      status: task.status as Task['status'],
+      type: task.type as Task['type'],
+      tag: task.tag,
+      priority: task.priority as Task['priority'],
+      user_id: user.id
+    }));
+  }, [supabaseTasks, user]);
+
+  // Memoize checkOverdueTasks with proper dependencies
+  const checkOverdueTasks = useCallback(() => {
+    const now = startOfDay(new Date());
     setTasks(prevTasks =>
       prevTasks.map(task => {
-        if (task.displayStatus === "completed" || !task.deadline) return task;
+        if (task.display_status === "completed" || !task.deadline) return task;
 
         const deadlineDate = parseISO(task.deadline);
-        // Compare with start of current day to match the calendar date concept
-        if (isPast(startOfDay(deadlineDate)) && task.displayStatus !== "overdue") {
-          return { ...task, displayStatus: "overdue" };
+        if (isPast(now) && task.display_status !== "overdue") {
+          return { ...task, display_status: "overdue" };
         }
         return task;
       })
     );
-  };
+  }, []); // Empty dependency array since we use functional updates
+
+  // Update tasks state only when formattedTasks changes
+  useEffect(() => {
+    if (JSON.stringify(tasks) !== JSON.stringify(formattedTasks)) {
+      setTasks(formattedTasks);
+    }
+  }, [formattedTasks]);
 
   // Check for overdue tasks on mount and every minute
   useEffect(() => {
+    // Initial check
     checkOverdueTasks();
-    const interval = setInterval(checkOverdueTasks, 60000); // Check every minute
+
+    // Set up interval
+    const interval = setInterval(checkOverdueTasks, 60000);
+
+    // Cleanup
     return () => clearInterval(interval);
-  }, []); // Empty dependency array to run only on mount
+  }, []); // Empty dependency array since checkOverdueTasks is stable
 
-  const sortTasksByDate = (tasks: Task[], isEditing: boolean) => {
-    const today = startOfDay(new Date());
+  // Memoize sorted tasks
+  const { upcomingTasks, overdueTasks, completedTasks } = useMemo(() => {
+    const sortTasksByDate = (tasksToSort: Task[], isEditing: boolean) => {
+      const today = startOfDay(new Date());
 
-    return [...tasks].sort((a, b) => {
-      // During editing, keep the new task at the top
-      if (isEditing) {
-        if (a.title === "") return -1;
-        if (b.title === "") return 1;
-      }
+      return [...tasksToSort].sort((a, b) => {
+        // During editing, keep the new task at the top
+        if (isEditing) {
+          if (a.title === "") return -1;
+          if (b.title === "") return 1;
+        }
 
-      // If neither task has a deadline, maintain original order
-      if (!a.deadline && !b.deadline) return 0;
-      // Tasks with no deadline go to the end
-      if (!a.deadline) return 1;
-      if (!b.deadline) return -1;
+        // If neither task has a deadline, maintain original order
+        if (!a.deadline && !b.deadline) return 0;
+        // Tasks with no deadline go to the end
+        if (!a.deadline) return 1;
+        if (!b.deadline) return -1;
 
-      const dateA = startOfDay(parseISO(a.deadline));
-      const dateB = startOfDay(parseISO(b.deadline));
+        const dateA = startOfDay(parseISO(a.deadline));
+        const dateB = startOfDay(parseISO(b.deadline));
 
-      // Calculate days from today for both dates
-      const daysFromTodayA = Math.floor((dateA.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      const daysFromTodayB = Math.floor((dateB.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        // Calculate days from today for both dates
+        const daysFromTodayA = Math.floor((dateA.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const daysFromTodayB = Math.floor((dateB.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Sort by days from today (ascending)
-      return daysFromTodayA - daysFromTodayB;
-    });
-  };
+        // Sort by days from today (ascending)
+        return daysFromTodayA - daysFromTodayB;
+      });
+    };
 
-  const upcomingTasks = sortTasksByDate(tasks.filter(task => task.displayStatus === "upcoming"), isCreatingTask);
-  const overdueTasks = sortTasksByDate(tasks.filter(task => task.displayStatus === "overdue"), false);
-  const completedTasks = sortTasksByDate(tasks.filter(task => task.displayStatus === "completed"), false);
+    return {
+      upcomingTasks: sortTasksByDate(tasks.filter(task => task.display_status === "upcoming"), isCreatingTask),
+      overdueTasks: sortTasksByDate(tasks.filter(task => task.display_status === "overdue"), false),
+      completedTasks: sortTasksByDate(tasks.filter(task => task.display_status === "completed"), false)
+    };
+  }, [tasks, isCreatingTask]);
 
-  const handleTaskStatusChange = (taskId: string, newStatus: Task["displayStatus"]) => {
+  const handleTaskStatusChange = useCallback((taskId: string, newStatus: Task["display_status"]) => {
     const taskToUpdate = tasks.find(task => task.id === taskId);
     if (taskToUpdate && user) {
-      updateTask({
+      const updatedTask = {
         id: taskId,
-        display_status: newStatus,
         title: taskToUpdate.title,
-        status: taskToUpdate.status,
         type: taskToUpdate.type,
-        deadline: taskToUpdate.deadline,
-        contact: taskToUpdate.contact,
-        description: taskToUpdate.description,
-        tag: taskToUpdate.tag,
-        priority: taskToUpdate.priority,
-        user_id: user?.id // Add user ID here
-      });
-    }
-  };
+        display_status: newStatus,
+        status: taskToUpdate.status,
+        user_id: user.id,
+        deadline: taskToUpdate.deadline || null,
+        contact: taskToUpdate.contact || null,
+        description: taskToUpdate.description || null,
+        tag: taskToUpdate.tag || null,
+        priority: taskToUpdate.priority || null
+      };
 
-  const handleDeadlineChange = (taskId: string, deadline: string | undefined) => {
+      updateTask(updatedTask);
+
+      // Log task status change activity
+      const statusChangeText = newStatus === "completed" ? "Completed task" : "Reopened task";
+      logCellEdit(
+        taskId,
+        'status',
+        newStatus,
+        taskToUpdate.display_status,
+        `${statusChangeText}: ${taskToUpdate.title}`
+      );
+    }
+  }, [tasks, user, updateTask, logCellEdit]);
+
+  const handleDeadlineChange = useCallback((taskId: string, deadline: string | undefined) => {
     const taskToUpdate = tasks.find(task => task.id === taskId);
     if (!taskToUpdate || !user) return;
 
-        // When setting a new deadline, check if it's already overdue
-    let newStatus = taskToUpdate.displayStatus;
-        if (deadline) {
-          const deadlineDate = parseISO(deadline);
-          if (isPast(startOfDay(deadlineDate))) {
+    // When setting a new deadline, check if it's already overdue
+    let newStatus = taskToUpdate.display_status;
+    if (deadline) {
+      const deadlineDate = parseISO(deadline);
+      if (isPast(startOfDay(deadlineDate))) {
         newStatus = "overdue";
-          }
-          // If task was overdue but new deadline is in the future, move back to upcoming
-      else if (taskToUpdate.displayStatus === "overdue") {
+      }
+      // If task was overdue but new deadline is in the future, move back to upcoming
+      else if (taskToUpdate.display_status === "overdue") {
         newStatus = "upcoming";
       }
     }
@@ -142,49 +172,31 @@ export function TasksPanel() {
       description: taskToUpdate.description,
       tag: taskToUpdate.tag,
       priority: taskToUpdate.priority,
-      user_id: user?.id // Add user ID here
+      user_id: user.id
     });
-  };
+  }, [tasks, user, updateTask]);
 
-  const handleCreateNewTask = () => {
-    if (!user) return; // Don't allow creating tasks if not logged in
+  const handleCreateNewTask = useCallback(() => {
+    if (!user || isCreatingTask) return;
 
     const newTask: Task = {
       id: crypto.randomUUID(),
       title: "",
       contact: "",
-      displayStatus: "upcoming",
+      display_status: "upcoming",
       status: "on-track",
-      type: "task"
+      type: "task",
+      user_id: user.id
     };
+
     setTasks(prev => [newTask, ...prev]);
     setIsCreatingTask(true);
-    // Focus the input on the next render
     setTimeout(() => {
       newTaskInputRef.current?.focus();
     }, 0);
-  };
+  }, [user, isCreatingTask]);
 
-  const handleCreateTask = (task: {
-    title: string;
-    deadline?: string;
-    type: "follow-up" | "respond" | "task";
-    tag?: string;
-  }) => {
-    if (!user) return; // Don't allow creating tasks if not logged in
-
-    createTask({
-      title: task.title,
-      deadline: task.deadline || '',
-      type: task.type,
-      tag: task.tag || '',
-      display_status: "upcoming",
-      status: "on-track",
-      user_id: user.id // Add user ID here
-    });
-  };
-
-  const handleTaskTitleChange = (taskId: string, newTitle: string) => {
+  const handleTaskTitleChange = useCallback((taskId: string, newTitle: string) => {
     setTasks(prev =>
       prev.map(task =>
         task.id === taskId
@@ -192,79 +204,168 @@ export function TasksPanel() {
           : task
       )
     );
-  };
+  }, []);
 
-  const handleTaskTitleBlur = (taskId: string) => {
+  const handleTaskTitleBlur = useCallback((taskId: string) => {
+    // On blur, do nothing - let the task stay in edit mode
+    // This allows the user to keep typing without creating the task
+  }, []);
+
+  const handleTaskTitleKeyDown = useCallback((e: React.KeyboardEvent, taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
 
-    if (task && task.title.trim() !== "" && user) {
-      // Create new task in Supabase
-      createTask({
-        title: task.title,
-        type: task.type,
-        display_status: "upcoming",
-        status: "on-track",
-        contact: '',
-        deadline: '',
-        description: '',
-        tag: '',
-        priority: 'medium',
-        user_id: user.id
-      });
-    }
-
-    setTasks(prev => prev.filter(task =>
-      task.id !== taskId || (task.id === taskId && task.title.trim() !== "")
-    ));
-
-    setIsCreatingTask(false);
-  };
-
-  const handleTaskTitleKeyDown = (e: React.KeyboardEvent, taskId: string) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      (e.target as HTMLInputElement).blur();
-    }
-    if (e.key === "Escape") {
+      if (task && task.title.trim() !== "" && user) {
+        const newTask = {
+          title: task.title.trim(),
+          type: "task" as const,
+          display_status: "upcoming" as const,
+          status: "on-track" as const,
+          user_id: user.id,
+          contact: null,
+          deadline: null,
+          description: null,
+          tag: null,
+          priority: null
+        };
+
+        createTask(newTask);
+        // Log task creation activity
+        logNoteAdd(taskId, task.title, `Created new task: ${task.title}`);
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+        setIsCreatingTask(false);
+      }
+    } else if (e.key === "Escape") {
       e.preventDefault();
-      setTasks(prev => prev.filter(task => task.id !== taskId));
+      setTasks(prev => prev.filter(t => t.id !== taskId));
       setIsCreatingTask(false);
     }
-  };
+  }, [tasks, user, createTask, logNoteAdd]);
 
-  const handleTaskUpdate = (updatedTask: Task) => {
+  const handleTaskUpdate = useCallback((updatedTask: Task) => {
     if (!user) return;
 
-    updateTask({
+    const originalTask = tasks.find(t => t.id === updatedTask.id);
+    if (!originalTask) return;
+
+    const taskToUpdate = {
       id: updatedTask.id,
       title: updatedTask.title,
-      deadline: updatedTask.deadline || '',
-      contact: updatedTask.contact || '',
-      description: updatedTask.description || '',
-      display_status: updatedTask.displayStatus,
-      status: updatedTask.status,
       type: updatedTask.type,
-      tag: updatedTask.tag,
-      priority: updatedTask.priority,
-      user_id: user?.id // Add user ID here
-    });
-  };
+      display_status: updatedTask.display_status,
+      status: updatedTask.status,
+      user_id: user.id,
+      deadline: updatedTask.deadline || null,
+      contact: updatedTask.contact || null,
+      description: updatedTask.description || null,
+      tag: updatedTask.tag || null,
+      priority: updatedTask.priority || null
+    };
 
-  const handleTaskDelete = (taskId: string) => {
-    deleteTask(taskId);
-  };
+    updateTask(taskToUpdate);
+
+    // Log changes for each modified field with descriptive messages
+    if (originalTask.title !== updatedTask.title) {
+      logCellEdit(
+        updatedTask.id,
+        'title',
+        updatedTask.title,
+        originalTask.title,
+        `Updated task title from "${originalTask.title}" to "${updatedTask.title}"`
+      );
+    }
+    if (originalTask.deadline !== updatedTask.deadline) {
+      logCellEdit(
+        updatedTask.id,
+        'deadline',
+        updatedTask.deadline,
+        originalTask.deadline,
+        `Updated task deadline for "${updatedTask.title}"`
+      );
+    }
+    if (originalTask.contact !== updatedTask.contact) {
+      logCellEdit(
+        updatedTask.id,
+        'contact',
+        updatedTask.contact,
+        originalTask.contact,
+        `Updated related contact for task "${updatedTask.title}"`
+      );
+    }
+    if (originalTask.description !== updatedTask.description) {
+      logCellEdit(
+        updatedTask.id,
+        'description',
+        updatedTask.description,
+        originalTask.description,
+        `Updated description for task "${updatedTask.title}"`
+      );
+    }
+    if (originalTask.type !== updatedTask.type) {
+      logCellEdit(
+        updatedTask.id,
+        'type',
+        updatedTask.type,
+        originalTask.type,
+        `Changed task type from "${originalTask.type}" to "${updatedTask.type}"`
+      );
+    }
+    if (originalTask.tag !== updatedTask.tag) {
+      logCellEdit(
+        updatedTask.id,
+        'tag',
+        updatedTask.tag,
+        originalTask.tag,
+        `Updated tag for task "${updatedTask.title}"`
+      );
+    }
+    if (originalTask.priority !== updatedTask.priority) {
+      logCellEdit(
+        updatedTask.id,
+        'priority',
+        updatedTask.priority,
+        originalTask.priority,
+        `Changed priority from "${originalTask.priority || 'none'}" to "${updatedTask.priority || 'none'}"`
+      );
+    }
+  }, [user, tasks, updateTask, logCellEdit]);
+
+  const handleDeleteTask = useCallback((taskId: string) => {
+    const taskToDelete = tasks.find(task => task.id === taskId);
+    if (taskToDelete) {
+      deleteTask(taskId);
+      // Log task deletion activity
+      logCellEdit(
+        taskId,
+        'status',
+        'deleted',
+        taskToDelete.display_status,
+        `Deleted task: ${taskToDelete.title}`
+      );
+    }
+  }, [tasks, deleteTask, logCellEdit]);
+
+  if (isLoading) {
+    return (
+      <div className="bg-background text-foreground rounded-lg overflow-hidden flex flex-col shadow-lg h-[500px]">
+        <div className="flex items-center justify-center h-full">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-background text-foreground rounded-lg overflow-hidden flex flex-col shadow-lg h-[500px]">
       <div className="p-3 pb-2 flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-          {/* Add your profile image here */}
           <div className="w-full h-full bg-muted-foreground/20" />
         </div>
         <h2 className="text-xl font-semibold">My tasks</h2>
       </div>
 
-      <Tabs defaultValue="upcoming" className="flex-1">
+      <Tabs defaultValue="upcoming" className="flex-1 flex flex-col overflow-hidden">
         <div className="border-none">
           <TabsList className="w-full flex p-0 bg-transparent">
             <TabsTrigger
@@ -288,17 +389,17 @@ export function TasksPanel() {
           </TabsList>
         </div>
 
-        <div className="p-2 pt-3">
+        <div className="p-2 pt-3 border-b">
           {user ? (
             <>
-          <button
+              <button
                 className="w-full text-left text-muted-foreground flex items-center gap-2 py-1 hover:text-foreground transition-colors"
-            onClick={handleCreateNewTask}
-            disabled={isCreatingTask}
-          >
+                onClick={handleCreateNewTask}
+                disabled={isCreatingTask}
+              >
                 <Plus size={16} />
-            Create task
-          </button>
+                Create task
+              </button>
             </>
           ) : (
             <div className="text-center text-sm text-muted-foreground py-2">
@@ -307,85 +408,77 @@ export function TasksPanel() {
           )}
         </div>
 
-        <div className="overflow-y-auto" style={{ height: '392px' }}>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <>
-          <TabsContent value="upcoming" className="m-0">
-                {upcomingTasks.length > 0 ? (
-                  upcomingTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                isNew={isCreatingTask && task.id === upcomingTasks[0]?.id}
-                inputRef={isCreatingTask && task.id === upcomingTasks[0]?.id ? newTaskInputRef : undefined}
-                onStatusChange={handleTaskStatusChange}
-                onDeadlineChange={handleDeadlineChange}
-                onTitleChange={handleTaskTitleChange}
-                onTitleBlur={handleTaskTitleBlur}
-                onTitleKeyDown={handleTaskTitleKeyDown}
-                onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
-                allTasks={tasks}
-              />
-                  ))
-                ) : (
-                  <div className="text-center text-sm text-muted-foreground py-8">
-                    No upcoming tasks
-                  </div>
-                )}
+        <div className="flex-1 overflow-y-auto">
+          <TabsContent value="upcoming" className="m-0 h-full">
+            {upcomingTasks.length > 0 ? (
+              upcomingTasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  isNew={isCreatingTask && task.id === upcomingTasks[0]?.id}
+                  inputRef={isCreatingTask && task.id === upcomingTasks[0]?.id ? newTaskInputRef : undefined}
+                  onStatusChange={handleTaskStatusChange}
+                  onDeadlineChange={handleDeadlineChange}
+                  onTitleChange={handleTaskTitleChange}
+                  onTitleBlur={handleTaskTitleBlur}
+                  onTitleKeyDown={handleTaskTitleKeyDown}
+                  onTaskUpdate={handleTaskUpdate}
+                  onDelete={handleDeleteTask}
+                  allTasks={tasks}
+                />
+              ))
+            ) : (
+              <div className="text-center text-sm text-muted-foreground py-8">
+                No upcoming tasks
+              </div>
+            )}
           </TabsContent>
 
-          <TabsContent value="overdue" className="m-0">
-                {overdueTasks.length > 0 ? (
-                  overdueTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onStatusChange={handleTaskStatusChange}
-                onDeadlineChange={handleDeadlineChange}
-                onTitleChange={handleTaskTitleChange}
-                onTitleBlur={handleTaskTitleBlur}
-                onTitleKeyDown={handleTaskTitleKeyDown}
-                onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
-                allTasks={tasks}
-              />
-                  ))
-                ) : (
-                  <div className="text-center text-sm text-muted-foreground py-8">
-                    No overdue tasks
-                  </div>
-                )}
+          <TabsContent value="overdue" className="m-0 h-full">
+            {overdueTasks.length > 0 ? (
+              overdueTasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  onStatusChange={handleTaskStatusChange}
+                  onDeadlineChange={handleDeadlineChange}
+                  onTitleChange={handleTaskTitleChange}
+                  onTitleBlur={handleTaskTitleBlur}
+                  onTitleKeyDown={handleTaskTitleKeyDown}
+                  onTaskUpdate={handleTaskUpdate}
+                  onDelete={handleDeleteTask}
+                  allTasks={tasks}
+                />
+              ))
+            ) : (
+              <div className="text-center text-sm text-muted-foreground py-8">
+                No overdue tasks
+              </div>
+            )}
           </TabsContent>
 
-          <TabsContent value="completed" className="m-0">
-                {completedTasks.length > 0 ? (
-                  completedTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onStatusChange={handleTaskStatusChange}
-                onDeadlineChange={handleDeadlineChange}
-                onTitleChange={handleTaskTitleChange}
-                onTitleBlur={handleTaskTitleBlur}
-                onTitleKeyDown={handleTaskTitleKeyDown}
-                onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
-                allTasks={tasks}
-              />
-                  ))
-                ) : (
-                  <div className="text-center text-sm text-muted-foreground py-8">
-                    No completed tasks
-                  </div>
-                )}
+          <TabsContent value="completed" className="m-0 h-full">
+            {completedTasks.length > 0 ? (
+              completedTasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  onStatusChange={handleTaskStatusChange}
+                  onDeadlineChange={handleDeadlineChange}
+                  onTitleChange={handleTaskTitleChange}
+                  onTitleBlur={handleTaskTitleBlur}
+                  onTitleKeyDown={handleTaskTitleKeyDown}
+                  onTaskUpdate={handleTaskUpdate}
+                  onDelete={handleDeleteTask}
+                  allTasks={tasks}
+                />
+              ))
+            ) : (
+              <div className="text-center text-sm text-muted-foreground py-8">
+                No completed tasks
+              </div>
+            )}
           </TabsContent>
-            </>
-          )}
         </div>
       </Tabs>
     </div>
@@ -396,7 +489,7 @@ interface TaskItemProps {
   task: Task;
   isNew?: boolean;
   inputRef?: React.RefObject<HTMLInputElement>;
-  onStatusChange: (taskId: string, newStatus: Task["displayStatus"]) => void;
+  onStatusChange: (taskId: string, newStatus: Task["display_status"]) => void;
   onDeadlineChange: (taskId: string, deadline: string | undefined) => void;
   onTitleChange: (taskId: string, newTitle: string) => void;
   onTitleBlur: (taskId: string) => void;
@@ -437,7 +530,7 @@ function TaskItem({
   const getDueDateColor = () => {
     if (!deadline) return "text-muted-foreground";
 
-    if (task.displayStatus === "overdue" || isPast(startOfDay(deadline))) {
+    if (task.display_status === "overdue" || isPast(startOfDay(deadline))) {
       return "text-red-400";
     }
     if (isToday(deadline) || isTomorrow(deadline)) {
@@ -457,43 +550,48 @@ function TaskItem({
   return (
     <div className="px-3 py-1.5 group">
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => onStatusChange(task.id, task.displayStatus === "completed" ? "upcoming" : "completed")}
-          className="flex-shrink-0 hover:opacity-80 transition-opacity"
-          aria-label={task.displayStatus === "completed" ? "Mark as incomplete" : "Mark as complete"}
-        >
-          <div className={cn(
-            "h-5 w-5 rounded-full flex items-center justify-center transition-colors",
-            task.displayStatus === "completed"
-              ? "bg-emerald-500 border-emerald-500"
-              : "border-2 border-muted-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10"
-          )}>
-            <Check className={cn(
-              "h-3 w-3",
-              task.displayStatus === "completed"
-                ? "text-white"
-                : "text-muted-foreground hover:text-emerald-500/50"
-            )} />
-          </div>
-        </button>
+        {!isNew && (
+          <button
+            onClick={() => onStatusChange(task.id, task.display_status === "completed" ? "upcoming" : "completed")}
+            className="flex-shrink-0 hover:opacity-80 transition-opacity"
+            aria-label={task.display_status === "completed" ? "Mark as incomplete" : "Mark as complete"}
+          >
+            <div className={cn(
+              "h-5 w-5 rounded-full flex items-center justify-center transition-colors",
+              task.display_status === "completed"
+                ? "bg-emerald-500 border-emerald-500"
+                : "border-2 border-muted-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10"
+            )}>
+              <Check className={cn(
+                "h-3 w-3",
+                task.display_status === "completed"
+                  ? "text-white"
+                  : "text-muted-foreground hover:text-emerald-500/50"
+              )} />
+            </div>
+          </button>
+        )}
         <div className="flex-1 min-w-0">
           {isNew ? (
-            <input
-              ref={inputRef}
-              type="text"
-              value={task.title}
-              onChange={(e) => onTitleChange(task.id, e.target.value)}
-              onBlur={() => onTitleBlur(task.id)}
-              onKeyDown={(e) => onTitleKeyDown(e, task.id)}
-              className="w-full bg-transparent border-none focus:outline-none text-foreground"
-              placeholder="Enter task title"
-            />
+            <div className="flex items-center gap-2 w-full">
+              <input
+                ref={inputRef}
+                type="text"
+                value={task.title}
+                onChange={(e) => onTitleChange(task.id, e.target.value)}
+                onBlur={() => onTitleBlur(task.id)}
+                onKeyDown={(e) => onTitleKeyDown(e, task.id)}
+                className="w-full bg-transparent border-none focus:outline-none text-foreground"
+                placeholder="Enter task title and press Enter to create"
+                autoFocus
+              />
+            </div>
           ) : (
             <h3
               onDoubleClick={() => setIsEditPopupOpen(true)}
               className={cn(
                 "font-medium cursor-pointer select-none truncate",
-                task.displayStatus === "completed" ? "line-through text-muted-foreground" : "text-foreground"
+                task.display_status === "completed" ? "line-through text-muted-foreground" : "text-foreground"
               )}
             >
               {task.title}

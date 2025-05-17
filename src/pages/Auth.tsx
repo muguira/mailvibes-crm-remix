@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Navigate } from "react-router-dom";
 import { CustomButton } from "@/components/ui/custom-button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useActivity } from "@/contexts/ActivityContext";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -10,6 +10,7 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const { signIn, signUp, user } = useAuth();
+  const { logLogin } = useActivity();
   const navigate = useNavigate();
 
   // If user is already logged in, redirect to dashboard
@@ -20,12 +21,16 @@ export default function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+    console.log('Auth: Starting authentication process');
+
     try {
       if (isSignUp) {
+        console.log('Auth: Attempting sign up');
         await signUp(email, password);
+        await logLogin();
         navigate("/dashboard");
       } else {
+        console.log('Auth: Attempting sign in');
         await signIn(email, password);
         navigate("/dashboard");
       }
@@ -34,6 +39,7 @@ export default function Auth() {
     } finally {
       setIsLoading(false);
     }
+    await logLogin();
   };
 
   return (
@@ -48,7 +54,7 @@ export default function Auth() {
           </h1>
           <p className="text-slate-medium mt-2">Sign in to access your account</p>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium text-slate-dark">
@@ -63,7 +69,7 @@ export default function Auth() {
               required
             />
           </div>
-          
+
           <div className="space-y-2">
             <label htmlFor="password" className="text-sm font-medium text-slate-dark">
               Password
@@ -77,7 +83,7 @@ export default function Auth() {
               required
             />
           </div>
-          
+
           <CustomButton
             type="submit"
             className="w-full"
@@ -85,11 +91,11 @@ export default function Auth() {
           >
             {isSignUp ? "Sign Up" : "Sign In"}
           </CustomButton>
-          
+
           <div className="text-center text-sm">
             <button
-              type="button" 
-              onClick={() => setIsSignUp(!isSignUp)} 
+              type="button"
+              onClick={() => setIsSignUp(!isSignUp)}
               className="text-teal-primary hover:underline"
             >
               {isSignUp ? "Already have an account? Sign In" : "Need an account? Sign Up"}

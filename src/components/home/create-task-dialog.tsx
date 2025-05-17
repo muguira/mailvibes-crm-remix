@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +15,8 @@ import { DeadlinePopup } from "./deadline-popup";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
 import { useAuth } from "@/contexts/AuthContext";
+import { Combobox } from "@/components/ui/combobox";
+import { useContactSearch } from "@/hooks/use-contact-search";
 
 interface CreateTaskDialogProps {
     onCreateTask: (task: {
@@ -23,6 +24,7 @@ interface CreateTaskDialogProps {
         deadline?: string;
         type: "follow-up" | "respond" | "task";
         tag?: string;
+        contactId?: string;
     }) => void;
 }
 
@@ -32,7 +34,9 @@ export function CreateTaskDialog({ onCreateTask }: CreateTaskDialogProps) {
     const [deadline, setDeadline] = React.useState<Date>();
     const [type, setType] = React.useState<"follow-up" | "respond" | "task">("task");
     const [tag, setTag] = React.useState<string>();
+    const [contactId, setContactId] = React.useState<string>();
     const { user } = useAuth();
+    const { contacts, isLoading, searchContacts } = useContactSearch();
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -40,7 +44,8 @@ export function CreateTaskDialog({ onCreateTask }: CreateTaskDialogProps) {
             title,
             deadline: deadline?.toISOString(),
             type,
-            tag
+            tag,
+            contactId
         });
         setOpen(false);
         // Reset form
@@ -48,7 +53,20 @@ export function CreateTaskDialog({ onCreateTask }: CreateTaskDialogProps) {
         setDeadline(undefined);
         setType("task");
         setTag(undefined);
+        setContactId(undefined);
     };
+
+    const contactItems = React.useMemo(() =>
+        contacts.map(contact => ({
+            value: contact.id,
+            label: `${contact.name}${contact.company ? ` (${contact.company})` : ''}${contact.email ? ` - ${contact.email}` : ''}`
+        })),
+        [contacts]
+    );
+
+    const handleSearch = React.useCallback((search: string) => {
+        searchContacts(search);
+    }, [searchContacts]);
 
     if (!user) return null;
 
@@ -74,6 +92,17 @@ export function CreateTaskDialog({ onCreateTask }: CreateTaskDialogProps) {
                                 onChange={(e) => setTitle(e.target.value)}
                                 placeholder="Enter task title"
                                 required
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Contact</Label>
+                            <Combobox
+                                items={contactItems}
+                                value={contactId}
+                                onValueChange={setContactId}
+                                onSearch={handleSearch}
+                                placeholder="Search contacts..."
+                                emptyText={isLoading ? "Loading contacts..." : "No contacts found"}
                             />
                         </div>
                         <div className="grid gap-2">

@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 
@@ -35,11 +34,12 @@ interface AbsolutePopoverContentProps extends React.HTMLAttributes<HTMLDivElemen
 }
 
 const AbsolutePopoverContent = React.forwardRef<
-  HTMLDivElement, 
+  HTMLDivElement,
   AbsolutePopoverContentProps
 >(({ className, position, children, ...props }, ref) => (
   <div
     ref={ref}
+
     className={cn(
       "fixed bg-white rounded-md border border-slate-200 shadow-lg z-[9999] popover-element",
       className

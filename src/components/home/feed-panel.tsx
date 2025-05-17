@@ -1,246 +1,53 @@
-import { useState, useEffect } from "react";
-import { format, parseISO, differenceInDays } from "date-fns";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import { format, parseISO, formatDistanceToNow } from "date-fns";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar } from "@/components/shared/avatar";
 import { Card } from "@/components/ui/card";
 import { useActivityTracking, ActivityItem } from "@/hooks/use-activity-tracking";
-import { Edit, MessageSquare, UserPlus, Plus, Trash2, Filter, BarChart } from "lucide-react";
+import { Edit, MessageSquare, UserPlus, Plus, Filter, BarChart, LogIn, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Input } from "@/components/ui/input";
+import { useComments, Comment } from "@/hooks/supabase/use-comments";
 
-export function FeedPanel() {
-  const [activeTab, setActiveTab] = useState("my-feed");
-  const { activities, isLoading } = useActivityTracking();
+// Memoize the ActivityFeedItem component
+const ActivityFeedItem = memo(({ activity }: { activity: ActivityItem }) => {
+  const [showCommentInput, setShowCommentInput] = useState(false);
+  const [comment, setComment] = useState("");
   const { user } = useAuth();
-  const [groupedActivities, setGroupedActivities] = useState<Record<string, ActivityItem[]>>({});
-  
-  // Group activities by date
-  useEffect(() => {
-    if (!activities.length) return;
-    
-    const grouped: Record<string, ActivityItem[]> = {};
-    
-    activities.forEach(activity => {
-      const date = new Date(activity.timestamp).toISOString().split('T')[0];
-      if (!grouped[date]) {
-        grouped[date] = [];
-      }
-      grouped[date].push(activity);
-    });
-    
-    setGroupedActivities(grouped);
-  }, [activities]);
-  
-  // Filter activities based on active tab
-  const getFilteredActivities = () => {
-    if (activeTab === "my-feed" && user) {
-      // Filter to only show current user's activities
-      return activities.filter(activity => activity.userId === user.id);
-    }
-    return activities;
-  };
+  const { comments, isLoading, createComment, deleteComment } = useComments(activity.id);
 
   // Get activity icon based on type
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'cell_edit':
-        return <Edit className="h-4 w-4 text-blue-500" />;
-      case 'contact_add':
-        return <UserPlus className="h-4 w-4 text-green-500" />;
-      case 'column_add':
-        return <Plus className="h-4 w-4 text-teal-primary" />;
-      case 'column_delete':
-        return <Trash2 className="h-4 w-4 text-red-500" />;
-      case 'filter_change':
-        return <Filter className="h-4 w-4 text-purple-500" />;
-      case 'note_add':
-        return <MessageSquare className="h-4 w-4 text-orange-500" />;
-      case 'login':
-        return <BarChart className="h-4 w-4 text-gray-500" />;
-      default:
-        return <Edit className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
-  // Get activity text based on type
-  const getActivityText = (activity: ActivityItem) => {
-    switch (activity.activityType) {
-      case 'cell_edit':
-        return (
-          <span>
-            updated <span className="text-teal-primary">{activity.fieldName}</span> for{' '}
-            <span className="text-teal-primary">{getEntityName(activity)}</span>
-          </span>
-        );
-      case 'contact_add':
-        return (
-          <span>
-            added a new contact <span className="text-teal-primary">{activity.entityName}</span>
-          </span>
-        );
-      case 'column_add':
-        return (
-          <span>
-            added a new column <span className="text-teal-primary">{activity.entityName}</span>
-          </span>
-        );
-      case 'column_delete':
-        return (
-          <span>
-            deleted column <span className="text-teal-primary">{activity.entityName}</span>
-          </span>
-        );
-      case 'filter_change':
-        return (
-          <span>
-            changed filters in <span className="text-teal-primary">Contacts list</span>
-          </span>
-        );
-      case 'note_add':
-        return (
-          <span>
-            added a note to <span className="text-teal-primary">{activity.entityName}</span>
-          </span>
-        );
-      case 'login':
-        return <span>logged in to the system</span>;
-      default:
-        return <span>performed an action</span>;
-    }
-  };
-
-  // Helper to get entity name or default
-  const getEntityName = (activity: ActivityItem) => {
-    if (activity.entityName) return activity.entityName;
-    
-    // For contact updates without a name, use ID or default
-    if (activity.entityId && activity.entityType === 'contact') {
-      return activity.entityId.replace('lead-', 'Contact ');
-    }
-    
-    return 'Unknown';
-  };
-
-  // Render date header
-  const renderDateHeader = (dateString: string) => {
-    const date = parseISO(dateString);
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    const isToday = dateString === today.toISOString().split('T')[0];
-    const isYesterday = dateString === yesterday.toISOString().split('T')[0]; 
-    
-    let dateDisplay;
-    if (isToday) {
-      dateDisplay = 'Today';
-    } else if (isYesterday) {
-      dateDisplay = 'Yesterday';
-    } else if (differenceInDays(today, date) < 7) {
-      dateDisplay = format(date, 'EEEE'); // e.g. "Monday"
-    } else {
-      dateDisplay = format(date, 'MMM d, yyyy');
-    }
-    
-    return (
-      <div className="px-4 py-3 bg-[#f3f4f5] border-b border-slate-light/30">
-        <h3 className="text-sm font-medium text-slate-medium">
-          {dateDisplay}
-        </h3>
-      </div>
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <Card className="bg-white rounded-lg shadow-sm overflow-hidden h-full flex flex-col">
-        <div className="p-4 text-center text-slate-medium">
-          Loading activities...
-        </div>
-      </Card>
-    );
-  }
-  
-  const filteredActivities = getFilteredActivities();
-  const sortedDates = Object.keys(groupedActivities).sort((a, b) => b.localeCompare(a));
-  
-  return (
-    <Card className="bg-white rounded-lg shadow-sm overflow-hidden h-full flex flex-col">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="border-b border-slate-light/30">
-          <div className="flex justify-between items-center px-4 pt-4">
-            <TabsList>
-              <TabsTrigger value="my-feed">My Activity</TabsTrigger>
-              <TabsTrigger value="all">Team Activity</TabsTrigger>
-            </TabsList>
-          </div>
-        </div>
-
-        <div className="overflow-y-auto flex-1">
-          {filteredActivities.length === 0 ? (
-            <div className="p-4 text-center text-slate-medium">
-              No activities to display.
-            </div>
-          ) : (
-            <>
-              {sortedDates.map(date => {
-                const dateActivities = groupedActivities[date]?.filter(
-                  activity => activeTab === "all" || activity.userId === user?.id
-                );
-                
-                if (!dateActivities || dateActivities.length === 0) return null;
-                
-                return (
-                  <div key={date}>
-                    {renderDateHeader(date)}
-                    <div className="divide-y divide-slate-light/30">
-                      {dateActivities.map(activity => (
-                        <ActivityFeedItem key={activity.id} activity={activity} />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </>
-          )}
-        </div>
-      </Tabs>
-    </Card>
-  );
-}
-
-function ActivityFeedItem({ activity }: { activity: ActivityItem }) {
-  // Format timestamp
-  const formattedTime = format(new Date(activity.timestamp), "h:mm a");
-  
-  // Get icon based on activity type
   const getActivityIcon = () => {
     switch (activity.activityType) {
       case 'cell_edit':
-        return <Edit className="h-4 w-4 text-blue-500" />;
+        return <Edit className="h-4 w-4" />;
       case 'contact_add':
-        return <UserPlus className="h-4 w-4 text-green-500" />;
+        return <UserPlus className="h-4 w-4" />;
       case 'column_add':
-        return <Plus className="h-4 w-4 text-teal-primary" />;
       case 'column_delete':
-        return <Trash2 className="h-4 w-4 text-red-500" />;
+        return <Plus className="h-4 w-4" />;
       case 'filter_change':
-        return <Filter className="h-4 w-4 text-purple-500" />;
+        return <Filter className="h-4 w-4" />;
       case 'note_add':
-        return <MessageSquare className="h-4 w-4 text-orange-500" />;
+        return <MessageSquare className="h-4 w-4" />;
       case 'login':
-        return <BarChart className="h-4 w-4 text-gray-500" />;
+      case 'logout':
+        return <LogIn className="h-4 w-4" />;
       default:
-        return <Edit className="h-4 w-4 text-gray-500" />;
+        return <BarChart className="h-4 w-4" />;
     }
   };
 
   // Get activity description based on type
   const getActivityText = () => {
+    const userName = activity.userName.split('@')[0]; // Remove email domain if present
+
     switch (activity.activityType) {
       case 'cell_edit':
         return (
           <span>
-            updated <span className="text-teal-primary">{activity.fieldName}</span> 
+            <span className="font-medium">{userName}</span> updated{' '}
+            <span className="text-teal-primary">{activity.fieldName}</span>
             {activity.entityName && (
               <> for <span className="text-teal-primary">{activity.entityName}</span></>
             )}
@@ -249,116 +56,240 @@ function ActivityFeedItem({ activity }: { activity: ActivityItem }) {
       case 'contact_add':
         return (
           <span>
-            added a new contact <span className="text-teal-primary">{activity.entityName}</span>
-          </span>
-        );
-      case 'column_add':
-        return (
-          <span>
-            added a new column <span className="text-teal-primary">{activity.entityName}</span>
-          </span>
-        );
-      case 'column_delete':
-        return (
-          <span>
-            deleted column <span className="text-teal-primary">{activity.entityName}</span>
-          </span>
-        );
-      case 'filter_change':
-        return (
-          <span>
-            changed filters in <span className="text-teal-primary">Contacts list</span>
+            <span className="font-medium">{userName}</span> added a new contact{' '}
+            <span className="text-teal-primary">{activity.entityName}</span>
           </span>
         );
       case 'note_add':
         return (
           <span>
-            added a note to <span className="text-teal-primary">{activity.entityName}</span>
+            <span className="font-medium">{userName}</span> commented on a{' '}
+            <span className="text-teal-primary">Lead</span>
           </span>
         );
       case 'login':
-        return <span>logged in to the system</span>;
+        return (
+          <span>
+            <span className="font-medium">{userName}</span> logged in to the system
+          </span>
+        );
+      case 'logout':
+        return (
+          <span>
+            <span className="font-medium">{userName}</span> logged out of the system
+          </span>
+        );
       default:
-        return <span>performed an action</span>;
+        return (
+          <span>
+            <span className="font-medium">{userName}</span> performed an action
+          </span>
+        );
     }
   };
 
-  // Show changes for cell edit activities
-  const renderValueChange = () => {
-    if (activity.activityType !== 'cell_edit' && activity.activityType !== 'note_add') {
-      return null;
+  const handleAddComment = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && comment.trim() && user) {
+      await createComment(comment.trim());
+      setComment('');
+      setShowCommentInput(false);
     }
-
-    if (activity.activityType === 'note_add' && activity.newValue) {
-      return (
-        <div className="bg-slate-light/10 p-3 rounded-md text-sm mt-2">
-          {activity.newValue}
-        </div>
-      );
-    }
-
-    // Format old and new values
-    const oldVal = activity.oldValue === undefined || activity.oldValue === null 
-      ? '—' 
-      : activity.oldValue;
-    
-    const newVal = activity.newValue === undefined || activity.newValue === null 
-      ? '—' 
-      : activity.newValue;
-
-    return (
-      <div className="bg-slate-light/10 p-3 rounded-md text-sm mt-2">
-        <div className="flex">
-          <div className="text-gray-500 mr-2">From:</div>
-          <div className="flex-1">{oldVal}</div>
-        </div>
-        <div className="flex mt-1">
-          <div className="text-gray-500 mr-2">To:</div>
-          <div className="flex-1 text-teal-primary">{newVal}</div>
-        </div>
-      </div>
-    );
   };
 
   return (
-    <div className="p-4 hover:bg-slate-light/10">
-      <div className="flex gap-3">
-        <Avatar 
-          name={activity.userName} 
-          initials={activity.userName.substring(0, 2).toUpperCase()} 
+    <div className="py-4 px-6 hover:bg-gray-50/50 transition-colors">
+      <div className="flex items-start gap-3">
+        <Avatar
+          name={activity.userName}
+          className="h-8 w-8 bg-blue-500"
         />
-        
         <div className="flex-1">
-          <div className="flex items-center gap-1 mb-0.5">
-            <span className="font-semibold">{activity.userName}</span>
-            <span className="text-slate-medium">{getActivityText()}</span>
-          </div>
-          
-          <div className="text-xs text-slate-medium mb-2">
-            {formattedTime}
-          </div>
-          
-          {renderValueChange()}
-          
-          {activity.entityId && activity.entityType === 'contact' && (
-            <div className="mt-3">
-              <div className="flex items-center">
-                <Avatar 
-                  name={activity.entityName || activity.entityId} 
-                  size="sm" 
-                />
-                <span className="ml-2 text-sm">
-                  {activity.entityName || activity.entityId.replace('lead-', 'Contact ')}
-                </span>
-              </div>
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="text-sm text-gray-700">
+                {getActivityText()}
+              </p>
+              {activity.details?.message && (
+                <p className="text-sm text-gray-600 mt-1 bg-gray-50 p-2 rounded-md">
+                  {activity.details.message}
+                </p>
+              )}
             </div>
-          )}
-        </div>
-        
-        <div className="flex items-start pt-1">
-          {getActivityIcon()}
+            <span className="text-xs text-gray-500 whitespace-nowrap">
+              {format(parseISO(activity.timestamp), "MMM d 'at' h:mm a")}
+            </span>
+          </div>
+
+          {/* Comments section */}
+          <div className="mt-2 space-y-2">
+            {comments?.map((comment) => (
+              <div key={comment.id} className="flex items-start gap-2 group">
+                <Avatar
+                  name={comment.user?.email || ''}
+                  className="h-6 w-6"
+                />
+                <div className="flex-1 bg-gray-50 rounded-md p-2">
+                  <div className="flex items-start justify-between">
+                    <span className="text-sm font-medium">
+                      {comment.user?.email?.split('@')[0]}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">
+                        {formatDistanceToNow(parseISO(comment.created_at), { addSuffix: true })}
+                      </span>
+                      {user?.id === comment.user_id && (
+                        <button
+                          onClick={() => deleteComment(comment.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-600"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700 mt-1">{comment.content}</p>
+                </div>
+              </div>
+            ))}
+
+            {user && (showCommentInput ? (
+              <div className="flex gap-2 mt-2">
+                <Avatar
+                  name={user.email || ''}
+                  className="h-6 w-6"
+                />
+                <div className="flex-1">
+                  <Input
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    onKeyDown={handleAddComment}
+                    placeholder="Write a comment..."
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowCommentInput(true)}
+                className="text-sm text-gray-500 hover:text-teal-primary transition-colors flex items-center gap-1"
+              >
+                <MessageSquare className="h-3 w-3" />
+                {comments?.length ? `${comments.length} comment${comments.length === 1 ? '' : 's'}` : 'Add comment'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
+  );
+});
+
+ActivityFeedItem.displayName = 'ActivityFeedItem';
+
+export function FeedPanel() {
+  const [activeTab, setActiveTab] = useState("my-feed");
+  const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
+  const { activities, isLoading } = useActivityTracking();
+  const { user } = useAuth();
+
+  // Memoize the filtered activities
+  const filteredActivities = useMemo(() => {
+    if (activeTab === "my-feed" && user) {
+      return activities.filter(activity => activity.userId === user.id);
+    }
+    return activities;
+  }, [activities, activeTab, user]);
+
+  // Group activities by date and combine login/logout activities
+  const groupedActivities = useMemo(() => {
+    const groups: Record<string, ActivityItem[]> = {};
+    const loginLogoutGroups: Record<string, { logins: ActivityItem[], logouts: ActivityItem[] }> = {};
+
+    filteredActivities.forEach(activity => {
+      const date = format(parseISO(activity.timestamp), 'MMM d, yyyy');
+
+      if (!groups[date]) {
+        groups[date] = [];
+        loginLogoutGroups[date] = { logins: [], logouts: [] };
+      }
+
+      if (activity.activityType === 'login') {
+        loginLogoutGroups[date].logins.push(activity);
+      } else if (activity.activityType === 'logout') {
+        loginLogoutGroups[date].logouts.push(activity);
+      } else {
+        groups[date].push(activity);
+      }
+    });
+
+    // Combine login/logout activities for each date
+    Object.entries(loginLogoutGroups).forEach(([date, { logins, logouts }]) => {
+      if (logins.length > 0 || logouts.length > 0) {
+        groups[date] = [
+          ...(logins.length > 0 ? [logins[0]] : []), // Show only the first login
+          ...(logouts.length > 0 ? [logouts[0]] : []), // Show only the first logout
+          ...groups[date]
+        ];
+      }
+    });
+
+    return groups;
+  }, [filteredActivities]);
+
+  const toggleDateExpansion = (date: string) => {
+    setExpandedDates(prev => ({
+      ...prev,
+      [date]: !prev[date]
+    }));
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="h-full overflow-hidden flex flex-col">
+        <div className="p-4">Loading activities...</div>
+      </Card>
+    );
+  }
+
+  if (!filteredActivities.length) {
+    return (
+      <Card className="h-full overflow-hidden flex flex-col">
+        <div className="p-4">No activities to display</div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="h-full overflow-hidden flex flex-col">
+      <div className="border-b p-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="my-feed">My Feed</TabsTrigger>
+            <TabsTrigger value="all">All</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {Object.entries(groupedActivities).map(([date, dateActivities]) => (
+          <div key={date}>
+            <button
+              onClick={() => toggleDateExpansion(date)}
+              className="w-full bg-white border-y border-gray-100 px-6 py-2 sticky top-0 z-10 backdrop-blur-sm bg-white/90 flex items-center justify-between hover:bg-gray-50/50 transition-colors"
+            >
+              <h3 className="text-sm font-semibold text-gray-900">{date}</h3>
+              <span className="text-xs text-gray-500">
+                {expandedDates[date] ? 'Collapse' : 'Expand'} ({dateActivities.length} activities)
+              </span>
+            </button>
+            {expandedDates[date] && dateActivities.map((activity) => (
+              <ActivityFeedItem
+                key={activity.id}
+                activity={activity}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }

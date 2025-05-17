@@ -5,7 +5,7 @@ import { Task } from '@/types/task';
 import { toast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isPast, parseISO, startOfDay } from 'date-fns';
-import { Database } from '@/integrations/supabase/types';
+import { Database } from '@/types/supabase';
 
 export interface TaskData {
   id: string;
@@ -82,11 +82,10 @@ export function useTasks() {
       const { data, error } = await supabase
         .from('tasks')
         .insert([taskWithUserId])
-        .select()
-        .single();
+        .select('*');
 
       if (error) throw error;
-      return data;
+      return data[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', user?.id] });
@@ -106,21 +105,22 @@ export function useTasks() {
     mutationFn: async (updatedTask: Omit<TaskData, "created_at" | "updated_at">) => {
       if (!user) throw new Error('User must be logged in');
 
-      // Ensure task has user_id
-      const taskWithUserId = {
+      // Ensure task has user_id and updated_at
+      const taskWithMetadata = {
         ...updatedTask,
-        user_id: user.id
+        user_id: user.id,
+        updated_at: new Date().toISOString()
       };
 
       const { data, error } = await supabase
         .from('tasks')
-        .update(taskWithUserId)
+        .update(taskWithMetadata)
         .eq('id', updatedTask.id)
-        .select()
-        .single();
+        .eq('user_id', user.id) // Ensure we only update user's own tasks
+        .select('*');
 
       if (error) throw error;
-      return data;
+      return data[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', user?.id] });

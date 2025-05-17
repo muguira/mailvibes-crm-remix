@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -316,6 +315,71 @@ export interface Database {
           new_value?: string | null
           created_at?: string
         }
+      }
+      comments: {
+        Row: {
+          id: string
+          user_id: string
+          content: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          content: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          content?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_activity_comments: {
+        Row: {
+          id: string
+          comment_id: string
+          user_activity_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          comment_id: string
+          user_activity_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          comment_id?: string
+          user_activity_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_activity_comments_comment_id_fkey"
+            columns: ["comment_id"]
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_activity_comments_user_activity_id_fkey"
+            columns: ["user_activity_id"]
+            referencedRelation: "user_activities"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {

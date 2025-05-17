@@ -3,7 +3,7 @@ import { VariableSizeGrid as Grid } from 'react-window';
 import { Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './grid-constants';
 import { ContextMenu } from './ContextMenu';
-import { Check, CalendarIcon, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import './styles.css';
 import {
   Select,
@@ -19,13 +19,12 @@ import {
 } from '@/components/ui/popover';
 import {
   Command,
-  CommandInput,
   CommandList,
   CommandGroup,
   CommandItem
 } from '@/components/ui/command';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 interface MainGridViewProps {
   columns: Column[];
@@ -48,13 +47,11 @@ interface MainGridViewProps {
 export function MainGridView({
   columns,
   data,
-  scrollTop,
   scrollLeft,
   containerWidth,
   containerHeight,
   onScroll,
   onCellChange,
-  onColumnChange,
   onColumnsReorder,
   onAddColumn,
   onDeleteColumn,
@@ -76,6 +73,15 @@ export function MainGridView({
 
   // Add optimistic updates state to immediately show changes locally
   const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, any>>({});
+
+  // Add last double-clicked cell state to track the last cell that was double-clicked
+  const doubleClickRef = useRef<{
+    rowId: string;
+    columnId: string;
+    timestamp: number;
+  } | null>(null);
+
+  // Add a ref to track the last edit time
 
   // Add a special effect to preserve toolbar visibility on initial render
   useEffect(() => {
@@ -117,30 +123,22 @@ export function MainGridView({
       onCellChange(rowId, columnId, value);
     }
 
-    // Exit edit mode
-    setEditingCell(null);
-
-    // Check if this is a status column change
+    // Get the column to check if it's a date type
     const column = columns.find(col => col.id === columnId);
-    if (column?.id === 'status') {
-      // For status columns, completely clear the selection to prevent highlight issues
-      setSelectedCell(null);
-    } else if (targetRowId && targetColumnId) {
-      // For other columns, set selection based on target
-      setSelectedCell({ rowId: targetRowId, columnId: targetColumnId });
-    } else {
-      // Default selection to current cell
-      setSelectedCell({ rowId, columnId });
+
+    // For date columns, clear editing state immediately but delay selection update
+    if (column?.type === 'date') {
+      setEditingCell(null);
+      // Don't update selection state for date columns
+      return;
     }
 
-    // IMPORTANT: Do NOT force focus on the grid - this can make toolbar disappear
-    // Only set focus if the element is already focused or we're in a keyboard navigation flow
-    const isKeyboardNavigation = document.activeElement &&
-      (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT');
-
-    if (isKeyboardNavigation && mainViewRef.current) {
-      // Only focus the grid for keyboard navigation, not clicks
-      mainViewRef.current.focus();
+    // For other columns, proceed with normal selection handling
+    setEditingCell(null);
+    if (targetRowId && targetColumnId) {
+      setSelectedCell({ rowId: targetRowId, columnId: targetColumnId });
+    } else {
+      setSelectedCell({ rowId, columnId });
     }
 
     // Clear optimistic update after server sync should complete
@@ -443,6 +441,17 @@ export function MainGridView({
         return;
       }
 
+      // If target is inside the calendar popup or date-related elements, don't close it
+      if (
+        target.closest('.date-options-popup') ||
+        target.closest('.rdp') || // Calendar component class
+        target.closest('.rdp-day') || // Calendar day class
+        target.closest('.rdp-nav') || // Calendar navigation class
+        target.closest('.date-popup-header')
+      ) {
+        return;
+      }
+
       // If target is already handled by a cell click, ignore
       if (target.closest('.grid-cell')) {
         return;
@@ -553,6 +562,20 @@ export function MainGridView({
 
       // Exit edit mode
       setEditingCell(null);
+    }
+
+    // Special handling for date column - open calendar on first click
+    if (column?.type === 'date' && column.editable) {
+      // Clear any existing selection first to prevent highlighting issues
+      setSelectedCell(null);
+
+      // Directly enter edit mode for date cells
+      setEditingCell({
+        rowId,
+        columnId,
+        clearDateSelection: true // Add flag to clear date selection
+      });
+      return;
     }
 
     // Special handling for status column - open dropdown on first click
@@ -884,10 +907,11 @@ export function MainGridView({
         return renderStatusPill(value, column.colors || {});
       case 'date':
         try {
-          // Try to parse the date and format it consistently
-          const date = new Date(value);
-          if (!isNaN(date.getTime())) {
-            return format(date, 'MMM d, yyyy');
+          if (value) {
+            const date = parseISO(value);
+            if (!isNaN(date.getTime())) {
+              return format(date, 'MMM d, yyyy');
+            }
           }
         } catch (e) {
           // If there's any error in parsing, just return the original value
@@ -956,10 +980,12 @@ export function MainGridView({
     const column = columns[columnIndex];
     if (!column) return null;
 
+
     const cellId = `${row.id}-${column.id}`;
     const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
     const isSelected = selectedCell?.rowId === row.id && selectedCell?.columnId === column.id;
     const value = row[column.id];
+
 
     // Special handler for status column - only open on double click
     if (column.id === 'status') {
@@ -968,7 +994,6 @@ export function MainGridView({
           style={{
             ...style,
             height: ROW_HEIGHT,
-            border: '1px solid #e5e7eb',
             borderBottom: '1px solid #e5e7eb',
             borderRight: '1px solid #e5e7eb',
             boxSizing: 'border-box',
@@ -985,7 +1010,7 @@ export function MainGridView({
             e.stopPropagation();
             // Enter edit mode on double-click
             if (column?.editable) {
-              setEditingCell({ rowId: row.id, columnId: column.id });
+              // setEditingCell({ rowId: row.id, columnId: column.id });
             }
           }}
           onContextMenu={(e) => {
@@ -1079,7 +1104,6 @@ export function MainGridView({
         </div>
       );
     }
-
     // Special handler for date columns
     if (column.type === 'date') {
       return (
@@ -1087,7 +1111,6 @@ export function MainGridView({
           style={{
             ...style,
             height: ROW_HEIGHT,
-            border: '1px solid #e5e7eb',
             borderBottom: '1px solid #e5e7eb',
             borderRight: '1px solid #e5e7eb',
             boxSizing: 'border-box',
@@ -1117,14 +1140,16 @@ export function MainGridView({
             }
           }}
         >
+
+
           {isEditing ? (
+
             // Only show the calendar if we're not in direct typing mode
             editingCell?.directTyping ? (
               renderEditInput(row, column)
             ) : (
               <div className="w-full h-full flex justify-center items-center">
-                {/* Create a completely stateless calendar that doesn't maintain its own selected date */}
-                <Popover open={true} modal={true}>
+                <Popover>
                   <PopoverTrigger asChild>
                     <div className="cursor-pointer flex justify-center items-center">
                       {formatCellValue(value, column, row)}
@@ -1136,6 +1161,8 @@ export function MainGridView({
                     side="bottom"
                     alignOffset={-50}
                     sideOffset={5}
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    onCloseAutoFocus={(e) => e.preventDefault()}
                   >
                     <div className="date-popup-header p-3 border-b flex justify-between items-center border-2">
                       <span className="text-sm font-medium">Select Date</span>
@@ -1150,22 +1177,15 @@ export function MainGridView({
                     <div className="p-5">
                       <Calendar
                         mode="single"
-                        // If clearDateSelection flag is true, don't pass any selected date
-                        selected={editingCell?.clearDateSelection ? undefined : (value ? new Date(value) : undefined)}
+                        selected={editingCell?.clearDateSelection ? undefined : (value ? parseISO(value) : undefined)}
                         onSelect={(date) => {
                           if (date) {
-                            const formattedDate = format(date, 'yyyy-MM-dd'); // Store in ISO format for data consistency
-                            // Immediately close the popup and apply the change
-                            setEditingCell(null);
+                            const formattedDate = format(date, 'yyyy-MM-dd');
                             finishCellEdit(row.id, column.id, formattedDate);
-                          } else {
-                            setEditingCell(null);
-                            finishCellEdit(row.id, column.id, '');
                           }
                         }}
-                        defaultMonth={value ? new Date(value) : new Date()}
+                        defaultMonth={value ? parseISO(value) : new Date()}
                         initialFocus
-
                         modifiersStyles={{
                           today: {
                             backgroundColor: "rgb(var(--teal) / 0.15)",
@@ -1203,7 +1223,8 @@ export function MainGridView({
       <div
         style={{
           ...style,
-          border: '1px solid #e5e7eb',
+          borderRight: '1px solid #e5e7eb',
+          borderBottom: '1px solid #e5e7eb',
           height: ROW_HEIGHT,
           boxSizing: 'border-box',
           width: column.width // Ensure same width as header
@@ -1302,8 +1323,29 @@ export function MainGridView({
 
     // Common focus handler to select all text when input is focused
     const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-      // Select all text when input receives focus
-      setTimeout(() => e.target.select(), 0);
+      setTimeout(() => {
+        // Check if this is a second double-click within a short time window
+        if (
+          doubleClickRef.current?.rowId === row.id &&
+          doubleClickRef?.current.columnId === column.id &&
+          Date.now() - doubleClickRef.current.timestamp < 600 // 600ms window for double-click
+        ) {
+          // Second double-click - select all text
+          e.target.select();
+          // Reset the last double-clicked cell
+          doubleClickRef.current = null;
+        } else {
+          // First double-click - move cursor to end
+          const length = e.target.value.length;
+          e.target.setSelectionRange(length, length);
+          // Update the last double-clicked cell
+          doubleClickRef.current = {
+            rowId: row.id,
+            columnId: column.id,
+            timestamp: Date.now()
+          };
+        }
+      }, 0);
     };
 
     switch (column.type) {
@@ -1326,7 +1368,7 @@ export function MainGridView({
         let displayValue = value as string;
         try {
           if (displayValue) {
-            const date = new Date(displayValue);
+            const date = parseISO(displayValue);
             if (!isNaN(date.getTime())) {
               // Format for display in the input as MM-DD-YYYY
               displayValue = format(date, 'MM-dd-yyyy');
