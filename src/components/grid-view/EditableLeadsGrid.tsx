@@ -101,7 +101,7 @@ export function EditableLeadsGrid() {
       setIsGridReady(true);
     }
   }, [loading]);
-
+  
   // Listen for contact-added events to refresh the grid
   useEffect(() => {
     const handleContactAdded = (event: Event) => {
@@ -141,11 +141,11 @@ export function EditableLeadsGrid() {
       editable: true,
       options: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'],
       colors: {
-        'New': '#F2FCE2',
-        'In Progress': '#D3E4FD',
-        'On Hold': '#FEF7CD',
-        'Closed Won': '#F2FCE2',
-        'Closed Lost': '#FFDEE2',
+        'New': '#E4E5E8',
+        'In Progress': '#DBCDF0',
+        'On Hold': '#C6DEF1',
+        'Closed Won': '#C9E4DE',
+        'Closed Lost': '#F4C6C6',
       },
     },
     {
@@ -332,7 +332,7 @@ export function EditableLeadsGrid() {
       oldValue
     );
   };
-
+  
   // Handle columns reordering
   const handleColumnsReorder = (columnIds: string[]) => {
     setColumns(columns.map(col => ({
@@ -343,7 +343,7 @@ export function EditableLeadsGrid() {
     // Log the activity
     logFilterChange({ type: 'columns_reorder', columns: columnIds });
   };
-
+  
   // Handle column deletion
   const handleDeleteColumn = (columnId: string) => {
     // Don't delete the primary columns
@@ -365,7 +365,7 @@ export function EditableLeadsGrid() {
     // Remove from columns array
     setColumns(columns.filter(col => col.id !== columnId));
   };
-
+  
   // Handle adding a new column
   const handleAddColumn = (afterColumnId: string) => {
     // Create a new unique column ID

@@ -82,6 +82,10 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
       window.removeEventListener('mockContactsUpdated',
         ((e: CustomEvent) => handleContactUpdate(e)) as EventListener
       );
+      
+      window.removeEventListener('contactStatusChanged', 
+        ((e: CustomEvent) => handleStatusChange(e)) as EventListener
+      );
     };
   }, [contact.id, logCellEdit]);
 
@@ -121,7 +125,14 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
     data = {},
   } = { ...contact, ...updatedContact }; // Merge with updatedContact
 
-  // Create a safe contact object with default values
+  // Log the status fields for debugging
+  console.log("Stream View status fields:", { 
+    contactStatus: contact.status,
+    updatedStatus: updatedContact.status,
+    finalStatus: status
+  });
+
+  // Create a safe contact object with default values - use status consistently
   const safeContact = {
     ...contact,
     ...updatedContact, // Include any updated values
@@ -131,7 +142,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
     location,
     phone,
     email,
-    leadStatus,
+    status: status !== '—' ? status : '', // Use status consistently
     lifecycleStage,
     source,
     industry,

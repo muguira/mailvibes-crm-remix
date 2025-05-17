@@ -1,0 +1,70 @@
+/* Stream view specific styles */
+
+/* Lead Status Dropdown Styling */
+.stream-lead-status {
+  position: relative;
+}
+
+.stream-lead-status-placeholder {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.stream-lead-status-value {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.stream-lead-status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+/* Status dot colors - EXACTLY match grid view */
+.stream-lead-status-dot.New {
+  background-color: #E4E5E8; /* Gray for New */
+}
+
+.stream-lead-status-dot.In-Progress {
+  background-color: #DBCDF0; /* Pastel rainbow purple for In Progress */
+}
+
+.stream-lead-status-dot.On-Hold {
+  background-color: #C6DEF1; /* Pastel rainbow blue for On Hold */
+}
+
+.stream-lead-status-dot.Closed-Won {
+  background-color: #C9E4DE; /* Pastel rainbow green for Closed Won */
+}
+
+.stream-lead-status-dot.Closed-Lost {
+  background-color: #F4C6C6; /* Pastel rainbow light red for Closed Lost */
+}
+
+/* Override for the select component in About This Contact */
+.about-contact-select {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 4px 0;
+  transition: border-color 0.2s ease;
+}
+
+.about-contact-select:hover {
+  border-color: #32BAB0;
+}
+
+.about-contact-select:focus {
+  border-color: #32BAB0;
+  box-shadow: none;
+  outline: none;
+}
+
+/* Make sure dropdown appears above other elements */
+.status-dropdown-content {
+  z-index: 100;
+} 
