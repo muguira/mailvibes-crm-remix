@@ -23,13 +23,13 @@ export default function StreamView() {
         <div className="overflow-auto flex-1">
           {/* Content with proper padding to account for fixed navbar */}
           <div className={`px-6 pt-12 ${isMobile ? "pb-6" : "pb-6"}`}>
-            <StreamHeader />
-            
-            <StreamViewLayout contact={contact || {
-              id: 'not-found',
-              name: '',
-            }} />
-          </div>
+          <StreamHeader />
+          
+          <StreamViewLayout contact={contact || {
+            id: 'not-found',
+            name: '',
+          }} />
+        </div>
         </div>
       </div>
     </div>

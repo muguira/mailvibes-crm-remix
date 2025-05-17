@@ -56,10 +56,13 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
       
       if (contactId === contact.id) {
         // Update local state to trigger component re-render
-        setUpdatedContact(prevContact => ({
-          ...prevContact,
-          [field]: value
-        }));
+        setUpdatedContact(prevContact => {
+          console.log(`StreamViewLayout: Updating field ${field} to: ${value}`);
+          return {
+            ...prevContact,
+            [field]: value
+          };
+        });
         
         // Log the update to the activity feed
         logCellEdit(
@@ -73,14 +76,44 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
       }
     };
     
-    // Add event listener with type casting
+    // Add specific handler for status changes
+    const handleStatusChange = (event: CustomEvent) => {
+      const { contactId, status, previousStatus } = event.detail;
+      
+      if (contactId === contact.id) {
+        console.log(`StreamViewLayout: Status change detected: ${previousStatus} -> ${status}`);
+        // Force update for status field specifically
+        setUpdatedContact(prevContact => ({
+          ...prevContact,
+          status
+        }));
+        
+        // Log the status change to activity feed
+        logCellEdit(
+          contactId,
+          'status',
+          status,
+          previousStatus
+        );
+      }
+    };
+    
+    // Add event listeners with type casting
     window.addEventListener('mockContactsUpdated', 
       ((e: CustomEvent) => handleContactUpdate(e)) as EventListener
+    );
+    
+    window.addEventListener('contactStatusChanged', 
+      ((e: CustomEvent) => handleStatusChange(e)) as EventListener
     );
     
     return () => {
       window.removeEventListener('mockContactsUpdated', 
         ((e: CustomEvent) => handleContactUpdate(e)) as EventListener
+      );
+      
+      window.removeEventListener('contactStatusChanged', 
+        ((e: CustomEvent) => handleStatusChange(e)) as EventListener
       );
     };
   }, [contact.id, logCellEdit]);
@@ -103,7 +136,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
     location = '—',
     phone = '—',
     email = '—',
-    leadStatus = '—',
+    status = '—', // Just use status field
     lifecycleStage = '—',
     source = '—',
     industry = '—',
@@ -121,7 +154,14 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
     data = {},
   } = { ...contact, ...updatedContact }; // Merge with updatedContact
 
-  // Create a safe contact object with default values
+  // Log the status fields for debugging
+  console.log("Stream View status fields:", { 
+    contactStatus: contact.status,
+    updatedStatus: updatedContact.status,
+    finalStatus: status
+  });
+
+  // Create a safe contact object with default values - use status consistently
   const safeContact = {
     ...contact,
     ...updatedContact, // Include any updated values
@@ -131,7 +171,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
     location,
     phone,
     email,
-    leadStatus,
+    status: status !== '—' ? status : '', // Use status consistently
     lifecycleStage,
     source,
     industry,
@@ -189,7 +229,6 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
           <div className="hidden lg:block mt-4">
             <AboutThisContact 
               compact={true} 
-              leadStatus={leadStatus} 
               contact={safeContact}
             />
           </div>

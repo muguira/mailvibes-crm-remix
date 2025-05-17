@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { mockContactsById } from "@/components/stream/sample-data";
 import { useActivity } from "@/contexts/ActivityContext";
 import { updateContact } from '@/helpers/updateContact';
+import './stream-styles.css';
 
 interface Contact {
   id: string;
@@ -34,19 +35,25 @@ interface Contact {
   primaryLocation?: string;
   data?: Record<string, any>;
   name?: string; // Added name field
-  leadStatus?: string; // Added leadStatus
+  status?: string; // Use status field consistently
   [key: string]: any; // Allow dynamic properties to be added
 }
 
 interface AboutThisContactProps {
   compact?: boolean;
-  leadStatus?: string;
   contact: Contact;
 }
 
+// Helper to enable/disable debug logging
+const DEBUG = false;
+const debugLog = (...args: any[]) => {
+  if (DEBUG) {
+    console.log(...args);
+  }
+};
+
 export default function AboutThisContact({ 
   compact = false, 
-  leadStatus = "N/A",
   contact
 }: AboutThisContactProps) {
   const { user } = useAuth();
@@ -81,10 +88,21 @@ export default function AboutThisContact({
         data = {}
       } = contact;
       
+      // SIMPLIFY: Just get status from contact object, with standard fallback
+      let statusValue = '';
+      
+      // Check if there's a status in contact 
+      if (contact.status && contact.status !== '—') {
+        statusValue = contact.status;
+        console.log("Using status from contact:", statusValue);
+      }
+      
+      console.log("Final status value for initialization:", statusValue);
+      
       const newValues = {
         name,
         email,
-        leadStatus: leadStatus || '',
+        status: statusValue, // Use status field consistently
         description,
         company,
         jobTitle,
@@ -103,10 +121,11 @@ export default function AboutThisContact({
         ...data
       };
       
+      console.log("Setting initial field values with status:", statusValue);
       setFieldValues(newValues);
       originalValues.current = {...newValues};
     }
-  }, [contact, leadStatus, user]);
+  }, [contact, user]);
 
   // When starting to edit a field, store the original value
   useEffect(() => {
@@ -180,24 +199,35 @@ export default function AboutThisContact({
 
     setIsSaving(true);
 
+    console.log(`Saving field ${field} with value:`, value);
+    
     try {
-      // First, update the mock contact data which is used for UI display
+      // CRITICAL: First ensure our local state is updated
+      setFieldValues(prev => {
+        const updated = { ...prev, [field]: value };
+        console.log("Updated fieldValues during save:", updated);
+        return updated;
+      });
+      
+      // Then update mock data - use a deep clone to prevent reference issues
       if (mockContactsById[contact.id]) {
-        const updatedContact = { ...mockContactsById[contact.id] };
+        const updatedContact = JSON.parse(JSON.stringify(mockContactsById[contact.id]));
         
-        // Determine where to store the value
-        if (field === 'leadStatus') {
-          updatedContact.leadStatus = value;
+        if (field === 'status') {
+          // Just update status - keep it simple
+          updatedContact.status = value;
+          console.log("Updated status in mock data:", value);
         } else if (field === 'name') {
           updatedContact.name = value;
         } else {
           updatedContact[field] = value;
         }
         
-        // Update the mock data
+        // Update the mock data with the cloned and modified object
         mockContactsById[contact.id] = updatedContact;
+        console.log("Updated mockContactsById:", mockContactsById[contact.id]);
         
-        // Dispatch a custom event to notify grid that mockContactsById was updated
+        // Dispatch event - use status field name consistently
         window.dispatchEvent(new CustomEvent('mockContactsUpdated', {
           detail: { 
             contactId: contact.id, 
@@ -207,61 +237,59 @@ export default function AboutThisContact({
           }
         }));
         
+        // Also dispatch a more specific event for status changes
+        if (field === 'status') {
+          window.dispatchEvent(new CustomEvent('contactStatusChanged', {
+            detail: { 
+              contactId: contact.id, 
+              status: value,
+              previousStatus: oldValue
+            }
+          }));
+        }
+        
         // Log to activity feed
-        logCellEdit(
-          contact.id,
-          field,
-          value,
-          oldValue
-        );
+        logCellEdit(contact.id, field, value, oldValue);
       }
       
-      // Now try to save to Supabase in all cases (even for mock IDs)
+      // Save to database if user is authenticated
       if (user) {
         // Get the mapping of UI ID to database ID
         const idMapping = JSON.parse(localStorage.getItem('id-mapping') || '{}');
         const dbId = idMapping[contact.id] || contact.id;
         
-        console.log(`Attempting to save field ${field} for contact ${contact.id} (DB ID: ${dbId})`);
-        
-        // Determine if this is a main field or a data field
-        const mainFields = ['email', 'phone', 'company', 'source', 'industry', 'jobTitle', 'leadStatus', 'website'];
+        console.log(`Saving to database: field=${field}, value=${value}, id=${dbId}`);
         
         try {
-          if (mainFields.includes(field)) {
+          if (field === 'status') {
+            // Save status directly
+            await updateContact({ 
+              id: contact.id,
+              user_id: user.id,
+              name: contact.name || 'Untitled Contact',
+              status: value // Use status field consistently
+            });
+            
+            console.log("Successfully saved status to database:", value);
+          } else {
             // Map the field name if needed (e.g., jobTitle to job_title)
             const mappedField = field === 'jobTitle' ? 'job_title' : field;
             
             // Use the shared updateContact helper with explicit user_id
             await updateContact({ 
               id: contact.id,
-              user_id: user.id, // CRITICAL: include user_id for RLS policies
-              name: contact.name || 'Untitled Contact', // Ensure name is included
+              user_id: user.id,
+              name: contact.name || 'Untitled Contact',
               [mappedField]: value
-            });
-          } else {
-            // For fields that go in the data JSON
-            const currentData = contact.data || {};
-            await updateContact({
-              id: contact.id,
-              user_id: user.id, // CRITICAL: include user_id for RLS policies
-              name: contact.name || 'Untitled Contact', // Ensure name is included
-              data: {
-                ...currentData,
-                [field]: value
-              }
             });
           }
 
-          // Show success toast
           toast({
             title: "Success",
             description: "Contact updated successfully"
           });
-        } catch (supabaseError) {
-          console.error("Supabase error:", supabaseError);
-          
-          // Show success toast anyway since we updated the mock data
+        } catch (error) {
+          console.error("Database error:", error);
           toast({
             title: "Success",
             description: "Contact updated in local storage"
@@ -270,12 +298,20 @@ export default function AboutThisContact({
       }
     } catch (error) {
       console.error("Error saving contact:", error);
-      // Still show success since we updated the mock data
       toast({
-        title: "Success",
+        title: "Success", 
         description: "Contact updated in local storage"
       });
     } finally {
+      // Make one final check to ensure the field value is properly set
+      setFieldValues(prev => {
+        if (prev[field] !== value) {
+          console.log(`Final check - updating ${field} to`, value);
+          return { ...prev, [field]: value };
+        }
+        return prev;
+      });
+      
       setIsSaving(false);
       setEditingField(null);
     }
@@ -359,26 +395,62 @@ export default function AboutThisContact({
             <Select 
               value={value}
               onValueChange={(val) => {
+                console.log("STATUS CHANGE: Selected status:", val); // Keep this log for debugging
+                // Update state immediately for UI feedback
                 handleFieldChange(field, val);
-                setTimeout(() => saveFieldChange(field, val), 10);
+                
+                // Force update fieldValues state directly to ensure it's updated
+                setFieldValues(prev => {
+                  const updated = {
+                    ...prev,
+                    [field]: val
+                  };
+                  console.log("Updated fieldValues state:", updated);
+                  return updated;
+                });
+                
+                // Then save to persistent storage with the exact selected value
+                saveFieldChange(field, val);
               }}
-              open={true}
             >
-              <SelectTrigger autoFocus className="border-0 border-b border-[#32BAB0] focus:ring-0 px-0 py-0 rounded-none shadow-none font-inherit"
+              <SelectTrigger 
+                autoFocus 
+                className={`about-contact-select border-0 border-b border-[#32BAB0] focus:ring-0 rounded-none shadow-none font-inherit ${field === 'status' ? 'stream-lead-status' : ''}`}
                 style={{ 
                   lineHeight: 'inherit', 
                   fontSize: 'inherit',
                   fontFamily: 'inherit',
                   fontWeight: 'inherit',
-                  padding: 0,
+                  padding: '2px 0 3px 0',
                   margin: 0
                 }}
               >
-                <SelectValue placeholder={placeholder} />
+                <SelectValue placeholder={field === 'status' ? 'Select status...' : placeholder} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="status-dropdown-content">
                 {options?.map(option => (
-                  <SelectItem key={option} value={option}>{option}</SelectItem>
+                  <SelectItem 
+                    key={option} 
+                    value={option}
+                    className="status-command-item"
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <span
+                        className="inline-block w-3 h-3 rounded-full"
+                        style={{
+                          backgroundColor: option === 'New' ? '#E4E5E8' :
+                            option === 'In Progress' ? '#DBCDF0' :
+                              option === 'On Hold' ? '#C6DEF1' :
+                                option === 'Closed Won' ? '#C9E4DE' :
+                                  option === 'Closed Lost' ? '#F4C6C6' : '#F7D9C4'
+                        }}
+                      />
+                      <span>{option}</span>
+                      {value === option && (
+                        <Check className="ml-auto h-4 w-4" size={16} />
+                      )}
+                    </div>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -416,15 +488,18 @@ export default function AboutThisContact({
         </div>
         
         {isEditing ? (
+          // For status, don't show the X button
           <div ref={editControlRef} className="relative" style={{ paddingTop: '2px', paddingBottom: '3px' }}>
             {renderEditControl()}
-            <button 
-              onClick={cancelEditing}
-              className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100"
-              aria-label="Cancel"
-            >
-              <X size={16} className="text-[#9ba3af]" />
-            </button>
+            {field !== 'status' && (
+              <button 
+                onClick={cancelEditing}
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100"
+                aria-label="Cancel"
+              >
+                <X size={16} className="text-[#9ba3af]" />
+              </button>
+            )}
           </div>
         ) : (
           <div 
@@ -436,10 +511,24 @@ export default function AboutThisContact({
               paddingBottom: '3px' 
             }}
           >
-            {value ? (
+            {value && value !== '—' ? (
               <div className="break-words">
                 {field === 'lastContacted' && value ? (
                   format(new Date(value), 'MMM d, yyyy')
+                ) : field === 'status' ? (
+                  <div className="stream-lead-status-value">
+                    <span
+                      className={`stream-lead-status-dot ${value.replace(/\s+/g, '-')}`}
+                      style={{
+                        backgroundColor: value === 'New' ? '#E4E5E8' :
+                          value === 'In Progress' ? '#DBCDF0' :
+                            value === 'On Hold' ? '#C6DEF1' :
+                              value === 'Closed Won' ? '#C9E4DE' :
+                                value === 'Closed Lost' ? '#F4C6C6' : '#F7D9C4'
+                      }}
+                    />
+                    <span>{value}</span>
+                  </div>
                 ) : isSocialField ? (
                   renderSocialLink(value, label)
                 ) : (
@@ -447,8 +536,8 @@ export default function AboutThisContact({
                 )}
               </div>
             ) : (
-              <div className="text-slate-400">
-                {placeholder}
+              <div className={`text-slate-400 ${field === 'status' ? 'stream-lead-status-placeholder' : ''}`}>
+                {field === 'status' ? 'Select status...' : placeholder}
               </div>
             )}
           </div>
@@ -461,7 +550,7 @@ export default function AboutThisContact({
   const fields = [
     { id: 'name', label: 'Name', type: 'text' },
     { id: 'email', label: 'Email Address', type: 'email' },
-    { id: 'leadStatus', label: 'Lead Status', type: 'select', options: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'] },
+    { id: 'status', label: 'Lead Status', type: 'select', options: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'] },
     { id: 'description', label: 'Description', type: 'textarea' },
     { id: 'company', label: 'Company', type: 'text' },
     { id: 'jobTitle', label: 'Job Title', type: 'text' },
@@ -505,6 +594,54 @@ export default function AboutThisContact({
     
     debugSupabase();
   }, []);
+
+  useEffect(() => {
+    // Debug the specific contact data from Supabase
+    const debugContactStatus = async () => {
+      if (!user || !contact.id) return;
+      
+      try {
+        console.log("Checking database for contact status...");
+        
+        // Get the mapping of UI ID to database ID
+        const idMapping = JSON.parse(localStorage.getItem('id-mapping') || '{}');
+        const dbId = idMapping[contact.id] || contact.id;
+        
+        // Query the specific contact to see its current status
+        const { data, error } = await supabase
+          .from('contacts')
+          .select('id, name, status')
+          .eq('id', dbId)
+          .maybeSingle();
+        
+        if (error) {
+          console.error("SUPABASE ERROR checking contact status:", error);
+          return;
+        }
+        
+        if (data) {
+          console.log("Contact status in database:", data.status);
+          console.log("Contact status in UI:", fieldValues.status);
+          
+          // If there's a mismatch between DB and UI, update the UI
+          if (data.status && data.status !== fieldValues.status) {
+            console.log("Status mismatch - updating local state from DB");
+            setFieldValues(prev => ({
+              ...prev,
+              status: data.status
+            }));
+          }
+        } else {
+          console.log("Contact not found in database");
+        }
+      } catch (e) {
+        console.error("Unexpected error checking contact status:", e);
+      }
+    };
+    
+    // Run the debug function
+    debugContactStatus();
+  }, [contact.id, user, fieldValues.status]);
 
   return (
     <Card>
