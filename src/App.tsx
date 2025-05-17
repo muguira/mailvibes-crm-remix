@@ -16,6 +16,8 @@ import Auth from "@/pages/Auth";
 import ContactProfile from "@/pages/dashboard/ContactProfile";
 import StreamView from "@/pages/dashboard/StreamView";
 import Landing from "@/pages/Landing";
+import Settings from "@/pages/dashboard/Settings";
+import Integrations from "@/pages/dashboard/Integrations";
 // Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,6 +46,8 @@ function App() {
                 <Route path="/leads" element={<PrivateRoute><Leads /></PrivateRoute>} />
                 <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
                 <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+                <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+                <Route path="/settings/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
                 <Route path="/contact/:id" element={<PrivateRoute><ContactProfile /></PrivateRoute>} />
                 <Route path="/stream-view/:recordId?" element={<PrivateRoute><StreamView /></PrivateRoute>} />
                 <Route path="*" element={<NotFound />} />
