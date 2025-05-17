@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { Bell, Settings, HelpCircle, Search } from "lucide-react";
 import { ProfileMenu } from "./profile-menu";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,6 @@ interface TopNavbarProps {
 
 export function TopNavbar({ className }: TopNavbarProps) {
   const [isMobile, setIsMobile] = useState(false);
-  const navigate = useNavigate();
 
   // Detect mobile devices based on screen width
   useEffect(() => {
@@ -105,10 +104,7 @@ export function TopNavbar({ className }: TopNavbarProps) {
               <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
                 <HelpCircle size={18} />
               </button>
-              <button
-                className="p-2 rounded-full hover:bg-[#2D7289]/50"
-                onClick={() => navigate('/settings')}
-              >
+              <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
                 <Settings size={18} />
               </button>
             </>
