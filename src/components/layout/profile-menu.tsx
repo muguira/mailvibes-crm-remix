@@ -8,19 +8,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
-import { useActivity } from "@/contexts/ActivityContext";
 
 export function ProfileMenu() {
   const { user, signOut } = useAuth();
-  const { logLogout } = useActivity();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logLogout();
     await signOut();
     navigate("/auth");
   };
-
+  
   const handleLogin = () => {
     navigate("/auth");
   };

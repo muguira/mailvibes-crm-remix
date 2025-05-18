@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GridViewContainer } from '@/components/grid-view/GridViewContainer';
 import { Column, GridRow } from '@/components/grid-view/types';
-import {
+import { 
   DEFAULT_COLUMN_WIDTH,
   MOBILE_COLUMN_WIDTH,
   ROW_HEIGHT,
@@ -22,34 +22,34 @@ import { useActivity } from "@/contexts/ActivityContext";
 const syncContact = (row: GridRow): void => {
   if (!mockContactsById[row.id]) {
     // Create a new contact object if it doesn't exist
-    mockContactsById[row.id] = {
+    mockContactsById[row.id] = { 
       id: row.id,
-      name: row.name || '',
-      email: row.email || '',
+      name: row.name || '—',
+      email: row.email || '—',
     };
   }
-
+  
   // Update the contact object with row values
   mockContactsById[row.id] = {
     ...mockContactsById[row.id],
-    name: row.name || '',
-    email: row.email || '',
-    company: row.company || '',
-    owner: row.owner || '',
+    name: row.name || '—',
+    email: row.email || '—',
+    company: row.company || '—',
+    owner: row.owner || '—',
     leadStatus: row.status,
     revenue: row.revenue,
-    description: row.description || '',
-    jobTitle: row.jobTitle || '',
-    industry: row.industry || '',
-    phone: row.phone || '',
-    primaryLocation: row.primaryLocation || '',
-    facebook: row.facebook || '',
-    instagram: row.instagram || '',
-    linkedIn: row.linkedin || '',
-    twitter: row.twitter || '',
-    website: row.website || '',
-    associatedDeals: row.associatedDeals || '',
-    source: row.source || '',
+    description: row.description || '—',
+    jobTitle: row.jobTitle || '—', 
+    industry: row.industry || '—',
+    phone: row.phone || '—',
+    primaryLocation: row.primaryLocation || '—',
+    facebook: row.facebook || '—',
+    instagram: row.instagram || '—',
+    linkedIn: row.linkedin || '—',
+    twitter: row.twitter || '—',
+    website: row.website || '—',
+    associatedDeals: row.associatedDeals || '—',
+    source: row.source || '—',
   };
 };
 
@@ -60,10 +60,10 @@ const renderSocialLink = (value: any, row: any) => {
   return (
     <div className="flex items-center w-full" onClick={(e) => e.stopPropagation()}>
       <span className="text-[#33B9B0] truncate">{value}</span>
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
+      <a 
+        href={url} 
+        target="_blank" 
+        rel="noopener noreferrer" 
         className="text-[#33B9B0] hover:text-[#2aa39b] ml-1"
         onClick={(e) => {
           e.stopPropagation();
@@ -80,28 +80,28 @@ export function EditableLeadsGrid() {
   // Get authentication state
   const { user } = useAuth();
   const { logCellEdit, logColumnAdd, logColumnDelete, logFilterChange } = useActivity();
-
+  
   // Set up state for grid
   const [isGridReady, setIsGridReady] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-
+  
   // Use our custom hook for leads data
-  const {
-    rows,
-    loading,
+  const { 
+    rows, 
+    loading, 
     PAGE_SIZE,
     updateCell,
     addContact,
     refreshData
   } = useLeadsRows();
-
+  
   // Set grid ready state when data is loaded
   useEffect(() => {
     if (!loading) {
       setIsGridReady(true);
     }
   }, [loading]);
-  
+
   // Listen for contact-added events to refresh the grid
   useEffect(() => {
     const handleContactAdded = (event: Event) => {
@@ -117,7 +117,7 @@ export function EditableLeadsGrid() {
       document.removeEventListener('contact-added', handleContactAdded);
     };
   }, [refreshData]);
-
+  
   // Define columns for the grid - with opportunity column marked as frozen
   const [columns, setColumns] = useState<Column[]>([
     {
@@ -141,11 +141,11 @@ export function EditableLeadsGrid() {
       editable: true,
       options: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'],
       colors: {
-        'New': '#E4E5E8',
-        'In Progress': '#DBCDF0',
-        'On Hold': '#C6DEF1',
-        'Closed Won': '#C9E4DE',
-        'Closed Lost': '#F4C6C6',
+        'New': '#F2FCE2',
+        'In Progress': '#D3E4FD',
+        'On Hold': '#FEF7CD',
+        'Closed Won': '#F2FCE2',
+        'Closed Lost': '#FFDEE2',
       },
     },
     {
@@ -280,70 +280,70 @@ export function EditableLeadsGrid() {
       renderCell: renderSocialLink,
     },
   ]);
-
+  
   // Add effect to adjust column widths based on screen size
   useEffect(() => {
     const handleResize = () => {
       const isMobile = window.innerWidth < 768; // Standard mobile breakpoint
       const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
-
+      
       setColumns(prevColumns => {
         return prevColumns.map(col => {
           // For mobile, set contacts/opportunity column to 130px, otherwise keep at 180px
           if (col.id === 'name') {
             return { ...col, width: isMobile ? 130 : 180 };
           }
-
+          
           // Update all other columns to use the appropriate width
           return { ...col, width: columnWidth };
         });
       });
     };
-
+    
     // Initial call
     handleResize();
-
+    
     // Add event listener
     window.addEventListener('resize', handleResize);
-
+    
     // Cleanup
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
+  
   // Handle cell edit
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
     // Find the old value for activity logging
     const row = rows.find(r => r.id === rowId);
     const oldValue = row ? row[columnId] : null;
-
+    
     // Save to Supabase through our hook
     updateCell({ rowId, columnId, value });
-
+    
     // Sync with mockContactsById
     const updatedRow = rows.find(r => r.id === rowId) || { id: rowId };
     updatedRow[columnId] = value;
     syncContact(updatedRow as GridRow);
-
+    
     // Log the activity with contact name if available
     logCellEdit(
-      rowId,
-      columnId,
-      value,
+      rowId, 
+      columnId, 
+      value, 
       oldValue
     );
   };
-  
+
   // Handle columns reordering
   const handleColumnsReorder = (columnIds: string[]) => {
     setColumns(columns.map(col => ({
       ...col,
       order: columnIds.indexOf(col.id)
     })).sort((a, b) => a.order - b.order));
-
+    
     // Log the activity
     logFilterChange({ type: 'columns_reorder', columns: columnIds });
   };
-  
+
   // Handle column deletion
   const handleDeleteColumn = (columnId: string) => {
     // Don't delete the primary columns
@@ -355,22 +355,22 @@ export function EditableLeadsGrid() {
       });
       return;
     }
-
+    
     // Log the column deletion
     const column = columns.find(col => col.id === columnId);
     if (column) {
       logColumnDelete(columnId, column.title);
     }
-
+    
     // Remove from columns array
     setColumns(columns.filter(col => col.id !== columnId));
   };
-  
+
   // Handle adding a new column
   const handleAddColumn = (afterColumnId: string) => {
     // Create a new unique column ID
     const columnId = `column-${uuidv4().substring(0, 8)}`;
-
+    
     // Create the new column - defaulting to text type
     const newColumn: Column = {
       id: columnId,
@@ -379,13 +379,13 @@ export function EditableLeadsGrid() {
       width: DEFAULT_COLUMN_WIDTH,
       editable: true,
     };
-
+    
     // Find the index where we need to insert
     const afterIndex = columns.findIndex(col => col.id === afterColumnId);
-
+    
     // Log the activity
     logColumnAdd(newColumn.id, newColumn.title);
-
+    
     // Add the column at the right position
     setColumns([
       ...columns.slice(0, afterIndex + 1),
@@ -393,7 +393,7 @@ export function EditableLeadsGrid() {
       ...columns.slice(afterIndex + 1)
     ]);
   };
-
+  
   // Show better loading UI to cover any potential flash
   if (loading || !isGridReady) {
     return (
@@ -403,7 +403,7 @@ export function EditableLeadsGrid() {
       </div>
     );
   }
-
+  
   // Show empty state when there are no rows - GridViewContainer now has its own empty state UI
   if (rows.length === 0) {
     return (
@@ -422,11 +422,11 @@ export function EditableLeadsGrid() {
       </div>
     );
   }
-
+  
   return (
     <div className="h-full w-full">
-      <GridViewContainer
-        columns={columns}
+      <GridViewContainer 
+        columns={columns} 
         data={rows}
         listName="All Leads"
         listType="Lead"

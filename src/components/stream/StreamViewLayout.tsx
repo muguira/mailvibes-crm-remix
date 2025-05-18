@@ -53,14 +53,14 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
   useEffect(() => {
     const handleContactUpdate = (event: CustomEvent) => {
       const { contactId, field, value, oldValue } = event.detail;
-
+      
       if (contactId === contact.id) {
         // Update local state to trigger component re-render
         setUpdatedContact(prevContact => ({
           ...prevContact,
           [field]: value
         }));
-
+        
         // Log the update to the activity feed
         logCellEdit(
           contactId,
@@ -68,23 +68,19 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
           value,
           oldValue
         );
-
+        
         console.log(`Profile card updated: ${field} = ${value}`);
       }
     };
-
+    
     // Add event listener with type casting
-    window.addEventListener('mockContactsUpdated',
+    window.addEventListener('mockContactsUpdated', 
       ((e: CustomEvent) => handleContactUpdate(e)) as EventListener
     );
-
+    
     return () => {
-      window.removeEventListener('mockContactsUpdated',
+      window.removeEventListener('mockContactsUpdated', 
         ((e: CustomEvent) => handleContactUpdate(e)) as EventListener
-      );
-      
-      window.removeEventListener('contactStatusChanged', 
-        ((e: CustomEvent) => handleStatusChange(e)) as EventListener
       );
     };
   }, [contact.id, logCellEdit]);
@@ -92,47 +88,40 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
   // Early return if contact is undefined or null
   if (!contact) {
     return (
-      <EmptyState
-        title="Contact Not Found"
-        description="No data for this record yet."
+      <EmptyState 
+        title="Contact Not Found" 
+        description="No data for this record yet." 
       />
     );
   }
 
   // Safely destructure contact with default values
   const {
-    name = '',
-    title = '',
-    company = '',
-    location = '',
-    phone = '',
-    email = '',
-    leadStatus = '',
-    lifecycleStage = '',
-    source = '',
-    industry = '',
-    owner = '',
-    description = '',
-    facebook = '',
-    instagram = '',
-    linkedin = '',
-    twitter = '',
-    website = '',
-    jobTitle = '',
-    associatedDeals = '',
-    primaryLocation = '',
+    name = '—',
+    title = '—',
+    company = '—',
+    location = '—',
+    phone = '—',
+    email = '—',
+    leadStatus = '—',
+    lifecycleStage = '—',
+    source = '—',
+    industry = '—',
+    owner = '—',
+    description = '—',
+    facebook = '—',
+    instagram = '—',
+    linkedin = '—',
+    twitter = '—',
+    website = '—',
+    jobTitle = '—',
+    associatedDeals = '—',
+    primaryLocation = '—',
     activities = [],
     data = {},
   } = { ...contact, ...updatedContact }; // Merge with updatedContact
 
-  // Log the status fields for debugging
-  console.log("Stream View status fields:", { 
-    contactStatus: contact.status,
-    updatedStatus: updatedContact.status,
-    finalStatus: status
-  });
-
-  // Create a safe contact object with default values - use status consistently
+  // Create a safe contact object with default values
   const safeContact = {
     ...contact,
     ...updatedContact, // Include any updated values
@@ -142,7 +131,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
     location,
     phone,
     email,
-    status: status !== '—' ? status : '', // Use status consistently
+    leadStatus,
     lifecycleStage,
     source,
     industry,
@@ -167,13 +156,13 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
       <div className="hidden lg:block">
         <StreamToolbar />
       </div>
-
+      
       <div className="flex flex-col lg:grid lg:grid-cols-[400px_1fr_300px] lg:gap-4 mt-4">
         {/* Left rail - w-full on mobile, fixed 400px width on desktop */}
-        <div
+        <div 
           className="w-full lg:w-[400px] shrink-0 self-start"
-          style={{
-            minWidth: 'auto',
+          style={{ 
+            minWidth: 'auto', 
             maxWidth: '100%',
             // Apply fixed width only on desktop
             ...(typeof window !== 'undefined' && window.innerWidth >= 1024 ? {
@@ -185,34 +174,34 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
         >
           {/* Profile card */}
           <StreamProfileCard contact={safeContact} />
-
+          
           {/* Action row - visible on all screen sizes, below profile card */}
           <div className="mt-6 flex items-center justify-center">
             <ActionRow className="w-full" contact={safeContact} />
           </div>
-
+          
           {/* Mobile Tab View - only visible on mobile/tablet */}
           <div className="mt-4">
             <MobileTabView contact={safeContact} />
           </div>
-
+          
           {/* About This Contact - only visible on desktop with single-column layout */}
           <div className="hidden lg:block mt-4">
-            <AboutThisContact
-              compact={true}
-              leadStatus={leadStatus}
+            <AboutThisContact 
+              compact={true} 
+              leadStatus={leadStatus} 
               contact={safeContact}
             />
           </div>
         </div>
-
+        
         {/* Main content area - desktop only */}
         <div className="hidden lg:block flex-1 bg-slate-light/5 rounded-md overflow-y-auto self-start h-full">
           <StreamTimeline activities={activities} />
         </div>
-
+        
         {/* Right rail - desktop only */}
-        <div
+        <div 
           className="hidden lg:block self-start"
           style={{
             width: RIGHT_RAIL_WIDTH,
