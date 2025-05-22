@@ -1192,7 +1192,13 @@ export function MainGridView({
                         selected={editingCell?.clearDateSelection ? undefined : (value ? new Date(value) : undefined)}
                         onSelect={(date) => {
                           if (date) {
-                            const formattedDate = format(date, 'yyyy-MM-dd'); // Store in ISO format for data consistency
+                            // Ajustar la fecha para compensar el desfase
+                            const adjustedDate = new Date(date);
+                            adjustedDate.setDate(adjustedDate.getDate() + 1);
+                            
+                            // Formatear la fecha ajustada
+                            const formattedDate = format(adjustedDate, 'yyyy-MM-dd');
+                            
                             // Immediately close the popup and apply the change
                             setEditingCell(null);
                             finishCellEdit(row.id, column.id, formattedDate);
