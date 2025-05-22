@@ -42,6 +42,8 @@ interface MainGridViewProps {
   onContextMenu?: (columnId: string | null, position?: { x: number, y: number }) => void;
   contextMenuColumn?: string | null;
   contextMenuPosition?: { x: number, y: number } | null;
+  onTogglePin: (columnId: string) => void;
+  frozenColumnIds: string[];
 }
 
 export function MainGridView({
@@ -57,7 +59,9 @@ export function MainGridView({
   onDeleteColumn,
   onContextMenu,
   contextMenuColumn,
-  contextMenuPosition
+  contextMenuPosition,
+  onTogglePin,
+  frozenColumnIds
 }: MainGridViewProps) {
   const gridRef = useRef<any>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -1707,7 +1711,7 @@ export function MainGridView({
     <div
       className="main-grid-view"
       ref={mainViewRef}
-      tabIndex={0} // Make the div focusable
+      tabIndex={0}
     >
       {/* Header row */}
       <div
@@ -1719,18 +1723,18 @@ export function MainGridView({
           boxSizing: 'border-box'
         }}
       >
-        <div className="grid-header-row" style={{
-          width: totalWidth,
-          display: 'flex',
-          boxSizing: 'border-box'
-        }}>
+        <div className="grid-header-row" style={{ width: totalWidth, display: 'flex', boxSizing: 'border-box' }}>
           {columns.map((column, index) => (
             <div
               key={column.id}
-              className={`grid-header-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''}`}
+              className={`grid-header-cell group ${column.id === contextMenuColumn ? 'highlight-column' : ''}${index === 0 ? ' grid-header-cell-first-scrollable' : ''}`}
               style={{
                 width: column.width,
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                display: 'flex',
+                alignItems: 'center',
+                position: 'relative',
+                borderLeft: index === 0 ? '1px solid #e5e7eb' : undefined,
               }}
               draggable
               onDragStart={(e) => handleHeaderDragStart(e, column.id)}
@@ -1738,7 +1742,14 @@ export function MainGridView({
               onDrop={(e) => handleHeaderDrop(e, column.id)}
               onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
             >
-              {column.title}
+              <span style={{ flex: 1 }}>{column.title}</span>
+              <span
+                className={`pin-icon ml-2 ${frozenColumnIds.includes(column.id) ? 'text-[#62BFAA]' : 'text-gray-400'} group-hover:opacity-100 opacity-0`}
+                style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                onClick={e => { e.stopPropagation(); onTogglePin(column.id); }}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M17 7l-10 10M20 4l-3 3m-7 7l-3 3m9-9l-9 9"/></svg>
+              </span>
             </div>
           ))}
         </div>

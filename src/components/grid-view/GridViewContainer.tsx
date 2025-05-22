@@ -43,13 +43,39 @@ export function GridViewContainer({
   const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null);
   
+  // Estado para columnas fijas (frozen)
+  const [frozenColumnIds, setFrozenColumnIds] = useState<string[]>(() => {
+    const key = `frozenColumnIds-${listId || 'default'}`;
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    // Por defecto, solo el índice está fijo
+    return ['index'];
+  });
+  
+  // Guardar en localStorage cuando cambian
+  useEffect(() => {
+    const key = `frozenColumnIds-${listId || 'default'}`;
+    localStorage.setItem(key, JSON.stringify(frozenColumnIds));
+  }, [frozenColumnIds, listId]);
+  
+  // Callback para fijar/desfijar columnas
+  const toggleFrozenColumn = (columnId: string) => {
+    setFrozenColumnIds(prev =>
+      prev.includes(columnId)
+        ? prev.filter(id => id !== columnId)
+        : [...prev, columnId]
+    );
+  };
+  
+  // Separar columnas fijas y scrollables manteniendo el orden original
+  const frozenColumns = columns.filter(col => frozenColumnIds.includes(col.id));
+  const scrollableColumns = columns.filter(col => !frozenColumnIds.includes(col.id));
+  
   // Find the frozen column - first look for 'name', then fall back to 'opportunity' for backward compatibility
   const contactColumn = columns.find(col => col.id === 'name' && col.frozen) || 
                         columns.find(col => col.id === 'opportunity');
-  
-  // Filter out the contact column from other columns
-  const gridColumns = columns.filter(col => col.id !== 'name' || !col.frozen)
-                             .filter(col => col.id !== 'opportunity');
   
   // Width calculation for the static columns area
   const staticColumnsWidth = INDEX_COLUMN_WIDTH + (contactColumn?.width || 0);
@@ -258,20 +284,22 @@ export function GridViewContainer({
             {/* Left static columns (index + contact/opportunity) */}
             <StaticColumns 
               data={visibleData}
-              opportunityColumn={contactColumn}
+              frozenColumns={frozenColumns}
               scrollTop={scrollTop}
               firstRowIndex={firstRowIndex}
               onCellChange={onCellChange}
               onContextMenu={handleOpenContextMenu}
+              onTogglePin={toggleFrozenColumn}
+              frozenColumnIds={frozenColumnIds}
             />
             
             {/* Main data grid - adjust width to account for static columns */}
             <MainGridView
-              columns={gridColumns}
+              columns={scrollableColumns}
               data={visibleData}
               scrollTop={scrollTop}
               scrollLeft={scrollLeft}
-              containerWidth={(containerWidth - staticColumnsWidth) || 300}
+              containerWidth={(containerWidth - frozenColumns.reduce((w, c) => w + (c.width || 180), 0)) || 300}
               containerHeight={containerHeight}
               onScroll={handleScroll}
               onCellChange={onCellChange}
@@ -282,6 +310,8 @@ export function GridViewContainer({
               onContextMenu={handleOpenContextMenu}
               contextMenuColumn={contextMenuColumn}
               contextMenuPosition={contextMenuPosition}
+              onTogglePin={toggleFrozenColumn}
+              frozenColumnIds={frozenColumnIds}
             />
           </>
         )}
