@@ -443,6 +443,14 @@ export function MainGridView({
         return;
       }
 
+      // If target is inside the calendar or date popup, don't close it
+      if (target.closest('.date-options-popup') || 
+          target.closest('.react-calendar') || 
+          target.closest('[role="dialog"][aria-label*="calendar"]') ||
+          target.closest('[data-radix-popper-content-wrapper]')) {
+        return;
+      }
+
       // If target is already handled by a cell click, ignore
       if (target.closest('.grid-cell')) {
         return;
