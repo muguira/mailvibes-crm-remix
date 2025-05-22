@@ -3,7 +3,7 @@ import { VariableSizeGrid as Grid } from 'react-window';
 import { Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './grid-constants';
 import { ContextMenu } from './ContextMenu';
-import { Check, CalendarIcon, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import './styles.css';
 import {
   Select,
@@ -19,7 +19,6 @@ import {
 } from '@/components/ui/popover';
 import {
   Command,
-  CommandInput,
   CommandList,
   CommandGroup,
   CommandItem
@@ -48,13 +47,11 @@ interface MainGridViewProps {
 export function MainGridView({
   columns,
   data,
-  scrollTop,
   scrollLeft,
   containerWidth,
   containerHeight,
   onScroll,
   onCellChange,
-  onColumnChange,
   onColumnsReorder,
   onAddColumn,
   onDeleteColumn,
@@ -805,7 +802,7 @@ export function MainGridView({
 
     if (onColumnsReorder) {
       const sourceIndex = columns.findIndex(col => col.id === sourceColumnId);
-      const targetIndex = columns.findIndex(col => col.id === targetColumnId);
+      const targetIndex = columns.findIndex(col => col.id === targetColumnId);  
 
       if (sourceIndex < 0 || targetIndex < 0) return;
 
