@@ -173,8 +173,10 @@ export function MainGridView({
 
     // Function to handle manual scrolling events - Just clear selection
     const handleUserScroll = () => {
-      // Clear cell selection when user manually scrolls
-      setSelectedCell(null);
+      // Only clear selection if there's no selected cell
+      if (!selectedCell) {
+        setSelectedCell(null);
+      }
     };
 
     // Apply to the grid if it exists
@@ -196,7 +198,7 @@ export function MainGridView({
         gridElement.removeEventListener('scroll', handleUserScroll);
       }
     };
-  }, []);
+  }, [selectedCell]);
 
   // Update keyboard event handler
   useEffect(() => {
@@ -362,14 +364,47 @@ export function MainGridView({
         const newColumnId = columns[newColumnIndex]?.id;
 
         if (newRowId && newColumnId) {
-          // Only update selection - disable auto-scrolling entirely
+          // Update selection
           setSelectedCell({ rowId: newRowId, columnId: newColumnId });
+
+          // Calculate the scroll position for the new column
+          if (gridRef.current) {
+            // Calculate the total width up to the selected column
+            let totalWidth = 0;
+            for (let i = 0; i < newColumnIndex; i++) {
+              totalWidth += columnWidths[i] || 180;
+            }
+
+            // Get the current scroll position and container width
+            const currentScroll = gridRef.current._outerRef.scrollLeft;
+            const containerWidth = gridRef.current._outerRef.clientWidth;
+
+            // Calculate the target scroll position
+            let targetScroll = currentScroll;
+
+            // If the cell is to the right of the visible area
+            if (totalWidth + (columnWidths[newColumnIndex] || 180) > currentScroll + containerWidth) {
+              targetScroll = totalWidth + (columnWidths[newColumnIndex] || 180) - containerWidth;
+            }
+            // If the cell is to the left of the visible area
+            else if (totalWidth < currentScroll) {
+              targetScroll = totalWidth;
+            }
+
+            // Use react-window's scrollTo method
+            if (targetScroll !== currentScroll) {
+              gridRef.current.scrollTo({
+                scrollLeft: targetScroll,
+                scrollTop: gridRef.current._outerRef.scrollTop,
+                behavior: 'smooth'
+              });
+            }
+          }
 
           // Focus without scrolling 
           setTimeout(() => {
             if (mainViewRef.current) {
               try {
-                // Critical: use preventScroll to avoid layout shifts
                 mainViewRef.current.focus({ preventScroll: true });
               } catch (e) {
                 console.warn('Focus error:', e);
