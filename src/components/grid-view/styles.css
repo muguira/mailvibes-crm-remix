@@ -712,7 +712,6 @@
 /* Add Sheets-like cell selection styling */
 .selected-cell {
   position: relative;
-  border: none !important;
   z-index: 15;
   box-shadow: 0 0 0 1px #62BFAA !important;
   outline: none !important;
