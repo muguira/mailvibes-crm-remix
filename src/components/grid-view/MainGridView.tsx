@@ -976,7 +976,6 @@ export function MainGridView({
           style={{
             ...style,
             height: ROW_HEIGHT,
-            border: '1px solid #e5e7eb',
             borderBottom: '1px solid #e5e7eb',
             borderRight: '1px solid #e5e7eb',
             boxSizing: 'border-box',
@@ -1095,7 +1094,6 @@ export function MainGridView({
           style={{
             ...style,
             height: ROW_HEIGHT,
-            border: '1px solid #e5e7eb',
             borderBottom: '1px solid #e5e7eb',
             borderRight: '1px solid #e5e7eb',
             boxSizing: 'border-box',
@@ -1211,7 +1209,8 @@ export function MainGridView({
       <div
         style={{
           ...style,
-          border: '1px solid #e5e7eb',
+          borderRight: '1px solid #e5e7eb',
+          borderBottom: '1px solid #e5e7eb',
           height: ROW_HEIGHT,
           boxSizing: 'border-box',
           width: column.width // Ensure same width as header
