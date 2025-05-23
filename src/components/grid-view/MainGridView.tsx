@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/command';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
+import { GridCell } from './GridCell';
 
 interface MainGridViewProps {
   columns: Column[];
@@ -33,17 +34,19 @@ interface MainGridViewProps {
   scrollLeft: number;
   containerWidth: number;
   containerHeight: number;
-  onScroll: (scrollInfo: { scrollTop: number, scrollLeft: number }) => void;
-  onCellChange?: (rowId: string, columnId: string, value: any) => void;
-  onColumnChange?: (columnId: string, updates: Partial<Column>) => void;
-  onColumnsReorder?: (columnIds: string[]) => void;
-  onAddColumn?: (afterColumnId: string) => void;
-  onDeleteColumn?: (columnId: string) => void;
-  onContextMenu?: (columnId: string | null, position?: { x: number, y: number }) => void;
-  contextMenuColumn?: string | null;
-  contextMenuPosition?: { x: number, y: number } | null;
+  onScroll: (scroll: { scrollTop: number; scrollLeft: number }) => void;
+  onCellChange: (rowId: string, columnId: string, value: any) => void;
+  onColumnChange: (columnId: string, changes: Partial<Column>) => void;
+  onColumnsReorder: (columns: Column[]) => void;
+  onAddColumn: () => void;
+  onDeleteColumn: (columnId: string) => void;
+  onContextMenu: (columnId: string, position: { x: number; y: number }) => void;
+  contextMenuColumn: string | null;
+  contextMenuPosition: { x: number; y: number } | null;
   onTogglePin: (columnId: string) => void;
   frozenColumnIds: string[];
+  editingCell: { rowId: string; columnId: string } | null;
+  setEditingCell: (cell: { rowId: string; columnId: string } | null) => void;
 }
 
 export function MainGridView({
@@ -61,17 +64,13 @@ export function MainGridView({
   contextMenuColumn,
   contextMenuPosition,
   onTogglePin,
-  frozenColumnIds
+  frozenColumnIds,
+  editingCell,
+  setEditingCell
 }: MainGridViewProps) {
   const gridRef = useRef<any>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const mainViewRef = useRef<HTMLDivElement>(null);
-  const [editingCell, setEditingCell] = useState<{
-    rowId: string,
-    columnId: string,
-    directTyping?: boolean,
-    clearDateSelection?: boolean
-  } | null>(null);
   const [selectedCell, setSelectedCell] = useState<{ rowId: string, columnId: string } | null>(null);
   const [columnWidths, setColumnWidths] = useState<number[]>(columns.map(col => col.width));
 
@@ -996,295 +995,32 @@ export function MainGridView({
   const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
     const row = data[rowIndex];
     if (!row) return null;
-
     const column = columns[columnIndex];
     if (!column) return null;
-
     const cellId = `${row.id}-${column.id}`;
     const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
     const isSelected = selectedCell?.rowId === row.id && selectedCell?.columnId === column.id;
     const value = row[column.id];
-
-    // Special handler for status column - only open on double click
-    if (column.id === 'status') {
-      return (
-        <div
-          style={{
-            ...style,
-            height: ROW_HEIGHT,
-            borderBottom: '1px solid #e5e7eb',
-            borderRight: '1px solid #e5e7eb',
-            boxSizing: 'border-box',
-            width: column.width,
-            display: 'flex',
-            justifyContent: 'center', // Keep pill centered
-            alignItems: 'center'
-          }}
-          className={`grid-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''} ${isSelected ? 'selected-cell' : ''}`}
-          data-cell={cellId}
-          data-column-id={column.id}
-          onClick={(e) => handleCellClick(row.id, column.id, e)}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            // Enter edit mode on double-click
-            if (column?.editable) {
-              setEditingCell({ rowId: row.id, columnId: column.id });
-            }
-          }}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (onContextMenu) {
-              onContextMenu(column.id, { x: e.clientX, y: e.clientY });
-            }
-          }}
-        >
-          {isEditing ? (
-            <div className="w-full h-full flex justify-center items-center">
-              <Popover open={true}>
-                <PopoverTrigger asChild>
-                  <div className="cursor-pointer flex justify-center items-center">
-                    {renderStatusPill(value, column.colors)}
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="status-options-popup"
-                  align="start"
-                  side="bottom"
-                  alignOffset={-50}
-                  sideOffset={5}
-                >
-                  <div className="status-popup-header">
-                    <span>Select Status</span>
-                    <button
-                      className="status-popup-close"
-                      onClick={() => setEditingCell(null)}
-                      aria-label="Close status popup"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <Command className="status-command">
-                    <CommandList>
-                      <CommandGroup>
-                        {(column.options || []).map(option => {
-                          // Use the same custom colors definition for consistency
-                          const customColors: Record<string, { bg: string, text: string }> = {
-                            'New': { bg: 'rgba(250, 237, 203, 0.7)', text: '#000000' },          // Light Cream
-                            'In Progress': { bg: 'rgba(201, 228, 222, 0.7)', text: '#000000' },  // Light Mint
-                            'On Hold': { bg: 'rgba(198, 222, 241, 0.7)', text: '#000000' },      // Light Blue
-                            'Closed Won': { bg: 'rgba(219, 205, 240, 0.7)', text: '#000000' },   // Light Lavender
-                            'Closed Lost': { bg: 'rgba(242, 198, 222, 0.7)', text: '#000000' }   // Light Pink
-                          };
-
-                          const customColor = customColors[option];
-                          const bgColor = customColor?.bg || column.colors?.[option] || 'rgba(247, 217, 196, 0.7)'; // Fallback to Light Peach
-
-                          return (
-                            <CommandItem
-                              key={option}
-                              value={option}
-                              onSelect={() => {
-                                finishCellEdit(row.id, column.id, option);
-                              }}
-                              className="status-command-item"
-                            >
-                              <div className="flex items-center gap-2 w-full">
-                                <span
-                                  className="inline-block w-3 h-3 rounded-full"
-                                  style={{
-                                    backgroundColor: option === 'New' ? '#FAEDCB' :
-                                      option === 'In Progress' ? '#C9E4DE' :
-                                        option === 'On Hold' ? '#C6DEF1' :
-                                          option === 'Closed Won' ? '#DBCDF0' :
-                                            option === 'Closed Lost' ? '#F2C6DE' : '#F7D9C4'
-                                  }}
-                                />
-                                <span>{option}</span>
-                                {value === option && (
-                                  <Check className="ml-auto h-4 w-4" />
-                                )}
-                              </div>
-                            </CommandItem>
-                          );
-                        })}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-          ) : (
-            <div className="flex justify-center items-center">
-              {renderStatusPill(value, column.colors)}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    // Special handler for date columns
-    if (column.type === 'date') {
-      return (
-        <div
-          style={{
-            ...style,
-            height: ROW_HEIGHT,
-            borderBottom: '1px solid #e5e7eb',
-            borderRight: '1px solid #e5e7eb',
-            boxSizing: 'border-box',
-            width: column.width
-          }}
-          className={`grid-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''} ${isSelected ? 'selected-cell' : ''}`}
-          data-cell={cellId}
-          data-column-id={column.id}
-          onClick={(e) => handleCellClick(row.id, column.id, e)}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            // Enter edit mode on double-click with calendar
-            if (column?.editable) {
-              // Start editing with a clear calendar flag
-              setEditingCell({
-                rowId: row.id,
-                columnId: column.id,
-                clearDateSelection: true // Add flag to clear date selection
-              });
-            }
-          }}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (onContextMenu) {
-              onContextMenu(column.id, { x: e.clientX, y: e.clientY });
-            }
-          }}
-        >
-          {isEditing ? (
-            // Only show the calendar if we're not in direct typing mode
-            editingCell?.directTyping ? (
-              renderEditInput(row, column)
-            ) : (
-              <div className="w-full h-full flex justify-center items-center">
-                {/* Create a completely stateless calendar that doesn't maintain its own selected date */}
-                <Popover open={true} modal={true}>
-                  <PopoverTrigger asChild>
-                    <div className="cursor-pointer flex justify-center items-center">
-                      {formatCellValue(value, column, row)}
-                    </div>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="date-options-popup p-0"
-                    align="start"
-                    side="bottom"
-                    alignOffset={-50}
-                    sideOffset={5}
-                  >
-                    <div className="date-popup-header p-3 border-b flex justify-between items-center border-2">
-                      <span className="text-sm font-medium">Select Date</span>
-                      <button
-                        className="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"
-                        onClick={() => setEditingCell(null)}
-                        aria-label="Close date popup"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                    <div className="p-5">
-                      <Calendar
-                        mode="single"
-                        // If clearDateSelection flag is true, don't pass any selected date
-                        selected={editingCell?.clearDateSelection ? undefined : (value ? new Date(value) : undefined)}
-                        onSelect={(date) => {
-                          if (date) {
-                            // Ajustar la fecha para compensar el desfase
-                            const adjustedDate = new Date(date);
-                            adjustedDate.setDate(adjustedDate.getDate() + 1);
-                            
-                            // Formatear la fecha ajustada
-                            const formattedDate = format(adjustedDate, 'yyyy-MM-dd');
-                            
-                            // Immediately close the popup and apply the change
-                            setEditingCell(null);
-                            finishCellEdit(row.id, column.id, formattedDate);
-                          } else {
-                            setEditingCell(null);
-                            finishCellEdit(row.id, column.id, '');
-                          }
-                        }}
-                        defaultMonth={value ? new Date(value) : new Date()}
-                        initialFocus
-
-                        modifiersStyles={{
-                          today: {
-                            backgroundColor: "rgb(var(--teal) / 0.15)",
-                            color: "rgb(var(--teal))"
-                          },
-                          selected: {
-                            backgroundColor: "#62BFAA",
-                            color: "white",
-                            borderRadius: "5px"
-                          }
-                        }}
-                        classNames={{
-                          day_today: "text-[#62BFAA] font-semibold",
-                          day_selected: "!bg-[#62BFAA] text-white hover:!bg-[#62BFAA] hover:text-white focus:!bg-[#62BFAA] focus:text-white",
-                          day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-[#62BFAA]/70 hover:text-white focus-visible:bg-[#62BFAA] focus-visible:text-white rounded-[5px]",
-                          cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-transparent"
-                        }}
-                      />
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-            )
-          ) : (
-            <div className="cell-content">
-              {formatCellValue(value, column, row)}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    // Regular cell rendering (non-status, non-date)
     return (
-      <div
-        style={{
-          ...style,
-          borderRight: '1px solid #e5e7eb',
-          borderBottom: '1px solid #e5e7eb',
-          height: ROW_HEIGHT,
-          boxSizing: 'border-box',
-          width: column.width // Ensure same width as header
-        }}
-        className={`grid-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''} ${isSelected ? 'selected-cell' : ''}`}
-        data-cell={cellId}
-        data-column-id={column.id}
-        onClick={(e) => handleCellClick(row.id, column.id, e)}
-        onDoubleClick={(e) => {
-          e.stopPropagation();
-          // For double-clicking on any editable cell
-          if (column?.editable) {
-            // Always enter edit mode on double-click for editable cells
-            setEditingCell({ rowId: row.id, columnId: column.id });
-          }
-        }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (onContextMenu) {
-            onContextMenu(column.id, { x: e.clientX, y: e.clientY });
-          }
-        }}
-      >
-        {isEditing ? (
-          renderEditInput(row, column)
-        ) : (
-          <div className="cell-content">
-            {formatCellValue(value, column, row)}
-          </div>
-        )}
-      </div>
+      <GridCell
+        row={row}
+        column={column}
+        value={value}
+        isEditing={isEditing}
+        isSelected={isSelected}
+        cellId={cellId}
+        contextMenuColumn={contextMenuColumn}
+        onCellClick={handleCellClick}
+        onCellDoubleClick={undefined}
+        onContextMenu={onContextMenu}
+        onCellChange={onCellChange}
+        onStartEdit={undefined}
+        onFinishEdit={undefined}
+        editingCell={editingCell}
+        setEditingCell={setEditingCell}
+        optimisticValue={optimisticUpdates[cellId]}
+        style={style}
+      />
     );
   };
 
@@ -1343,368 +1079,6 @@ export function MainGridView({
   const handleSortZA = (columnId: string) => {
     console.log(`Sort sheet Z-A by column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
-  };
-
-  // Update the renderEditInput function to use the new handleInputBlur
-  const renderEditInput = (row: GridRow, column: Column) => {
-    const value = row[column.id];
-
-    // Common focus handler to select all text when input is focused
-    const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-      // Select all text when input receives focus
-      setTimeout(() => e.target.select(), 0);
-    };
-
-    switch (column.type) {
-      case 'number':
-      case 'currency':
-        return (
-          <input
-            type="number"
-            className="grid-cell-input"
-            defaultValue={value as number}
-            autoFocus
-            onFocus={handleInputFocus}
-            onBlur={(e) => handleInputBlur(e, row.id, column.id, e.target.value)}
-            onKeyDown={(e) => handleEditingKeyDown(e, row.id, column.id, e.currentTarget.value)}
-          />
-        );
-      case 'date':
-        // Don't check for popups here anymore, we're using the directTyping flag
-        // Parse the existing date if available
-        let displayValue = value as string;
-        try {
-          if (displayValue) {
-            const date = new Date(displayValue);
-            if (!isNaN(date.getTime())) {
-              // Format for display in the input as MM-DD-YYYY
-              displayValue = format(date, 'MM-dd-yyyy');
-            }
-          }
-        } catch (e) {
-          // Use original value if parsing fails
-        }
-
-        return (
-          <input
-            type="text"
-            className="grid-cell-input"
-            placeholder="MM-DD-YYYY"
-            defaultValue={displayValue}
-            autoFocus
-            onFocus={handleInputFocus}
-            // Add input masking for date format
-            onKeyDown={(e) => {
-              // Allow: numbers, backspace, delete, tab, arrows, home, end
-              const allowedKeys = [
-                'Backspace', 'Delete', 'Tab', 'Enter', 'Escape',
-                'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-                'Home', 'End'
-              ];
-
-              if (allowedKeys.includes(e.key)) {
-                // Pass through keyboard navigation keys
-                handleEditingKeyDown(e, row.id, column.id, e.currentTarget.value);
-                return;
-              }
-
-              // Allow numbers
-              if (e.key >= '0' && e.key <= '9') {
-                const input = e.currentTarget;
-                const selectionStart = input.selectionStart || 0;
-                const currentValue = input.value;
-
-                // For MM part, only allow 01-12
-                if (selectionStart === 0) {
-                  // First digit of month can only be 0 or 1
-                  if (!(e.key === '0' || e.key === '1')) {
-                    e.preventDefault();
-                    return;
-                  }
-                } else if (selectionStart === 1) {
-                  // Second digit of month depends on first digit
-                  const firstDigit = currentValue.charAt(0);
-                  if (firstDigit === '0') {
-                    // If first digit is 0, second can be 1-9
-                    if (e.key === '0') {
-                      e.preventDefault();
-                      return;
-                    }
-                  } else if (firstDigit === '1') {
-                    // If first digit is 1, second can only be 0-2
-                    if (!(e.key === '0' || e.key === '1' || e.key === '2')) {
-                      e.preventDefault();
-                      return;
-                    }
-                  }
-                }
-                // For DD part, only allow 01-31
-                else if (selectionStart === 3) {
-                  // First digit of day can only be 0-3
-                  if (!(e.key === '0' || e.key === '1' || e.key === '2' || e.key === '3')) {
-                    e.preventDefault();
-                    return;
-                  }
-                } else if (selectionStart === 4) {
-                  // Second digit of day depends on first digit
-                  const firstDigit = currentValue.charAt(3);
-                  if (firstDigit === '3') {
-                    // If first digit is 3, second can only be 0-1
-                    if (!(e.key === '0' || e.key === '1')) {
-                      e.preventDefault();
-                      return;
-                    }
-                  }
-                }
-                // For YYYY part, only allow 1900-2030
-                else if (selectionStart >= 6 && selectionStart <= 9) {
-                  // Handle year validation based on current input
-                  const yearPart = currentValue.substring(6);
-                  let willBeYear = yearPart;
-
-                  // Calculate what the year would be after this keypress
-                  if (selectionStart < yearPart.length) {
-                    // We're replacing a digit
-                    willBeYear = yearPart.substring(0, selectionStart - 6) + e.key + yearPart.substring(selectionStart - 6 + 1);
-                  } else {
-                    // We're adding a digit
-                    willBeYear = yearPart + e.key;
-                  }
-
-                  // For partial years, do some basic validation
-                  if (willBeYear.length === 1) {
-                    // First digit of year can only be 1 or 2
-                    if (!(e.key === '1' || e.key === '2')) {
-                      e.preventDefault();
-                      return;
-                    }
-                  } else if (willBeYear.length === 2) {
-                    // Check first two digits
-                    if (willBeYear === '19' || willBeYear === '20') {
-                      // 19xx or 20xx is acceptable
-                    } else {
-                      e.preventDefault();
-                      return;
-                    }
-                  } else if (willBeYear.length === 3) {
-                    // For 3 digits, ensure we're not going below 190x or above 203x
-                    if (willBeYear.startsWith('19') || (willBeYear.startsWith('20') && willBeYear[2] <= '3')) {
-                      // Valid prefix
-                    } else {
-                      e.preventDefault();
-                      return;
-                    }
-                  } else if (willBeYear.length === 4) {
-                    // Full year check
-                    const fullYear = parseInt(willBeYear, 10);
-                    if (fullYear < 1900 || fullYear > 2030) {
-                      e.preventDefault();
-                      return;
-                    }
-                  }
-                }
-
-                // Prevent input beyond 10 characters (MM-DD-YYYY format)
-                if (currentValue.length >= 10 && selectionStart >= 10) {
-                  e.preventDefault();
-                  return;
-                }
-
-                // Auto-add separators
-                if (currentValue.length === 2 && selectionStart === 2) {
-                  input.value = currentValue + '-' + e.key;
-                  input.selectionStart = 4;
-                  input.selectionEnd = 4;
-                  e.preventDefault();
-                } else if (currentValue.length === 5 && selectionStart === 5) {
-                  input.value = currentValue + '-' + e.key;
-                  input.selectionStart = 7;
-                  input.selectionEnd = 7;
-                  e.preventDefault();
-                }
-
-                return;
-              }
-
-              // Allow separators, but only in correct positions
-              if (e.key === '-' || e.key === '/') {
-                const input = e.currentTarget;
-                const selectionStart = input.selectionStart || 0;
-                const currentValue = input.value;
-
-                // Only allow separator at positions 2 and 5
-                if (selectionStart === 2 || selectionStart === 5) {
-                  // Replace slash with dash for consistency
-                  if (e.key === '/') {
-                    input.value = currentValue.slice(0, selectionStart) + '-' + currentValue.slice(selectionStart);
-                    input.selectionStart = selectionStart + 1;
-                    input.selectionEnd = selectionStart + 1;
-                    e.preventDefault();
-                  }
-                  return;
-                }
-              }
-
-              // Block all other keys
-              e.preventDefault();
-            }}
-            onBlur={(e) => {
-              // Parse the input value to a standard date format
-              try {
-                // Try to parse various date formats
-                const inputVal = e.target.value;
-                if (inputVal) {
-                  // Check for MM-DD-YYYY or MM/DD/YYYY format
-                  const dateMatch = inputVal.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
-                  if (dateMatch) {
-                    const month = parseInt(dateMatch[1], 10);
-                    const day = parseInt(dateMatch[2], 10);
-                    const year = parseInt(dateMatch[3], 10);
-
-                    // Validate strict ranges
-                    if (
-                      month >= 1 && month <= 12 && // Month: 1-12
-                      day >= 1 && day <= 31 &&     // Day: 1-31
-                      year >= 1900 && year <= 2030 // Year: 1900-2030
-                    ) {
-                      // Additional validation for specific month/day combinations
-                      // February cannot have more than 29 days (or 28 in non-leap years)
-                      if (month === 2 && day > 29) {
-                        showDateError(e.target, "February cannot have more than 29 days");
-                        return;
-                      }
-                      // Check for leap year if February 29
-                      if (month === 2 && day === 29 && !isLeapYear(year)) {
-                        showDateError(e.target, `${year} is not a leap year`);
-                        return;
-                      }
-                      // April, June, September, November cannot have more than 30 days
-                      if ([4, 6, 9, 11].includes(month) && day > 30) {
-                        showDateError(e.target, "This month cannot have more than 30 days");
-                        return;
-                      }
-
-                      // If all validations pass, create the date object
-                      const jsMonth = month - 1; // JavaScript months are 0-based
-                      const date = new Date(year, jsMonth, day);
-
-                      if (!isNaN(date.getTime())) {
-                        // Store in ISO format for data consistency
-                        handleInputBlur(e, row.id, column.id, format(date, 'yyyy-MM-dd'));
-                        return;
-                      }
-                    } else {
-                      // Show specific error message based on which value is invalid
-                      if (month < 1 || month > 12) {
-                        showDateError(e.target, "Month must be between 1-12");
-                      } else if (day < 1 || day > 31) {
-                        showDateError(e.target, "Day must be between 1-31");
-                      } else if (year < 1900 || year > 2030) {
-                        showDateError(e.target, "Year must be between 1900-2030");
-                      } else {
-                        showDateError(e.target, "Invalid date format");
-                      }
-                      return;
-                    }
-                  } else {
-                    showDateError(e.target, "Use format MM-DD-YYYY");
-                    return;
-                  }
-                }
-                // Empty input is valid (clears the date)
-                if (inputVal === '') {
-                  handleInputBlur(e, row.id, column.id, '');
-                  return;
-                }
-                // Show generic error for other cases
-                showDateError(e.target, "Invalid date format");
-              } catch (err) {
-                // Just use the raw value if parsing fails
-                showDateError(e.target, "Invalid date");
-              }
-            }}
-          />
-        );
-      case 'status':
-        return (
-          <div className="w-full h-full">
-            <Select
-              defaultValue={value as string}
-              onValueChange={(selectedValue) => {
-                // Apply optimistic update and save
-                finishCellEdit(row.id, column.id, selectedValue);
-              }}
-            >
-              <SelectTrigger className="grid-cell-input status-select" autoFocus>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent position="popper" sideOffset={5} align="start" className="status-dropdown-content">
-                {column.options?.map((option) => {
-                  // Use the same custom colors definition for consistency
-                  const customColors: Record<string, { bg: string, text: string }> = {
-                    'New': { bg: 'rgba(250, 237, 203, 0.7)', text: '#000000' },          // Light Cream
-                    'In Progress': { bg: 'rgba(201, 228, 222, 0.7)', text: '#000000' },  // Light Mint
-                    'On Hold': { bg: 'rgba(198, 222, 241, 0.7)', text: '#000000' },      // Light Blue
-                    'Closed Won': { bg: 'rgba(219, 205, 240, 0.7)', text: '#000000' },   // Light Lavender
-                    'Closed Lost': { bg: 'rgba(242, 198, 222, 0.7)', text: '#000000' }   // Light Pink
-                  };
-
-                  const customColor = customColors[option];
-                  const bgColor = customColor?.bg || column.colors?.[option] || 'rgba(247, 217, 196, 0.7)'; // Fallback to Light Peach
-                  const textColor = customColor?.text || '#000000'; // Dark text for light backgrounds
-
-                  return (
-                    <SelectItem key={option} value={option}>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="inline-block w-3 h-3 rounded-full"
-                          style={{
-                            backgroundColor: option === 'New' ? '#FAEDCB' :
-                              option === 'In Progress' ? '#C9E4DE' :
-                                option === 'On Hold' ? '#C6DEF1' :
-                                  option === 'Closed Won' ? '#DBCDF0' :
-                                    option === 'Closed Lost' ? '#F2C6DE' : '#F7D9C4'
-                          }}
-                        />
-                        {option}
-                      </div>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-        );
-      default:
-        return (
-          <input
-            type="text"
-            className="grid-cell-input"
-            defaultValue={value as string}
-            autoFocus
-            onFocus={handleInputFocus}
-            onBlur={(e) => handleInputBlur(e, row.id, column.id, e.target.value)}
-            onKeyDown={(e) => handleEditingKeyDown(e, row.id, column.id, e.currentTarget.value)}
-          />
-        );
-    }
-  };
-
-  // Helper function to check if a year is a leap year
-  const isLeapYear = (year: number): boolean => {
-    return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
-  };
-
-  // Helper function to show date error message
-  const showDateError = (input: HTMLInputElement, message: string) => {
-    input.value = ''; // Clear the invalid value
-    input.placeholder = message;
-    input.classList.add('invalid-date');
-
-    // Keep focus on the input
-    setTimeout(() => {
-      input.focus();
-    }, 0);
   };
 
   return (

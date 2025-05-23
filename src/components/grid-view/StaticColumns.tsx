@@ -1,17 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants';
 import { Link } from 'react-router-dom';
+import { GridCell } from './GridCell';
 
 interface StaticColumnsProps {
   data: GridRow[];
   frozenColumns: Column[];
   scrollTop: number;
   firstRowIndex: number;
-  onCellChange?: (rowId: string, columnId: string, value: any) => void;
-  onContextMenu?: (columnId: string | null, position?: { x: number, y: number }) => void;
+  onCellChange: (rowId: string, columnId: string, value: any) => void;
+  onContextMenu: (columnId: string, position: { x: number; y: number }) => void;
   onTogglePin: (columnId: string) => void;
   frozenColumnIds: string[];
+  editingCell: { rowId: string; columnId: string; directTyping?: boolean; clearDateSelection?: boolean } | null;
+  setEditingCell: (cell: { rowId: string; columnId: string; directTyping?: boolean; clearDateSelection?: boolean } | null) => void;
 }
 
 export function StaticColumns({
@@ -19,9 +22,12 @@ export function StaticColumns({
   frozenColumns,
   scrollTop,
   firstRowIndex,
+  onCellChange,
   onContextMenu,
   onTogglePin,
-  frozenColumnIds
+  frozenColumnIds,
+  editingCell,
+  setEditingCell
 }: StaticColumnsProps) {
   // Handle context menu event
   const handleContextMenu = (e: React.MouseEvent, rowId: string, columnId: string) => {
@@ -163,9 +169,21 @@ export function StaticColumns({
             </div>
             {/* Celdas de columnas fijas */}
             {frozenColumns.map((col, idx) => (
-              <div
+              <GridCell
                 key={col.id}
-                className={`opportunity-cell`}
+                row={row}
+                column={col}
+                value={row[col.id]}
+                isEditing={editingCell?.rowId === row.id && editingCell?.columnId === col.id}
+                isSelected={false}
+                cellId={`${row.id}-${col.id}`}
+                contextMenuColumn={undefined}
+                onCellClick={undefined}
+                onCellDoubleClick={() => setEditingCell({ rowId: row.id, columnId: col.id })}
+                onContextMenu={onContextMenu}
+                onCellChange={onCellChange}
+                editingCell={editingCell}
+                setEditingCell={setEditingCell}
                 style={{
                   width: col.width,
                   height: ROW_HEIGHT,
@@ -184,23 +202,7 @@ export function StaticColumns({
                   color: '#111827',
                   padding: '0 0.75rem',
                 }}
-                onContextMenu={e => handleContextMenu(e, row.id, col.id)}
-                onDoubleClick={() => handleDoubleClick(row.id)}
-              >
-                {col.renderCell ? (
-                  col.renderCell(row[col.id], row)
-                ) : (
-                  <span className="opportunity-text">
-                    {col.id === 'name' ? (
-                      <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
-                        {row[col.id]}
-                      </Link>
-                    ) : (
-                      row[col.id]
-                    )}
-                  </span>
-                )}
-              </div>
+              />
             ))}
           </div>
         ))}

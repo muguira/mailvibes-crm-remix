@@ -223,7 +223,7 @@
   /* Higher than other grid elements */
   /* Changed from 2px to 1px to match other borders */
   background-color: #fff;
-  overflow: hidden;
+  overflow: visible;
   /* Added box-shadow to static columns for visual depth */
 }
 

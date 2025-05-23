@@ -43,6 +43,14 @@ export function GridViewContainer({
   const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null);
   
+  // Estado para edición de celdas (global)
+  const [editingCell, setEditingCell] = useState<{ 
+    rowId: string; 
+    columnId: string; 
+    directTyping?: boolean; 
+    clearDateSelection?: boolean 
+  } | null>(null);
+  
   // Estado para columnas fijas (frozen)
   const [frozenColumnIds, setFrozenColumnIds] = useState<string[]>(() => {
     const key = `frozenColumnIds-${listId || 'default'}`;
@@ -291,6 +299,8 @@ export function GridViewContainer({
               onContextMenu={handleOpenContextMenu}
               onTogglePin={toggleFrozenColumn}
               frozenColumnIds={frozenColumnIds}
+              editingCell={editingCell}
+              setEditingCell={setEditingCell}
             />
             
             {/* Main data grid - adjust width to account for static columns */}
@@ -312,6 +322,8 @@ export function GridViewContainer({
               contextMenuPosition={contextMenuPosition}
               onTogglePin={toggleFrozenColumn}
               frozenColumnIds={frozenColumnIds}
+              editingCell={editingCell}
+              setEditingCell={setEditingCell}
             />
           </>
         )}
