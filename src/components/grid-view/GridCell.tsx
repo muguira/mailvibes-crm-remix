@@ -171,7 +171,11 @@ export const GridCell: React.FC<GridCellProps> = ({
   if (column.type === 'date') {
     return (
       <div
-        style={style}
+        style={{
+          ...style,
+          borderRight: '1px solid #e5e7eb',
+          borderBottom: '1px solid #e5e7eb',
+        }}
         className={`grid-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''} ${isSelected ? 'selected-cell' : ''}`}
         data-cell={cellId}
         data-column-id={column.id}
@@ -264,7 +268,11 @@ export const GridCell: React.FC<GridCellProps> = ({
   // Default: text, number, currency, etc.
   return (
     <div
-      style={style}
+      style={{
+        ...style,
+        borderRight: '1px solid #e5e7eb',
+        borderBottom: '1px solid #e5e7eb',
+      }}
       className={`grid-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''} ${isSelected ? 'selected-cell' : ''}`}
       data-cell={cellId}
       data-column-id={column.id}

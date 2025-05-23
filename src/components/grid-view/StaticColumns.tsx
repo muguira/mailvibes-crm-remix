@@ -65,7 +65,7 @@ export function StaticColumns({
           className="static-header-cell index-header"
           style={{
             width: INDEX_COLUMN_WIDTH,
-            height: HEADER_HEIGHT,
+            height: HEADER_HEIGHT - 1,
             position: 'sticky',
             left: 0,
             zIndex: 45,
@@ -73,6 +73,7 @@ export function StaticColumns({
             alignItems: 'center',
             background: '#f9fafb',
             borderRight: '1px solid #e5e7eb',
+            borderBottom: '1px solid #e5e7eb',  
             fontWeight: 500,
             fontSize: '0.75rem',
             color: '#6b7280',
@@ -89,7 +90,7 @@ export function StaticColumns({
             className={`static-header-cell group`}
             style={{
               width: col.width,
-              height: HEADER_HEIGHT,
+              height: HEADER_HEIGHT - 1,
               position: 'sticky',
               left: `${INDEX_COLUMN_WIDTH + frozenColumns.slice(0, idx).reduce((w, c) => w + (c.width || 150), 0) - 1}px`,
               zIndex: 45,
@@ -97,6 +98,7 @@ export function StaticColumns({
               alignItems: 'center',
               background: '#f9fafb',
               borderRight: '1px solid #e5e7eb',
+              borderBottom: '1px solid #e5e7eb',
               padding: '0 0.75rem',
               fontWeight: 500,
               fontSize: '0.875rem',
@@ -128,7 +130,7 @@ export function StaticColumns({
           transform: `translateY(-${scrollTop}px)`,
           height: `${data.length * ROW_HEIGHT}px`,
           position: 'relative',
-          borderRight: '1px solid #e5e7eb',
+          borderBottom: '1px solid #e5e7eb',
           top: 0,
           width: '100%'
         }}
@@ -156,6 +158,7 @@ export function StaticColumns({
                 left: 0,
                 zIndex: 44,
                 borderRight: '1px solid #e5e7eb',
+                borderBottom: '1px solid #e5e7eb',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -191,6 +194,7 @@ export function StaticColumns({
                   left: `${INDEX_COLUMN_WIDTH + frozenColumns.slice(0, idx).reduce((w, c) => w + (c.width || 150), 0) - 1}px`,
                   zIndex: 44,
                   borderRight: '1px solid #e5e7eb',
+                  borderBottom: '1px solid #e5e7eb',
                   display: 'flex',
                   alignItems: 'center',
                   backgroundColor: '#fff',
