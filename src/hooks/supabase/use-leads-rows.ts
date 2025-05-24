@@ -297,6 +297,7 @@ export function useLeadsRows() {
     // Find the row if it exists in our current state
     const existingRowIndex = rows.findIndex(row => row.id === rowId);
     let updatedRow;
+    let latestRows: LeadContact[] = rows;
     
     if (existingRowIndex >= 0) {
       // Update existing row
@@ -309,6 +310,7 @@ export function useLeadsRows() {
       setRows(prevRows => {
         const newRows = [...prevRows];
         newRows[existingRowIndex] = updatedRow;
+        latestRows = newRows;
         return newRows;
       });
     } else {
@@ -321,6 +323,7 @@ export function useLeadsRows() {
       
       // Add to local state
       setRows(prevRows => [updatedRow, ...prevRows]);
+      latestRows = [updatedRow, ...rows];
     }
     
     // Immediately update mockContactsById for Stream View to ensure consistent data
@@ -380,7 +383,10 @@ export function useLeadsRows() {
         variant: "destructive"
       });
     }
-    
+
+    // Persist the latest rows to local storage regardless of Supabase outcome
+    saveRowsToLocal(latestRows);
+
     return updatedRow;
   };
 
