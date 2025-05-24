@@ -225,12 +225,18 @@ export function useLeadsRows() {
   
   // Save a row to both Supabase and localStorage
   const saveRow = async (rowIndex: number, updatedRow: LeadContact) => {
+    let newRows: LeadContact[] = [];
+
     // Update local state first for immediate UI feedback
     setRows(prevRows => {
-      const newRows = [...prevRows];
-      newRows[rowIndex] = updatedRow;
-      return newRows;
+      const updatedRows = [...prevRows];
+      updatedRows[rowIndex] = updatedRow;
+      newRows = updatedRows;
+      return updatedRows;
     });
+
+    // Persist immediately so UI reflects changes across views
+    saveRowsToLocal(newRows);
     
     // Update mockContactsById for Stream View
     mockContactsById[updatedRow.id] = updatedRow;
@@ -271,13 +277,13 @@ export function useLeadsRows() {
         }
       } else {
         // Fall back to localStorage if not authenticated
-        saveRowsToLocal(rows);
+        saveRowsToLocal(newRows);
       }
     } catch (error) {
       console.error('Failed to save to Supabase, saving to localStorage instead:', error);
-      
+
       // Fall back to localStorage
-      saveRowsToLocal(rows);
+      saveRowsToLocal(newRows);
     }
   };
   
@@ -297,6 +303,7 @@ export function useLeadsRows() {
     // Find the row if it exists in our current state
     const existingRowIndex = rows.findIndex(row => row.id === rowId);
     let updatedRow;
+    let newRows: LeadContact[] = [];
     
     if (existingRowIndex >= 0) {
       // Update existing row
@@ -307,9 +314,10 @@ export function useLeadsRows() {
       
       // Update local state
       setRows(prevRows => {
-        const newRows = [...prevRows];
-        newRows[existingRowIndex] = updatedRow;
-        return newRows;
+        const updatedRows = [...prevRows];
+        updatedRows[existingRowIndex] = updatedRow;
+        newRows = updatedRows;
+        return updatedRows;
       });
     } else {
       // Create a new row
@@ -320,7 +328,11 @@ export function useLeadsRows() {
       };
       
       // Add to local state
-      setRows(prevRows => [updatedRow, ...prevRows]);
+      setRows(prevRows => {
+        const updatedRows = [updatedRow, ...prevRows];
+        newRows = updatedRows;
+        return updatedRows;
+      });
     }
     
     // Immediately update mockContactsById for Stream View to ensure consistent data
@@ -371,7 +383,7 @@ export function useLeadsRows() {
     } catch (error) {
       console.error('Error updating cell:', error);
       // Fall back to localStorage
-      saveRowsToLocal(rows);
+      saveRowsToLocal(newRows);
       
       // Show error toast
       toast({
@@ -381,11 +393,16 @@ export function useLeadsRows() {
       });
     }
     
+    // Persist latest rows so updates survive reloads
+    saveRowsToLocal(newRows);
+
     return updatedRow;
   };
 
   // Add a new contact
   const addContact = async (newContact: LeadContact) => {
+    let newRows: LeadContact[] = [];
+
     try {
       if (user) {
         // Generate a new row number that's always 1 less than the smallest existing row number
@@ -422,7 +439,14 @@ export function useLeadsRows() {
         console.log("Adding new contact with name:", contactToSave.name);
         
         // Add to local state first for immediate UI feedback - always at the beginning
-        setRows(prevRows => [contactToSave, ...prevRows]);
+        setRows(prevRows => {
+          const updatedRows = [contactToSave, ...prevRows];
+          newRows = updatedRows;
+          return updatedRows;
+        });
+
+        // Persist immediately
+        saveRowsToLocal(newRows);
         
         // Update mockContactsById for Stream View
         mockContactsById[uiId] = contactToSave;
@@ -468,9 +492,13 @@ export function useLeadsRows() {
           name: newContact.name || 'Untitled Contact' // Ensure name field is used
         };
         
-        setRows(prevRows => [contactToSave, ...prevRows]);
+        setRows(prevRows => {
+          const updatedRows = [contactToSave, ...prevRows];
+          newRows = updatedRows;
+          return updatedRows;
+        });
         mockContactsById[uiId] = contactToSave;
-        saveRowsToLocal(rows);
+        saveRowsToLocal(newRows);
       }
     } catch (error) {
       console.error('Error adding contact:', error);
