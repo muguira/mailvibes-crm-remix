@@ -1123,13 +1123,15 @@ div[cmdk-list]:after {
   padding: 4px 10px;
   /* Reduced padding from 8px 12px */
   border-radius: 0;
-  cursor: pointer;
+  cursor: pointer !important;
   transition: background-color 0.15s ease;
-  height: 26px;
-  /* Slightly reduce height to match blue line */
-  min-height: 26px;
+  height: 28px;
+  /* Explicitly set height to be shorter */
+  min-height: 28px;
   font-size: 13px;
   /* Smaller font size */
+  pointer-events: auto !important;
+  opacity: 1 !important;
 }
 
 .status-popup-header {
@@ -1194,19 +1196,6 @@ div[cmdk-list]:after {
   gap: 0 !important;
 }
 
-.status-command-item {
-  padding: 4px 10px;
-  /* Reduced padding from 8px 12px */
-  border-radius: 0;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-  height: 28px;
-  /* Explicitly set height to be shorter */
-  min-height: 28px;
-  font-size: 13px;
-  /* Smaller font size */
-}
-
 .status-command-item:hover {
   background-color: rgba(247, 217, 196, 0.7) !important;
   /* Light Peach */
@@ -1215,6 +1204,15 @@ div[cmdk-list]:after {
 .status-command-item[data-selected=true] {
   background-color: rgba(247, 217, 196, 0.7) !important;
   /* Light Peach */
+}
+
+/* Ensure status command items are clickable */
+.status-command-item * {
+  pointer-events: none;
+}
+
+.status-command-item {
+  pointer-events: auto !important;
 }
 
 /* Fix z-index hierarchy for consistent popover behavior */
@@ -1341,36 +1339,7 @@ div[cmdk-list]:after {
   opacity: 1 !important;
 }
 
-/* Define stronger colors for the status dots only */
-[data-value="New"] .inline-block.w-3.h-3,
-.status-command-item:nth-child(1) .inline-block.w-3.h-3,
-[data-radix-select-item][data-value="New"] .inline-block.w-3.h-3 {
-  background-color: #FAEDCB !important;
-}
-
-[data-value="In Progress"] .inline-block.w-3.h-3,
-.status-command-item:nth-child(2) .inline-block.w-3.h-3,
-[data-radix-select-item][data-value="In Progress"] .inline-block.w-3.h-3 {
-  background-color: #C9E4DE !important;
-}
-
-[data-value="On Hold"] .inline-block.w-3.h-3,
-.status-command-item:nth-child(3) .inline-block.w-3.h-3,
-[data-radix-select-item][data-value="On Hold"] .inline-block.w-3.h-3 {
-  background-color: #C6DEF1 !important;
-}
-
-[data-value="Closed Won"] .inline-block.w-3.h-3,
-.status-command-item:nth-child(4) .inline-block.w-3.h-3,
-[data-radix-select-item][data-value="Closed Won"] .inline-block.w-3.h-3 {
-  background-color: #DBCDF0 !important;
-}
-
-[data-value="Closed Lost"] .inline-block.w-3.h-3,
-.status-command-item:nth-child(5) .inline-block.w-3.h-3,
-[data-radix-select-item][data-value="Closed Lost"] .inline-block.w-3.h-3 {
-  background-color: #F2C6DE !important;
-}
+/* Remove hardcoded status colors to allow dynamic colors */
 
 /* Pin icon styles for column headers */
 .pin-icon {

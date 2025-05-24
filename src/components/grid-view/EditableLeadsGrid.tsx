@@ -18,6 +18,78 @@ import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
 import { toast } from '@/components/ui/use-toast';
 import { useActivity } from "@/contexts/ActivityContext";
 
+// Constants
+const COLUMNS_STORAGE_KEY = 'gridColumns-v1';
+
+// Save columns to localStorage
+const saveColumnsToLocal = (columns: Column[]): void => {
+  try {
+    localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(columns));
+  } catch (error) {
+    console.error('Failed to save columns to localStorage:', error);
+  }
+};
+
+// Load columns from localStorage
+const loadColumnsFromLocal = (): Column[] | null => {
+  try {
+    const savedColumns = localStorage.getItem(COLUMNS_STORAGE_KEY);
+    if (savedColumns) {
+      return JSON.parse(savedColumns);
+    }
+  } catch (error) {
+    console.error('Failed to load columns from localStorage:', error);
+  }
+  return null;
+};
+
+// Save columns to Supabase
+const saveColumnsToSupabase = async (user: any, columns: Column[]): Promise<void> => {
+  if (!user) return;
+  
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { error } = await supabase
+      .from('user_settings')
+      .upsert({
+        user_id: user.id,
+        setting_key: 'grid_columns',
+        setting_value: columns,
+        updated_at: new Date().toISOString()
+      });
+    
+    if (error) {
+      console.error('Failed to save columns to Supabase:', error);
+    }
+  } catch (error) {
+    console.error('Error saving columns to Supabase:', error);
+  }
+};
+
+// Load columns from Supabase
+const loadColumnsFromSupabase = async (user: any): Promise<Column[] | null> => {
+  if (!user) return null;
+  
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('setting_value')
+      .eq('user_id', user.id)
+      .eq('setting_key', 'grid_columns')
+      .single();
+    
+    if (error || !data) {
+      return null;
+    }
+    
+    return data.setting_value as Column[];
+  } catch (error) {
+    console.error('Error loading columns from Supabase:', error);
+    return null;
+  }
+};
+
 // Sync a row with the mockContactsById mapping
 const syncContact = (row: GridRow): void => {
   if (!mockContactsById[row.id]) {
@@ -76,6 +148,162 @@ const renderSocialLink = (value: any, row: any) => {
   );
 };
 
+// Default columns configuration
+const getDefaultColumns = (): Column[] => [
+  {
+    id: 'name',
+    title: 'Contact',
+    type: 'text',
+    width: 180, // Keep contacts column at 180px
+    editable: true,
+    frozen: true,
+    renderCell: (value, row) => (
+      <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
+        {value}
+      </Link>
+    ),
+  },
+  {
+    id: 'status',
+    title: 'Lead Status',
+    type: 'status',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+    options: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'],
+    colors: {
+      'New': '#E4E5E8',
+      'In Progress': '#DBCDF0',
+      'On Hold': '#C6DEF1',
+      'Closed Won': '#C9E4DE',
+      'Closed Lost': '#F4C6C6',
+    },
+  },
+  {
+    id: 'description',
+    title: 'Description',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'company',
+    title: 'Company',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'jobTitle',
+    title: 'Job Title',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'industry',
+    title: 'Industry',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'phone',
+    title: 'Phone',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'primaryLocation',
+    title: 'Primary Location',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'email',
+    title: 'Email',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'facebook',
+    title: 'Facebook',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+    renderCell: renderSocialLink,
+  },
+  {
+    id: 'instagram',
+    title: 'Instagram',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+    renderCell: renderSocialLink,
+  },
+  {
+    id: 'linkedin',
+    title: 'LinkedIn',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+    renderCell: renderSocialLink,
+  },
+  {
+    id: 'twitter',
+    title: 'X',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+    renderCell: renderSocialLink,
+  },
+  {
+    id: 'associatedDeals',
+    title: 'Associated Deals',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'revenue',
+    title: 'Revenue',
+    type: 'currency',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+    currencyType: 'USD',
+  },
+  {
+    id: 'closeDate',
+    title: 'Close Date',
+    type: 'date',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'owner',
+    title: 'Owner',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'source',
+    title: 'Source',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'lastContacted',
+    title: 'Last Contacted',
+    type: 'date',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true
+  },
+];
+
 export function EditableLeadsGrid() {
   // Get authentication state
   const { user } = useAuth();
@@ -118,168 +346,128 @@ export function EditableLeadsGrid() {
     };
   }, [refreshData]);
   
-  // Define columns for the grid - with opportunity column marked as frozen
-  const [columns, setColumns] = useState<Column[]>([
-    {
-      id: 'name',
-      title: 'Contact',
-      type: 'text',
-      width: 180, // Keep contacts column at 180px
-      editable: true,
-      frozen: true,
-      renderCell: (value, row) => (
-        <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
-          {value}
-        </Link>
-      ),
-    },
-    {
-      id: 'status',
-      title: 'Lead Status',
-      type: 'status',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-      options: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'],
-      colors: {
-        'New': '#E4E5E8',
-        'In Progress': '#DBCDF0',
-        'On Hold': '#C6DEF1',
-        'Closed Won': '#C9E4DE',
-        'Closed Lost': '#F4C6C6',
-      },
-    },
-    {
-      id: 'description',
-      title: 'Description',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'company',
-      title: 'Company',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'jobTitle',
-      title: 'Job Title',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'industry',
-      title: 'Industry',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'phone',
-      title: 'Phone',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'primaryLocation',
-      title: 'Primary Location',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'email',
-      title: 'Email',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'facebook',
-      title: 'Facebook',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-      renderCell: renderSocialLink,
-    },
-    {
-      id: 'instagram',
-      title: 'Instagram',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-      renderCell: renderSocialLink,
-    },
-    {
-      id: 'linkedin',
-      title: 'LinkedIn',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-      renderCell: renderSocialLink,
-    },
-    {
-      id: 'twitter',
-      title: 'X',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-      renderCell: renderSocialLink,
-    },
-    {
-      id: 'associatedDeals',
-      title: 'Associated Deals',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'revenue',
-      title: 'Revenue',
-      type: 'currency',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'closeDate',
-      title: 'Close Date',
-      type: 'date',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'owner',
-      title: 'Owner',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'source',
-      title: 'Source',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'lastContacted',
-      title: 'Last Contacted',
-      type: 'date',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true
-    },
-    {
-      id: 'website',
-      title: 'Website',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-      renderCell: renderSocialLink,
-    },
-  ]);
+  // Define columns for the grid - start with default columns, then load from storage
+  const [columns, setColumns] = useState<Column[]>(getDefaultColumns);
+
+  // Load columns from storage on component mount
+  useEffect(() => {
+    const loadStoredColumns = async () => {
+      try {
+        // First try to load from Supabase if user is authenticated
+        let storedColumns: Column[] | null = null;
+        
+        if (user) {
+          storedColumns = await loadColumnsFromSupabase(user);
+        }
+        
+        // If no columns from Supabase, try localStorage
+        if (!storedColumns) {
+          storedColumns = loadColumnsFromLocal();
+        }
+        
+        // If we found stored columns, use them
+        if (storedColumns && storedColumns.length > 0) {
+          // Ensure renderCell functions are preserved for social links
+          const columnsWithRenderFunctions = storedColumns.map(col => {
+            if (['facebook', 'instagram', 'linkedin', 'twitter'].includes(col.id)) {
+              return { ...col, renderCell: renderSocialLink };
+            }
+            if (col.id === 'name') {
+              return { 
+                ...col, 
+                renderCell: (value, row) => (
+                  <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
+                    {value}
+                  </Link>
+                )
+              };
+            }
+            return col;
+          });
+          
+          setColumns(columnsWithRenderFunctions);
+        }
+      } catch (error) {
+        console.error('Error loading stored columns:', error);
+        // Keep default columns on error
+      }
+    };
+
+    loadStoredColumns();
+  }, [user]);
+
+  // State to track hidden columns for unhide functionality
+  const [hiddenColumns, setHiddenColumns] = useState<Column[]>([]);
+
+  // Function to save hidden columns to storage
+  const saveHiddenColumns = async (hiddenCols: Column[]) => {
+    try {
+      localStorage.setItem('hiddenColumns-v1', JSON.stringify(hiddenCols));
+      
+      if (user) {
+        const { supabase } = await import('@/integrations/supabase/client');
+        await supabase
+          .from('user_settings')
+          .upsert({
+            user_id: user.id,
+            setting_key: 'hidden_columns',
+            setting_value: hiddenCols,
+            updated_at: new Date().toISOString()
+          });
+      }
+    } catch (error) {
+      console.error('Failed to save hidden columns:', error);
+    }
+  };
+
+  // Load hidden columns on mount
+  useEffect(() => {
+    const loadHiddenColumns = async () => {
+      try {
+        let storedHiddenColumns: Column[] | null = null;
+        
+        if (user) {
+          const { supabase } = await import('@/integrations/supabase/client');
+          const { data } = await supabase
+            .from('user_settings')
+            .select('setting_value')
+            .eq('user_id', user.id)
+            .eq('setting_key', 'hidden_columns')
+            .single();
+          
+          if (data) {
+            storedHiddenColumns = data.setting_value as Column[];
+          }
+        }
+        
+        if (!storedHiddenColumns) {
+          const savedHidden = localStorage.getItem('hiddenColumns-v1');
+          if (savedHidden) {
+            storedHiddenColumns = JSON.parse(savedHidden);
+          }
+        }
+        
+        if (storedHiddenColumns) {
+          setHiddenColumns(storedHiddenColumns);
+        }
+      } catch (error) {
+        console.error('Error loading hidden columns:', error);
+      }
+    };
+
+    loadHiddenColumns();
+  }, [user]);
+
+  // Function to persist columns to both localStorage and Supabase
+  const persistColumns = async (newColumns: Column[]) => {
+    // Save to localStorage immediately
+    saveColumnsToLocal(newColumns);
+    
+    // Save to Supabase if user is authenticated
+    if (user) {
+      await saveColumnsToSupabase(user, newColumns);
+    }
+  };
   
   // Add effect to adjust column widths based on screen size
   useEffect(() => {
@@ -335,10 +523,21 @@ export function EditableLeadsGrid() {
   
   // Handle columns reordering
   const handleColumnsReorder = (columnIds: string[]) => {
-    setColumns(columns.map(col => ({
-      ...col,
-      order: columnIds.indexOf(col.id)
-    })).sort((a, b) => a.order - b.order));
+    // Create new columns array in the order specified by columnIds
+    const newColumns = columnIds.map(columnId => {
+      const column = columns.find(col => col.id === columnId);
+      if (!column) {
+        console.warn(`Column with id ${columnId} not found`);
+        return null;
+      }
+      return column;
+    }).filter(Boolean) as Column[];
+    
+    // Update the columns state
+    setColumns(newColumns);
+    
+    // Persist the reordered columns
+    persistColumns(newColumns);
     
     // Log the activity
     logFilterChange({ type: 'columns_reorder', columns: columnIds });
@@ -346,11 +545,18 @@ export function EditableLeadsGrid() {
   
   // Handle column deletion
   const handleDeleteColumn = (columnId: string) => {
-    // Don't delete the primary columns
-    if (['name', 'status', 'company'].includes(columnId)) {
+    // Don't delete the default/built-in columns
+    const defaultColumnIds = [
+      'name', 'status', 'description', 'company', 'jobTitle', 'industry', 
+      'phone', 'primaryLocation', 'email', 'facebook', 'instagram', 'linkedin', 
+      'twitter', 'associatedDeals', 'revenue', 'closeDate', 'owner', 'source', 
+      'lastContacted', 'website'
+    ];
+    
+    if (defaultColumnIds.includes(columnId)) {
       toast({
-        title: "Cannot delete primary column",
-        description: "This column is required and cannot be removed.",
+        title: "Cannot delete default column",
+        description: "This column is a default column and cannot be deleted. You can hide it instead.",
         variant: "destructive"
       });
       return;
@@ -363,7 +569,11 @@ export function EditableLeadsGrid() {
     }
     
     // Remove from columns array
-    setColumns(columns.filter(col => col.id !== columnId));
+    const newColumns = columns.filter(col => col.id !== columnId);
+    setColumns(newColumns);
+    
+    // Persist the column deletion
+    persistColumns(newColumns);
   };
   
   // Handle adding a new column
@@ -393,6 +603,124 @@ export function EditableLeadsGrid() {
       ...columns.slice(afterIndex + 1)
     ]);
   };
+
+  // Handle inserting a new column with specific direction and header name
+  const handleInsertColumn = (direction: 'left' | 'right', targetIndex: number, headerName: string, columnType: string, config?: any) => {
+    // Create a new unique column ID
+    const columnId = `column-${uuidv4().substring(0, 8)}`;
+    
+    // Create the new column with the provided header name and type
+    const newColumn: Column = {
+      id: columnId,
+      title: headerName,
+      type: columnType as Column['type'], // Use proper type instead of any
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true,
+    };
+
+    // Apply configuration based on column type
+    if (columnType === 'currency' && config?.currencyType) {
+      // Store currency type in the column for formatting
+      newColumn.currencyType = config.currencyType;
+    } else if (columnType === 'status' && config?.options && config?.colors) {
+      // Add status options and colors from config
+      newColumn.options = config.options;
+      newColumn.colors = config.colors;
+    } else if (columnType === 'status') {
+      // Default status options if no config provided
+      newColumn.options = ['Option 1', 'Option 2', 'Option 3'];
+      newColumn.colors = {
+        'Option 1': '#E4E5E8',
+        'Option 2': '#DBCDF0', 
+        'Option 3': '#C6DEF1',
+      };
+    }
+    
+    // Calculate insertion index based on direction
+    const insertAt = direction === 'left' ? targetIndex : targetIndex + 1;
+    
+    // Log the activity
+    logColumnAdd(newColumn.id, newColumn.title);
+    
+    // Insert the column at the calculated position
+    const newColumns = [
+      ...columns.slice(0, insertAt),
+      newColumn,
+      ...columns.slice(insertAt)
+    ];
+    
+    setColumns(newColumns);
+    
+    // Persist the new columns configuration
+    persistColumns(newColumns);
+  };
+
+  // Handle hiding a column (remove from view but don't delete data)
+  const handleHideColumn = (columnId: string) => {
+    // Log the activity
+    const column = columns.find(col => col.id === columnId);
+    if (column) {
+      logFilterChange({ type: 'column_hidden', columnId, columnName: column.title });
+      
+      // Add to hidden columns list
+      const newHiddenColumns = [...hiddenColumns, column];
+      setHiddenColumns(newHiddenColumns);
+      saveHiddenColumns(newHiddenColumns);
+    }
+    
+    // Remove from columns array (this hides it from view)
+    const newColumns = columns.filter(col => col.id !== columnId);
+    setColumns(newColumns);
+    
+    // Persist the column changes
+    persistColumns(newColumns);
+  };
+
+  // Handle unhiding a column
+  const handleUnhideColumn = (columnId: string) => {
+    // Find the column in hidden columns
+    const columnToUnhide = hiddenColumns.find(col => col.id === columnId);
+    if (!columnToUnhide) return;
+
+    // Restore render functions for social links and contact column
+    let restoredColumn = { ...columnToUnhide };
+    if (['facebook', 'instagram', 'linkedin', 'twitter'].includes(columnToUnhide.id)) {
+      restoredColumn.renderCell = renderSocialLink;
+    } else if (columnToUnhide.id === 'name') {
+      restoredColumn.renderCell = (value, row) => (
+        <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
+          {value}
+        </Link>
+      );
+    }
+
+    // Add back to columns array at the end (before lastContacted if it exists)
+    const lastContactedIndex = columns.findIndex(col => col.id === 'lastContacted');
+    let newColumns: Column[];
+    
+    if (lastContactedIndex !== -1) {
+      // Insert before lastContacted
+      newColumns = [
+        ...columns.slice(0, lastContactedIndex),
+        restoredColumn,
+        ...columns.slice(lastContactedIndex)
+      ];
+    } else {
+      // Add at the end
+      newColumns = [...columns, restoredColumn];
+    }
+    
+    setColumns(newColumns);
+    persistColumns(newColumns);
+
+    // Remove from hidden columns
+    const newHiddenColumns = hiddenColumns.filter(col => col.id !== columnId);
+    setHiddenColumns(newHiddenColumns);
+    saveHiddenColumns(newHiddenColumns);
+
+    // Log the activity
+    logFilterChange({ type: 'column_unhidden', columnId, columnName: restoredColumn.title });
+  };
   
   // Show better loading UI to cover any potential flash
   if (loading || !isGridReady) {
@@ -416,6 +744,11 @@ export function EditableLeadsGrid() {
           onCellChange={handleCellChange}
           onColumnsReorder={handleColumnsReorder}
           onAddColumn={handleAddColumn}
+          onInsertColumn={handleInsertColumn}
+          onDeleteColumn={handleDeleteColumn}
+          onHideColumn={handleHideColumn}
+          onUnhideColumn={handleUnhideColumn}
+          hiddenColumns={hiddenColumns}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
         />
@@ -435,6 +768,11 @@ export function EditableLeadsGrid() {
         onCellChange={handleCellChange}
         onColumnsReorder={handleColumnsReorder}
         onAddColumn={handleAddColumn}
+        onInsertColumn={handleInsertColumn}
+        onDeleteColumn={handleDeleteColumn}
+        onHideColumn={handleHideColumn}
+        onUnhideColumn={handleUnhideColumn}
+        hiddenColumns={hiddenColumns}
         onSearchChange={setSearchTerm}
         searchTerm={searchTerm}
         className="h-full"

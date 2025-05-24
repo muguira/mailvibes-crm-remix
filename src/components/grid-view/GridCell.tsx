@@ -143,11 +143,7 @@ export const GridCell: React.FC<GridCellProps> = ({
                             <span
                               className="inline-block w-3 h-3 rounded-full"
                               style={{
-                                backgroundColor: option === 'New' ? '#FAEDCB' :
-                                  option === 'In Progress' ? '#C9E4DE' :
-                                    option === 'On Hold' ? '#C6DEF1' :
-                                      option === 'Closed Won' ? '#DBCDF0' :
-                                        option === 'Closed Lost' ? '#F2C6DE' : '#F7D9C4'
+                                backgroundColor: column.colors?.[option] || '#e5e7eb'
                               }}
                             />
                             <span>{option}</span>

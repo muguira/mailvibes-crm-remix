@@ -10,6 +10,7 @@ export interface Column {
   frozen?: boolean;
   options?: string[];
   colors?: Record<string, string>;
+  currencyType?: string;
   renderCell?: (value: any, row: GridRow) => React.ReactNode;
 }
 
@@ -34,5 +35,9 @@ export interface GridContainerProps {
   onColumnsReorder?: (columnIds: string[]) => void;
   onDeleteColumn?: (columnId: string) => void;
   onAddColumn?: (afterColumnId: string) => void;
+  onInsertColumn?: (direction: 'left' | 'right', targetIndex: number, headerName: string, columnType: string, config?: any) => void;
+  onHideColumn?: (columnId: string) => void;
+  onUnhideColumn?: (columnId: string) => void;
+  hiddenColumns?: Column[];
   className?: string;
 }

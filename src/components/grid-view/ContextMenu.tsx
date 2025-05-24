@@ -1,16 +1,18 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Copy, Clipboard as Paste, ChevronLeft, ChevronRight, Trash2, ArrowDown, ArrowUp } from 'lucide-react';
+import { Copy, Clipboard as Paste, ChevronLeft, ChevronRight, Trash2, ArrowDown, ArrowUp, EyeOff } from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;
   y: number;
   columnId: string;
+  columnIndex: number;
   onClose: () => void;
   onCopy: (columnId: string) => void;
   onPaste: (columnId: string) => void;
-  onInsertLeft: (columnId: string) => void;
-  onInsertRight: (columnId: string) => void;
+  onInsertLeft: (columnIndex: number) => void;
+  onInsertRight: (columnIndex: number) => void;
   onDelete: (columnId: string) => void;
+  onHide?: (columnId: string) => void;
   onSortAZ: (columnId: string) => void;
   onSortZA: (columnId: string) => void;
   isVisible: boolean;
@@ -20,18 +22,18 @@ export function ContextMenu({
   x,
   y,
   columnId,
+  columnIndex,
   onClose,
   onCopy,
   onPaste,
   onInsertLeft,
   onInsertRight,
   onDelete,
+  onHide,
   onSortAZ,
   onSortZA,
   isVisible
 }: ContextMenuProps) {
-  if (!isVisible) return null;
-  
   const menuRef = useRef<HTMLDivElement>(null);
   const [adjustedPosition, setAdjustedPosition] = useState({ x, y });
 
@@ -68,6 +70,8 @@ export function ContextMenu({
     };
   }, [onClose]);
 
+  if (!isVisible) return null;
+
   return (
     <div 
       ref={menuRef}
@@ -100,20 +104,20 @@ export function ContextMenu({
       <div className="px-1 py-1">
         <button 
           className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-          onClick={() => { onInsertLeft(columnId); onClose(); }}
+          onClick={() => { onInsertLeft(columnIndex); onClose(); }}
         >
           <ChevronLeft size={16} className="mr-2 text-gray-500" />
-          <span>Insert column left</span>
+          <span>➕ Insert column left</span>
         </button>
         
         {/* Only show Insert column right if not on Last Contacted column */}
         {columnId !== 'lastContacted' && (
           <button 
             className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-            onClick={() => { onInsertRight(columnId); onClose(); }}
+            onClick={() => { onInsertRight(columnIndex); onClose(); }}
           >
             <ChevronRight size={16} className="mr-2 text-gray-500" />
-            <span>Insert column right</span>
+            <span>➕ Insert column right</span>
           </button>
         )}
         
@@ -124,6 +128,16 @@ export function ContextMenu({
           <Trash2 size={16} className="mr-2 text-gray-500" />
           <span>Delete column</span>
         </button>
+        
+        {onHide && (
+          <button 
+            className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+            onClick={() => { onHide(columnId); onClose(); }}
+          >
+            <EyeOff size={16} className="mr-2 text-gray-500" />
+            <span>Hide this column</span>
+          </button>
+        )}
       </div>
       
       <div className="border-t border-gray-200 my-1"></div>

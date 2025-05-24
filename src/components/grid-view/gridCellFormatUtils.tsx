@@ -34,9 +34,10 @@ export function formatCellValue(value: any, column: Column, row?: GridRow) {
   }
   switch (column.type) {
     case 'currency':
+      const currencyCode = column.currencyType || 'USD';
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
-        currency: 'USD',
+        currency: currencyCode,
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
       }).format(Number(value));

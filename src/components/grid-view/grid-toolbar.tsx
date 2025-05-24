@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Filter, Search, Plus, Bell, X, Calendar as CalendarIcon, Calendar, User, Mail, Phone, Building2, CreditCard } from "lucide-react";
+import { Filter, Search, Plus, Bell, X, Calendar as CalendarIcon, Calendar, User, Mail, Phone, Building2, CreditCard, Eye } from "lucide-react";
 import { Column } from './types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,6 +35,8 @@ interface GridToolbarProps {
   columns: Column[];
   onApplyFilters: (filters: { columns: string[], values: Record<string, any> }) => void;
   activeFilters: { columns: string[], values: Record<string, any> };
+  hiddenColumns?: Column[];
+  onUnhideColumn?: (columnId: string) => void;
 }
 
 export function GridToolbar({ 
@@ -45,7 +47,9 @@ export function GridToolbar({
   filterCount,
   columns,
   onApplyFilters,
-  activeFilters
+  activeFilters,
+  hiddenColumns,
+  onUnhideColumn
 }: GridToolbarProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<string[]>(activeFilters.columns || []);
@@ -526,6 +530,40 @@ export function GridToolbar({
         
             {/* Filter button and Add Contact button */}
             <div className="flex items-center gap-2">
+              {/* Unhide columns button - only show if there are hidden columns */}
+              {hiddenColumns && hiddenColumns.length > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 w-auto px-3 bg-white border border-gray-300 rounded-md flex items-center gap-2 shadow-sm hover:bg-gray-50"
+                    >
+                      <Eye size={16} />
+                      <span className="text-sm">Unhide ({hiddenColumns.length})</span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-0" align="end">
+                    <div className="p-3 border-b">
+                      <h4 className="font-medium text-sm">Hidden Columns</h4>
+                      <p className="text-xs text-gray-500 mt-1">Click to unhide columns</p>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {hiddenColumns.map((column) => (
+                        <button
+                          key={column.id}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between group"
+                          onClick={() => onUnhideColumn?.(column.id)}
+                        >
+                          <span className="truncate">{column.title}</span>
+                          <Eye size={14} className="text-gray-400 group-hover:text-gray-600" />
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+              
               {/* Filter button */}
               <FilterPopupBase
                 columns={filterColumns}

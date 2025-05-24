@@ -20,6 +20,10 @@ export function GridViewContainer({
   onColumnsReorder,
   onDeleteColumn,
   onAddColumn,
+  onInsertColumn,
+  onHideColumn,
+  onUnhideColumn,
+  hiddenColumns = [],
   className
 }: GridContainerProps) {
   // Container references for sizing
@@ -256,6 +260,8 @@ export function GridViewContainer({
         columns={columns}
         onApplyFilters={handleApplyFilters}
         activeFilters={activeFilters}
+        hiddenColumns={hiddenColumns}
+        onUnhideColumn={onUnhideColumn}
       />
       
       <div className="grid-components-container">
@@ -330,6 +336,9 @@ export function GridViewContainer({
               frozenColumnIds={frozenColumnIds}
               editingCell={editingCell}
               setEditingCell={setEditingCell}
+              onInsertColumn={onInsertColumn}
+              allColumns={columns}
+              onHideColumn={onHideColumn}
             />
           </>
         )}

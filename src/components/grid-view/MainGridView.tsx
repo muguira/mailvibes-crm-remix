@@ -26,6 +26,8 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { GridCell } from './GridCell';
+import { NewColumnModal } from './NewColumnModal';
+import { CannotDeleteColumnModal } from './CannotDeleteColumnModal';
 
 interface MainGridViewProps {
   columns: Column[];
@@ -39,14 +41,17 @@ interface MainGridViewProps {
   onColumnChange: (columnId: string, changes: Partial<Column>) => void;
   onColumnsReorder: (columns: Column[]) => void;
   onAddColumn: () => void;
+  onInsertColumn?: (direction: 'left' | 'right', targetIndex: number, headerName: string, columnType: string, config?: any) => void;
   onDeleteColumn: (columnId: string) => void;
-  onContextMenu: (columnId: string, position: { x: number; y: number }) => void;
+  onHideColumn?: (columnId: string) => void;
+  onContextMenu: (columnId: string | null, position?: { x: number; y: number }) => void;
   contextMenuColumn: string | null;
   contextMenuPosition: { x: number; y: number } | null;
   onTogglePin: (columnId: string) => void;
   frozenColumnIds: string[];
   editingCell: { rowId: string; columnId: string } | null;
   setEditingCell: (cell: { rowId: string; columnId: string } | null) => void;
+  allColumns?: Column[];
 }
 
 export function MainGridView({
@@ -59,14 +64,17 @@ export function MainGridView({
   onCellChange,
   onColumnsReorder,
   onAddColumn,
+  onInsertColumn,
   onDeleteColumn,
+  onHideColumn,
   onContextMenu,
   contextMenuColumn,
   contextMenuPosition,
   onTogglePin,
   frozenColumnIds,
   editingCell,
-  setEditingCell
+  setEditingCell,
+  allColumns
 }: MainGridViewProps) {
   const gridRef = useRef<any>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -76,6 +84,41 @@ export function MainGridView({
 
   // Add optimistic updates state to immediately show changes locally
   const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, any>>({});
+
+  // Modal state for column insertion
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    direction: 'left' | 'right';
+    targetIndex: number;
+  }>({
+    isOpen: false,
+    direction: 'left',
+    targetIndex: 0,
+  });
+
+  // Modal state for cannot delete column
+  const [cannotDeleteModalState, setCannotDeleteModalState] = useState<{
+    isOpen: boolean;
+    columnId: string;
+    columnName: string;
+  }>({
+    isOpen: false,
+    columnId: '',
+    columnName: '',
+  });
+
+  // Drag and drop state for visual feedback
+  const [dragState, setDragState] = useState<{
+    isDragging: boolean;
+    draggedColumnId: string | null;
+    dropTargetColumnId: string | null;
+    dropPosition: 'left' | 'right' | null;
+  }>({
+    isDragging: false,
+    draggedColumnId: null,
+    dropTargetColumnId: null,
+    dropPosition: null,
+  });
 
   // Add a special effect to preserve toolbar visibility on initial render
   useEffect(() => {
@@ -827,29 +870,161 @@ export function MainGridView({
     onScroll({ scrollLeft, scrollTop });
   };
 
-  // Handle header drag/drop for column reordering
+  // Handle header drag/drop for column reordering with visual feedback
   const handleHeaderDragStart = (e: React.DragEvent, columnId: string) => {
+    console.log('=== DRAG START ===', columnId);
     e.dataTransfer.setData('text/plain', columnId);
+    e.dataTransfer.effectAllowed = 'move';
+    
+    // Add drag image styling
+    const dragElement = e.currentTarget.cloneNode(true) as HTMLElement;
+    dragElement.style.opacity = '0.8';
+    dragElement.style.transform = 'rotate(2deg)';
+    dragElement.style.backgroundColor = '#3b82f6';
+    dragElement.style.color = 'white';
+    dragElement.style.borderRadius = '6px';
+    dragElement.style.padding = '8px';
+    dragElement.style.position = 'absolute';
+    dragElement.style.top = '-1000px';
+    document.body.appendChild(dragElement);
+    e.dataTransfer.setDragImage(dragElement, e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+    
+    // Clean up the drag image element after drag starts
+    setTimeout(() => {
+      document.body.removeChild(dragElement);
+    }, 0);
+    
+    // Set drag state
+    setDragState({
+      isDragging: true,
+      draggedColumnId: columnId,
+      dropTargetColumnId: null,
+      dropPosition: null,
+    });
+  };
+
+  const handleHeaderDragOver = (e: React.DragEvent, targetColumnId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const dropPosition = e.clientX < centerX ? 'left' : 'right';
+    
+    setDragState(prev => ({
+      ...prev,
+      dropTargetColumnId: targetColumnId,
+      dropPosition,
+    }));
+  };
+
+  const handleHeaderDragLeave = (e: React.DragEvent) => {
+    // Only clear if we're actually leaving the header area
+    const rect = e.currentTarget.getBoundingClientRect();
+    const isLeavingHeader = e.clientY < rect.top || e.clientY > rect.bottom || 
+                           e.clientX < rect.left || e.clientX > rect.right;
+    
+    if (isLeavingHeader) {
+      setDragState(prev => ({
+        ...prev,
+        dropTargetColumnId: null,
+        dropPosition: null,
+      }));
+    }
   };
 
   const handleHeaderDrop = (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
     const sourceColumnId = e.dataTransfer.getData('text/plain');
 
-    if (sourceColumnId === targetColumnId) return;
+    console.log('=== DRAG DROP DEBUG ===');
+    console.log('Source:', sourceColumnId);
+    console.log('Target:', targetColumnId);
+    console.log('Original columns:', columns.map(c => c.id));
+
+    if (sourceColumnId === targetColumnId) {
+      setDragState({
+        isDragging: false,
+        draggedColumnId: null,
+        dropTargetColumnId: null,
+        dropPosition: null,
+      });
+      return;
+    }
 
     if (onColumnsReorder) {
       const sourceIndex = columns.findIndex(col => col.id === sourceColumnId);
       const targetIndex = columns.findIndex(col => col.id === targetColumnId);  
 
-      if (sourceIndex < 0 || targetIndex < 0) return;
+      console.log('Source index:', sourceIndex);
+      console.log('Target index:', targetIndex);
 
+      if (sourceIndex < 0 || targetIndex < 0) {
+        console.log('Invalid indices, aborting');
+        setDragState({
+          isDragging: false,
+          draggedColumnId: null,
+          dropTargetColumnId: null,
+          dropPosition: null,
+        });
+        return;
+      }
+
+      // Calculate the final position based on drop position
+      const rect = e.currentTarget.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const dropPosition = e.clientX < centerX ? 'left' : 'right';
+      
+      console.log('Drop position:', dropPosition);
+      
       const newOrder = [...columns.map(col => col.id)];
+      console.log('Before removal:', newOrder);
+      
+      // Remove the source column from its current position
       newOrder.splice(sourceIndex, 1);
-      newOrder.splice(targetIndex, 0, sourceColumnId);
-
+      console.log('After removal:', newOrder);
+      
+      // Calculate the correct insertion index
+      // After removing source, if source was before target, target index shifts down by 1
+      let insertIndex = targetIndex;
+      if (sourceIndex < targetIndex) {
+        insertIndex = targetIndex - 1;
+      }
+      
+      // Adjust based on drop position (left or right of target)
+      if (dropPosition === 'right') {
+        insertIndex = insertIndex + 1;
+      }
+      // If dropPosition === 'left', we insert at insertIndex (no change needed)
+      
+      console.log('Final insert index:', insertIndex);
+      
+      // Insert the source column at the calculated position
+      newOrder.splice(insertIndex, 0, sourceColumnId);
+      
+      console.log('Final order:', newOrder);
+      console.log('======================');
+      
       onColumnsReorder(newOrder);
     }
+
+    // Clear drag state
+    setDragState({
+      isDragging: false,
+      draggedColumnId: null,
+      dropTargetColumnId: null,
+      dropPosition: null,
+    });
+  };
+
+  const handleHeaderDragEnd = () => {
+    // Clear drag state when drag ends (including when canceled)
+    setDragState({
+      isDragging: false,
+      draggedColumnId: null,
+      dropTargetColumnId: null,
+      dropPosition: null,
+    });
   };
 
   // Handle header context menu
@@ -917,9 +1092,10 @@ export function MainGridView({
 
     switch (column.type) {
       case 'currency':
+        const currencyCode = column.currencyType || 'USD';
         return new Intl.NumberFormat('en-US', {
           style: 'currency',
-          currency: 'USD',
+          currency: currencyCode,
           minimumFractionDigits: 0,
           maximumFractionDigits: 0,
         }).format(Number(value));
@@ -1035,40 +1211,94 @@ export function MainGridView({
     if (onContextMenu) onContextMenu(null);
   };
 
-  const handleInsertLeft = (columnId: string) => {
-    console.log(`Insert column left of: ${columnId}`);
-    const columnIndex = columns.findIndex(col => col.id === columnId);
-    if (columnIndex > 0) {
-      const prevColumnId = columns[columnIndex - 1].id;
-      if (onAddColumn) {
-        onAddColumn(prevColumnId);
-      }
-    }
+  const handleInsertLeft = (columnIndex: number) => {
+    console.log(`Insert column left of index: ${columnIndex}`);
+    
+    // Calculate the global column index by finding the column ID in the full columns array
+    const columnId = columns[columnIndex]?.id;
+    const globalIndex = allColumns ? allColumns.findIndex(col => col.id === columnId) : columnIndex;
+    
+    setModalState({
+      isOpen: true,
+      direction: 'left',
+      targetIndex: globalIndex,
+    });
     if (onContextMenu) onContextMenu(null);
   };
 
-  const handleInsertRight = (columnId: string) => {
-    console.log(`Insert column right of: ${columnId}`);
-
+  const handleInsertRight = (columnIndex: number) => {
+    console.log(`Insert column right of index: ${columnIndex}`);
+    
+    // Calculate the global column index by finding the column ID in the full columns array
+    const columnId = columns[columnIndex]?.id;
+    const globalIndex = allColumns ? allColumns.findIndex(col => col.id === columnId) : columnIndex;
+    
     // Don't allow adding columns after lastContacted
-    if (columnId === 'lastContacted') {
+    const column = columns[columnIndex];
+    if (column?.id === 'lastContacted') {
       console.log("Cannot add columns after lastContacted");
-      // No alert message
       if (onContextMenu) onContextMenu(null);
       return;
     }
 
-    // We're modifying this logic - allow adding after any column except lastContacted
-    if (onAddColumn) {
-      onAddColumn(columnId);
-    }
+    setModalState({
+      isOpen: true,
+      direction: 'right',
+      targetIndex: globalIndex,
+    });
     if (onContextMenu) onContextMenu(null);
   };
 
+  // Modal handlers
+  const handleModalConfirm = (headerName: string, columnType: string, config?: any) => {
+    if (onInsertColumn) {
+      onInsertColumn(modalState.direction, modalState.targetIndex, headerName, columnType, config);
+    }
+    setModalState(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleModalCancel = () => {
+    setModalState(prev => ({ ...prev, isOpen: false }));
+  };
+
+  // Define default columns that cannot be deleted
+  const defaultColumnIds = [
+    'name', 'status', 'description', 'company', 'jobTitle', 'industry', 
+    'phone', 'primaryLocation', 'email', 'facebook', 'instagram', 'linkedin', 
+    'twitter', 'associatedDeals', 'revenue', 'closeDate', 'owner', 'source', 
+    'lastContacted', 'website'
+  ];
+
   const handleDeleteColumn = (columnId: string) => {
     console.log(`Delete column: ${columnId}`);
-    if (onDeleteColumn) onDeleteColumn(columnId);
+    
+    // Check if it's a default column
+    if (defaultColumnIds.includes(columnId)) {
+      const column = columns.find(col => col.id === columnId) || 
+                    allColumns?.find(col => col.id === columnId);
+      
+      setCannotDeleteModalState({
+        isOpen: true,
+        columnId,
+        columnName: column?.title || columnId,
+      });
+    } else {
+      // It's a user-added column, allow deletion
+      if (onDeleteColumn) onDeleteColumn(columnId);
+    }
+    
     if (onContextMenu) onContextMenu(null);
+  };
+
+  const handleHideColumn = () => {
+    if (onHideColumn && cannotDeleteModalState.columnId) {
+      onHideColumn(cannotDeleteModalState.columnId);
+    }
+    setCannotDeleteModalState(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleCannotDeleteModalCancel = () => {
+    setCannotDeleteModalState(prev => ({ ...prev, isOpen: false }));
   };
 
   const handleSortAZ = (columnId: string) => {
@@ -1098,38 +1328,86 @@ export function MainGridView({
         }}
       >
         <div className="grid-header-row" style={{ width: totalWidth, display: 'flex', boxSizing: 'border-box' }}>
-          {columns.map((column, index) => (
-            <div
-              key={column.id}
-              className={`grid-header-cell group ${column.id === contextMenuColumn ? 'highlight-column' : ''}${index === 0 ? ' grid-header-cell-first-scrollable' : ''}`}
-              style={{
-                width: column.width,
-                boxSizing: 'border-box',
-                display: 'flex',
-                alignItems: 'center',
-                position: 'relative',
-                borderLeft: index === 0 ? '1px solid #e5e7eb' : undefined,
-              }}
-              draggable
-              onDragStart={(e) => handleHeaderDragStart(e, column.id)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => handleHeaderDrop(e, column.id)}
-              onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
-            >
-              <span style={{ flex: 1 }}>{column.title}</span>
-              <span
-                className={`pin-icon ml-2 ${frozenColumnIds.includes(column.id) ? 'text-[#62BFAA]' : 'text-gray-400'} group-hover:opacity-100 opacity-0`}
-                style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
-                onClick={e => { e.stopPropagation(); onTogglePin(column.id); }}
+          {columns.map((column, index) => {
+            // Check if this column is being dragged or is a drop target
+            const isDragged = dragState.draggedColumnId === column.id;
+            const isDropTarget = dragState.dropTargetColumnId === column.id;
+            const showLeftDropIndicator = isDropTarget && dragState.dropPosition === 'left';
+            const showRightDropIndicator = isDropTarget && dragState.dropPosition === 'right';
+            
+            return (
+              <div
+                key={column.id}
+                className={`grid-header-cell group ${column.id === contextMenuColumn ? 'highlight-column' : ''}${index === 0 ? ' grid-header-cell-first-scrollable' : ''}${isDragged ? ' dragging' : ''}${isDropTarget ? ' drop-target' : ''}`}
+                style={{
+                  width: column.width,
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  position: 'relative',
+                  borderLeft: index === 0 ? '1px solid #e5e7eb' : undefined,
+                  opacity: isDragged ? 0.5 : 1,
+                  backgroundColor: isDragged ? '#e1f5fe' : undefined,
+                  transition: 'opacity 0.2s ease, background-color 0.2s ease',
+                  cursor: dragState.isDragging ? 'grabbing' : 'grab',
+                }}
+                draggable
+                onDragStart={(e) => handleHeaderDragStart(e, column.id)}
+                onDragOver={(e) => handleHeaderDragOver(e, column.id)}
+                onDragLeave={(e) => handleHeaderDragLeave(e)}
+                onDrop={(e) => handleHeaderDrop(e, column.id)}
+                onDragEnd={handleHeaderDragEnd}
+                onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
               >
-                {frozenColumnIds.includes(column.id) ? (
-                  <PinOff size={16} />
-                ) : (
-                  <Pin size={16} />
+                {/* Left drop indicator */}
+                {showLeftDropIndicator && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '-2px',
+                      top: '0',
+                      bottom: '0',
+                      width: '4px',
+                      backgroundColor: '#3b82f6',
+                      borderRadius: '2px',
+                      zIndex: 10,
+                      boxShadow: '0 0 8px rgba(59, 130, 246, 0.6)',
+                    }}
+                  />
                 )}
-              </span>
-            </div>
-          ))}
+                
+                {/* Right drop indicator */}
+                {showRightDropIndicator && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: '-2px',
+                      top: '0',
+                      bottom: '0',
+                      width: '4px',
+                      backgroundColor: '#3b82f6',
+                      borderRadius: '2px',
+                      zIndex: 10,
+                      boxShadow: '0 0 8px rgba(59, 130, 246, 0.6)',
+                    }}
+                  />
+                )}
+                
+                <span style={{ flex: 1 }}>{column.title}</span>
+                <span
+                  className={`pin-icon ml-2 ${frozenColumnIds.includes(column.id) ? 'text-[#62BFAA]' : 'text-gray-400'} group-hover:opacity-100 opacity-0`}
+                  style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                  onClick={e => { e.stopPropagation(); onTogglePin(column.id); }}
+                >
+                  {frozenColumnIds.includes(column.id) ? (
+                    <PinOff size={16} />
+                  ) : (
+                    <Pin size={16} />
+                  )}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -1167,17 +1445,42 @@ export function MainGridView({
           x={contextMenuPosition.x}
           y={contextMenuPosition.y}
           columnId={contextMenuColumn}
+          columnIndex={columns.findIndex(col => col.id === contextMenuColumn)}
           onClose={() => onContextMenu && onContextMenu(null)}
           onCopy={handleCopyColumn}
           onPaste={handlePasteColumn}
           onInsertLeft={handleInsertLeft}
           onInsertRight={handleInsertRight}
           onDelete={handleDeleteColumn}
+          onHide={(columnId) => {
+            // Allow hiding any column directly from context menu
+            if (onHideColumn) {
+              onHideColumn(columnId);
+            }
+            if (onContextMenu) onContextMenu(null);
+          }}
           onSortAZ={handleSortAZ}
           onSortZA={handleSortZA}
           isVisible={!!contextMenuColumn}
         />
       )}
+
+      {/* New Column Modal */}
+      <NewColumnModal
+        isOpen={modalState.isOpen}
+        initialDirection={modalState.direction}
+        targetIdx={modalState.targetIndex}
+        onConfirm={handleModalConfirm}
+        onCancel={handleModalCancel}
+      />
+
+      {/* Cannot Delete Column Modal */}
+      <CannotDeleteColumnModal
+        isOpen={cannotDeleteModalState.isOpen}
+        columnName={cannotDeleteModalState.columnName}
+        onHideColumn={handleHideColumn}
+        onCancel={handleCannotDeleteModalCancel}
+      />
     </div>
   );
 } 
