@@ -3,7 +3,7 @@ import { VariableSizeGrid as Grid } from 'react-window';
 import { Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './grid-constants';
 import { ContextMenu } from './ContextMenu';
-import { Check, X } from 'lucide-react';
+import { Check, X, Pin, PinOff } from 'lucide-react';
 import './styles.css';
 import {
   Select,
@@ -1122,7 +1122,11 @@ export function MainGridView({
                 style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
                 onClick={e => { e.stopPropagation(); onTogglePin(column.id); }}
               >
-                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M17 7l-10 10M20 4l-3 3m-7 7l-3 3m9-9l-9 9"/></svg>
+                {frozenColumnIds.includes(column.id) ? (
+                  <PinOff size={16} />
+                ) : (
+                  <Pin size={16} />
+                )}
               </span>
             </div>
           ))}

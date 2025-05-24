@@ -36,7 +36,7 @@ export function GridViewContainer({
   const [scrollLeft, setScrollLeft] = useState(0);
   
   // Filter state
-  const [activeFilters, setActiveFilters] = useState<{ columns: string[], values: Record<string, any> }>({ columns: [], values: {} });
+  const [activeFilters, setActiveFilters] = useState<{ columns: string[], values: Record<string, unknown> }>({ columns: [], values: {} });
   const [visibleData, setVisibleData] = useState<GridRow[]>(data);
   
   // Context menu state
@@ -57,7 +57,9 @@ export function GridViewContainer({
     try {
       const stored = localStorage.getItem(key);
       if (stored) return JSON.parse(stored);
-    } catch {}
+    } catch (error) {
+      console.error('Error parsing frozen column IDs:', error);
+    }
     // Por defecto, solo el índice está fijo
     return ['index'];
   });
@@ -135,19 +137,19 @@ export function GridViewContainer({
           // Different filter logic based on column type
           switch (column.type) {
             case 'status':
-              if (!filterValue || filterValue.length === 0) {
+              if (!filterValue || (Array.isArray(filterValue) && filterValue.length === 0)) {
                 return value !== null && value !== undefined && value !== '';
               }
-              return filterValue.includes(value);
+              return Array.isArray(filterValue) && typeof value === 'string' && filterValue.includes(value);
 
             case 'date':
-              if (!filterValue) return value !== null && value !== undefined && value !== '';
+              { if (!filterValue) return value !== null && value !== undefined && value !== '';
 
               const dateValue = value ? new Date(value) : null;
               if (!dateValue) return false;
 
-              const startDate = filterValue.start ? new Date(filterValue.start) : null;
-              const endDate = filterValue.end ? new Date(filterValue.end) : null;
+              const startDate = (filterValue as { start?: string }).start ? new Date((filterValue as { start: string }).start) : null;
+              const endDate = (filterValue as { end?: string }).end ? new Date((filterValue as { end: string }).end) : null;
 
               if (startDate && endDate) {
                 return dateValue >= startDate && dateValue <= endDate;
@@ -156,7 +158,7 @@ export function GridViewContainer({
               } else if (endDate) {
                 return dateValue <= endDate;
               }
-              return true;
+              return true; }
 
             default:
               return value !== null && value !== undefined && value !== '';
@@ -203,7 +205,7 @@ export function GridViewContainer({
   };
   
   // Handle filter changes
-  const handleApplyFilters = (filters: { columns: string[], values: Record<string, any> }) => {
+  const handleApplyFilters = (filters: { columns: string[], values: Record<string, unknown> }) => {
     console.log("Applying filters:", filters);
     setActiveFilters(filters);
   };
@@ -314,8 +316,12 @@ export function GridViewContainer({
               onScroll={handleScroll}
               onCellChange={onCellChange}
               onColumnChange={onColumnChange}
-              onColumnsReorder={handleColumnsReorder}
-              onAddColumn={onAddColumn}
+              onColumnsReorder={(columns: Column[]) => {
+                handleColumnsReorder(columns.map(col => col.id))
+              }}
+              onAddColumn={() => {
+                onAddColumn(contextMenuColumn?.id ?? '')
+              }}
               onDeleteColumn={onDeleteColumn}
               onContextMenu={handleOpenContextMenu}
               contextMenuColumn={contextMenuColumn}
