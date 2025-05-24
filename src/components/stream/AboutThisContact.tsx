@@ -225,19 +225,23 @@ export default function AboutThisContact({
         console.log(`Attempting to save field ${field} for contact ${contact.id} (DB ID: ${dbId})`);
         
         // Determine if this is a main field or a data field
-        const mainFields = ['email', 'phone', 'company', 'source', 'industry', 'jobTitle', 'leadStatus', 'website'];
+        const mainFields = ['email', 'phone', 'company', 'source', 'industry', 'jobTitle', 'leadStatus', 'website', 'name'];
         
         try {
-          if (mainFields.includes(field)) {
-            // Map the field name if needed (e.g., jobTitle to job_title)
-            const mappedField = field === 'jobTitle' ? 'job_title' : field;
-            
-            // Use the shared updateContact helper with explicit user_id
-            await updateContact({ 
+          if (field === 'name') {
+            // Update the primary name column directly
+            await updateContact({
+              id: contact.id,
+              user_id: user.id, // CRITICAL: include user_id for RLS policies
+              name: value
+            });
+          } else if (mainFields.includes(field)) {
+            // Save other main fields directly on the contact record
+            await updateContact({
               id: contact.id,
               user_id: user.id, // CRITICAL: include user_id for RLS policies
               name: contact.name || 'Untitled Contact', // Ensure name is included
-              [mappedField]: value
+              [field]: value
             });
           } else {
             // For fields that go in the data JSON
