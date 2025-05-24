@@ -185,16 +185,22 @@ export function useLeadsRows() {
   
   // Save a row to both Supabase and localStorage
   const saveRow = async (rowIndex: number, updatedRow: LeadContact) => {
+    let newRows: LeadContact[] = [];
+
     // Update local state first for immediate UI feedback
     setRows(prevRows => {
-      const newRows = [...prevRows];
-      newRows[rowIndex] = updatedRow;
-      return newRows;
+      const updatedRows = [...prevRows];
+      updatedRows[rowIndex] = updatedRow;
+      newRows = updatedRows;
+      return updatedRows;
     });
-    
+
+    // Persist the latest rows in localStorage
+    saveRowsToLocal(newRows);
+
     // Update mockContactsById for Stream View
     mockContactsById[updatedRow.id] = updatedRow;
-    
+
     try {
       // Save to Supabase contacts table if user is authenticated
       if (user) {
@@ -231,13 +237,13 @@ export function useLeadsRows() {
         }
       } else {
         // Fall back to localStorage if not authenticated
-        saveRowsToLocal(rows);
+        saveRowsToLocal(newRows);
       }
     } catch (error) {
       console.error('Failed to save to Supabase, saving to localStorage instead:', error);
-      
+
       // Fall back to localStorage
-      saveRowsToLocal(rows);
+      saveRowsToLocal(newRows);
     }
   };
   
