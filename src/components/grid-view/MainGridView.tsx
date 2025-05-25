@@ -192,6 +192,13 @@ export function MainGridView({
     setColumnWidths(newColumnWidths);
   }, [columns]);
 
+  // Reset grid layout when column widths change (e.g., on mobile resize)
+  useEffect(() => {
+    if (gridRef.current) {
+      gridRef.current.resetAfterColumnIndex(0);
+    }
+  }, [columnWidths]);
+
   // Sync headers with grid scrolling
   useEffect(() => {
     if (headerRef.current) {
