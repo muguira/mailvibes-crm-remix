@@ -154,7 +154,7 @@ const getDefaultColumns = (): Column[] => [
     id: 'name',
     title: 'Contact',
     type: 'text',
-    width: 180, // Keep contacts column at 180px
+    width: 180, // 180px on desktop, MOBILE_COLUMN_WIDTH on mobile
     editable: true,
     frozen: true,
     renderCell: (value, row) => (
@@ -386,6 +386,8 @@ export function EditableLeadsGrid() {
           });
           
           setColumns(columnsWithRenderFunctions);
+          // Adjust column widths to match the current viewport
+          handleResize();
         }
       } catch (error) {
         console.error('Error loading stored columns:', error);
@@ -469,34 +471,34 @@ export function EditableLeadsGrid() {
     }
   };
   
+  // Resize handler extracted so it can be reused
+  const handleResize = useCallback(() => {
+    const isMobile = window.innerWidth < 768; // Standard mobile breakpoint
+    const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
+
+    setColumns(prevColumns =>
+      prevColumns.map(col => {
+        // On mobile, keep the Contact column at MOBILE_COLUMN_WIDTH; otherwise use 180px
+        if (col.id === 'name') {
+          return { ...col, width: isMobile ? MOBILE_COLUMN_WIDTH : 180 };
+        }
+
+        // Update all other columns to use the appropriate width
+        return { ...col, width: columnWidth };
+      })
+    );
+  }, []);
+
   // Add effect to adjust column widths based on screen size
   useEffect(() => {
-    const handleResize = () => {
-      const isMobile = window.innerWidth < 768; // Standard mobile breakpoint
-      const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
-      
-      setColumns(prevColumns => {
-        return prevColumns.map(col => {
-          // On mobile, keep the Contact column at 120px; otherwise use 180px
-          if (col.id === 'name') {
-            return { ...col, width: isMobile ? 120 : 180 };
-          }
-          
-          // Update all other columns to use the appropriate width
-          return { ...col, width: columnWidth };
-        });
-      });
-    };
-    
-    // Initial call
-    handleResize();
-    
+    handleResize(); // Initial call
+
     // Add event listener
     window.addEventListener('resize', handleResize);
-    
+
     // Cleanup
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [handleResize]);
   
   // Handle cell edit
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
