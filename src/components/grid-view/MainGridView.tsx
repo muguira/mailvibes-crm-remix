@@ -854,6 +854,9 @@ export function MainGridView({
 
   // Handle grid scroll event
   const handleGridScroll = ({ scrollLeft, scrollTop }: { scrollLeft: number; scrollTop: number }) => {
+    if (headerRef.current) {
+      headerRef.current.scrollLeft = scrollLeft;
+    }
     onScroll({ scrollLeft, scrollTop });
   };
 
