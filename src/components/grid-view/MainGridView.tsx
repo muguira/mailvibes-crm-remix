@@ -199,6 +199,23 @@ export function MainGridView({
     }
   }, [scrollLeft]);
 
+  // Ensure header scrolls in real time with the grid
+  useEffect(() => {
+    const gridElement = gridRef.current?._outerRef;
+    if (!gridElement) return;
+
+    const syncHeader = () => {
+      if (headerRef.current) {
+        headerRef.current.scrollLeft = gridElement.scrollLeft;
+      }
+    };
+
+    gridElement.addEventListener('scroll', syncHeader, { passive: true });
+    return () => {
+      gridElement.removeEventListener('scroll', syncHeader);
+    };
+  }, []);
+
   // Replace the complex scrolling effect with a simple one that just clears selection
   useEffect(() => {
     // Track whether user is manually scrolling
