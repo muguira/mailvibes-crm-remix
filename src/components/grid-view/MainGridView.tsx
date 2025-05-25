@@ -199,6 +199,24 @@ export function MainGridView({
     }
   }, [scrollLeft]);
 
+  // Keep headers synced using native scroll events to avoid delay
+  useEffect(() => {
+    if (!gridRef.current || !gridRef.current._outerRef) return;
+    const gridElement = gridRef.current._outerRef as HTMLElement;
+
+    const handleNativeScroll = () => {
+      if (headerRef.current) {
+        headerRef.current.scrollLeft = Math.floor(gridElement.scrollLeft);
+      }
+    };
+
+    gridElement.addEventListener('scroll', handleNativeScroll, { passive: true });
+
+    return () => {
+      gridElement.removeEventListener('scroll', handleNativeScroll);
+    };
+  }, []);
+
   // Replace the complex scrolling effect with a simple one that just clears selection
   useEffect(() => {
     // Track whether user is manually scrolling
@@ -854,6 +872,9 @@ export function MainGridView({
 
   // Handle grid scroll event
   const handleGridScroll = ({ scrollLeft, scrollTop }: { scrollLeft: number; scrollTop: number }) => {
+    if (headerRef.current) {
+      headerRef.current.scrollLeft = scrollLeft;
+    }
     onScroll({ scrollLeft, scrollTop });
   };
 
