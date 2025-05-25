@@ -477,9 +477,9 @@ export function EditableLeadsGrid() {
       
       setColumns(prevColumns => {
         return prevColumns.map(col => {
-          // For mobile, set contacts/opportunity column to 130px, otherwise keep at 180px
+          // On mobile, keep the Contact column at 120px; otherwise use 180px
           if (col.id === 'name') {
-            return { ...col, width: isMobile ? 130 : 180 };
+            return { ...col, width: isMobile ? 120 : 180 };
           }
           
           // Update all other columns to use the appropriate width
