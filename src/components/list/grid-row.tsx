@@ -16,6 +16,7 @@ interface GridRowProps {
   onCellClick: (rowId: string, colKey: string, colType?: string, options?: string[]) => void;
   onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
   renderRowActions?: (rowId: string) => React.ReactNode;
+  style?: React.CSSProperties;
 }
 
 export function GridRow({
@@ -30,6 +31,7 @@ export function GridRow({
   onCellClick,
   onCellChange,
   renderRowActions
+  style
 }: GridRowProps) {
   const isActive = activeCell?.row === rowData.id;
   
@@ -39,9 +41,10 @@ export function GridRow({
     : rowNumber;
 
   return (
-    <div 
+    <div
       className={`grid-row ${isActive ? 'active-row' : ''}`}
       data-row-id={rowData.id}
+      style={style}
     >
       {/* Row number cell - absolute number across all pages */}
       <div className="row-number-cell">

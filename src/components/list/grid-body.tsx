@@ -1,5 +1,6 @@
 
-import { RefObject } from "react";
+import { RefObject, useLayoutEffect, useState, CSSProperties } from "react";
+import { VariableSizeList as List, ListChildComponentProps } from "react-window";
 import { GridRow } from "./grid-row";
 import { ColumnDef } from "./grid/types";
 
@@ -42,13 +43,31 @@ export function GridBody({
   console.log("GridBody: scrollableColumns", scrollableColumns);
   console.log("First row index:", firstRowIndex);
 
-  return (
-    <div className="overflow-auto flex-1 bg-white" ref={bodyRef}>
-      {displayData.map((row, index) => (
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useLayoutEffect(() => {
+    const update = () => {
+      if (bodyRef.current) {
+        setSize({ width: bodyRef.current.clientWidth, height: bodyRef.current.clientHeight });
+      }
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [bodyRef]);
+
+  const ROW_HEIGHT = 40; // must match .grid-row height
+
+  const itemCount = displayData.length + 1; // extra empty row
+
+  const Row = ({ index, style }: ListChildComponentProps) => {
+    if (index < displayData.length) {
+      const row = displayData[index];
+      return (
         <GridRow
-          key={row.id}
+          style={style as CSSProperties}
           rowData={row}
-          rowNumber={firstRowIndex + index + 1} // Use absolute row number across pages
+          rowNumber={firstRowIndex + index + 1}
           frozenColumns={frozenColumns}
           scrollableColumns={scrollableColumns}
           frozenColsTemplate={frozenColsTemplate}
@@ -59,22 +78,32 @@ export function GridBody({
           onCellChange={onCellChange}
           renderRowActions={renderRowActions}
         />
-      ))}
+      );
+    }
 
-      {/* Add one additional empty row at the end for new data entry */}
-      <div className="grid-row h-[var(--row-height,32px)] bg-white border-0 hover:bg-slate-light/5">
+    return (
+      <div style={style as CSSProperties} className="grid-row h-[var(--row-height,32px)] bg-white border-0 hover:bg-slate-light/5">
         <div className="row-number-cell text-slate-300">{firstRowIndex + displayData.length + 1}</div>
         <div className="edit-column-cell"></div>
         <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${frozenColumns.length + scrollableColumns.length}, minmax(var(--cell-min-width, 150px), 1fr))` }}>
           {Array.from({ length: frozenColumns.length + scrollableColumns.length }, (_, colIndex) => (
-            <div 
-              key={`empty-cell-${colIndex}`} 
-              className="grid-cell"
-              tabIndex={0}
-            ></div>
+            <div key={`empty-cell-${colIndex}`} className="grid-cell" tabIndex={0}></div>
           ))}
         </div>
       </div>
-    </div>
+    );
+  };
+
+  return (
+    <List
+      height={size.height}
+      width={size.width}
+      outerRef={bodyRef}
+      itemCount={itemCount}
+      itemSize={() => ROW_HEIGHT}
+      itemKey={(index) => (index < displayData.length ? displayData[index].id : `empty-${index}`)}
+    >
+      {Row}
+    </List>
   );
 }

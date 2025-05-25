@@ -52,6 +52,7 @@ export function GridBody({
           onCellClick={onCellClick}
           onCellChange={onCellChange}
           renderRowActions={renderRowActions}
+          style={undefined}
         />
       ))}
 
