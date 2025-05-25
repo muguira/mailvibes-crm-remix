@@ -3,7 +3,7 @@ export const ROW_HEIGHT = 36;
 export const HEADER_HEIGHT = 36;
 export const INDEX_COLUMN_WIDTH = 48;
 export const DEFAULT_COLUMN_WIDTH = 180;
-export const MOBILE_COLUMN_WIDTH = 100;
+export const MOBILE_COLUMN_WIDTH = 120;
 export const MIN_COLUMN_WIDTH = 80;
 
 // Grid colors
