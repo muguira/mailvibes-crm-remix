@@ -107,19 +107,6 @@ export function MainGridView({
     columnName: '',
   });
 
-  // Drag and drop state for visual feedback
-  const [dragState, setDragState] = useState<{
-    isDragging: boolean;
-    draggedColumnId: string | null;
-    dropTargetColumnId: string | null;
-    dropPosition: 'left' | 'right' | null;
-  }>({
-    isDragging: false,
-    draggedColumnId: null,
-    dropTargetColumnId: null,
-    dropPosition: null,
-  });
-
   // Add a special effect to preserve toolbar visibility on initial render
   useEffect(() => {
     // This helps ensure the toolbar stays visible when the component mounts
@@ -870,161 +857,29 @@ export function MainGridView({
     onScroll({ scrollLeft, scrollTop });
   };
 
-  // Handle header drag/drop for column reordering with visual feedback
+  // Handle header drag/drop for column reordering
   const handleHeaderDragStart = (e: React.DragEvent, columnId: string) => {
-    console.log('=== DRAG START ===', columnId);
     e.dataTransfer.setData('text/plain', columnId);
-    e.dataTransfer.effectAllowed = 'move';
-    
-    // Add drag image styling
-    const dragElement = e.currentTarget.cloneNode(true) as HTMLElement;
-    dragElement.style.opacity = '0.8';
-    dragElement.style.transform = 'rotate(2deg)';
-    dragElement.style.backgroundColor = '#3b82f6';
-    dragElement.style.color = 'white';
-    dragElement.style.borderRadius = '6px';
-    dragElement.style.padding = '8px';
-    dragElement.style.position = 'absolute';
-    dragElement.style.top = '-1000px';
-    document.body.appendChild(dragElement);
-    e.dataTransfer.setDragImage(dragElement, e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-    
-    // Clean up the drag image element after drag starts
-    setTimeout(() => {
-      document.body.removeChild(dragElement);
-    }, 0);
-    
-    // Set drag state
-    setDragState({
-      isDragging: true,
-      draggedColumnId: columnId,
-      dropTargetColumnId: null,
-      dropPosition: null,
-    });
-  };
-
-  const handleHeaderDragOver = (e: React.DragEvent, targetColumnId: string) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    
-    const rect = e.currentTarget.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const dropPosition = e.clientX < centerX ? 'left' : 'right';
-    
-    setDragState(prev => ({
-      ...prev,
-      dropTargetColumnId: targetColumnId,
-      dropPosition,
-    }));
-  };
-
-  const handleHeaderDragLeave = (e: React.DragEvent) => {
-    // Only clear if we're actually leaving the header area
-    const rect = e.currentTarget.getBoundingClientRect();
-    const isLeavingHeader = e.clientY < rect.top || e.clientY > rect.bottom || 
-                           e.clientX < rect.left || e.clientX > rect.right;
-    
-    if (isLeavingHeader) {
-      setDragState(prev => ({
-        ...prev,
-        dropTargetColumnId: null,
-        dropPosition: null,
-      }));
-    }
   };
 
   const handleHeaderDrop = (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
     const sourceColumnId = e.dataTransfer.getData('text/plain');
 
-    console.log('=== DRAG DROP DEBUG ===');
-    console.log('Source:', sourceColumnId);
-    console.log('Target:', targetColumnId);
-    console.log('Original columns:', columns.map(c => c.id));
-
-    if (sourceColumnId === targetColumnId) {
-      setDragState({
-        isDragging: false,
-        draggedColumnId: null,
-        dropTargetColumnId: null,
-        dropPosition: null,
-      });
-      return;
-    }
+    if (sourceColumnId === targetColumnId) return;
 
     if (onColumnsReorder) {
       const sourceIndex = columns.findIndex(col => col.id === sourceColumnId);
       const targetIndex = columns.findIndex(col => col.id === targetColumnId);  
 
-      console.log('Source index:', sourceIndex);
-      console.log('Target index:', targetIndex);
+      if (sourceIndex < 0 || targetIndex < 0) return;
 
-      if (sourceIndex < 0 || targetIndex < 0) {
-        console.log('Invalid indices, aborting');
-        setDragState({
-          isDragging: false,
-          draggedColumnId: null,
-          dropTargetColumnId: null,
-          dropPosition: null,
-        });
-        return;
-      }
-
-      // Calculate the final position based on drop position
-      const rect = e.currentTarget.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const dropPosition = e.clientX < centerX ? 'left' : 'right';
-      
-      console.log('Drop position:', dropPosition);
-      
       const newOrder = [...columns.map(col => col.id)];
-      console.log('Before removal:', newOrder);
-      
-      // Remove the source column from its current position
       newOrder.splice(sourceIndex, 1);
-      console.log('After removal:', newOrder);
-      
-      // Calculate the correct insertion index
-      // After removing source, if source was before target, target index shifts down by 1
-      let insertIndex = targetIndex;
-      if (sourceIndex < targetIndex) {
-        insertIndex = targetIndex - 1;
-      }
-      
-      // Adjust based on drop position (left or right of target)
-      if (dropPosition === 'right') {
-        insertIndex = insertIndex + 1;
-      }
-      // If dropPosition === 'left', we insert at insertIndex (no change needed)
-      
-      console.log('Final insert index:', insertIndex);
-      
-      // Insert the source column at the calculated position
-      newOrder.splice(insertIndex, 0, sourceColumnId);
-      
-      console.log('Final order:', newOrder);
-      console.log('======================');
-      
+      newOrder.splice(targetIndex, 0, sourceColumnId);
+
       onColumnsReorder(newOrder);
     }
-
-    // Clear drag state
-    setDragState({
-      isDragging: false,
-      draggedColumnId: null,
-      dropTargetColumnId: null,
-      dropPosition: null,
-    });
-  };
-
-  const handleHeaderDragEnd = () => {
-    // Clear drag state when drag ends (including when canceled)
-    setDragState({
-      isDragging: false,
-      draggedColumnId: null,
-      dropTargetColumnId: null,
-      dropPosition: null,
-    });
   };
 
   // Handle header context menu
@@ -1328,86 +1183,38 @@ export function MainGridView({
         }}
       >
         <div className="grid-header-row" style={{ width: totalWidth, display: 'flex', boxSizing: 'border-box' }}>
-          {columns.map((column, index) => {
-            // Check if this column is being dragged or is a drop target
-            const isDragged = dragState.draggedColumnId === column.id;
-            const isDropTarget = dragState.dropTargetColumnId === column.id;
-            const showLeftDropIndicator = isDropTarget && dragState.dropPosition === 'left';
-            const showRightDropIndicator = isDropTarget && dragState.dropPosition === 'right';
-            
-            return (
-              <div
-                key={column.id}
-                className={`grid-header-cell group ${column.id === contextMenuColumn ? 'highlight-column' : ''}${index === 0 ? ' grid-header-cell-first-scrollable' : ''}${isDragged ? ' dragging' : ''}${isDropTarget ? ' drop-target' : ''}`}
-                style={{
-                  width: column.width,
-                  boxSizing: 'border-box',
-                  display: 'flex',
-                  alignItems: 'center',
-                  position: 'relative',
-                  borderLeft: index === 0 ? '1px solid #e5e7eb' : undefined,
-                  opacity: isDragged ? 0.5 : 1,
-                  backgroundColor: isDragged ? '#e1f5fe' : undefined,
-                  transition: 'opacity 0.2s ease, background-color 0.2s ease',
-                  cursor: dragState.isDragging ? 'grabbing' : 'grab',
-                }}
-                draggable
-                onDragStart={(e) => handleHeaderDragStart(e, column.id)}
-                onDragOver={(e) => handleHeaderDragOver(e, column.id)}
-                onDragLeave={(e) => handleHeaderDragLeave(e)}
-                onDrop={(e) => handleHeaderDrop(e, column.id)}
-                onDragEnd={handleHeaderDragEnd}
-                onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
+          {columns.map((column, index) => (
+            <div
+              key={column.id}
+              className={`grid-header-cell group ${column.id === contextMenuColumn ? 'highlight-column' : ''}${index === 0 ? ' grid-header-cell-first-scrollable' : ''}`}
+              style={{
+                width: column.width,
+                boxSizing: 'border-box',
+                display: 'flex',
+                alignItems: 'center',
+                position: 'relative',
+                borderLeft: index === 0 ? '1px solid #e5e7eb' : undefined,
+              }}
+              draggable
+              onDragStart={(e) => handleHeaderDragStart(e, column.id)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => handleHeaderDrop(e, column.id)}
+              onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
+            >
+              <span style={{ flex: 1 }}>{column.title}</span>
+              <span
+                className={`pin-icon ml-2 ${frozenColumnIds.includes(column.id) ? 'text-[#62BFAA]' : 'text-gray-400'} group-hover:opacity-100 opacity-0`}
+                style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                onClick={e => { e.stopPropagation(); onTogglePin(column.id); }}
               >
-                {/* Left drop indicator */}
-                {showLeftDropIndicator && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: '-2px',
-                      top: '0',
-                      bottom: '0',
-                      width: '4px',
-                      backgroundColor: '#3b82f6',
-                      borderRadius: '2px',
-                      zIndex: 10,
-                      boxShadow: '0 0 8px rgba(59, 130, 246, 0.6)',
-                    }}
-                  />
+                {frozenColumnIds.includes(column.id) ? (
+                  <PinOff size={16} />
+                ) : (
+                  <Pin size={16} />
                 )}
-                
-                {/* Right drop indicator */}
-                {showRightDropIndicator && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      right: '-2px',
-                      top: '0',
-                      bottom: '0',
-                      width: '4px',
-                      backgroundColor: '#3b82f6',
-                      borderRadius: '2px',
-                      zIndex: 10,
-                      boxShadow: '0 0 8px rgba(59, 130, 246, 0.6)',
-                    }}
-                  />
-                )}
-                
-                <span style={{ flex: 1 }}>{column.title}</span>
-                <span
-                  className={`pin-icon ml-2 ${frozenColumnIds.includes(column.id) ? 'text-[#62BFAA]' : 'text-gray-400'} group-hover:opacity-100 opacity-0`}
-                  style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
-                  onClick={e => { e.stopPropagation(); onTogglePin(column.id); }}
-                >
-                  {frozenColumnIds.includes(column.id) ? (
-                    <PinOff size={16} />
-                  ) : (
-                    <Pin size={16} />
-                  )}
-                </span>
-              </div>
-            );
-          })}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 

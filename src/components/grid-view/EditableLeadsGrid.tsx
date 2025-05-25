@@ -523,17 +523,11 @@ export function EditableLeadsGrid() {
   
   // Handle columns reordering
   const handleColumnsReorder = (columnIds: string[]) => {
-    // Create new columns array in the order specified by columnIds
-    const newColumns = columnIds.map(columnId => {
-      const column = columns.find(col => col.id === columnId);
-      if (!column) {
-        console.warn(`Column with id ${columnId} not found`);
-        return null;
-      }
-      return column;
-    }).filter(Boolean) as Column[];
+    const newColumns = columns.map(col => ({
+      ...col,
+      order: columnIds.indexOf(col.id)
+    })).sort((a, b) => a.order - b.order);
     
-    // Update the columns state
     setColumns(newColumns);
     
     // Persist the reordered columns
@@ -545,18 +539,11 @@ export function EditableLeadsGrid() {
   
   // Handle column deletion
   const handleDeleteColumn = (columnId: string) => {
-    // Don't delete the default/built-in columns
-    const defaultColumnIds = [
-      'name', 'status', 'description', 'company', 'jobTitle', 'industry', 
-      'phone', 'primaryLocation', 'email', 'facebook', 'instagram', 'linkedin', 
-      'twitter', 'associatedDeals', 'revenue', 'closeDate', 'owner', 'source', 
-      'lastContacted', 'website'
-    ];
-    
-    if (defaultColumnIds.includes(columnId)) {
+    // Don't delete the primary columns
+    if (['name', 'status', 'company'].includes(columnId)) {
       toast({
-        title: "Cannot delete default column",
-        description: "This column is a default column and cannot be deleted. You can hide it instead.",
+        title: "Cannot delete primary column",
+        description: "This column is required and cannot be removed.",
         variant: "destructive"
       });
       return;
@@ -745,7 +732,6 @@ export function EditableLeadsGrid() {
           onColumnsReorder={handleColumnsReorder}
           onAddColumn={handleAddColumn}
           onInsertColumn={handleInsertColumn}
-          onDeleteColumn={handleDeleteColumn}
           onHideColumn={handleHideColumn}
           onUnhideColumn={handleUnhideColumn}
           hiddenColumns={hiddenColumns}
@@ -769,7 +755,6 @@ export function EditableLeadsGrid() {
         onColumnsReorder={handleColumnsReorder}
         onAddColumn={handleAddColumn}
         onInsertColumn={handleInsertColumn}
-        onDeleteColumn={handleDeleteColumn}
         onHideColumn={handleHideColumn}
         onUnhideColumn={handleUnhideColumn}
         hiddenColumns={hiddenColumns}
