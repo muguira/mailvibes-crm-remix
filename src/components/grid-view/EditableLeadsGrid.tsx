@@ -386,6 +386,8 @@ export function EditableLeadsGrid() {
           });
           
           setColumns(columnsWithRenderFunctions);
+          // Adjust column widths to match the current viewport
+          handleResize();
         }
       } catch (error) {
         console.error('Error loading stored columns:', error);
@@ -469,34 +471,34 @@ export function EditableLeadsGrid() {
     }
   };
   
+  // Resize handler extracted so it can be reused
+  const handleResize = useCallback(() => {
+    const isMobile = window.innerWidth < 768; // Standard mobile breakpoint
+    const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
+
+    setColumns(prevColumns =>
+      prevColumns.map(col => {
+        // On mobile, keep the Contact column at MOBILE_COLUMN_WIDTH; otherwise use 180px
+        if (col.id === 'name') {
+          return { ...col, width: isMobile ? MOBILE_COLUMN_WIDTH : 180 };
+        }
+
+        // Update all other columns to use the appropriate width
+        return { ...col, width: columnWidth };
+      })
+    );
+  }, []);
+
   // Add effect to adjust column widths based on screen size
   useEffect(() => {
-    const handleResize = () => {
-      const isMobile = window.innerWidth < 768; // Standard mobile breakpoint
-      const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
-      
-      setColumns(prevColumns => {
-        return prevColumns.map(col => {
-          // On mobile, keep the Contact column at 120px; otherwise use 180px
-          if (col.id === 'name') {
-            return { ...col, width: isMobile ? 120 : 180 };
-          }
-          
-          // Update all other columns to use the appropriate width
-          return { ...col, width: columnWidth };
-        });
-      });
-    };
-    
-    // Initial call
-    handleResize();
-    
+    handleResize(); // Initial call
+
     // Add event listener
     window.addEventListener('resize', handleResize);
-    
+
     // Cleanup
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [handleResize]);
   
   // Handle cell edit
   const handleCellChange = (rowId: string, columnId: string, value: any) => {
@@ -529,9 +531,10 @@ export function EditableLeadsGrid() {
     })).sort((a, b) => a.order - b.order);
     
     setColumns(newColumns);
-    
+
     // Persist the reordered columns
     persistColumns(newColumns);
+    handleResize();
     
     // Log the activity
     logFilterChange({ type: 'columns_reorder', columns: columnIds });
@@ -558,9 +561,10 @@ export function EditableLeadsGrid() {
     // Remove from columns array
     const newColumns = columns.filter(col => col.id !== columnId);
     setColumns(newColumns);
-    
+
     // Persist the column deletion
     persistColumns(newColumns);
+    handleResize();
   };
   
   // Handle adding a new column
@@ -589,6 +593,8 @@ export function EditableLeadsGrid() {
       newColumn,
       ...columns.slice(afterIndex + 1)
     ]);
+
+    handleResize();
   };
 
   // Handle inserting a new column with specific direction and header name
@@ -637,9 +643,10 @@ export function EditableLeadsGrid() {
     ];
     
     setColumns(newColumns);
-    
+
     // Persist the new columns configuration
     persistColumns(newColumns);
+    handleResize();
   };
 
   // Handle hiding a column (remove from view but don't delete data)
@@ -658,9 +665,10 @@ export function EditableLeadsGrid() {
     // Remove from columns array (this hides it from view)
     const newColumns = columns.filter(col => col.id !== columnId);
     setColumns(newColumns);
-    
+
     // Persist the column changes
     persistColumns(newColumns);
+    handleResize();
   };
 
   // Handle unhiding a column
@@ -699,6 +707,7 @@ export function EditableLeadsGrid() {
     
     setColumns(newColumns);
     persistColumns(newColumns);
+    handleResize();
 
     // Remove from hidden columns
     const newHiddenColumns = hiddenColumns.filter(col => col.id !== columnId);
