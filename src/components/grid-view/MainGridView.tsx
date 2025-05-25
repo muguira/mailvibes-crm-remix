@@ -195,7 +195,7 @@ export function MainGridView({
   // Sync headers with grid scrolling
   useEffect(() => {
     if (headerRef.current) {
-      headerRef.current.scrollLeft = scrollLeft;
+      headerRef.current.scrollLeft = Math.floor(scrollLeft);
     }
   }, [scrollLeft]);
 
@@ -854,7 +854,11 @@ export function MainGridView({
 
   // Handle grid scroll event
   const handleGridScroll = ({ scrollLeft, scrollTop }: { scrollLeft: number; scrollTop: number }) => {
-    onScroll({ scrollLeft, scrollTop });
+    const exactLeft = Math.floor(scrollLeft);
+    if (headerRef.current) {
+      headerRef.current.scrollLeft = exactLeft;
+    }
+    onScroll({ scrollLeft: exactLeft, scrollTop: Math.floor(scrollTop) });
   };
 
   // Handle header drag/drop for column reordering
