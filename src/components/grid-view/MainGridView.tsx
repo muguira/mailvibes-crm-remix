@@ -1228,9 +1228,8 @@ export function MainGridView({
               onDrop={(e) => handleHeaderDrop(e, column.id)}
               onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
             >
-              <span style={{ flex: 1 }}>{column.title}</span>
               <span
-                className={`pin-icon ml-2 ${frozenColumnIds.includes(column.id) ? 'text-[#62BFAA]' : 'text-gray-400'} group-hover:opacity-100 opacity-0`}
+                className={`pin-icon mr-2 md:ml-2 md:mr-0 md:order-last ${frozenColumnIds.includes(column.id) ? 'text-[#62BFAA]' : 'text-gray-400'} md:group-hover:opacity-100 md:opacity-0 hidden md:block`}
                 style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
                 onClick={e => { e.stopPropagation(); onTogglePin(column.id); }}
               >
@@ -1240,6 +1239,7 @@ export function MainGridView({
                   <Pin size={16} />
                 )}
               </span>
+              <span style={{ flex: 1 }}>{column.title}</span>
             </div>
           ))}
         </div>

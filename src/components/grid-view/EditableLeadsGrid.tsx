@@ -96,38 +96,38 @@ const syncContact = (row: GridRow): void => {
     // Create a new contact object if it doesn't exist
     mockContactsById[row.id] = { 
       id: row.id,
-      name: row.name || '—',
-      email: row.email || '—',
+      name: row.name || '',
+      email: row.email || '',
     };
   }
   
   // Update the contact object with row values
   mockContactsById[row.id] = {
     ...mockContactsById[row.id],
-    name: row.name || '—',
-    email: row.email || '—',
-    company: row.company || '—',
-    owner: row.owner || '—',
+    name: row.name || '',
+    email: row.email || '',
+    company: row.company || '',
+    owner: row.owner || '',
     status: row.status,
     revenue: row.revenue,
-    description: row.description || '—',
-    jobTitle: row.jobTitle || '—', 
-    industry: row.industry || '—',
-    phone: row.phone || '—',
-    primaryLocation: row.primaryLocation || '—',
-    facebook: row.facebook || '—',
-    instagram: row.instagram || '—',
-    linkedIn: row.linkedin || '—',
-    twitter: row.twitter || '—',
-    website: row.website || '—',
-    associatedDeals: row.associatedDeals || '—',
-    source: row.source || '—',
+    description: row.description || '',
+    jobTitle: row.jobTitle || '', 
+    industry: row.industry || '',
+    phone: row.phone || '',
+    primaryLocation: row.primaryLocation || '',
+    facebook: row.facebook || '',
+    instagram: row.instagram || '',
+    linkedIn: row.linkedin || '',
+    twitter: row.twitter || '',
+    website: row.website || '',
+    associatedDeals: row.associatedDeals || '',
+    source: row.source || '',
   };
 };
 
 // Create a reusable social link renderer function
 const renderSocialLink = (value: any, row: any) => {
-  if (!value || value === '—') return value;
+  if (!value) return value;
   const url = value.startsWith('http') ? value : `https://${value}`;
   return (
     <div className="flex items-center w-full" onClick={(e) => e.stopPropagation()}>
@@ -153,24 +153,24 @@ const getDefaultColumns = (): Column[] => [
   {
     id: 'name',
     title: 'Contact',
-    type: 'text',
+      type: 'text',
     width: 180, // Keep contacts column at 180px
-    editable: true,
-    frozen: true,
-    renderCell: (value, row) => (
-      <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
-        {value}
-      </Link>
-    ),
-  },
-  {
-    id: 'status',
+      editable: true,
+      frozen: true,
+      renderCell: (value, row) => (
+        <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
+          {value}
+        </Link>
+      ),
+    },
+    {
+      id: 'status',
     title: 'Lead Status',
-    type: 'status',
-    width: DEFAULT_COLUMN_WIDTH,
-    editable: true,
-    options: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'],
-    colors: {
+      type: 'status',
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true,
+      options: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'],
+      colors: {
       'New': '#E4E5E8',
       'In Progress': '#DBCDF0',
       'On Hold': '#C6DEF1',
@@ -266,40 +266,40 @@ const getDefaultColumns = (): Column[] => [
     width: DEFAULT_COLUMN_WIDTH,
     editable: true,
   },
-  {
-    id: 'revenue',
-    title: 'Revenue',
-    type: 'currency',
-    width: DEFAULT_COLUMN_WIDTH,
-    editable: true,
+    {
+      id: 'revenue',
+      title: 'Revenue',
+      type: 'currency',
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true,
     currencyType: 'USD',
-  },
-  {
-    id: 'closeDate',
-    title: 'Close Date',
-    type: 'date',
-    width: DEFAULT_COLUMN_WIDTH,
-    editable: true,
-  },
-  {
-    id: 'owner',
-    title: 'Owner',
-    type: 'text',
-    width: DEFAULT_COLUMN_WIDTH,
-    editable: true,
-  },
-  {
+    },
+    {
+      id: 'closeDate',
+      title: 'Close Date',
+      type: 'date',
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true,
+    },
+    {
+      id: 'owner',
+      title: 'Owner',
+      type: 'text',
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true,
+    },
+    {
     id: 'source',
     title: 'Source',
-    type: 'text',
-    width: DEFAULT_COLUMN_WIDTH,
-    editable: true,
-  },
-  {
-    id: 'lastContacted',
-    title: 'Last Contacted',
-    type: 'date',
-    width: DEFAULT_COLUMN_WIDTH,
+      type: 'text',
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true,
+    },
+    {
+      id: 'lastContacted',
+      title: 'Last Contacted',
+      type: 'date',
+      width: DEFAULT_COLUMN_WIDTH,
     editable: true
   },
 ];
@@ -356,7 +356,7 @@ export function EditableLeadsGrid() {
         // First try to load from Supabase if user is authenticated
         let storedColumns: Column[] | null = null;
         
-        if (user) {
+    if (user) {
           storedColumns = await loadColumnsFromSupabase(user);
         }
         
@@ -651,8 +651,12 @@ export function EditableLeadsGrid() {
     if (column) {
       logFilterChange({ type: 'column_hidden', columnId, columnName: column.title });
       
-      // Add to hidden columns list
-      const newHiddenColumns = [...hiddenColumns, column];
+      // Store the current index of the column before hiding
+      const currentIndex = columns.findIndex(col => col.id === columnId);
+      const columnWithIndex = { ...column, originalIndex: currentIndex };
+      
+      // Add to hidden columns list with original index
+      const newHiddenColumns = [...hiddenColumns, columnWithIndex];
       setHiddenColumns(newHiddenColumns);
       saveHiddenColumns(newHiddenColumns);
     }
@@ -683,21 +687,37 @@ export function EditableLeadsGrid() {
       );
     }
 
-    // Add back to columns array at the end (before lastContacted if it exists)
-    const lastContactedIndex = columns.findIndex(col => col.id === 'lastContacted');
-    let newColumns: Column[];
+    // Remove the originalIndex property as it's not part of the Column interface
+    const { originalIndex, ...cleanColumn } = restoredColumn as any;
+
+    // Calculate where to insert the column based on original index
+    let insertIndex = originalIndex || 0;
     
-    if (lastContactedIndex !== -1) {
-      // Insert before lastContacted
-      newColumns = [
-        ...columns.slice(0, lastContactedIndex),
-        restoredColumn,
-        ...columns.slice(lastContactedIndex)
-      ];
-    } else {
-      // Add at the end
-      newColumns = [...columns, restoredColumn];
+    // Adjust the insert index if columns have been removed since hiding
+    const currentColumnIds = columns.map(col => col.id);
+    const defaultColumnOrder = getDefaultColumns().map(col => col.id);
+    
+    // Count how many columns that should come before this one are currently visible
+    let adjustedIndex = 0;
+    for (let i = 0; i < defaultColumnOrder.length && i < originalIndex; i++) {
+      const colId = defaultColumnOrder[i];
+      if (currentColumnIds.includes(colId)) {
+        adjustedIndex++;
+      }
     }
+    
+    // Ensure we don't insert beyond the current array length
+    insertIndex = Math.min(adjustedIndex, columns.length);
+    
+    // Always keep lastContacted at the end if it exists
+    const lastContactedIndex = columns.findIndex(col => col.id === 'lastContacted');
+    if (lastContactedIndex !== -1 && insertIndex >= lastContactedIndex) {
+      insertIndex = lastContactedIndex;
+    }
+    
+    // Insert the column at the calculated position
+    const newColumns = [...columns];
+    newColumns.splice(insertIndex, 0, cleanColumn);
     
     setColumns(newColumns);
     persistColumns(newColumns);
@@ -708,7 +728,7 @@ export function EditableLeadsGrid() {
     saveHiddenColumns(newHiddenColumns);
 
     // Log the activity
-    logFilterChange({ type: 'column_unhidden', columnId, columnName: restoredColumn.title });
+    logFilterChange({ type: 'column_unhidden', columnId, columnName: cleanColumn.title });
   };
   
   // Show better loading UI to cover any potential flash

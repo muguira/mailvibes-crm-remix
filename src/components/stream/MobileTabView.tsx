@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,8 +8,28 @@ interface MobileTabViewProps {
   contact?: {
     id: string;
     name?: string;
-    // Include other properties as needed
+    email?: string;
+    phone?: string;
+    owner?: string;
+    lastContacted?: string;
+    lifecycleStage?: string;
+    source?: string;
+    company?: string;
+    industry?: string;
+    jobTitle?: string;
+    address?: string;
+    description?: string;
+    facebook?: string;
+    instagram?: string;
+    linkedin?: string;
+    twitter?: string;
+    website?: string;
+    associatedDeals?: string;
+    primaryLocation?: string;
+    status?: string;
+    data?: Record<string, any>;
     activities?: Array<any>;
+    [key: string]: any;
   };
 }
 
@@ -93,7 +112,7 @@ export default function MobileTabView({ contact }: MobileTabViewProps) {
         </TabsContent>
         
         <TabsContent value="about" className="p-0 m-0">
-          <AboutTab />
+          <AboutTab contact={contact} />
         </TabsContent>
       </Tabs>
     </div>

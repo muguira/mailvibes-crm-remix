@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Filter, Search, Plus, Bell, X, Calendar as CalendarIcon, Calendar, User, Mail, Phone, Building2, CreditCard, Eye } from "lucide-react";
+import { Filter, Search, Plus, Bell, X, Calendar as CalendarIcon, Calendar, User, Mail, Phone, Building2, CreditCard, Eye, Pin } from "lucide-react";
 import { Column } from './types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,6 +37,8 @@ interface GridToolbarProps {
   activeFilters: { columns: string[], values: Record<string, any> };
   hiddenColumns?: Column[];
   onUnhideColumn?: (columnId: string) => void;
+  frozenColumnIds?: string[];
+  onTogglePin?: (columnId: string) => void;
 }
 
 export function GridToolbar({ 
@@ -49,7 +51,9 @@ export function GridToolbar({
   onApplyFilters,
   activeFilters,
   hiddenColumns,
-  onUnhideColumn
+  onUnhideColumn,
+  frozenColumnIds = [],
+  onTogglePin
 }: GridToolbarProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<string[]>(activeFilters.columns || []);
@@ -57,6 +61,87 @@ export function GridToolbar({
   const { updateCell, addContact } = useLeadsRows();
   const [isMobile, setIsMobile] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  
+  // Pin management state
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [tempPinnedColumns, setTempPinnedColumns] = useState<string[]>(frozenColumnIds);
+  
+  // Update temp pinned columns when frozenColumnIds changes
+  useEffect(() => {
+    setTempPinnedColumns(frozenColumnIds);
+  }, [frozenColumnIds]);
+  
+  // Close popover when navigating away
+  useEffect(() => {
+    const handleNavigation = () => {
+      setIsPinModalOpen(false);
+      setIsFilterOpen(false);
+      setIsAddContactOpen(false);
+    };
+    
+    // Listen for navigation events
+    window.addEventListener('beforeunload', handleNavigation);
+    window.addEventListener('popstate', handleNavigation);
+    
+    // Listen for clicks on navigation links
+    const handleLinkClick = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'A' || target.closest('a')) {
+        handleNavigation();
+      }
+    };
+    
+    document.addEventListener('click', handleLinkClick);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleNavigation);
+      window.removeEventListener('popstate', handleNavigation);
+      document.removeEventListener('click', handleLinkClick);
+    };
+  }, []);
+  
+  // Pin management functions
+  const handleToggleTempPin = (columnId: string) => {
+    // Check current frozen state for limit enforcement
+    const nonIndexFrozenColumns = frozenColumnIds.filter(id => id !== 'index');
+    const maxColumns = 2; // Mobile limit (excluding index)
+    
+    // Check if we're trying to pin and already at limit
+    if (!frozenColumnIds.includes(columnId) && nonIndexFrozenColumns.length >= maxColumns) {
+      // Show immediate feedback with toast
+      toast({
+        title: "Column limit reached",
+        description: "You can pin up to 2 columns on mobile.",
+        variant: "destructive",
+        duration: 2000,
+      });
+      return; // Don't proceed if already at limit
+    }
+    
+    // Apply the change immediately to the actual frozen columns
+    if (onTogglePin) {
+      onTogglePin(columnId);
+    }
+    
+    // Update temp state to match the new frozen state
+    setTempPinnedColumns(prev => {
+      if (prev.includes(columnId)) {
+        return prev.filter(id => id !== columnId);
+      } else {
+        return [...prev, columnId];
+      }
+    });
+  };
+  
+  const handleApplyPins = () => {
+    // Changes are now applied immediately, so just close the popover
+    setIsPinModalOpen(false);
+  };
+  
+  const handleCancelPins = () => {
+    setTempPinnedColumns(frozenColumnIds);
+    setIsPinModalOpen(false);
+  };
   
   // Detect mobile devices based on screen width
   useEffect(() => {
@@ -416,9 +501,9 @@ export function GridToolbar({
                     <Search className="h-4 w-4 text-gray-500" />
                   </button>
                   
-                  {/* Filter button - appears next to search icon when search is collapsed */}
+                  {/* Filter and Pin buttons - appears next to search icon when search is collapsed */}
                   {!isSearchExpanded && (
-                    <div className="ml-1">
+                    <div className="flex items-center ml-1">
                       <FilterPopupBase
                         columns={filterColumns}
                         isOpen={isFilterOpen}
@@ -433,8 +518,68 @@ export function GridToolbar({
                         renderFilterValueSelector={renderFilterValueSelector}
                         triggerClassName="h-9 w-9 text-gray-500 flex items-center justify-center"
                         iconOnly={true}
-          />
-        </div>
+                      />
+                      
+                      {/* Pin management button */}
+                      <Popover open={isPinModalOpen} onOpenChange={(open) => {
+                        setIsPinModalOpen(open);
+                        if (!open) {
+                          // Reset temp state when popover closes
+                          setTempPinnedColumns(frozenColumnIds);
+                        }
+                      }}>
+                        <PopoverTrigger asChild>
+                          <button className="h-9 w-9 text-gray-500 flex items-center justify-center ml-1">
+                            <Pin size={16} />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-0" align="end">
+                          <div className="p-3 border-b">
+                            <h4 className="font-medium text-sm">Pin Columns</h4>
+                            <p className="text-xs text-gray-500 mt-1">Select up to 2 columns to pin</p>
+                          </div>
+                          <div className="max-h-64 overflow-y-auto">
+                            {columns
+                              .filter(col => col.id !== 'index') // Exclude index column
+                              .map((column) => {
+                                const isPinned = frozenColumnIds.includes(column.id);
+                                const nonIndexPinnedCount = frozenColumnIds.filter(id => id !== 'index').length;
+                                const canPin = isPinned || nonIndexPinnedCount < 2;
+                                
+                                return (
+                                  <button
+                                    key={column.id}
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between group"
+                                    onClick={() => canPin && handleToggleTempPin(column.id)}
+                                    disabled={!canPin}
+                                  >
+                                    <span className={`truncate ${!canPin ? 'text-gray-400' : ''}`}>{column.title}</span>
+                                    <Pin 
+                                      size={14} 
+                                      className={`${
+                                        isPinned 
+                                          ? 'text-[#62BFAA]' 
+                                          : !canPin
+                                            ? 'text-gray-300'
+                                            : 'text-gray-400 group-hover:text-[#62BFAA]'
+                                      }`}
+                                    />
+                                  </button>
+                                );
+                              })}
+                          </div>
+                          <div className="p-3 border-t">
+                            <Button 
+                              onClick={handleApplyPins}
+                              className="w-full bg-[#32BAB0] hover:bg-[#28a79d] text-white"
+                              size="sm"
+                            >
+                              Apply
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   )}
                 </div>
                 
@@ -464,8 +609,8 @@ export function GridToolbar({
                       )}
                     </div>
                     
-                    {/* Filter button - appears next to search when expanded */}
-                    <div className="relative ml-1">
+                    {/* Filter and Pin buttons - appears next to search when expanded */}
+                    <div className="flex items-center ml-1">
                       <FilterPopupBase
                         columns={filterColumns}
                         isOpen={isFilterOpen}
@@ -481,6 +626,66 @@ export function GridToolbar({
                         triggerClassName="h-9 w-9 text-gray-500 flex items-center justify-center"
                         iconOnly={true}
                       />
+                      
+                      {/* Pin management button */}
+                      <Popover open={isPinModalOpen} onOpenChange={(open) => {
+                        setIsPinModalOpen(open);
+                        if (!open) {
+                          // Reset temp state when popover closes
+                          setTempPinnedColumns(frozenColumnIds);
+                        }
+                      }}>
+                        <PopoverTrigger asChild>
+                          <button className="h-9 w-9 text-gray-500 flex items-center justify-center ml-1">
+                            <Pin size={16} />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-0" align="end">
+                          <div className="p-3 border-b">
+                            <h4 className="font-medium text-sm">Pin Columns</h4>
+                            <p className="text-xs text-gray-500 mt-1">Select up to 2 columns to pin</p>
+                          </div>
+                          <div className="max-h-64 overflow-y-auto">
+                            {columns
+                              .filter(col => col.id !== 'index') // Exclude index column
+                              .map((column) => {
+                                const isPinned = frozenColumnIds.includes(column.id);
+                                const nonIndexPinnedCount = frozenColumnIds.filter(id => id !== 'index').length;
+                                const canPin = isPinned || nonIndexPinnedCount < 2;
+                                
+                                return (
+                                  <button
+                                    key={column.id}
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between group"
+                                    onClick={() => canPin && handleToggleTempPin(column.id)}
+                                    disabled={!canPin}
+                                  >
+                                    <span className={`truncate ${!canPin ? 'text-gray-400' : ''}`}>{column.title}</span>
+                                    <Pin 
+                                      size={14} 
+                                      className={`${
+                                        isPinned 
+                                          ? 'text-[#62BFAA]' 
+                                          : !canPin
+                                            ? 'text-gray-300'
+                                            : 'text-gray-400 group-hover:text-[#62BFAA]'
+                                      }`}
+                                    />
+                                  </button>
+                                );
+                              })}
+                          </div>
+                          <div className="p-3 border-t">
+                            <Button 
+                              onClick={handleApplyPins}
+                              className="w-full bg-[#32BAB0] hover:bg-[#28a79d] text-white"
+                              size="sm"
+                            >
+                              Apply
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
                 )}
@@ -736,6 +941,8 @@ export function GridToolbar({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+
     </div>
   );
 }

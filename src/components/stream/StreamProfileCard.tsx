@@ -21,7 +21,7 @@ export default function StreamProfileCard({ contact }: StreamProfileCardProps) {
   
   // Format LinkedIn URL - handle both property versions
   const formatLinkedInUrl = (url?: string): string => {
-    if (!url || url === '—') return '';
+    if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
     return `https://${url}`;
   };
@@ -40,22 +40,22 @@ export default function StreamProfileCard({ contact }: StreamProfileCardProps) {
       <h2 className="text-lg font-semibold">{contact.name}</h2>
       
       {/* Email (after name) */}
-      {contact.email && contact.email !== '—' && (
+      {contact.email && (
         <p className="text-sm text-muted-foreground">{contact.email}</p>
       )}
       
       {/* Company (after email) */}
-      {contact.company && contact.company !== '—' && (
+      {contact.company && (
         <p className="text-sm text-muted-foreground">{contact.company}</p>
       )}
       
       {/* Job Title (after company) */}
-      {contact.jobTitle && contact.jobTitle !== '—' && (
+      {contact.jobTitle && (
         <p className="text-sm text-muted-foreground">{contact.jobTitle}</p>
       )}
       
       {/* LinkedIn (if available) */}
-      {linkedInValue && linkedInValue !== '—' && linkedInUrl && (
+      {linkedInValue && linkedInUrl && (
         <a 
           href={linkedInUrl} 
           target="_blank" 
@@ -67,7 +67,7 @@ export default function StreamProfileCard({ contact }: StreamProfileCardProps) {
       )}
       
       {/* Location (last) */}
-      {contact.location && contact.location !== '—' && (
+      {contact.location && (
         <p className="text-sm text-muted-foreground">{contact.location}</p>
       )}
     </aside>

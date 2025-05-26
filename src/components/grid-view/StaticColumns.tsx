@@ -112,9 +112,8 @@ export function StaticColumns({
               if (onContextMenu) onContextMenu(col.id, { x: e.clientX, y: e.clientY });
             }}
           >
-            <span style={{ flex: 1 }}>{col.title}</span>
             <span
-              className={`pin-icon ml-2 ${frozenColumnIds.includes(col.id) ? 'text-[#62BFAA]' : 'text-gray-400'} group-hover:opacity-100 opacity-0`}
+              className={`pin-icon mr-2 md:ml-2 md:mr-0 md:order-last ${frozenColumnIds.includes(col.id) ? 'text-[#62BFAA]' : 'text-gray-400'} md:group-hover:opacity-100 md:opacity-0 hidden md:block`}
               style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
               onClick={e => { e.stopPropagation(); onTogglePin(col.id); }}
             >
@@ -124,6 +123,7 @@ export function StaticColumns({
                 <Pin size={16} />
               )}
             </span>
+            <span style={{ flex: 1 }}>{col.title}</span>
           </div>
         ))}
       </div>

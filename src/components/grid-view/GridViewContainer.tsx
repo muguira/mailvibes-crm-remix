@@ -4,6 +4,7 @@ import { GridToolbar } from './grid-toolbar';
 import { StaticColumns } from './StaticColumns';
 import { MainGridView } from './MainGridView';
 import { INDEX_COLUMN_WIDTH } from './grid-constants';
+import { toast } from '@/hooks/use-toast';
 import './styles.css';
 
 export function GridViewContainer({
@@ -76,11 +77,31 @@ export function GridViewContainer({
   
   // Callback para fijar/desfijar columnas
   const toggleFrozenColumn = (columnId: string) => {
-    setFrozenColumnIds(prev =>
-      prev.includes(columnId)
-        ? prev.filter(id => id !== columnId)
-        : [...prev, columnId]
-    );
+    setFrozenColumnIds(prev => {
+      const isMobile = window.innerWidth < 768;
+      const maxFrozenColumns = isMobile ? 2 : Infinity; // Limit to 2 on mobile (excluding index)
+      
+      if (prev.includes(columnId)) {
+        // Unfreezing a column
+        return prev.filter(id => id !== columnId);
+      } else {
+        // Freezing a column
+        // On mobile, exclude the 'index' column from the count - index doesn't count toward limit
+        const nonIndexFrozenColumns = prev.filter(id => id !== 'index');
+        
+        if (isMobile && nonIndexFrozenColumns.length >= maxFrozenColumns) {
+          // Show toast with shorter duration and better styling
+          toast({
+            title: "Column limit reached",
+            description: "You can pin up to 2 columns on mobile.",
+            variant: "destructive",
+            duration: 2000, // 2 seconds instead of default 5
+          });
+          return prev;
+        }
+        return [...prev, columnId];
+      }
+    });
   };
   
   // Separar columnas fijas y scrollables manteniendo el orden original
@@ -262,6 +283,8 @@ export function GridViewContainer({
         activeFilters={activeFilters}
         hiddenColumns={hiddenColumns}
         onUnhideColumn={onUnhideColumn}
+        frozenColumnIds={frozenColumnIds}
+        onTogglePin={toggleFrozenColumn}
       />
       
       <div className="grid-components-container">

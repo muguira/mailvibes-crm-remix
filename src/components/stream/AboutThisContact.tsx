@@ -56,6 +56,8 @@ export default function AboutThisContact({
   const [isSaving, setIsSaving] = useState(false);
   const editControlRef = useRef<HTMLDivElement>(null);
   const originalValues = useRef<Partial<Contact>>({});
+  const lastTapRef = useRef<{ time: number; field: string | null }>({ time: 0, field: null });
+  const inputRefs = useRef<{ [key: string]: HTMLInputElement | HTMLTextAreaElement | null }>({});
 
   // Initialize field values from contact data with safe destructuring
   useEffect(() => {
@@ -112,6 +114,14 @@ export default function AboutThisContact({
   useEffect(() => {
     if (editingField) {
       originalValues.current[editingField] = fieldValues[editingField];
+      
+      // Select all text when entering edit mode
+      setTimeout(() => {
+        const input = inputRefs.current[editingField];
+        if (input) {
+          input.select();
+        }
+      }, 100);
     }
   }, [editingField]);
 
@@ -326,6 +336,22 @@ export default function AboutThisContact({
     );
   };
 
+  // Function to handle touch start for double-tap detection
+  const handleTouchStart = (field: string) => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    
+    if (lastTapRef.current.field === field && 
+        now - lastTapRef.current.time < DOUBLE_TAP_DELAY) {
+      // Double tap detected
+      setEditingField(field);
+      lastTapRef.current = { time: 0, field: null };
+    } else {
+      // First tap
+      lastTapRef.current = { time: now, field };
+    }
+  };
+
   // Render editable field
   const renderEditableField = (field: string, label: string, type: string = 'text', options?: string[]) => {
     const value = fieldValues[field] || '';
@@ -339,6 +365,7 @@ export default function AboutThisContact({
         case 'textarea':
           return (
             <Textarea 
+              ref={(el) => { inputRefs.current[field] = el; }}
               value={value}
               onChange={(e) => handleFieldChange(field, e.target.value)}
               placeholder={placeholder}
@@ -390,6 +417,7 @@ export default function AboutThisContact({
         default:
           return (
             <Input 
+              ref={(el) => { inputRefs.current[field] = el; }}
               type={type}
               value={value}
               onChange={(e) => handleFieldChange(field, e.target.value)}
@@ -434,13 +462,14 @@ export default function AboutThisContact({
           <div 
             className={`py-1 border-b ${!isReadOnly ? 'cursor-text hover:bg-slate-50' : ''}`}
             onClick={isReadOnly ? undefined : () => setEditingField(field)}
+            onTouchStart={isReadOnly ? undefined : () => handleTouchStart(field)}
             style={{ 
               minHeight: '1.5em', 
               paddingTop: '2px', 
               paddingBottom: '3px' 
             }}
           >
-            {value ? (
+            {value && value !== '—' ? (
               <div className="break-words">
                 {field === 'lastContacted' && value ? (
                   format(new Date(value), 'MMM d, yyyy')
