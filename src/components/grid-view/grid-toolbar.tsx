@@ -537,7 +537,7 @@ export function GridToolbar({
                           <div className="p-3 border-b">
                             <h4 className="font-medium text-sm">Pin Columns</h4>
                             <p className="text-xs text-gray-500 mt-1">Select up to 2 columns to pin</p>
-                          </div>
+        </div>
                           <div className="max-h-64 overflow-y-auto">
                             {columns
                               .filter(col => col.id !== 'index') // Exclude index column
@@ -569,17 +569,17 @@ export function GridToolbar({
                               })}
                           </div>
                           <div className="p-3 border-t">
-                            <Button 
+            <Button 
                               onClick={handleApplyPins}
                               className="w-full bg-[#32BAB0] hover:bg-[#28a79d] text-white"
-                              size="sm"
+              size="sm" 
                             >
                               Apply
-                            </Button>
-                          </div>
+            </Button>
+                      </div>
                         </PopoverContent>
                       </Popover>
-                    </div>
+                  </div>
                   )}
                 </div>
                 
@@ -764,9 +764,9 @@ export function GridToolbar({
                           <Eye size={14} className="text-gray-400 group-hover:text-gray-600" />
                         </button>
                       ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
+            </div>
+          </PopoverContent>
+        </Popover>
               )}
               
               {/* Filter button */}

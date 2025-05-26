@@ -163,6 +163,13 @@ const getDefaultColumns = (): Column[] => [
         </Link>
       ),
     },
+  {
+    id: 'importListName',
+    title: 'List Name',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: false,
+    },
     {
       id: 'status',
     title: 'Lead Status',
@@ -304,6 +311,44 @@ const getDefaultColumns = (): Column[] => [
   },
 ];
 
+// Helper function to extract dynamic fields from rows data
+const extractDynamicFields = (rows: any[]): Set<string> => {
+  const dynamicFields = new Set<string>();
+  const standardFields = new Set(getDefaultColumns().map(col => col.id));
+  
+  rows.forEach(row => {
+    // Check fields directly on the row
+    Object.keys(row).forEach(key => {
+      if (!standardFields.has(key) && key !== 'id' && key !== 'data') {
+        dynamicFields.add(key);
+      }
+    });
+    
+    // Check fields in the data object
+    if (row.data && typeof row.data === 'object') {
+      Object.keys(row.data).forEach(key => {
+        // Skip internal fields
+        if (!key.startsWith('_') && key !== 'account' && key !== 'importedAt') {
+          dynamicFields.add(key);
+        }
+      });
+    }
+  });
+  
+  return dynamicFields;
+};
+
+// Function to create columns for dynamic fields
+const createDynamicColumns = (fields: Set<string>): Column[] => {
+  return Array.from(fields).map(field => ({
+    id: field,
+    title: field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1').trim(),
+    type: 'text' as const,
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  }));
+};
+
 export function EditableLeadsGrid() {
   // Get authentication state
   const { user } = useAuth();
@@ -348,6 +393,24 @@ export function EditableLeadsGrid() {
   
   // Define columns for the grid - start with default columns, then load from storage
   const [columns, setColumns] = useState<Column[]>(getDefaultColumns);
+
+  // Add dynamic columns based on imported data
+  useEffect(() => {
+    if (rows.length > 0) {
+      const dynamicFields = extractDynamicFields(rows);
+      const dynamicColumns = createDynamicColumns(dynamicFields);
+      
+      // Get current column IDs
+      const currentColumnIds = new Set(columns.map(col => col.id));
+      
+      // Only add new dynamic columns that don't already exist
+      const newColumns = dynamicColumns.filter(col => !currentColumnIds.has(col.id));
+      
+      if (newColumns.length > 0) {
+        setColumns(prev => [...prev, ...newColumns]);
+      }
+    }
+  }, [rows]);
 
   // Load columns from storage on component mount
   useEffect(() => {

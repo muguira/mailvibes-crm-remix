@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ActivityProvider } from "@/contexts/ActivityContext";
 import { PrivateRoute } from "@/components/PrivateRoute";
@@ -16,6 +17,7 @@ import Auth from "@/pages/Auth";
 import ContactProfile from "@/pages/dashboard/ContactProfile";
 import StreamView from "@/pages/dashboard/StreamView"; // Import the new StreamView page
 import Landing from "@/pages/Landing";
+import Import from "@/pages/Import";
 // Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +42,7 @@ function App() {
                 <Route path="/lists" element={<PrivateRoute><Navigate to="/leads" replace /></PrivateRoute>} />
                 <Route path="/new-grid" element={<PrivateRoute><Navigate to="/leads" replace /></PrivateRoute>} />
                 <Route path="/leads" element={<PrivateRoute><Leads /></PrivateRoute>} />
+                <Route path="/import" element={<PrivateRoute><Import /></PrivateRoute>} />
                 <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
                 <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
                 <Route path="/contact/:id" element={<PrivateRoute><ContactProfile /></PrivateRoute>} />
@@ -47,6 +50,16 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
             <Toaster />
+            <SonnerToaster 
+              position="top-right"
+              toastOptions={{
+                style: {
+                  background: '#fff',
+                  color: '#333',
+                  border: '1px solid #e5e7eb',
+                },
+              }}
+            />
           </div>
         </Router>
         </ActivityProvider>

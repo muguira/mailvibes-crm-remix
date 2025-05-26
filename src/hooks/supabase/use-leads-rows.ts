@@ -175,7 +175,9 @@ export function useLeadsRows() {
               phone: contact.phone || '',
               company: contact.company || '',
               status: contact.status || '',
-              // Use existing data field or create empty object
+              // Extract importListName from data field if it exists
+              importListName: contact.data?.importListName || '',
+              // Spread the rest of the data field
               ...(contact.data || {})
             };
             return leadContact;

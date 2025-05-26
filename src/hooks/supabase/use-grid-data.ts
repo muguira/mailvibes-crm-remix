@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "../use-toast";
 import { v4 as uuidv4 } from 'uuid';
+import { useDroppable } from "@/components/ui/use-droppable";
 
 // Hook for grid data operations
 export function useGridData(listId?: string) {

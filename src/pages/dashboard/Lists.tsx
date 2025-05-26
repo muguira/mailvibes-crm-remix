@@ -1,4 +1,4 @@
-
+import React, { useEffect } from "react";
 import { ListHeader } from "@/components/list/list-header";
 import { ListContent } from "@/components/list/list-content";
 import { TopNavbar } from "@/components/layout/top-navbar";
@@ -7,8 +7,12 @@ import { HistoryDialog } from "@/components/list/dialogs/history-dialog";
 import { OpportunityDialog } from "@/components/list/opportunity-dialog";
 import { opportunityColumns } from "@/data/opportunities-data";
 import { useListsPage } from "@/components/list/hooks/use-lists-page";
+import { useSearchParams } from "react-router-dom";
 
 const Lists = () => {
+  const [searchParams] = useSearchParams();
+  const listIdFromUrl = searchParams.get('listId');
+  
   const {
     viewMode,
     setViewMode,
@@ -31,6 +35,17 @@ const Lists = () => {
     handleSaveOpportunity,
     currentListName
   } = useListsPage();
+
+  // Set the list ID from URL parameter when it's available
+  useEffect(() => {
+    if (listIdFromUrl && lists.length > 0) {
+      // Check if the list exists
+      const listExists = lists.some(list => list.id === listIdFromUrl);
+      if (listExists) {
+        setCurrentListId(listIdFromUrl);
+      }
+    }
+  }, [listIdFromUrl, lists, setCurrentListId]);
 
   return (
     <div className="flex flex-col h-screen bg-slate-light/20">
@@ -89,6 +104,6 @@ const Lists = () => {
       />
     </div>
   );
-}
+};
 
 export default Lists;
