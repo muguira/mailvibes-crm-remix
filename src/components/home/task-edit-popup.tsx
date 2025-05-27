@@ -113,8 +113,8 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
       <Dialog open={open} onOpenChange={(isOpen) => {
         if (!isOpen) onClose();
       }}>
-        <DialogContent className="sm:max-w-md">
-          <div className="space-y-4 py-2">
+        <DialogContent className="sm:max-w-lg w-full max-w-[95vw]">
+          <div className="space-y-4 py-4 px-6 max-h-[80vh] overflow-y-auto">
             <div>
               <label className="text-sm font-medium mb-1 block">Title</label>
               <Input
@@ -132,18 +132,18 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                 value={editedTask.description || ''}
                 onChange={(e) => handleChange('description', e.target.value)}
                 placeholder="Task description"
-                className="w-full min-h-[80px]"
+                className="w-full min-h-[80px] resize-none"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">Status</label>
                 <Select
                   value={editedTask.display_status}
                   onValueChange={(value) => handleChange('display_status', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -175,7 +175,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                   value={editedTask.type}
                   onValueChange={(value: Task['type']) => handleChange('type', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -188,7 +188,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">Deadline</label>
                 <Popover>
@@ -200,12 +200,14 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                         !editedTask.deadline && "text-muted-foreground"
                       )}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {editedTask.deadline ? (
-                        format(parseISO(editedTask.deadline), "PPP")
-                      ) : (
-                        <span>No deadline</span>
-                      )}
+                      <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">
+                        {editedTask.deadline ? (
+                          format(parseISO(editedTask.deadline), "PPP")
+                        ) : (
+                          "No deadline"
+                        )}
+                      </span>
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
@@ -236,7 +238,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                   value={editedTask.priority || 'medium'}
                   onValueChange={(value: Task['priority']) => handleChange('priority', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -250,36 +252,39 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
 
             <div>
               <label className="text-sm font-medium mb-1 block">Contact</label>
-              <Combobox
-                items={contactItems}
-                value={editedTask.contactId}
-                onValueChange={(value) => {
-                  handleChange('contactId', value || '');
-                  handleChange('contact', value || ''); // Update both fields
-                }}
-                onSearch={handleSearch}
-                placeholder="Search contacts..."
-                emptyText={isLoading ? "Loading contacts..." : "No contacts found"}
-                isLoading={isLoading}
-              />
+              <div className="w-full">
+                <Combobox
+                  items={contactItems}
+                  value={editedTask.contactId}
+                  onValueChange={(value) => {
+                    handleChange('contactId', value || '');
+                    handleChange('contact', value || ''); // Update both fields
+                  }}
+                  onSearch={handleSearch}
+                  placeholder="Search contacts..."
+                  emptyText={isLoading ? "Loading contacts..." : "No contacts found"}
+                  isLoading={isLoading}
+                  className="w-full"
+                />
+              </div>
             </div>
 
-            <div className="flex justify-between pt-4">
+            <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsDeleteAlertOpen(true)}
-                className="text-destructive hover:bg-destructive/10"
+                className="text-destructive hover:bg-destructive/10 w-full sm:w-auto"
               >
                 <Trash2 className="h-4 w-4 mr-1" />
                 Delete
               </Button>
 
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={onClose}>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <Button variant="outline" size="sm" onClick={onClose} className="flex-1 sm:flex-none">
                   Cancel
                 </Button>
-                <Button size="sm" onClick={handleSave}>
+                <Button size="sm" onClick={handleSave} className="flex-1 sm:flex-none">
                   Save Changes
                 </Button>
               </div>
