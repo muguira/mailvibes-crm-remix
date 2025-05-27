@@ -281,12 +281,18 @@ export function MainGridView({
       if (contextMenuColumn) return;
 
       // Stop handling if an input element has focus
-      const activeElement = document.activeElement;
-      if (
-        activeElement instanceof HTMLInputElement ||
-        activeElement instanceof HTMLTextAreaElement ||
-        activeElement instanceof HTMLSelectElement
-      ) {
+      try {
+        const activeElement = document.activeElement;
+        if (
+          activeElement instanceof HTMLInputElement ||
+          activeElement instanceof HTMLTextAreaElement ||
+          activeElement instanceof HTMLSelectElement
+        ) {
+          return;
+        }
+      } catch (e) {
+        // Handle cases where activeElement might be null or inaccessible
+        console.debug('Error checking active element:', e);
         return;
       }
 
@@ -345,15 +351,19 @@ export function MainGridView({
 
           // Use a small timeout to let the input render, then set its value
           setTimeout(() => {
-            const inputEl = document.querySelector(
-              `.grid-cell[data-cell="${selectedCell.rowId}-${selectedCell.columnId}"] input`
-            ) as HTMLInputElement | null;
+            try {
+              const inputEl = document.querySelector(
+                `.grid-cell[data-cell="${selectedCell.rowId}-${selectedCell.columnId}"] input`
+              ) as HTMLInputElement | null;
 
-            if (inputEl) {
-              inputEl.value = e.key;
-              // Set cursor position after the typed character
-              inputEl.selectionStart = 1;
-              inputEl.selectionEnd = 1;
+              if (inputEl && document.contains(inputEl)) {
+                inputEl.value = e.key;
+                // Set cursor position after the typed character
+                inputEl.selectionStart = 1;
+                inputEl.selectionEnd = 1;
+              }
+            } catch (error) {
+              console.debug('Error setting input value during direct typing:', error);
             }
           }, 10);
 
@@ -499,14 +509,15 @@ export function MainGridView({
             }
           }
 
-          // Focus without scrolling 
+          // Focus without scrolling - with additional safety checks
           setTimeout(() => {
-            if (mainViewRef.current) {
-              try {
+            try {
+              if (mainViewRef.current && document.contains(mainViewRef.current)) {
                 mainViewRef.current.focus({ preventScroll: true });
-              } catch (e) {
-                console.warn('Focus error:', e);
               }
+            } catch (e) {
+              // Silently handle focus errors during rapid navigation
+              console.debug('Focus error during navigation:', e);
             }
           }, 10);
         }
@@ -518,26 +529,40 @@ export function MainGridView({
 
     // Add click listener for the search input to handle focus management
     const setupSearchInputListeners = () => {
-      const searchInputs = [
-        document.querySelector('input[placeholder="Search in grid..."]'),
-        document.querySelector('.search-input'),
-        document.querySelector('input[type="search"]'),
-        document.querySelector('input[placeholder*="Search"]')
-      ].filter(Boolean);
+      try {
+        const searchInputs = [
+          document.querySelector('input[placeholder="Search in grid..."]'),
+          document.querySelector('.search-input'),
+          document.querySelector('input[type="search"]'),
+          document.querySelector('input[placeholder*="Search"]')
+        ].filter(Boolean);
 
-      searchInputs.forEach(input => {
-        if (input instanceof HTMLInputElement) {
-          // When search input is clicked, clear cell selection to prevent keyboard nav interference
-          input.addEventListener('click', () => {
-            setSelectedCell(null);
-          });
+        searchInputs.forEach(input => {
+          if (input instanceof HTMLInputElement && document.contains(input)) {
+            // When search input is clicked, clear cell selection to prevent keyboard nav interference
+            const handleClick = () => {
+              try {
+                setSelectedCell(null);
+              } catch (e) {
+                console.debug('Error clearing selection:', e);
+              }
+            };
 
-          // Handle focus to properly manage keyboard events
-          input.addEventListener('focus', () => {
-            setSelectedCell(null);
-          });
-        }
-      });
+            const handleFocus = () => {
+              try {
+                setSelectedCell(null);
+              } catch (e) {
+                console.debug('Error clearing selection on focus:', e);
+              }
+            };
+
+            input.addEventListener('click', handleClick);
+            input.addEventListener('focus', handleFocus);
+          }
+        });
+      } catch (e) {
+        console.debug('Error setting up search input listeners:', e);
+      }
     };
 
     // Set up search input listeners
