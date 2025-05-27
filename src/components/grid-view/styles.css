@@ -224,6 +224,7 @@
   /* Changed from 2px to 1px to match other borders */
   background-color: #fff;
   overflow: visible;
+  /* Allow pseudo-elements to extend outside */
   /* Added box-shadow to static columns for visual depth */
 }
 
@@ -271,7 +272,8 @@
 
 .static-rows-container {
   will-change: transform;
-  overflow: hidden;
+  overflow: visible;
+  /* Allow selection borders to extend outside */
 }
 
 .static-row {
@@ -293,6 +295,12 @@
   /* Extra padding for descenders */
   padding-top: 4px;
   /* Balance top padding */
+  position: relative;
+  /* Required for pseudo-element positioning */
+}
+
+.index-cell.selected-cell {
+  overflow: visible;
 }
 
 .opportunity-cell {
@@ -314,6 +322,12 @@
   /* Extra bottom padding for descenders */
   padding-top: 4px;
   /* Balance top padding */
+  position: relative;
+  /* Required for pseudo-element positioning */
+}
+
+.opportunity-cell.selected-cell {
+  overflow: visible;
 }
 
 .opportunity-text {
@@ -373,7 +387,8 @@
   position: relative;
   height: calc(100% - 36px);
   /* 100% - HEADER_HEIGHT */
-  overflow: hidden;
+  overflow: visible;
+  /* Allow selection borders to extend outside */
   display: flex;
   flex-direction: column;
 }
@@ -523,6 +538,11 @@
   /* Extra bottom padding for descenders */
   padding-top: 4px;
   /* Balance top padding */
+}
+
+/* Allow selection borders to extend outside grid cells */
+.grid-cell.selected-cell {
+  overflow: visible;
 }
 
 .grid-cell-editable {
@@ -709,13 +729,26 @@
   /* Prevent horizontal overflow */
 }
 
-/* Add Sheets-like cell selection styling */
+/* Add Sheets-like cell selection styling using pseudo-element */
 .selected-cell {
   position: relative;
-  z-index: 15;
-  box-shadow: 0 0 0 1px #62BFAA !important;
+  z-index: 50 !important;
   outline: none !important;
   transition: none !important;
+}
+
+/* Create the selection border using ::after pseudo-element */
+.selected-cell::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid #62BFAA;
+  pointer-events: none;
+  z-index: 100;
+  box-sizing: border-box;
 }
 
 /* Keep the content positioning consistent regardless of selection state */
@@ -729,7 +762,39 @@
 
 /* Ensure only one selection at a time by raising z-index */
 .selected-cell[data-column-id="status"] {
-  z-index: 20 !important;
+  z-index: 51 !important;
+}
+
+.selected-cell[data-column-id="status"]::after {
+  z-index: 101;
+}
+
+/* Ensure selected cells in static columns also have proper z-index */
+.static-columns-container .selected-cell,
+.static-columns-container .opportunity-cell.selected-cell,
+.static-columns-container .index-cell.selected-cell {
+  z-index: 52 !important;
+  position: relative;
+}
+
+.static-columns-container .selected-cell::after,
+.static-columns-container .opportunity-cell.selected-cell::after,
+.static-columns-container .index-cell.selected-cell::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid #62BFAA;
+  pointer-events: none;
+  z-index: 102;
+  box-sizing: border-box;
+}
+
+/* Ensure selected cells appear above static column headers */
+.static-columns-container .selected-cell {
+  z-index: 52 !important;
 }
 
 /* Status dropdown styling */

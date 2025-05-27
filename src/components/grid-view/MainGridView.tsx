@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { Column, GridRow } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './grid-constants';
@@ -223,17 +223,32 @@ export function MainGridView({
     };
   }, []);
 
-  // Replace the complex scrolling effect with a simple one that just clears selection
-  useEffect(() => {
-    // Track whether user is manually scrolling
-    const manualScrollingRef = { current: false };
+  // Track user-initiated scrolling vs programmatic scrolling
+  const isUserScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Function to handle manual scrolling events - Just clear selection
+  // Handle scroll events - only clear selection for user-initiated scrolling
+  useEffect(() => {
     const handleUserScroll = () => {
-      // Only clear selection if there's no selected cell
-      if (!selectedCell) {
+      // Only clear selection if this is user-initiated scrolling (not programmatic)
+      if (isUserScrollingRef.current && selectedCell) {
         setSelectedCell(null);
       }
+    };
+
+    const handleScrollStart = () => {
+      // Mark as user-initiated scrolling
+      isUserScrollingRef.current = true;
+      
+      // Clear any existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      
+      // Reset the flag after scrolling stops
+      scrollTimeoutRef.current = setTimeout(() => {
+        isUserScrollingRef.current = false;
+      }, 150);
     };
 
     // Apply to the grid if it exists
@@ -241,20 +256,22 @@ export function MainGridView({
       const gridElement = gridRef.current._outerRef;
 
       // Add scroll event handlers
-      gridElement.addEventListener('wheel', handleUserScroll, { passive: true });
-      gridElement.addEventListener('touchmove', handleUserScroll, { passive: true });
+      gridElement.addEventListener('wheel', handleScrollStart, { passive: true });
+      gridElement.addEventListener('touchstart', handleScrollStart, { passive: true });
       gridElement.addEventListener('scroll', handleUserScroll, { passive: true });
-    }
 
-    return () => {
-      // Clean up event listeners
-      if (gridRef.current && gridRef.current._outerRef) {
-        const gridElement = gridRef.current._outerRef;
-        gridElement.removeEventListener('wheel', handleUserScroll);
-        gridElement.removeEventListener('touchmove', handleUserScroll);
+      return () => {
+        // Clean up event listeners
+        gridElement.removeEventListener('wheel', handleScrollStart);
+        gridElement.removeEventListener('touchstart', handleScrollStart);
         gridElement.removeEventListener('scroll', handleUserScroll);
-      }
-    };
+        
+        // Clear timeout
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+      };
+    }
   }, [selectedCell]);
 
   // Update keyboard event handler
@@ -424,35 +441,59 @@ export function MainGridView({
           // Update selection
           setSelectedCell({ rowId: newRowId, columnId: newColumnId });
 
-          // Calculate the scroll position for the new column
-          if (gridRef.current) {
-            // Calculate the total width up to the selected column
+          // Auto-scroll to keep the selected cell visible
+          if (gridRef.current && gridRef.current._outerRef) {
+            // Mark this as programmatic scrolling (not user-initiated)
+            isUserScrollingRef.current = false;
+            
+            // Calculate horizontal scroll position
             let totalWidth = 0;
             for (let i = 0; i < newColumnIndex; i++) {
               totalWidth += columnWidths[i] || 180;
             }
 
-            // Get the current scroll position and container width
-            const currentScroll = gridRef.current._outerRef.scrollLeft;
+            const currentScrollLeft = gridRef.current._outerRef.scrollLeft;
+            const currentScrollTop = gridRef.current._outerRef.scrollTop;
             const containerWidth = gridRef.current._outerRef.clientWidth;
+            const containerHeight = gridRef.current._outerRef.clientHeight;
+            const cellWidth = columnWidths[newColumnIndex] || 180;
+            const cellHeight = ROW_HEIGHT;
 
-            // Calculate the target scroll position
-            let targetScroll = currentScroll;
+            // Calculate target scroll positions
+            let targetScrollLeft = currentScrollLeft;
+            let targetScrollTop = currentScrollTop;
 
-            // If the cell is to the right of the visible area
-            if (totalWidth + (columnWidths[newColumnIndex] || 180) > currentScroll + containerWidth) {
-              targetScroll = totalWidth + (columnWidths[newColumnIndex] || 180) - containerWidth;
+            // Horizontal scrolling logic
+            const cellRightEdge = totalWidth + cellWidth;
+            const viewportRightEdge = currentScrollLeft + containerWidth;
+            const cellLeftEdge = totalWidth;
+
+            if (cellRightEdge > viewportRightEdge) {
+              // Cell is to the right of viewport - scroll right
+              targetScrollLeft = cellRightEdge - containerWidth + 20; // Add 20px padding
+            } else if (cellLeftEdge < currentScrollLeft) {
+              // Cell is to the left of viewport - scroll left
+              targetScrollLeft = Math.max(0, cellLeftEdge - 20); // Add 20px padding, but don't go negative
             }
-            // If the cell is to the left of the visible area
-            else if (totalWidth < currentScroll) {
-              targetScroll = totalWidth;
+
+            // Vertical scrolling logic
+            const cellTop = newRowIndex * cellHeight;
+            const cellBottom = cellTop + cellHeight;
+            const viewportBottom = currentScrollTop + containerHeight;
+
+            if (cellBottom > viewportBottom) {
+              // Cell is below viewport - scroll down
+              targetScrollTop = cellBottom - containerHeight + 20; // Add 20px padding
+            } else if (cellTop < currentScrollTop) {
+              // Cell is above viewport - scroll up
+              targetScrollTop = Math.max(0, cellTop - 20); // Add 20px padding, but don't go negative
             }
 
-            // Use react-window's scrollTo method
-            if (targetScroll !== currentScroll) {
+            // Only scroll if needed
+            if (targetScrollLeft !== currentScrollLeft || targetScrollTop !== currentScrollTop) {
               gridRef.current.scrollTo({
-                scrollLeft: targetScroll,
-                scrollTop: gridRef.current._outerRef.scrollTop,
+                scrollLeft: targetScrollLeft,
+                scrollTop: targetScrollTop,
                 behavior: 'smooth'
               });
             }
@@ -934,12 +975,14 @@ export function MainGridView({
     return (width !== undefined && !isNaN(width)) ? width : 180;
   }, [columnWidths]);
 
-  // Calculate total grid width
-  const totalWidth = columnWidths.reduce((sum, width) => {
-    // Ensure we only add valid numbers
-    const validWidth = typeof width === 'number' && !isNaN(width) ? width : 180;
-    return sum + validWidth;
-  }, 0);
+  // Calculate total grid width - memoized to prevent infinite re-renders
+  const totalWidth = useMemo(() => {
+    return columnWidths.reduce((sum, width) => {
+      // Ensure we only add valid numbers
+      const validWidth = typeof width === 'number' && !isNaN(width) ? width : 180;
+      return sum + validWidth;
+    }, 0);
+  }, [columnWidths]);
 
   // Common blur handler to detect clicks on other cells
   const handleInputBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>, rowId: string, columnId: string, value: any) => {

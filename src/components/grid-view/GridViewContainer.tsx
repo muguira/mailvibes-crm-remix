@@ -246,7 +246,7 @@ export function GridViewContainer({
   };
   
   // Handle columns reordering - ensure frozen column remains unchanged
-  const handleColumnsReorder = (newColumnIds: string[]) => {
+  const handleColumnsReorder = useCallback((newColumnIds: string[]) => {
     if (onColumnsReorder) {
       // Make sure contact column stays in the correct position
       const contactColumnIndex = columns.findIndex(col => (col.id === 'name' && col.frozen) || col.id === 'opportunity');
@@ -263,7 +263,17 @@ export function GridViewContainer({
       // Call the parent handler with the updated order
       onColumnsReorder(newColumns.map(col => col.id));
     }
-  };
+  }, [onColumnsReorder, columns, contactColumn]);
+
+  // Memoized callback for MainGridView onColumnsReorder
+  const handleMainGridColumnsReorder = useCallback((columns: Column[]) => {
+    handleColumnsReorder(columns.map(col => col.id));
+  }, [handleColumnsReorder]);
+
+  // Memoized callback for MainGridView onAddColumn
+  const handleMainGridAddColumn = useCallback(() => {
+    onAddColumn(contextMenuColumn ?? '');
+  }, [onAddColumn, contextMenuColumn]);
   
   // Handle scroll synchronization
   const handleScroll = ({ scrollTop: newScrollTop, scrollLeft: newScrollLeft }: { scrollTop: number, scrollLeft: number }) => {
@@ -345,12 +355,8 @@ export function GridViewContainer({
               onScroll={handleScroll}
               onCellChange={onCellChange}
               onColumnChange={onColumnChange}
-              onColumnsReorder={(columns: Column[]) => {
-                handleColumnsReorder(columns.map(col => col.id))
-              }}
-              onAddColumn={() => {
-                onAddColumn(contextMenuColumn?.id ?? '')
-              }}
+              onColumnsReorder={handleMainGridColumnsReorder}
+              onAddColumn={handleMainGridAddColumn}
               onDeleteColumn={onDeleteColumn}
               onContextMenu={handleOpenContextMenu}
               contextMenuColumn={contextMenuColumn}
