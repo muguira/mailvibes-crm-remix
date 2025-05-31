@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Column, GridRow, GridContainerProps } from './types';
+import { Column, GridRow, GridContainerProps, EditingCell } from './types';
 import { GridToolbar } from './grid-toolbar';
 import { StaticColumns } from './StaticColumns';
 import { MainGridView } from './MainGridView';
@@ -31,31 +31,26 @@ export function GridViewContainer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
-  
+
   // Search state - local or external
   const [localSearchTerm, setLocalSearchTerm] = useState('');
   const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : localSearchTerm;
-  
+
   // Sync scroll positions between components
   const [scrollTop, setScrollTop] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
-  
+
   // Filter state
   const [activeFilters, setActiveFilters] = useState<{ columns: string[], values: Record<string, unknown> }>({ columns: [], values: {} });
   const [visibleData, setVisibleData] = useState<GridRow[]>(data);
-  
+
   // Context menu state
   const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null);
-  
+
   // Estado para edición de celdas (global)
-  const [editingCell, setEditingCell] = useState<{ 
-    rowId: string; 
-    columnId: string; 
-    directTyping?: boolean; 
-    clearDateSelection?: boolean 
-  } | null>(null);
-  
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+
   // Estado para columnas fijas (frozen)
   const [frozenColumnIds, setFrozenColumnIds] = useState<string[]>(() => {
     const key = `frozenColumnIds-${listId || 'default'}`;
@@ -68,19 +63,19 @@ export function GridViewContainer({
     // Por defecto, solo el índice está fijo
     return ['index'];
   });
-  
+
   // Guardar en localStorage cuando cambian
   useEffect(() => {
     const key = `frozenColumnIds-${listId || 'default'}`;
     localStorage.setItem(key, JSON.stringify(frozenColumnIds));
   }, [frozenColumnIds, listId]);
-  
+
   // Callback para fijar/desfijar columnas
   const toggleFrozenColumn = (columnId: string) => {
     setFrozenColumnIds(prev => {
       const isMobile = window.innerWidth < 768;
       const maxFrozenColumns = isMobile ? 2 : Infinity; // Limit to 2 on mobile (excluding index)
-      
+
       if (prev.includes(columnId)) {
         // Unfreezing a column
         return prev.filter(id => id !== columnId);
@@ -88,7 +83,7 @@ export function GridViewContainer({
         // Freezing a column
         // On mobile, exclude the 'index' column from the count - index doesn't count toward limit
         const nonIndexFrozenColumns = prev.filter(id => id !== 'index');
-        
+
         if (isMobile && nonIndexFrozenColumns.length >= maxFrozenColumns) {
           // Show toast with shorter duration and better styling
           toast({
@@ -103,18 +98,18 @@ export function GridViewContainer({
       }
     });
   };
-  
+
   // Separar columnas fijas y scrollables manteniendo el orden original
   const frozenColumns = columns.filter(col => frozenColumnIds.includes(col.id));
   const scrollableColumns = columns.filter(col => !frozenColumnIds.includes(col.id));
-  
+
   // Find the frozen column - first look for 'name', then fall back to 'opportunity' for backward compatibility
-  const contactColumn = columns.find(col => col.id === 'name' && col.frozen) || 
-                        columns.find(col => col.id === 'opportunity');
-  
+  const contactColumn = columns.find(col => col.id === 'name' && col.frozen) ||
+    columns.find(col => col.id === 'opportunity');
+
   // Width calculation for the static columns area
   const staticColumnsWidth = INDEX_COLUMN_WIDTH + (contactColumn?.width || 0);
-  
+
   // Resize observer for container
   useEffect(() => {
     if (!containerRef.current) return;
@@ -131,7 +126,7 @@ export function GridViewContainer({
       resizeObserver.disconnect();
     };
   }, []);
-  
+
   // Filter data based on search term and active filters
   const applyFilters = useCallback(() => {
     // Start with all data
@@ -168,22 +163,24 @@ export function GridViewContainer({
               return Array.isArray(filterValue) && typeof value === 'string' && filterValue.includes(value);
 
             case 'date':
-              { if (!filterValue) return value !== null && value !== undefined && value !== '';
+              {
+                if (!filterValue) return value !== null && value !== undefined && value !== '';
 
-              const dateValue = value ? new Date(value) : null;
-              if (!dateValue) return false;
+                const dateValue = value ? new Date(value) : null;
+                if (!dateValue) return false;
 
-              const startDate = (filterValue as { start?: string }).start ? new Date((filterValue as { start: string }).start) : null;
-              const endDate = (filterValue as { end?: string }).end ? new Date((filterValue as { end: string }).end) : null;
+                const startDate = (filterValue as { start?: string }).start ? new Date((filterValue as { start: string }).start) : null;
+                const endDate = (filterValue as { end?: string }).end ? new Date((filterValue as { end: string }).end) : null;
 
-              if (startDate && endDate) {
-                return dateValue >= startDate && dateValue <= endDate;
-              } else if (startDate) {
-                return dateValue >= startDate;
-              } else if (endDate) {
-                return dateValue <= endDate;
+                if (startDate && endDate) {
+                  return dateValue >= startDate && dateValue <= endDate;
+                } else if (startDate) {
+                  return dateValue >= startDate;
+                } else if (endDate) {
+                  return dateValue <= endDate;
+                }
+                return true;
               }
-              return true; }
 
             default:
               return value !== null && value !== undefined && value !== '';
@@ -203,10 +200,10 @@ export function GridViewContainer({
         }
         return 0; // Default for non-lead IDs
       };
-      
+
       const aNum = getNumberFromId(a.id);
       const bNum = getNumberFromId(b.id);
-      
+
       // Sort numerically in ascending order
       return aNum - bNum;
     });
@@ -219,7 +216,7 @@ export function GridViewContainer({
     const filteredData = applyFilters();
     setVisibleData(filteredData);
   }, [applyFilters, searchTerm, activeFilters]);
-  
+
   // Handle search change
   const handleSearchChange = (term: string) => {
     if (externalSearchChange) {
@@ -228,13 +225,13 @@ export function GridViewContainer({
       setLocalSearchTerm(term);
     }
   };
-  
+
   // Handle filter changes
   const handleApplyFilters = (filters: { columns: string[], values: Record<string, unknown> }) => {
     console.log("Applying filters:", filters);
     setActiveFilters(filters);
   };
-  
+
   // Open context menu for columns
   const handleOpenContextMenu = (columnId: string | null, position?: { x: number, y: number }) => {
     setContextMenuColumn(columnId);
@@ -244,7 +241,7 @@ export function GridViewContainer({
       setContextMenuPosition(null);
     }
   };
-  
+
   // Handle columns reordering - ensure frozen column remains unchanged
   const handleColumnsReorder = useCallback((newColumnIds: string[]) => {
     if (onColumnsReorder) {
@@ -253,13 +250,13 @@ export function GridViewContainer({
       const newColumns = newColumnIds
         .filter(id => id !== 'name' && id !== 'opportunity') // Remove contact/opportunity if it's in the list
         .map(id => columns.find(col => col.id === id)!); // Map to full column objects
-      
+
       // Re-insert contact at its original position if needed
       if (contactColumnIndex >= 0 && contactColumn) {
         // Only re-insert if it was in the original columns array
         newColumns.splice(contactColumnIndex, 0, contactColumn);
       }
-      
+
       // Call the parent handler with the updated order
       onColumnsReorder(newColumns.map(col => col.id));
     }
@@ -274,13 +271,13 @@ export function GridViewContainer({
   const handleMainGridAddColumn = useCallback(() => {
     onAddColumn(contextMenuColumn ?? '');
   }, [onAddColumn, contextMenuColumn]);
-  
+
   // Handle scroll synchronization
   const handleScroll = ({ scrollTop: newScrollTop, scrollLeft: newScrollLeft }: { scrollTop: number, scrollLeft: number }) => {
     setScrollTop(newScrollTop);
     setScrollLeft(newScrollLeft);
   };
-  
+
   return (
     <div className="grid-view" ref={containerRef}>
       <GridToolbar
@@ -296,7 +293,7 @@ export function GridViewContainer({
         frozenColumnIds={frozenColumnIds}
         onTogglePin={toggleFrozenColumn}
       />
-      
+
       <div className="grid-components-container">
         {visibleData.length === 0 ? (
           // Empty state message when there are no contacts
@@ -311,7 +308,7 @@ export function GridViewContainer({
             </div>
             <h2 className="text-2xl font-semibold mb-2">No contacts yet</h2>
             <p className="text-gray-500 text-center max-w-md mb-6">Let's add a contact as our first step to more customers.</p>
-            <button 
+            <button
               className="bg-[#32BAB0] hover:bg-[#28a79d] text-white rounded-md px-6 py-2 flex items-center gap-2"
               onClick={() => {
                 // Find the main Add Contact button in the header and click it
@@ -331,7 +328,7 @@ export function GridViewContainer({
         ) : (
           <>
             {/* Left static columns (index + contact/opportunity) */}
-            <StaticColumns 
+            <StaticColumns
               data={visibleData}
               frozenColumns={frozenColumns}
               scrollTop={scrollTop}
@@ -343,7 +340,7 @@ export function GridViewContainer({
               editingCell={editingCell}
               setEditingCell={setEditingCell}
             />
-            
+
             {/* Main data grid - adjust width to account for static columns */}
             <MainGridView
               columns={scrollableColumns}

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
-import { Column, GridRow } from './types';
+import { Column, GridRow, EditingCell } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './grid-constants';
 import { ContextMenu } from './ContextMenu';
 import { Check, X, Pin, PinOff } from 'lucide-react';
@@ -49,8 +49,8 @@ interface MainGridViewProps {
   contextMenuPosition: { x: number; y: number } | null;
   onTogglePin: (columnId: string) => void;
   frozenColumnIds: string[];
-  editingCell: { rowId: string; columnId: string } | null;
-  setEditingCell: (cell: { rowId: string; columnId: string } | null) => void;
+  editingCell: EditingCell | null;
+  setEditingCell: (cell: EditingCell | null) => void;
   allColumns?: Column[];
 }
 
@@ -84,6 +84,9 @@ export function MainGridView({
 
   // Add optimistic updates state to immediately show changes locally
   const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, any>>({});
+
+  // Add ref to track recent saves to prevent double-saving
+  const recentSavesRef = useRef<Set<string>>(new Set());
 
   // Modal state for column insertion
   const [modalState, setModalState] = useState<{
@@ -227,24 +230,23 @@ export function MainGridView({
   const isUserScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Handle scroll events - only clear selection for user-initiated scrolling
-  useEffect(() => {
-    const handleUserScroll = () => {
-      // Only clear selection if this is user-initiated scrolling (not programmatic)
-      if (isUserScrollingRef.current && selectedCell) {
-        setSelectedCell(null);
-      }
-    };
+  // Track user-initiated scrolling vs programmatic scrolling for focus management
 
+  // Handle scroll events - DON'T clear selection on scroll, keep it visible
+  useEffect(() => {
+    // Remove the scroll handlers that were clearing selection
+    // The selection should persist during scrolling for better UX
+
+    // Only track scroll state for programmatic vs user scrolling distinction
     const handleScrollStart = () => {
       // Mark as user-initiated scrolling
       isUserScrollingRef.current = true;
-      
+
       // Clear any existing timeout
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
       }
-      
+
       // Reset the flag after scrolling stops
       scrollTimeoutRef.current = setTimeout(() => {
         isUserScrollingRef.current = false;
@@ -255,24 +257,23 @@ export function MainGridView({
     if (gridRef.current && gridRef.current._outerRef) {
       const gridElement = gridRef.current._outerRef;
 
-      // Add scroll event handlers
-      gridElement.addEventListener('wheel', handleScrollStart, { passive: true });
-      gridElement.addEventListener('touchstart', handleScrollStart, { passive: true });
-      gridElement.addEventListener('scroll', handleUserScroll, { passive: true });
+      // Only track scroll start for programmatic vs user distinction
+      const passiveOpts = { passive: true } as const;
+      gridElement.addEventListener('wheel', handleScrollStart, passiveOpts);
+      gridElement.addEventListener('touchstart', handleScrollStart, passiveOpts);
 
       return () => {
         // Clean up event listeners
         gridElement.removeEventListener('wheel', handleScrollStart);
         gridElement.removeEventListener('touchstart', handleScrollStart);
-        gridElement.removeEventListener('scroll', handleUserScroll);
-        
+
         // Clear timeout
         if (scrollTimeoutRef.current) {
           clearTimeout(scrollTimeoutRef.current);
         }
       };
     }
-  }, [selectedCell]);
+  }, []);
 
   // Update keyboard event handler
   useEffect(() => {
@@ -378,21 +379,25 @@ export function MainGridView({
         case 'ArrowUp':
           e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation(); // Prevent any other handlers
           newRowIndex = Math.max(0, rowIndex - 1);
           break;
         case 'ArrowDown':
           e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation(); // Prevent any other handlers
           newRowIndex = Math.min(data.length - 1, rowIndex + 1);
           break;
         case 'ArrowLeft':
           e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation(); // Prevent any other handlers
           newColumnIndex = Math.max(0, columnIndex - 1);
           break;
         case 'ArrowRight':
           e.preventDefault();
           e.stopPropagation();
+          e.stopImmediatePropagation(); // Prevent any other handlers
           newColumnIndex = Math.min(columns.length - 1, columnIndex + 1);
           break;
         case 'Tab':
@@ -451,75 +456,44 @@ export function MainGridView({
           // Update selection
           setSelectedCell({ rowId: newRowId, columnId: newColumnId });
 
-          // Auto-scroll to keep the selected cell visible
-          if (gridRef.current && gridRef.current._outerRef) {
-            // Mark this as programmatic scrolling (not user-initiated)
-            isUserScrollingRef.current = false;
-            
-            // Calculate horizontal scroll position
-            let totalWidth = 0;
-            for (let i = 0; i < newColumnIndex; i++) {
-              totalWidth += columnWidths[i] || 180;
+          // For single step movements (arrow keys), use ultra-fast scrollBySteps
+          const isArrowKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
+          if (isArrowKey) {
+            // First check if the new cell is visible - only scroll if it's outside viewport
+            const gridElement = gridRef.current?._outerRef;
+            if (gridElement) {
+              const containerRect = gridElement.getBoundingClientRect();
+              const cellTop = newRowIndex * ROW_HEIGHT;
+              const cellBottom = cellTop + ROW_HEIGHT;
+              const cellLeft = columns.slice(0, newColumnIndex).reduce((sum, col, idx) => sum + getColumnWidth(idx), 0);
+              const cellRight = cellLeft + getColumnWidth(newColumnIndex);
+
+              const currentScrollTop = gridElement.scrollTop;
+              const currentScrollLeft = gridElement.scrollLeft;
+              const visibleTop = currentScrollTop;
+              const visibleBottom = currentScrollTop + containerRect.height - HEADER_HEIGHT;
+              const visibleLeft = currentScrollLeft;
+              const visibleRight = currentScrollLeft + containerRect.width;
+
+              // Only scroll if the new cell is outside the visible area
+              const isOutsideViewport = cellTop < visibleTop || cellBottom > visibleBottom ||
+                cellLeft < visibleLeft || cellRight > visibleRight;
+
+              if (isOutsideViewport) {
+                // Use precise positioning when cell is outside viewport
+                scrollToItemIfNeeded(newRowIndex, newColumnIndex);
+              }
+              // If cell is inside viewport, don't scroll at all
             }
-
-            const currentScrollLeft = gridRef.current._outerRef.scrollLeft;
-            const currentScrollTop = gridRef.current._outerRef.scrollTop;
-            const containerWidth = gridRef.current._outerRef.clientWidth;
-            const containerHeight = gridRef.current._outerRef.clientHeight;
-            const cellWidth = columnWidths[newColumnIndex] || 180;
-            const cellHeight = ROW_HEIGHT;
-
-            // Calculate target scroll positions
-            let targetScrollLeft = currentScrollLeft;
-            let targetScrollTop = currentScrollTop;
-
-            // Horizontal scrolling logic
-            const cellRightEdge = totalWidth + cellWidth;
-            const viewportRightEdge = currentScrollLeft + containerWidth;
-            const cellLeftEdge = totalWidth;
-
-            if (cellRightEdge > viewportRightEdge) {
-              // Cell is to the right of viewport - scroll right
-              targetScrollLeft = cellRightEdge - containerWidth + 20; // Add 20px padding
-            } else if (cellLeftEdge < currentScrollLeft) {
-              // Cell is to the left of viewport - scroll left
-              targetScrollLeft = Math.max(0, cellLeftEdge - 20); // Add 20px padding, but don't go negative
-            }
-
-            // Vertical scrolling logic
-            const cellTop = newRowIndex * cellHeight;
-            const cellBottom = cellTop + cellHeight;
-            const viewportBottom = currentScrollTop + containerHeight;
-
-            if (cellBottom > viewportBottom) {
-              // Cell is below viewport - scroll down
-              targetScrollTop = cellBottom - containerHeight + 20; // Add 20px padding
-            } else if (cellTop < currentScrollTop) {
-              // Cell is above viewport - scroll up
-              targetScrollTop = Math.max(0, cellTop - 20); // Add 20px padding, but don't go negative
-            }
-
-            // Only scroll if needed
-            if (targetScrollLeft !== currentScrollLeft || targetScrollTop !== currentScrollTop) {
-              gridRef.current.scrollTo({
-                scrollLeft: targetScrollLeft,
-                scrollTop: targetScrollTop,
-                behavior: 'smooth'
-              });
-            }
+          } else {
+            // For larger movements (Tab, multi-step), use precise positioning
+            scrollToItemIfNeeded(newRowIndex, newColumnIndex);
           }
 
-          // Focus without scrolling - with additional safety checks
-          setTimeout(() => {
-            try {
-              if (mainViewRef.current && document.contains(mainViewRef.current)) {
-                mainViewRef.current.focus({ preventScroll: true });
-              }
-            } catch (e) {
-              // Silently handle focus errors during rapid navigation
-              console.debug('Focus error during navigation:', e);
-            }
-          }, 10);
+          // Focus immediately without delays
+          if (mainViewRef.current) {
+            mainViewRef.current.focus({ preventScroll: true });
+          }
         }
       }
     };
@@ -599,10 +573,10 @@ export function MainGridView({
       }
 
       // If target is inside the calendar or date popup, don't close it
-      if (target.closest('.date-options-popup') || 
-          target.closest('.react-calendar') || 
-          target.closest('[role="dialog"][aria-label*="calendar"]') ||
-          target.closest('[data-radix-popper-content-wrapper]')) {
+      if (target.closest('.date-options-popup') ||
+        target.closest('.react-calendar') ||
+        target.closest('[role="dialog"][aria-label*="calendar"]') ||
+        target.closest('[data-radix-popper-content-wrapper]')) {
         return;
       }
 
@@ -720,14 +694,8 @@ export function MainGridView({
 
     // Special handling for status column - open dropdown on first click
     if (column?.id === 'status' && column.editable) {
-      // Clear any existing selection first to prevent highlighting issues
-      setSelectedCell(null);
-
-      // Small delay before setting new selection and entering edit mode
-      setTimeout(() => {
-        setSelectedCell({ rowId, columnId });
-        setEditingCell({ rowId, columnId });
-      }, 10);
+      setSelectedCell({ rowId, columnId });
+      setEditingCell({ rowId, columnId });
       return;
     }
 
@@ -736,13 +704,7 @@ export function MainGridView({
 
     // For regular cell selection
     if (!isClickingSameSelectedCell) {
-      // First clear selection
-      setSelectedCell(null);
-
-      // Then set the new selection after a short delay
-      setTimeout(() => {
-        setSelectedCell({ rowId, columnId });
-      }, 10);
+      setSelectedCell({ rowId, columnId });
     } else if (column?.editable) {
       // Double click behavior - entering edit mode on second click
       setEditingCell({ rowId, columnId });
@@ -754,12 +716,15 @@ export function MainGridView({
     e.preventDefault();
     e.stopPropagation(); // Prevent the event from bubbling up
 
+    // Mark this cell as recently saved to prevent double-save in blur handler
+    const cellKey = `${rowId}-${columnId}`;
+    recentSavesRef.current.add(cellKey);
+
     // Get current position
     const rowIndex = data.findIndex(row => row.id === rowId);
     const columnIndex = columns.findIndex(col => col.id === columnId);
 
     // Apply optimistic update immediately
-    const cellKey = `${rowId}-${columnId}`;
     setOptimisticUpdates(prev => ({
       ...prev,
       [cellKey]: value
@@ -808,19 +773,19 @@ export function MainGridView({
       // First update the selected cell
       setSelectedCell({ rowId: nextRowId, columnId: nextColumnId });
 
-      // IMPORTANT: Only focus, NO scrolling
-      // Let the user manually scroll if needed
-      setTimeout(() => {
-        if (mainViewRef.current) {
-          try {
-            // Critical: use preventScroll to avoid layout shifts
-            mainViewRef.current.focus({ preventScroll: true });
-          } catch (e) {
-            console.warn('Focus error:', e);
-          }
-        }
-      }, 10);
+      // Use optimized scroll helper
+      scrollToItemIfNeeded(nextRowIndex, nextColumnIndex);
+
+      // Focus immediately without delays
+      if (mainViewRef.current) {
+        mainViewRef.current.focus({ preventScroll: true });
+      }
     }
+
+    // Clear the recent save flag after a short delay
+    setTimeout(() => {
+      recentSavesRef.current.delete(cellKey);
+    }, 100);
   };
 
   // Handle cell editing keydown with careful focus management 
@@ -838,8 +803,11 @@ export function MainGridView({
       e.preventDefault();
       e.stopPropagation(); // Stop event propagation to prevent unexpected behavior
 
-      // Apply optimistic update immediately
+      // Mark this cell as recently saved to prevent double-save in blur handler
       const cellKey = `${rowId}-${columnId}`;
+      recentSavesRef.current.add(cellKey);
+
+      // Apply optimistic update immediately
       setOptimisticUpdates(prev => ({
         ...prev,
         [cellKey]: value
@@ -869,20 +837,19 @@ export function MainGridView({
         // First update the selected cell
         setSelectedCell({ rowId: targetRowId, columnId });
 
-        // IMPORTANT: We ONLY update the selection, with NO scrolling
-        // Let the user manually scroll down if needed
+        // Use optimized scroll helper
+        scrollToItemIfNeeded(targetRowIndex, columnIndex);
 
-        // Simple focus - important to use preventScroll: true
-        setTimeout(() => {
-          if (mainViewRef.current) {
-            try {
-              mainViewRef.current.focus({ preventScroll: true });
-            } catch (e) {
-              console.warn('Focus error:', e);
-            }
-          }
-        }, 10);
+        // Focus immediately without delays
+        if (mainViewRef.current) {
+          mainViewRef.current.focus({ preventScroll: true });
+        }
       }
+
+      // Clear the recent save flag after a short delay
+      setTimeout(() => {
+        recentSavesRef.current.delete(cellKey);
+      }, 100);
     } else if (e.key === 'Escape') {
       // Cancel editing without saving
       e.preventDefault();
@@ -890,16 +857,10 @@ export function MainGridView({
       setEditingCell(null);
       setSelectedCell({ rowId, columnId });
 
-      // Simple focus handler - with preventScroll: true
-      setTimeout(() => {
-        if (mainViewRef.current) {
-          try {
-            mainViewRef.current.focus({ preventScroll: true });
-          } catch (e) {
-            console.warn('Focus error', e);
-          }
-        }
-      }, 10);
+      // Focus immediately without delays
+      if (mainViewRef.current) {
+        mainViewRef.current.focus({ preventScroll: true });
+      }
     }
   };
 
@@ -930,15 +891,9 @@ export function MainGridView({
       setSelectedCell({ rowId, columnId });
     }
 
-    // Reset focus to the main grid - with preventScroll: true to avoid toolbar issues
+    // Reset focus to the main grid immediately
     if (mainViewRef.current) {
-      setTimeout(() => {
-        try {
-          mainViewRef.current?.focus({ preventScroll: true });
-        } catch (e) {
-          console.warn('Focus error:', e);
-        }
-      }, 10);
+      mainViewRef.current.focus({ preventScroll: true });
     }
   };
 
@@ -963,15 +918,16 @@ export function MainGridView({
 
     if (onColumnsReorder) {
       const sourceIndex = columns.findIndex(col => col.id === sourceColumnId);
-      const targetIndex = columns.findIndex(col => col.id === targetColumnId);  
+      const targetIndex = columns.findIndex(col => col.id === targetColumnId);
 
       if (sourceIndex < 0 || targetIndex < 0) return;
 
-      const newOrder = [...columns.map(col => col.id)];
-      newOrder.splice(sourceIndex, 1);
-      newOrder.splice(targetIndex, 0, sourceColumnId);
+      // Create new columns array with proper Column objects
+      const newColumns = [...columns];
+      const [movedColumn] = newColumns.splice(sourceIndex, 1);
+      newColumns.splice(targetIndex, 0, movedColumn);
 
-      onColumnsReorder(newOrder);
+      onColumnsReorder(newColumns);
     }
   };
 
@@ -1009,17 +965,19 @@ export function MainGridView({
     }, 0);
   }, [columnWidths]);
 
-  // Common blur handler to detect clicks on other cells
+  // Common blur handler to detect clicks on other cells - with double-save prevention
   const handleInputBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>, rowId: string, columnId: string, value: any) => {
-    // Short delay to allow click events to complete first
-    setTimeout(() => {
-      // If we're still editing this cell after the timeout, it means
-      // we didn't click on another cell and can safely complete the edit
-      if (editingCell?.rowId === rowId && editingCell?.columnId === columnId) {
-        // Save the edit without moving selection
-        finishCellEdit(rowId, columnId, value);
-      }
-    }, 100);
+    // Check if we recently saved this cell to prevent double-save
+    const cellKey = `${rowId}-${columnId}`;
+    if (recentSavesRef.current.has(cellKey)) {
+      // This cell was recently saved via Tab/Enter, don't save again
+      return;
+    }
+
+    // Save the edit immediately on blur
+    if (editingCell?.rowId === rowId && editingCell?.columnId === columnId) {
+      finishCellEdit(rowId, columnId, value);
+    }
   };
 
   // Format cell value with optimistic updates
@@ -1163,11 +1121,11 @@ export function MainGridView({
 
   const handleInsertLeft = (columnIndex: number) => {
     console.log(`Insert column left of index: ${columnIndex}`);
-    
+
     // Calculate the global column index by finding the column ID in the full columns array
     const columnId = columns[columnIndex]?.id;
     const globalIndex = allColumns ? allColumns.findIndex(col => col.id === columnId) : columnIndex;
-    
+
     setModalState({
       isOpen: true,
       direction: 'left',
@@ -1178,11 +1136,11 @@ export function MainGridView({
 
   const handleInsertRight = (columnIndex: number) => {
     console.log(`Insert column right of index: ${columnIndex}`);
-    
+
     // Calculate the global column index by finding the column ID in the full columns array
     const columnId = columns[columnIndex]?.id;
     const globalIndex = allColumns ? allColumns.findIndex(col => col.id === columnId) : columnIndex;
-    
+
     // Don't allow adding columns after lastContacted
     const column = columns[columnIndex];
     if (column?.id === 'lastContacted') {
@@ -1213,20 +1171,20 @@ export function MainGridView({
 
   // Define default columns that cannot be deleted
   const defaultColumnIds = [
-    'name', 'status', 'description', 'company', 'jobTitle', 'industry', 
-    'phone', 'primaryLocation', 'email', 'facebook', 'instagram', 'linkedin', 
-    'twitter', 'associatedDeals', 'revenue', 'closeDate', 'owner', 'source', 
+    'name', 'status', 'description', 'company', 'jobTitle', 'industry',
+    'phone', 'primaryLocation', 'email', 'facebook', 'instagram', 'linkedin',
+    'twitter', 'associatedDeals', 'revenue', 'closeDate', 'owner', 'source',
     'lastContacted', 'website'
   ];
 
   const handleDeleteColumn = (columnId: string) => {
     console.log(`Delete column: ${columnId}`);
-    
+
     // Check if it's a default column
     if (defaultColumnIds.includes(columnId)) {
-      const column = columns.find(col => col.id === columnId) || 
-                    allColumns?.find(col => col.id === columnId);
-      
+      const column = columns.find(col => col.id === columnId) ||
+        allColumns?.find(col => col.id === columnId);
+
       setCannotDeleteModalState({
         isOpen: true,
         columnId,
@@ -1236,7 +1194,7 @@ export function MainGridView({
       // It's a user-added column, allow deletion
       if (onDeleteColumn) onDeleteColumn(columnId);
     }
-    
+
     if (onContextMenu) onContextMenu(null);
   };
 
@@ -1260,6 +1218,96 @@ export function MainGridView({
     console.log(`Sort sheet Z-A by column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
   };
+
+  // Helper function for ultra-fast keyboard navigation scrolling (like Google Sheets)
+  const scrollToItemIfNeeded = useCallback((rowIndex: number, columnIndex: number) => {
+    if (!gridRef.current) return;
+
+    const gridElement = gridRef.current._outerRef;
+    if (!gridElement) return;
+
+    try {
+      const containerRect = gridElement.getBoundingClientRect();
+      const rowHeight = ROW_HEIGHT;
+      const columnWidth = getColumnWidth(columnIndex);
+
+      // Calculate current scroll position
+      const currentScrollTop = gridElement.scrollTop;
+      const currentScrollLeft = gridElement.scrollLeft;
+
+      // Calculate cell position
+      const cellTop = rowIndex * rowHeight;
+      const cellBottom = cellTop + rowHeight;
+      const cellLeft = columns.slice(0, columnIndex).reduce((sum, col, idx) => sum + getColumnWidth(idx), 0);
+      const cellRight = cellLeft + columnWidth;
+
+      // Calculate visible area
+      const visibleTop = currentScrollTop;
+      const visibleBottom = currentScrollTop + containerRect.height - HEADER_HEIGHT;
+      const visibleLeft = currentScrollLeft;
+      const visibleRight = currentScrollLeft + containerRect.width;
+
+      // Check if scrolling is needed
+      const needsVerticalScroll = cellTop < visibleTop || cellBottom > visibleBottom;
+      const needsHorizontalScroll = cellLeft < visibleLeft || cellRight > visibleRight;
+
+      if (needsVerticalScroll || needsHorizontalScroll) {
+        // Use native DOM scrolling for instant results (like Google Sheets)
+        let newScrollTop = currentScrollTop;
+        let newScrollLeft = currentScrollLeft;
+
+        // Calculate optimal scroll position for vertical scrolling
+        if (needsVerticalScroll) {
+          if (cellTop < visibleTop) {
+            // Scroll up - position cell at top
+            newScrollTop = cellTop;
+          } else if (cellBottom > visibleBottom) {
+            // Scroll down - position cell at bottom
+            newScrollTop = cellBottom - (containerRect.height - HEADER_HEIGHT);
+          }
+        }
+
+        // Calculate optimal scroll position for horizontal scrolling
+        if (needsHorizontalScroll) {
+          if (cellLeft < visibleLeft) {
+            // Scroll left - position cell at left edge
+            newScrollLeft = cellLeft;
+          } else if (cellRight > visibleRight) {
+            // Scroll right - position cell at right edge
+            newScrollLeft = cellRight - containerRect.width;
+          }
+        }
+
+        // Use native scrollTo for instant scrolling (no animation delays)
+        gridElement.scrollTo({
+          top: Math.max(0, newScrollTop),
+          left: Math.max(0, newScrollLeft),
+          behavior: 'instant' // Instant scroll like Google Sheets
+        });
+
+        // Sync the header immediately
+        if (headerRef.current) {
+          headerRef.current.scrollLeft = Math.max(0, newScrollLeft);
+        }
+
+        // Update our internal scroll state immediately
+        onScroll({
+          scrollTop: Math.max(0, newScrollTop),
+          scrollLeft: Math.max(0, newScrollLeft)
+        });
+      }
+    } catch (error) {
+      // Fallback to react-window scroll only if native fails
+      console.debug('Error in native scroll, falling back to react-window scroll:', error);
+      if (gridRef.current?.scrollToItem) {
+        gridRef.current.scrollToItem({
+          columnIndex,
+          rowIndex,
+          align: 'auto'
+        });
+      }
+    }
+  }, [columns, getColumnWidth, onScroll]);
 
   return (
     <div

@@ -20,6 +20,14 @@ export interface GridRow {
   [key: string]: any;
 }
 
+// Extended type for editing cell to support special flags
+export interface EditingCell {
+  rowId: string;
+  columnId: string;
+  directTyping?: boolean;
+  clearDateSelection?: boolean;
+}
+
 // Props for the grid container
 export interface GridContainerProps {
   columns: Column[];
