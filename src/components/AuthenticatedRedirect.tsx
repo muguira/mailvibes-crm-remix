@@ -17,9 +17,9 @@ export function AuthenticatedRedirect({ children }: AuthenticatedRedirectProps) 
         );
     }
 
-    // If user is authenticated, redirect to dashboard
+    // If user is authenticated, redirect to home
     if (user) {
-        return <Navigate to="/dashboard" replace />;
+        return <Navigate to="/" replace />;
     }
 
     // Otherwise, show the children (typically the Landing page)

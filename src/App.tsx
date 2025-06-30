@@ -6,6 +6,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ActivityProvider } from "@/contexts/ActivityContext";
 import { PrivateRoute } from "@/components/PrivateRoute";
 import { AuthenticatedRedirect } from "@/components/AuthenticatedRedirect";
+import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
 import Index from "@/pages/dashboard/Index";
 import Lists from "@/pages/dashboard/Lists";
 import NewGrid from "@/pages/NewGrid";
@@ -30,41 +31,43 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ActivityProvider>
-        <Router>
-          <div className="h-screen w-full font-proxima">
-            <Routes>
-                <Route path="/" element={<AuthenticatedRedirect><Landing /></AuthenticatedRedirect>} />
-              <Route path="/auth" element={<Auth />} />
-                <Route path="/dashboard" element={<PrivateRoute><Index /></PrivateRoute>} />
-                <Route path="/lists" element={<PrivateRoute><Navigate to="/leads" replace /></PrivateRoute>} />
-                <Route path="/new-grid" element={<PrivateRoute><Navigate to="/leads" replace /></PrivateRoute>} />
-                <Route path="/leads" element={<PrivateRoute><Leads /></PrivateRoute>} />
-                <Route path="/import" element={<PrivateRoute><Import /></PrivateRoute>} />
-                <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
-                <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
-                <Route path="/contact/:id" element={<PrivateRoute><ContactProfile /></PrivateRoute>} />
-                <Route path="/stream-view/:recordId?" element={<PrivateRoute><StreamView /></PrivateRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <Toaster />
-            <SonnerToaster 
-              position="top-right"
-              toastOptions={{
-                style: {
-                  background: '#fff',
-                  color: '#333',
-                  border: '1px solid #e5e7eb',
-                },
-              }}
-            />
-          </div>
-        </Router>
-        </ActivityProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary sectionName="Application">
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ActivityProvider>
+            <Router>
+              <div className="h-screen w-full font-proxima">
+                <Routes>
+                  <Route path="/auth" element={<AuthenticatedRedirect><Auth /></AuthenticatedRedirect>} />
+                  <Route path="/landing" element={<Landing />} />
+                  <Route path="/" element={<PrivateRoute><Index /></PrivateRoute>} />
+                  <Route path="/lists/:listId?" element={<PrivateRoute><Lists /></PrivateRoute>} />
+                  <Route path="/new-grid" element={<PrivateRoute><NewGrid /></PrivateRoute>} />
+                  <Route path="/leads" element={<PrivateRoute><Leads /></PrivateRoute>} />
+                  <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
+                  <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+                  <Route path="/contact/:id" element={<PrivateRoute><ContactProfile /></PrivateRoute>} />
+                  <Route path="/stream" element={<PrivateRoute><StreamView /></PrivateRoute>} />
+                  <Route path="/import" element={<PrivateRoute><Import /></PrivateRoute>} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                <Toaster />
+                <SonnerToaster 
+                  position="top-right"
+                  toastOptions={{
+                    style: {
+                      background: '#fff',
+                      color: '#333',
+                      border: '1px solid #e5e7eb',
+                    },
+                  }}
+                />
+              </div>
+            </Router>
+          </ActivityProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

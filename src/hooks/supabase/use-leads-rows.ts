@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { LeadContact } from '@/components/stream/sample-data';
 import { mockContactsById } from '@/components/stream/sample-data';
 import { updateContact } from '@/helpers/updateContact';
+import { withRetrySupabase } from '@/utils/supabaseRetry';
 
 /**
  * Helper function to transform row IDs to database-compatible format
@@ -138,7 +139,24 @@ export function useLeadsRows() {
           .select('id, name, email, phone, company, status, user_id, data, created_at, updated_at')
           .eq('user_id', user.id);
           
-        const { data, error } = await query;
+        const result = await withRetrySupabase(
+          () => query,
+          {
+            maxAttempts: 3,
+            onRetry: (error, attempt) => {
+              console.log(`Retrying contacts fetch (attempt ${attempt})...`);
+              if (attempt === 2) {
+                toast({
+                  title: "Connection issues",
+                  description: "Having trouble connecting to the server. Retrying...",
+                  variant: "default"
+                });
+              }
+            }
+          }
+        );
+        
+        const { data, error } = result;
         
         if (error) {
           console.error("SUPABASE ERROR:", error);

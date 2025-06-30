@@ -1,9 +1,9 @@
-
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "../use-toast";
 import { Json } from "@/integrations/supabase/types";
+import { withRetrySupabase } from "@/utils/supabaseRetry";
 
 export interface Contact {
   id: string;
@@ -24,17 +24,27 @@ export function useContacts(listId?: string) {
   const fetchContacts = async (): Promise<Contact[]> => {
     if (!user || !listId) return [];
 
-    const { data, error } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('list_id', listId)
-      .order('created_at', { ascending: false });
+    const result = await withRetrySupabase(
+      () => supabase
+        .from('contacts')
+        .select('*')
+        .eq('list_id', listId)
+        .order('created_at', { ascending: false }),
+      {
+        maxAttempts: 3,
+        onRetry: (error, attempt) => {
+          console.log(`Retrying contacts fetch (attempt ${attempt})...`);
+        }
+      }
+    );
+
+    const { data, error } = result;
 
     if (error) {
       console.error('Error fetching contacts:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load contacts',
+        description: 'Failed to load contacts. Please try again.',
         variant: 'destructive',
       });
       return [];

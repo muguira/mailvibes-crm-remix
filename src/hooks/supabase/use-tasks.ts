@@ -6,6 +6,7 @@ import { toast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isPast, parseISO, startOfDay } from 'date-fns';
 import { Database } from '@/types/supabase';
+import { withRetrySupabase } from "@/utils/supabaseRetry";
 
 export interface TaskData {
   id: string;
@@ -28,16 +29,33 @@ export function useTasks() {
   const fetchTasks = async (): Promise<TaskData[]> => {
     if (!user) return [];
 
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const result = await withRetrySupabase(
+      () => supabase
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: false }),
+      {
+        maxAttempts: 3,
+        onRetry: (error, attempt) => {
+          console.log(`Retrying tasks fetch (attempt ${attempt})...`);
+          if (attempt === 2) {
+            toast({
+              title: "Connection issues",
+              description: "Having trouble loading tasks. Retrying...",
+              variant: "default"
+            });
+          }
+        }
+      }
+    );
+
+    const { data, error } = result;
 
     if (error) {
       console.error('Error fetching tasks:', error);
       toast({
         title: "Error fetching tasks",
-        description: error.message,
+        description: "Failed to load tasks. Please try again.",
         variant: "destructive"
       });
       return [];

@@ -72,20 +72,22 @@ export function Sidebar() {
       </div>
 
       {/* Nav items */}
-      <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-1 px-2">
-        <SidebarItem icon={Home} label="Home" to="/dashboard" collapsed={collapsed} />
-        <SidebarItem icon={List} label="Lists" to="/dashboard/lists" collapsed={collapsed} />
-        <SidebarItem icon={BarChart} label="Reports" to="/dashboard/reports" collapsed={collapsed} />
-        <SidebarItem icon={Users} label="Candidates" to="/dashboard/candidates" collapsed={collapsed} />
+      <div className="flex-1 overflow-y-auto py-4">
+        <nav className="space-y-1 px-3">
+          <SidebarItem icon={Home} label="Home" to="/" collapsed={collapsed} />
+          <SidebarItem icon={List} label="Lists" to="/lists" collapsed={collapsed} />
+          <SidebarItem icon={BarChart} label="Reports" to="/reports" collapsed={collapsed} />
+          <SidebarItem icon={Users} label="Contacts" to="/leads" collapsed={collapsed} />
+        </nav>
+      </div>
 
-        {!collapsed && (
-          <div className="mt-6 mb-2 px-3 text-xs font-semibold text-white/50">
-            SETTINGS
-          </div>
-        )}
-        <SidebarItem icon={Settings} label="Settings" to="/dashboard/settings" collapsed={collapsed} />
-        <SidebarItem icon={Bell} label="Notifications" to="/dashboard/notifications" collapsed={collapsed} />
-        <SidebarItem icon={HelpCircle} label="Help" to="/dashboard/help" collapsed={collapsed} />
+      {/* Bottom section */}
+      <div className="border-t border-gray-200 p-4">
+        <nav className="space-y-1">
+          <SidebarItem icon={Settings} label="Settings" to="/profile" collapsed={collapsed} />
+          <SidebarItem icon={Bell} label="Notifications" to="/notifications" collapsed={collapsed} />
+          <SidebarItem icon={HelpCircle} label="Help" to="/help" collapsed={collapsed} />
+        </nav>
       </div>
 
       {/* Toggle collapse button */}

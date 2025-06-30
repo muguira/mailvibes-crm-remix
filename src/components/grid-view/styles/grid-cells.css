@@ -26,8 +26,7 @@
 
 /* Selected cell */
 .grid-cell.selected-cell {
-  background-color: #e0f2fe !important;
-  outline: 2px solid #0ea5e9;
+  outline: 2px solid #32BAB0;
   outline-offset: -2px;
   z-index: 15;
 }
@@ -59,7 +58,7 @@
 }
 
 .grid-cell-input:focus {
-  outline: 2px solid #0ea5e9;
+  outline: 2px solid #32BAB0;
   outline-offset: -2px;
 }
 

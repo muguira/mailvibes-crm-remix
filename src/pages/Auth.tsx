@@ -12,9 +12,9 @@ export default function Auth() {
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
 
-  // If user is already logged in, redirect to dashboard
+  // If user is already logged in, redirect to home
   if (user) {
-    return <Navigate to="/dashboard" />;
+    return <Navigate to="/" />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

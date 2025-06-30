@@ -1,18 +1,18 @@
-
-import React from 'react';
-import { EditableLeadsGrid } from '@/components/grid-view/EditableLeadsGrid';
 import { TopNavbar } from "@/components/layout/top-navbar";
+import { EditableLeadsGrid } from "@/components/grid-view/EditableLeadsGrid";
+import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
 
-// Leads page component
-const Leads: React.FC = () => {
+export default function Leads() {
   return (
-    <div className="flex flex-col h-screen">
-      <TopNavbar />
-      <div className="flex-1 overflow-hidden">
-        <EditableLeadsGrid />
+    <ErrorBoundary sectionName="Leads Page">
+      <div className="flex flex-col h-screen bg-gray-50">
+        <TopNavbar />
+        <div className="flex-1 overflow-hidden">
+          <ErrorBoundary sectionName="Grid View">
+            <EditableLeadsGrid />
+          </ErrorBoundary>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
-};
-
-export default Leads;
+}
