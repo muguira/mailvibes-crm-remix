@@ -1,0 +1,94 @@
+/* Custom Scrollbar Styles */
+
+/* Enable scrollbars for the data grid */
+.data-grid {
+  scrollbar-width: thin !important; /* For Firefox */
+  scrollbar-color: #32BAB0 #f3f4f6 !important; /* For Firefox - thumb and track colors */
+  /* Add padding to prevent content from being hidden under scrollbar */
+  padding-right: 12px !important;
+  padding-bottom: 12px !important;
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+.data-grid::-webkit-scrollbar {
+  display: block !important;
+  width: 12px !important;
+  height: 12px !important;
+}
+
+.data-grid::-webkit-scrollbar-track {
+  display: block !important;
+  background: #f3f4f6 !important;
+  border-radius: 6px !important;
+}
+
+.data-grid::-webkit-scrollbar-thumb {
+  display: block !important;
+  background: #32BAB0 !important;
+  border-radius: 6px !important;
+  border: 2px solid #f3f4f6 !important;
+}
+
+.data-grid::-webkit-scrollbar-thumb:hover {
+  background: #2aa39b !important;
+}
+
+.data-grid::-webkit-scrollbar-thumb:active {
+  background: #258f88 !important;
+}
+
+/* Corner where scrollbars meet */
+.data-grid::-webkit-scrollbar-corner {
+  background: #f3f4f6 !important;
+}
+
+/* Also apply to main grid header for horizontal scrolling */
+.main-grid-header {
+  scrollbar-width: thin !important;
+  scrollbar-color: #32BAB0 #f3f4f6 !important;
+}
+
+.main-grid-header::-webkit-scrollbar {
+  display: block !important;
+  height: 12px !important;
+}
+
+.main-grid-header::-webkit-scrollbar-track {
+  display: block !important;
+  background: #f3f4f6 !important;
+  border-radius: 6px !important;
+}
+
+.main-grid-header::-webkit-scrollbar-thumb {
+  display: block !important;
+  background: #32BAB0 !important;
+  border-radius: 6px !important;
+  border: 2px solid #f3f4f6 !important;
+}
+
+.main-grid-header::-webkit-scrollbar-thumb:hover {
+  background: #2aa39b !important;
+}
+
+.main-grid-header::-webkit-scrollbar-thumb:active {
+  background: #258f88 !important;
+}
+
+/* Mobile adjustments - thinner scrollbars */
+@media (max-width: 768px) {
+  .data-grid::-webkit-scrollbar,
+  .main-grid-header::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+  }
+  
+  .data-grid::-webkit-scrollbar-thumb,
+  .main-grid-header::-webkit-scrollbar-thumb {
+    border: 1px solid #f3f4f6 !important;
+  }
+  
+  .data-grid {
+    padding-right: 8px !important;
+    padding-bottom: 8px !important;
+  }
+} 

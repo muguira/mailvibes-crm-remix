@@ -52,7 +52,7 @@ const saveColumnsToSupabase = async (user: any, columns: Column[]): Promise<void
   try {
     const { supabase } = await import('@/integrations/supabase/client');
     const { error } = await supabase
-      .from('user_settings' as any) // Type assertion to bypass TypeScript error
+      .from('user_settings')
       .upsert({
         user_id: user.id,
         setting_key: 'grid_columns',
@@ -61,16 +61,10 @@ const saveColumnsToSupabase = async (user: any, columns: Column[]): Promise<void
       });
     
     if (error) {
-      // Only log error if it's not a 404 (table not found)
-      if (!error.message?.includes('404')) {
-        console.error('Failed to save columns to Supabase:', error);
-      }
+      console.error('Failed to save columns to Supabase:', error);
     }
   } catch (error) {
-    // Silently fail for 404 errors
-    if (!String(error).includes('404')) {
-      console.error('Error saving columns to Supabase:', error);
-    }
+    console.error('Error saving columns to Supabase:', error);
   }
 };
 
@@ -81,28 +75,19 @@ const loadColumnsFromSupabase = async (user: any): Promise<Column[] | null> => {
   try {
     const { supabase } = await import('@/integrations/supabase/client');
     const { data, error } = await supabase
-      .from('user_settings' as any) // Type assertion to bypass TypeScript error
+      .from('user_settings')
       .select('setting_value')
       .eq('user_id', user.id)
       .eq('setting_key', 'grid_columns')
       .single();
     
-    if (error) {
-      // Return null for 404 errors (table not found)
-      if (error.message?.includes('404') || error.code === 'PGRST116') {
-        return null;
-      }
-      // Only log other errors
-      console.error('Error loading columns from Supabase:', error);
+    if (error || !data) {
       return null;
     }
     
-    return data?.setting_value as Column[];
+    return data.setting_value as Column[];
   } catch (error) {
-    // Silently fail for 404 errors
-    if (!String(error).includes('404')) {
-      console.error('Error loading columns from Supabase:', error);
-    }
+    console.error('Error loading columns from Supabase:', error);
     return null;
   }
 };
@@ -382,50 +367,8 @@ export function EditableLeadsGrid() {
     PAGE_SIZE,
     updateCell,
     addContact,
-    refreshData,
-    fetchLeadsRows,
-    totalCount
+    refreshData
   } = useLeadsRows();
-
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50); // Default to 50 rows per page
-  
-  // Use server-side pagination - rows are already paginated from the hook
-  const totalItems = totalCount; // Use totalCount from the hook
-  const totalPages = Math.ceil(totalItems / pageSize);
-  
-  // Reset to first page when data changes significantly
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-  
-  // Load data when page or page size changes
-  useEffect(() => {
-    // Add a small delay to debounce rapid page changes
-    const timeoutId = setTimeout(() => {
-      fetchLeadsRows(currentPage, pageSize);
-    }, 50);
-    
-    return () => clearTimeout(timeoutId);
-  }, [currentPage, pageSize, fetchLeadsRows]);
-  
-  // Handle page change
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    // Scroll to top of grid when changing pages
-    const gridElement = document.querySelector('.grid-components-container');
-    if (gridElement) {
-      gridElement.scrollTop = 0;
-    }
-  };
-  
-  // Handle page size change
-  const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    // Reset to first page when changing page size
-    setCurrentPage(1);
-  };
   
   // Set grid ready state when data is loaded
   useEffect(() => {
@@ -530,23 +473,17 @@ export function EditableLeadsGrid() {
       
       if (user) {
         const { supabase } = await import('@/integrations/supabase/client');
-        const { error } = await supabase
-          .from('user_settings' as any) // Type assertion to bypass TypeScript error
+        await supabase
+          .from('user_settings')
           .upsert({
             user_id: user.id,
             setting_key: 'hidden_columns',
             setting_value: hiddenCols,
             updated_at: new Date().toISOString()
           });
-          
-        if (error && !error.message?.includes('404')) {
-          console.error('Failed to save hidden columns:', error);
-        }
       }
     } catch (error) {
-      if (!String(error).includes('404')) {
-        console.error('Failed to save hidden columns:', error);
-      }
+      console.error('Failed to save hidden columns:', error);
     }
   };
 
@@ -558,17 +495,15 @@ export function EditableLeadsGrid() {
         
         if (user) {
           const { supabase } = await import('@/integrations/supabase/client');
-          const { data, error } = await supabase
-            .from('user_settings' as any) // Type assertion to bypass TypeScript error
+          const { data } = await supabase
+            .from('user_settings')
             .select('setting_value')
             .eq('user_id', user.id)
             .eq('setting_key', 'hidden_columns')
             .single();
           
-          if (data && !error) {
+          if (data) {
             storedHiddenColumns = data.setting_value as Column[];
-          } else if (error && !error.message?.includes('404') && error.code !== 'PGRST116') {
-            console.error('Error loading hidden columns:', error);
           }
         }
         
@@ -583,9 +518,7 @@ export function EditableLeadsGrid() {
           setHiddenColumns(storedHiddenColumns);
         }
       } catch (error) {
-        if (!String(error).includes('404')) {
-          console.error('Error loading hidden columns:', error);
-        }
+        console.error('Error loading hidden columns:', error);
       }
     };
 
@@ -892,35 +825,24 @@ export function EditableLeadsGrid() {
   }
   
   return (
-    <div className="h-full w-full flex flex-col">
-      <div className="flex-1 overflow-hidden">
-        <GridViewContainer 
+    <div className="h-full w-full">
+      <GridViewContainer 
         columns={columns} 
-          data={rows}  // Use all rows instead of paginated data
+        data={rows}
         listName="All Leads"
         listType="Lead"
         listId="leads-grid"
-          firstRowIndex={(currentPage - 1) * pageSize}  // Calculate the correct start index for row numbering
+        firstRowIndex={0}
         onCellChange={handleCellChange}
         onColumnsReorder={handleColumnsReorder}
         onAddColumn={handleAddColumn}
-          onInsertColumn={handleInsertColumn}
-          onHideColumn={handleHideColumn}
-          onUnhideColumn={handleUnhideColumn}
-          hiddenColumns={hiddenColumns}
-          onSearchChange={setSearchTerm}
-          searchTerm={searchTerm}
-          className="h-full"
-        />
-      </div>
-      <GridPagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        pageSize={pageSize}
-        totalItems={totalItems}
-        onPageChange={handlePageChange}
-        onPageSizeChange={handlePageSizeChange}
-        loading={loading}
+        onInsertColumn={handleInsertColumn}
+        onHideColumn={handleHideColumn}
+        onUnhideColumn={handleUnhideColumn}
+        hiddenColumns={hiddenColumns}
+        onSearchChange={setSearchTerm}
+        searchTerm={searchTerm}
+        className="h-full"
       />
     </div>
   );

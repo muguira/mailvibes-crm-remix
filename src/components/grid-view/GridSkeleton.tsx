@@ -1,6 +1,5 @@
 import React from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { INDEX_COLUMN_WIDTH } from './grid-constants';
 
 interface GridSkeletonProps {
   rowCount?: number;
@@ -10,78 +9,54 @@ interface GridSkeletonProps {
 
 export function GridSkeleton({ 
   rowCount = 10, 
-  columnCount = 8, 
+  columnCount = 7, 
   showToolbar = true 
 }: GridSkeletonProps) {
   return (
-    <div className="grid-view">
+    <div className="flex flex-col h-full bg-white">
       {/* Toolbar skeleton */}
       {showToolbar && (
-        <div className="grid-toolbar">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-4">
-              {/* Search skeleton */}
-              <Skeleton className="h-9 w-64" />
-              {/* Filter button skeleton */}
-              <Skeleton className="h-9 w-9" />
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Action buttons skeleton */}
-              <Skeleton className="h-9 w-24" />
-              <Skeleton className="h-9 w-32" />
-            </div>
+        <div className="h-14 border-b border-gray-200 px-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-9 w-9" />
           </div>
+          <Skeleton className="h-9 w-32" />
         </div>
       )}
 
-      <div className="grid-components-container">
-        {/* Static columns skeleton (index + contact) */}
-        <div className="static-columns-container" style={{ width: INDEX_COLUMN_WIDTH + 180 }}>
+      {/* Grid content with loading overlay */}
+      <div className="flex-1 relative">
+        {/* Simple grid skeleton */}
+        <div className="p-4">
           {/* Headers */}
-          <div className="static-headers">
-            <Skeleton className="index-header h-9" style={{ width: INDEX_COLUMN_WIDTH }} />
-            <Skeleton className="opportunity-header h-9" style={{ width: 180 }} />
+          <div className="flex gap-4 mb-2 pb-2 border-b">
+            <div className="w-12"></div>
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-4 w-24" />
           </div>
           
           {/* Rows */}
-          <div className="static-rows-container">
-            {Array.from({ length: rowCount }).map((_, index) => (
-              <div key={index} className="static-row flex">
-                <div className="index-cell" style={{ width: INDEX_COLUMN_WIDTH }}>
-                  <Skeleton className="h-4 w-6" />
-                </div>
-                <div className="opportunity-cell" style={{ width: 180 }}>
-                  <Skeleton className="h-4 w-32" />
-                </div>
-              </div>
-            ))}
-          </div>
+          {Array.from({ length: rowCount }).map((_, i) => (
+            <div key={i} className="flex gap-4 py-2">
+              <div className="w-12 text-sm text-gray-400">{i + 1}</div>
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-0" />
+              <Skeleton className="h-4 w-0" />
+              <Skeleton className="h-4 w-0" />
+            </div>
+          ))}
         </div>
 
-        {/* Main grid skeleton */}
-        <div className="main-grid-view flex-1">
-          {/* Headers */}
-          <div className="main-grid-header">
-            <div className="grid-header-row flex">
-              {Array.from({ length: columnCount }).map((_, index) => (
-                <div key={index} className="grid-header-cell" style={{ width: 200 }}>
-                  <Skeleton className="h-4 w-24" />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Body */}
-          <div className="main-grid-body">
-            {Array.from({ length: rowCount }).map((_, rowIndex) => (
-              <div key={rowIndex} className="flex" style={{ height: 36 }}>
-                {Array.from({ length: columnCount }).map((_, colIndex) => (
-                  <div key={colIndex} className="grid-cell" style={{ width: 200 }}>
-                    <Skeleton className="h-4 w-full max-w-[150px]" />
-                  </div>
-                ))}
-              </div>
-            ))}
+        {/* Loading spinner overlay */}
+        <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <div className="w-10 h-10 border-3 border-gray-300 border-t-teal-500 rounded-full animate-spin mb-3"></div>
+            <p className="text-sm text-gray-600">Loading contacts...</p>
           </div>
         </div>
       </div>

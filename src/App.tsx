@@ -48,6 +48,7 @@ function App() {
                   <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
                   <Route path="/contact/:id" element={<PrivateRoute><ContactProfile /></PrivateRoute>} />
                   <Route path="/stream" element={<PrivateRoute><StreamView /></PrivateRoute>} />
+                  <Route path="/stream-view/:id" element={<PrivateRoute><StreamView /></PrivateRoute>} />
                   <Route path="/import" element={<PrivateRoute><Import /></PrivateRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

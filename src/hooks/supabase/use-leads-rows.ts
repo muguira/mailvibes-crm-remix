@@ -83,7 +83,11 @@ const getProperOrderedData = (rawRows: GridRow[]): GridRow[] => {
 };
 
 // Constants
-export const PAGE_SIZE = 100;
+export const PAGE_SIZE = 50;
+
+// Cache for storing pages of data
+const pageCache = new Map<string, { data: LeadContact[], timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
 // Local storage fallback functions
 const loadRowsFromLocal = (): LeadContact[] => {
@@ -106,6 +110,9 @@ const saveRowsToLocal = (rows: LeadContact[]): void => {
   }
 };
 
+// Add a Set to track pages being fetched to prevent duplicate requests
+const fetchingPages = new Set<string>();
+
 /**
  * Hook for managing lead rows with Supabase persistence
  * Falls back to localStorage when not authenticated
@@ -116,6 +123,8 @@ export function useLeadsRows() {
   const [rows, setRows] = useState<LeadContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [totalCount, setTotalCount] = useState(0); // Add state for total count
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   
   // Update mockContactsById whenever rows change
   useEffect(() => {
@@ -124,69 +133,90 @@ export function useLeadsRows() {
     });
   }, [rows]);
   
-  // Function to fetch data from Supabase
-  const fetchLeadsRows = async () => {
-    setLoading(true);
+  // Function to get cache key
+  const getCacheKey = (page: number, pageSize: number) => {
+    return `${user?.id}-page-${page}-size-${pageSize}`;
+  };
+  
+  // Function to check if cache is valid
+  const isCacheValid = (timestamp: number) => {
+    return Date.now() - timestamp < CACHE_DURATION;
+  };
+  
+  // Function to fetch data from Supabase - only loads what's needed for current page
+  const fetchLeadsRows = async (page: number = 1, pageSize: number = 50, forceRefresh: boolean = false) => {
+    // Check cache first if not forcing refresh
+    const cacheKey = getCacheKey(page, pageSize);
+    
+    // Prevent duplicate fetches for the same page
+    if (fetchingPages.has(cacheKey) && !forceRefresh) {
+      console.log(`Already fetching page ${page}, skipping duplicate request`);
+      return { totalCount: totalCount };
+    }
+    
+    const cached = pageCache.get(cacheKey);
+    
+    if (!forceRefresh && cached && isCacheValid(cached.timestamp)) {
+      console.log(`Using cached data for page ${page}`);
+      setRows(cached.data);
+      setLoading(false);
+      return { totalCount: totalCount || cached.data.length };
+    }
+    
+    // Mark this page as being fetched
+    fetchingPages.add(cacheKey);
+    
+    // Show loading only if we don't have any data yet
+    if (rows.length === 0 || forceRefresh) {
+      setLoading(true);
+    }
     
     try {
       // First try to fetch from Supabase using contacts table
       if (user) {
-        // Don't clear ID mappings on load - this was causing issues
-        // Instead we'll use a stable mapping system
+        // Calculate offset for pagination
+        const offset = (page - 1) * pageSize;
         
+        // Use smaller page size for faster initial load
+        const actualPageSize = pageSize;
+        
+        // Fetch only the contacts for the current page
         let query = supabase
           .from('contacts')
           .select('id, name, email, phone, company, status, user_id, data, created_at, updated_at')
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }) // Most recent first
+          .range(offset, offset + actualPageSize - 1); // Use range for pagination
           
-        const result = await withRetrySupabase(
-          () => query,
-          {
-            maxAttempts: 3,
-            onRetry: (error, attempt) => {
-              console.log(`Retrying contacts fetch (attempt ${attempt})...`);
-              if (attempt === 2) {
-                toast({
-                  title: "Connection issues",
-                  description: "Having trouble connecting to the server. Retrying...",
-                  variant: "default"
-                });
-              }
-            }
-          }
-        );
+        // Start both queries in parallel for better performance
+        const [dataResult, countResult] = await Promise.all([
+          query,
+          supabase
+            .from('contacts')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+        ]);
         
-        const { data, error } = result;
+        const { data, error } = dataResult;
+        const { count } = countResult;
         
         if (error) {
           console.error("SUPABASE ERROR:", error);
           throw error;
         }
+          
+        console.log(`Loaded page ${page} with ${data?.length || 0} contacts (Total: ${count || 0})`);
+        
+        // Store the total count
+        setTotalCount(count || 0);
+        setIsInitialLoad(false);
         
         // If we have data in Supabase, use it
         if (data && data.length > 0) {
-          // Get existing ID mapping
-          const existingMapping = JSON.parse(localStorage.getItem('id-mapping') || '{}');
-          
-          // Create a reverse mapping for lookups (DB ID -> UI ID)
-          const reverseMapping = Object.entries(existingMapping).reduce((acc, [uiId, dbId]) => {
-            acc[dbId as string] = uiId;
-            return acc;
-          }, {} as Record<string, string>);
-          
-          // Convert contacts to LeadContact format with stable IDs
-          const processedRows = data.map((contact, index) => {
-            // Check if this DB ID already has a UI ID mapping
-            let uiId = reverseMapping[contact.id];
-            
-            // If no existing mapping, create a stable one based on index
-            if (!uiId) {
-              uiId = `lead-${String(index + 1).padStart(3, '0')}`;
-              existingMapping[uiId] = contact.id;
-            }
-            
+          // Convert contacts to LeadContact format - use database IDs directly
+          const processedRows = data.map((contact) => {
             const leadContact: LeadContact = {
-              id: uiId, // Use the stable UI ID
+              id: contact.id, // Use the actual database ID - no mapping needed
               name: contact.name,
               email: contact.email || '',
               phone: contact.phone || '',
@@ -202,13 +232,10 @@ export function useLeadsRows() {
             return leadContact;
           });
           
-          // Save the updated ID mapping
-          localStorage.setItem('id-mapping', JSON.stringify(existingMapping));
-          
           // Sort the rows properly:
           // 1. Imported contacts (with importListName) come first
           // 2. Within imported lists, sort by importOrder
-          // 3. Non-imported contacts come after, sorted by lead ID
+          // 3. Non-imported contacts come after, sorted by creation date
           const sortedRows = processedRows.sort((a, b) => {
             const aImportList = a.importListName || '';
             const bImportList = b.importListName || '';
@@ -235,19 +262,35 @@ export function useLeadsRows() {
             if (aImportOrder !== undefined) return -1;
             if (bImportOrder !== undefined) return 1;
             
-            // Neither has import order - fall back to lead ID comparison
-            // This maintains the original order for non-imported contacts
-            const aNum = parseInt(a.id.replace('lead-', ''), 10);
-            const bNum = parseInt(b.id.replace('lead-', ''), 10);
-            return aNum - bNum;
+            // Neither has import order - they're already sorted by created_at from the query
+            return 0;
           });
           
           setRows(sortedRows);
           
-          // Keep mockContactsById in sync
+          // Cache the data in memory
+          pageCache.set(cacheKey, { data: sortedRows, timestamp: Date.now() });
+          
+          // Also cache first page to localStorage for instant load next time
+          if (page === 1) {
+            try {
+              localStorage.setItem('contacts-first-page', JSON.stringify({
+                data: sortedRows,
+                totalCount: count,
+                timestamp: Date.now()
+              }));
+            } catch (e) {
+              console.warn('Failed to cache to localStorage:', e);
+            }
+          }
+          
+          // Keep mockContactsById in sync (but only for loaded contacts)
           sortedRows.forEach(row => {
             mockContactsById[row.id] = row;
           });
+          
+          // Return the total count for pagination controls
+          return { totalCount: count || 0 };
         } else {
           // Start with an empty array - don't generate dummy data
           setRows([]);
@@ -256,19 +299,32 @@ export function useLeadsRows() {
           Object.keys(mockContactsById).forEach(key => {
             delete mockContactsById[key];
           });
+          
+          return { totalCount: 0 };
         }
       } else {
         // Not logged in - start with empty state
         setRows([]);
+        return { totalCount: 0 };
       }
     } catch (fetchError) {
       console.error('Error fetching from Supabase:', fetchError);
       // Start with empty state on error
       setRows([]);
+      setTotalCount(0);
+      return { totalCount: 0 };
     } finally {
+      // Remove from fetching set when done
+      fetchingPages.delete(cacheKey);
       setLoading(false);
     }
   };
+  
+  // Clear cache when user changes
+  useEffect(() => {
+    pageCache.clear();
+    setIsInitialLoad(true);
+  }, [user?.id]);
   
   // Load data on component mount
   useEffect(() => {
@@ -278,8 +334,9 @@ export function useLeadsRows() {
   // Listen for contact-added events to refresh the data
   useEffect(() => {
     const handleContactAdded = () => {
-      console.log('Contact added event received, refreshing data...');
-      fetchLeadsRows();
+      console.log('Contact added event received, clearing cache and refreshing data...');
+      pageCache.clear(); // Clear cache when data changes
+      fetchLeadsRows(1, 50, true); // Force refresh
     };
 
     document.addEventListener('contact-added', handleContactAdded);
@@ -291,8 +348,9 @@ export function useLeadsRows() {
   
   // Function to force refresh the data
   const refreshData = () => {
+    pageCache.clear(); // Clear all cached pages
     // This will reload the data from Supabase
-    fetchLeadsRows();
+    fetchLeadsRows(1, 50, true);
   };
   
   // Save a row to both Supabase and localStorage
@@ -466,34 +524,13 @@ export function useLeadsRows() {
   const addContact = async (newContact: LeadContact) => {
     try {
       if (user) {
-        // Generate a new row number that's always 1 less than the smallest existing row number
-        // This ensures new contacts always appear at the top
-        const smallestRowNum = rows.reduce((min, row) => {
-          const match = row.id.match(/lead-(\d+)/);
-          if (match) {
-            const num = parseInt(match[1], 10);
-            return num < min ? num : min;
-          }
-          return min;
-        }, 999); // Start with a large number
-        
-        const rowNumber = Math.max(1, smallestRowNum - 1);
-        
-        // Create a stable ID that will always sort to the top
-        const uiId = `lead-${String(rowNumber).padStart(3, '0')}`;
-        
         // Generate a database UUID for storage
         const dbId = uuidv4();
-        
-        // Store the mapping
-        const idMapping = JSON.parse(localStorage.getItem('id-mapping') || '{}');
-        idMapping[uiId] = dbId;
-        localStorage.setItem('id-mapping', JSON.stringify(idMapping));
         
         // Make sure the contact has a proper name
         const contactToSave = {
           ...newContact,
-          id: uiId,
+          id: dbId, // Use database ID directly - no mapping needed
           name: newContact.name || 'Untitled Contact' // Ensure name field is used
         };
         
@@ -503,7 +540,7 @@ export function useLeadsRows() {
         setRows(prevRows => [contactToSave, ...prevRows]);
         
         // Update mockContactsById for Stream View
-        mockContactsById[uiId] = contactToSave;
+        mockContactsById[dbId] = contactToSave;
         
         // Extract fields for Supabase
         const { name, email, phone, company, status } = contactToSave;
@@ -537,6 +574,9 @@ export function useLeadsRows() {
           console.error('Error adding contact to Supabase:', error);
           // Still keep the contact in local state
         }
+        
+        // After successful insert, refresh to get the proper page
+        await fetchLeadsRows(1, 50); // Refresh first page
       } else {
         // Not logged in, just add to local state
         const uiId = newContact.id || `lead-${crypto.randomUUID().substring(0, 8)}`;
@@ -572,5 +612,7 @@ export function useLeadsRows() {
     updateCell, // Export the updateCell function
     addContact, // Export the addContact function
     refreshData, // Export the refresh function
+    fetchLeadsRows, // Export the fetch function for pagination
+    totalCount, // Export the total count
   };
 } 

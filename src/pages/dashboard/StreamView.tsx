@@ -6,13 +6,86 @@ import { mockContactsById } from "@/components/stream/sample-data";
 import { EmptyState } from "@/components/ui/empty-state";
 import StreamViewLayout from '@/components/stream/StreamViewLayout';
 import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function StreamView() {
   const isMobile = useIsMobile();
-  const { recordId } = useParams();
+  const { id } = useParams();
+  const { user } = useAuth();
+  const [contact, setContact] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   
-  // Get the contact data based on the URL parameter
-  const contact = recordId ? mockContactsById[recordId] : undefined;
+  useEffect(() => {
+    const fetchContact = async () => {
+      if (!id || !user) {
+        setLoading(false);
+        return;
+      }
+      
+      // First check if contact is already in memory
+      if (mockContactsById[id]) {
+        setContact(mockContactsById[id]);
+        setLoading(false);
+        return;
+      }
+      
+      // If not in memory, fetch from database
+      try {
+        const { data, error } = await supabase
+          .from('contacts')
+          .select('*')
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .single();
+          
+        if (error) {
+          console.error('Error fetching contact:', error);
+          setContact(null);
+        } else if (data) {
+          // Transform the data to match the expected format
+          const transformedContact = {
+            id: data.id,
+            name: data.name,
+            email: data.email || '',
+            phone: data.phone || '',
+            company: data.company || '',
+            status: data.status || '',
+            ...(data.data || {})
+          };
+          
+          // Also update mockContactsById for consistency
+          mockContactsById[id] = transformedContact;
+          setContact(transformedContact);
+        }
+      } catch (error) {
+        console.error('Error fetching contact:', error);
+        setContact(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchContact();
+  }, [id, user]);
+  
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-slate-light/20">
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <TopNavbar />
+          <div className="overflow-auto flex-1">
+            <div className={`px-6 pt-12 ${isMobile ? "pb-6" : "pb-6"}`}>
+              <Skeleton className="h-20 w-full mb-4" />
+              <Skeleton className="h-96 w-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <ErrorBoundary sectionName="Stream View">
@@ -29,8 +102,8 @@ export default function StreamView() {
               
               <ErrorBoundary sectionName="Stream Content">
                 <StreamViewLayout contact={contact || {
-                  id: 'not-found',
-                  name: '',
+                  id: id || 'not-found',
+                  name: 'Contact Not Found',
                 }} />
               </ErrorBoundary>
             </div>

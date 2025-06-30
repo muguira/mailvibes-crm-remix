@@ -41,3 +41,9 @@
 
 /* Scroll Buttons */
 @import './scroll-buttons.css';
+
+/* Custom Scrollbar Styling */
+@import './scrollbar.css';
+
+/* Pagination */
+@import './pagination.css';

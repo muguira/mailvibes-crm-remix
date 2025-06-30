@@ -6,7 +6,6 @@ import { MainGridView } from './MainGridView';
 import { INDEX_COLUMN_WIDTH } from './grid-constants';
 import { toast } from '@/hooks/use-toast';
 import './styles.css';
-import { ScrollButtons } from '../ScrollButtons';
 
 export function GridViewContainer({
   columns,
@@ -372,9 +371,6 @@ export function GridViewContainer({
           </>
         )}
       </div>
-
-      {/* Scroll control buttons */}
-      <ScrollButtons targetRef={mainGridRef} />
     </div>
   );
 } 
