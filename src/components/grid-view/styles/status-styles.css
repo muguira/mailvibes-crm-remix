@@ -1,0 +1,295 @@
+/* Status Styles - Status pills, dropdowns, and command palette */
+
+/* Status pills */
+.status-pill {
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+/* Status badge styling */
+.status-badge {
+  border-radius: 9999px;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* Status color overrides - softer colors with opacity */
+[data-value="New"] .inline-block,
+.status-pill[data-value="New"] {
+  background-color: rgba(250, 237, 203, 0.7) !important;
+  color: #000000 !important;
+}
+
+[data-value="In Progress"] .inline-block,
+.status-pill[data-value="In Progress"] {
+  background-color: rgba(201, 228, 222, 0.7) !important;
+  color: #000000 !important;
+}
+
+[data-value="On Hold"] .inline-block,
+.status-pill[data-value="On Hold"] {
+  background-color: rgba(198, 222, 241, 0.7) !important;
+  color: #000000 !important;
+}
+
+[data-value="Closed Won"] .inline-block,
+.status-pill[data-value="Closed Won"] {
+  background-color: rgba(219, 205, 240, 0.7) !important;
+  color: #000000 !important;
+}
+
+[data-value="Closed Lost"] .inline-block,
+.status-pill[data-value="Closed Lost"] {
+  background-color: rgba(242, 198, 222, 0.7) !important;
+  color: #000000 !important;
+}
+
+/* Status dropdown styling */
+.status-select {
+  appearance: auto;
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  color: #111827;
+  cursor: pointer;
+  width: calc(100% - 1rem);
+  margin: 0 0.5rem;
+}
+
+.status-select:focus {
+  border-color: #62BFAA;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(98, 191, 170, 0.2);
+}
+
+.status-select option {
+  padding: 0.5rem;
+}
+
+/* Status dropdown input */
+.grid-cell-input.status-select {
+  border: none !important;
+  background: transparent;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  box-shadow: none !important;
+  padding: 0px 8px;
+  outline: none !important;
+  transition: border-color 0.1s ease-in-out;
+}
+
+.grid-cell-input.status-select:focus,
+.grid-cell-input.status-select[data-state="open"] {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  ring: none !important;
+}
+
+[data-radix-select-trigger] {
+  outline: none !important;
+  box-shadow: none !important;
+  --ring-color: transparent !important;
+  --ring-offset-color: transparent !important;
+  --ring-offset-width: 0 !important;
+  --ring-width: 0 !important;
+}
+
+/* Height fix for status select */
+[data-column-id="status"] .grid-cell-input {
+  min-height: 30px;
+  height: 30px;
+}
+
+/* Hide arrow on the status select trigger */
+.grid-cell-input.status-select svg {
+  display: none;
+}
+
+/* Status dropdown content */
+.status-dropdown-content {
+  z-index: 100 !important;
+  position: absolute;
+  min-width: 150px !important;
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 6px !important;
+  background-color: white !important;
+  transition: none !important;
+  animation-duration: 0ms !important;
+}
+
+.status-dropdown-content [data-radix-select-item] {
+  padding: 8px 10px !important;
+  margin: 2px 4px !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  font-size: 13px !important;
+}
+
+.status-dropdown-content [data-radix-select-item]:hover {
+  background-color: #f5f5f5 !important;
+}
+
+.status-dropdown-content [data-radix-select-item][data-highlighted] {
+  background-color: #f0f0f0 !important;
+  color: #000 !important;
+}
+
+.status-dropdown-content[data-state="closed"] {
+  display: none !important;
+}
+
+/* Status cell styling */
+.grid-cell[data-column-id="status"] {
+  text-align: center;
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center !important;
+  align-items: center !important;
+  padding: 0 !important;
+}
+
+/* Status popover styling */
+.status-options-popup {
+  width: 160px;
+  padding: 0;
+  background-color: white;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+  overflow: hidden;
+  animation: none !important;
+  transform-origin: var(--radix-popover-content-transform-origin);
+  transform: translateY(0) !important;
+  max-height: 200px;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.status-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.status-popup-close {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.status-popup-close:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+/* Status command palette */
+.status-command {
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.status-command [cmdk-list] {
+  padding-top: 0 !important;
+  gap: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.status-command-item {
+  padding: 4px 10px;
+  border-radius: 0;
+  cursor: pointer !important;
+  transition: background-color 0.15s ease;
+  height: 28px;
+  min-height: 28px;
+  font-size: 13px;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+}
+
+.status-command-item:hover {
+  background-color: rgba(247, 217, 196, 0.7) !important;
+}
+
+.status-command-item[data-selected=true] {
+  background-color: rgba(247, 217, 196, 0.7) !important;
+}
+
+.status-command-item * {
+  pointer-events: none;
+}
+
+.status-command-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0 !important;
+  padding-bottom: 4px !important;
+}
+
+/* Status command dots */
+.status-command-item .inline-block.w-3.h-3,
+.status-dropdown-content [data-radix-select-item] .inline-block.w-3.h-3 {
+  opacity: 1 !important;
+}
+
+/* Smaller checkmark icon */
+.status-command-item .ml-auto.h-4.w-4 {
+  height: 14px !important;
+  width: 14px !important;
+}
+
+/* Status popup cleanup */
+.status-options-popup>div {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+div[cmdk-root] {
+  min-height: 0 !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+div[cmdk-list] {
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+div[cmdk-list]:after {
+  content: none !important;
+  display: none !important;
+}
+
+[data-state="open"][data-trigger="status"] {
+  z-index: 49 !important;
+}

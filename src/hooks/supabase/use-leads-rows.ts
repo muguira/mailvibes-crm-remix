@@ -136,8 +136,7 @@ export function useLeadsRows() {
         let query = supabase
           .from('contacts')
           .select('id, name, email, phone, company, status, user_id, data, created_at, updated_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+          .eq('user_id', user.id);
           
         const { data, error } = await query;
         
@@ -177,6 +176,8 @@ export function useLeadsRows() {
               status: contact.status || '',
               // Extract importListName from data field if it exists
               importListName: contact.data?.importListName || '',
+              // Extract importOrder to preserve CSV row order
+              importOrder: contact.data?.importOrder,
               // Spread the rest of the data field
               ...(contact.data || {})
             };
@@ -186,10 +187,47 @@ export function useLeadsRows() {
           // Save the updated ID mapping
           localStorage.setItem('id-mapping', JSON.stringify(existingMapping));
           
-          setRows(processedRows);
+          // Sort the rows properly:
+          // 1. Imported contacts (with importListName) come first
+          // 2. Within imported lists, sort by importOrder
+          // 3. Non-imported contacts come after, sorted by lead ID
+          const sortedRows = processedRows.sort((a, b) => {
+            const aImportList = a.importListName || '';
+            const bImportList = b.importListName || '';
+            
+            // If one has import list and other doesn't, imported one comes first
+            if (aImportList && !bImportList) return -1;
+            if (!aImportList && bImportList) return 1;
+            
+            // Both have import lists - sort by list name first
+            if (aImportList && bImportList && aImportList !== bImportList) {
+              return aImportList.localeCompare(bImportList);
+            }
+            
+            // Same import list (or both have no list) - check import order
+            const aImportOrder = a.importOrder;
+            const bImportOrder = b.importOrder;
+            
+            // If both have import order, use that (ascending - first row first)
+            if (aImportOrder !== undefined && bImportOrder !== undefined) {
+              return aImportOrder - bImportOrder;
+            }
+            
+            // If only one has import order, it goes first
+            if (aImportOrder !== undefined) return -1;
+            if (bImportOrder !== undefined) return 1;
+            
+            // Neither has import order - fall back to lead ID comparison
+            // This maintains the original order for non-imported contacts
+            const aNum = parseInt(a.id.replace('lead-', ''), 10);
+            const bNum = parseInt(b.id.replace('lead-', ''), 10);
+            return aNum - bNum;
+          });
+          
+          setRows(sortedRows);
           
           // Keep mockContactsById in sync
-          processedRows.forEach(row => {
+          sortedRows.forEach(row => {
             mockContactsById[row.id] = row;
           });
         } else {
@@ -218,6 +256,20 @@ export function useLeadsRows() {
   useEffect(() => {
     fetchLeadsRows();
   }, [user?.id]);
+  
+  // Listen for contact-added events to refresh the data
+  useEffect(() => {
+    const handleContactAdded = () => {
+      console.log('Contact added event received, refreshing data...');
+      fetchLeadsRows();
+    };
+
+    document.addEventListener('contact-added', handleContactAdded);
+
+    return () => {
+      document.removeEventListener('contact-added', handleContactAdded);
+    };
+  }, []);
   
   // Function to force refresh the data
   const refreshData = () => {

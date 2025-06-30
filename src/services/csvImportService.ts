@@ -20,6 +20,7 @@ interface ProcessedRow {
   contact: any;
   account: any;
   listFields: Record<string, any>;
+  importOrder: number;
 }
 
 const BATCH_SIZE = 100;
@@ -55,24 +56,30 @@ export async function importCsvData(
     // Process rows in batches
     const totalRows = parsedData.rows.length;
     const batches = Math.ceil(totalRows / BATCH_SIZE);
+    let totalProcessed = 0;
+    let globalRowIndex = 0; // Track the absolute row position across all batches
 
     for (let i = 0; i < batches; i++) {
       const start = i * BATCH_SIZE;
       const end = Math.min(start + BATCH_SIZE, totalRows);
       const batchRows = parsedData.rows.slice(start, end);
 
-      // Process batch
-      const processedRows = batchRows.map(row => processRow(
-        row,
-        contactFieldMappings,
-        accountFieldMappings,
-        listFieldDefinitions
-      ));
+      // Process batch with row indices
+      const processedRows = batchRows.map((row, batchIndex) => {
+        const absoluteRowIndex = globalRowIndex + batchIndex;
+        return processRow(
+          row,
+          contactFieldMappings,
+          accountFieldMappings,
+          listFieldDefinitions,
+          absoluteRowIndex // Pass the absolute row index
+        );
+      });
 
       // Separate contacts by whether they have emails
       const contactsWithEmail = processedRows
         .filter(row => row.contact && row.contact.email)
-        .map(row => {
+        .map((row, index) => {
           const contact = row.contact;
           
           // Build the data object with all imported fields
@@ -80,6 +87,7 @@ export async function importCsvData(
             // Add the list name so we can filter by it
             importListName: listName,
             importedAt: new Date().toISOString(),
+            importOrder: row.importOrder, // Add import order to preserve CSV row order
             
             // Store contact properties that don't have direct columns
             address: contact.address || null,
@@ -105,14 +113,16 @@ export async function importCsvData(
             phone: contact.phone || null,
             company: row.account?.name || null,
             status: 'New',
-            data: dataObject
+            data: dataObject,
+            // Set created_at based on import order to maintain CSV row order
+            created_at: new Date(Date.now() + row.importOrder).toISOString()
           };
         });
 
       // Contacts without email (can be inserted directly)
       const contactsWithoutEmail = processedRows
         .filter(row => row.contact && !row.contact.email && row.contact.name)
-        .map(row => {
+        .map((row, index) => {
           const contact = row.contact;
           
           // Build the data object with all imported fields
@@ -120,6 +130,7 @@ export async function importCsvData(
             // Add the list name so we can filter by it
             importListName: listName,
             importedAt: new Date().toISOString(),
+            importOrder: row.importOrder, // Add import order to preserve CSV row order
             
             // Store contact properties that don't have direct columns
             address: contact.address || null,
@@ -145,7 +156,9 @@ export async function importCsvData(
             phone: contact.phone || null,
             company: row.account?.name || null,
             status: 'New',
-            data: dataObject
+            data: dataObject,
+            // Set created_at based on import order to maintain CSV row order
+            created_at: new Date(Date.now() + row.importOrder).toISOString()
           };
         });
 
@@ -228,9 +241,13 @@ export async function importCsvData(
         }
       }
 
-      // Update progress
+      // Update global row index for next batch
+      globalRowIndex += batchRows.length;
+
+      // Update progress based on rows processed, not batches
+      totalProcessed += batchRows.length;
       if (onProgress) {
-        const progress = Math.round(((i + 1) / batches) * 100);
+        const progress = Math.round((totalProcessed / totalRows) * 100);
         onProgress(progress);
       }
     }
@@ -250,7 +267,8 @@ function processRow(
   row: Record<string, string>,
   contactFieldMappings: FieldMapping[],
   accountFieldMappings: AccountFieldMapping[],
-  listFieldDefinitions: ListFieldDefinition[]
+  listFieldDefinitions: ListFieldDefinition[],
+  rowIndex: number // Add row index parameter
 ): ProcessedRow {
   // Map contact fields
   const contact = mapColumnsToContact(row, contactFieldMappings);
@@ -266,7 +284,7 @@ function processRow(
     }
   });
 
-  return { contact, account, listFields };
+  return { contact, account, listFields, importOrder: rowIndex };
 }
 
 function convertFieldValue(value: string, type: string): any {

@@ -200,16 +200,11 @@ export function CsvImportWizard({ onComplete }: CsvImportWizardProps) {
       );
 
       // Show success message
-      toast({
-        title: "Import Successful",
-        description: `Created ${result.contactsCreated} new contacts${result.contactsUpdated > 0 ? ` and updated ${result.contactsUpdated} existing contacts` : ''}`,
-      });
+      toast.success(`Created ${result.contactsCreated} new contacts${result.contactsUpdated > 0 ? ` and updated ${result.contactsUpdated} existing contacts` : ''}`);
 
       // Show errors if any
       if (result.errors.length > 0) {
-        toast.error("Some errors occurred", {
-          description: result.errors.join(", "),
-        });
+        toast.error(`Some errors occurred: ${result.errors.join(", ")}`);
       }
 
       // Call onComplete callback

@@ -1,0 +1,43 @@
+/* Grid View Styles - Main Entry Point
+ * This file imports all modular CSS files
+ * Original styles.css has been split into logical modules for better maintainability
+ */
+
+/* Core Layout & Structure */
+@import './grid-layout.css';
+
+/* Toolbar & Search Components */
+@import './toolbar.css';
+
+/* Static/Frozen Columns (Index & Contact) */
+@import './static-columns.css';
+
+/* Grid Headers */
+@import './grid-headers.css';
+
+/* Grid Cells & Editing */
+@import './grid-cells.css';
+
+/* Status Pills & Dropdowns */
+@import './status-styles.css';
+
+/* Date Picker & Calendar */
+@import './date-picker.css';
+
+/* Popovers, Dialogs & Modals */
+@import './popovers-dialogs.css';
+
+/* Mobile & Responsive Styles */
+@import './responsive.css';
+
+/* Animations & Transitions */
+@import './animations.css';
+
+/* Z-Index Hierarchy Management */
+@import './z-index.css';
+
+/* Pin/Freeze Column Features */
+@import './pin-columns.css';
+
+/* Scroll Buttons */
+@import './scroll-buttons.css';

@@ -1,0 +1,91 @@
+/* Grid Headers - Header row and cell styles */
+
+/* Grid header row */
+.grid-header-row {
+  display: flex;
+  background-color: #f9fafb;
+  height: 36px;
+  z-index: 30;
+}
+
+.grid-header-cell {
+  height: 36px;
+  padding: 0 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-right: 1px solid #e5e7eb;
+  font-weight: 500;
+  color: #111827;
+  background-color: #f9fafb;
+  cursor: pointer;
+  box-sizing: border-box;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.5;
+}
+
+.grid-header-cell:hover {
+  background-color: #f3f4f6;
+}
+
+/* First scrollable column styling */
+.grid-header-cell-first-scrollable {
+  border-left: 1px solid #e5e7eb;
+}
+
+/* Add column button */
+.add-column-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 36px;
+  background-color: #f9fafb;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.add-column-button:hover {
+  background-color: #f3f4f6;
+  color: #2563eb;
+}
+
+/* Highlight column on context menu */
+.highlight-column {
+  background-color: #eff6ff !important;
+}
+
+/* Context menu container */
+.context-menu-container {
+  position: fixed;
+}
+
+/* Column dragging styles */
+.dragging {
+  opacity: 0.8;
+  background-color: rgba(214, 235, 255, 0.5);
+}
+
+/* Blue line indicator for column dragging target */
+.column-drag-indicator {
+  position: absolute;
+  width: 3px;
+  height: 100%;
+  background-color: #2684ff;
+  top: 0;
+  pointer-events: none;
+  transition: left 0.1s ease;
+  z-index: 100;
+}
+
+/* Frozen header styles */
+.grid-frozen-header {
+  position: sticky !important;
+  background-color: #f9fafb !important;
+  z-index: 50 !important;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1) !important;
+}

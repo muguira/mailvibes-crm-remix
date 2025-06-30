@@ -1,0 +1,129 @@
+/* Grid Layout - Core container and structure styles */
+
+/* Grid container */
+.grid-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: #fff;
+    font-family: 'Inter', system-ui, sans-serif;
+    user-select: none;
+    overflow: hidden;
+    position: relative;
+    padding-top: 108px; /* Account for both top navbar (48px) and toolbar (60px) */
+  }
+  
+  /* Grid components container */
+  .grid-components-container {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    border-top: 1px solid #e5e7eb;
+  }
+  
+  /* Main grid view */
+  .main-grid-view {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    outline: none !important;
+    z-index: 10;
+  }
+  
+  /* Only show focus styles when actually focused via keyboard */
+  .main-grid-view:focus-visible {
+    outline: 2px solid #62BFAA !important;
+  }
+  
+  /* Make sure focus doesn't hide toolbar */
+  .main-grid-view:focus {
+    z-index: 10;
+  }
+  
+  .main-grid-header {
+    overflow-x: scroll;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    background-color: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+    border-bottom: 1px solid #e5e7eb;
+    position: relative;
+    z-index: 31;
+    width: 100%;
+  }
+  
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .main-grid-header::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .main-grid-body {
+    position: relative;
+    height: calc(100% - 36px); /* 100% - HEADER_HEIGHT */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Full height container */
+  .h-full {
+    height: 100vh !important;
+  }
+  
+  .data-grid {
+    overflow: scroll !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    padding-right: 0;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 40px !important;
+    margin-bottom: 30px;
+    max-height: none !important;
+    height: auto !important;
+    min-height: 100% !important;
+    will-change: transform;
+    overscroll-behavior: auto;
+    scroll-behavior: auto !important;
+  }
+  
+  /* Hide scrollbars while keeping scroll functionality */
+  .data-grid::-webkit-scrollbar,
+  .data-grid::-webkit-scrollbar-track,
+  .data-grid::-webkit-scrollbar-thumb {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+  
+  /* Grid container styles */
+  .grid-container {
+    display: flex;
+    flex-direction: column;
+    height: 100% !important;
+    min-height: 100vh;
+    position: relative;
+    padding-bottom: 10px;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  /* No rows empty state */
+  .no-rows {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #6b7280;
+    font-size: 0.875rem;
+  }
+  
+  .no-rows svg {
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 1rem;
+    color: #d1d5db;
+  }

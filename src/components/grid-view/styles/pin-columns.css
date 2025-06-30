@@ -1,0 +1,29 @@
+/* Pin/Freeze Column Features - Pin icon and frozen column styles */
+
+/* Pin icon styles for column headers */
+.pin-icon {
+    opacity: 0;
+    transition: opacity 0.2s;
+    margin-left: 6px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .grid-header-cell.group:hover .pin-icon,
+  .static-header-cell.group:hover .pin-icon {
+    opacity: 1 !important;
+  }
+  
+  .pin-icon.text-\[#62BFAA\] svg {
+    color: #62BFAA;
+  }
+  
+  .pin-icon.text-gray-400 svg {
+    color: #9ca3af;
+  }
+  
+  /* Background for frozen columns */
+  .static-header-cell, 
+  .grid-header-cell.grid-frozen-header {
+    background-color: #f3f4f6 !important;
+  }

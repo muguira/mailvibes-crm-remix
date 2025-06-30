@@ -1,0 +1,181 @@
+/* Responsive Styles - Mobile and media queries */
+
+/* Mobile toolbar optimizations */
+@media (max-width: 767px) {
+  /* Container for mobile toolbar buttons */
+  .grid-toolbar .flex.items-center.w-full {
+    height: 40px;
+    align-items: center;
+    padding-right: 8px;
+  }
+
+  /* Ensure buttons are properly sized and aligned */
+  .grid-toolbar button.p-2,
+  .grid-toolbar .h-9.w-9 {
+    height: 36px;
+    width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Filter button next to search icon when collapsed */
+  .grid-toolbar .flex.items-center .ml-1 {
+    margin-left: 4px;
+  }
+
+  /* Make sure search expands smoothly */
+  .grid-toolbar .absolute.left-10.right-0 {
+    animation: slideIn 0.2s ease-out;
+    height: 36px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Ensure focus stays on search when expanded */
+  .grid-toolbar .search-input-field:focus {
+    outline: none;
+    border-color: #32BAB0;
+  }
+
+  /* Make dialog smaller on mobile */
+  [data-radix-dialog-content] {
+    max-width: 92vw !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+    padding: 16px !important;
+  }
+
+  /* Dialog header smaller on mobile */
+  [data-radix-dialog-title] {
+    font-size: 18px !important;
+  }
+
+  [data-radix-dialog-description] {
+    font-size: 14px !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* Fix spacing in dialog content */
+  [data-radix-dialog-content] .grid.gap-4 {
+    gap: 12px !important;
+  }
+
+  /* Smaller labels and inputs in dialog */
+  [data-radix-dialog-content] label {
+    font-size: 14px !important;
+    margin-bottom: 2px !important;
+  }
+
+  /* Prevent content overflow */
+  [data-radix-dialog-content] input,
+  [data-radix-dialog-content] select {
+    font-size: 14px !important;
+  }
+
+  /* Button spacing in dialog footer */
+  [data-radix-dialog-footer].flex-col>button {
+    margin-top: 8px !important;
+  }
+
+  /* Mobile grid adjustments */
+  .grid-view {
+    padding-top: 96px; /* Reduced for mobile */
+  }
+
+  /* Smaller row heights on mobile */
+  .grid-cell,
+  .index-cell,
+  .opportunity-cell {
+    min-height: 32px;
+    height: 32px;
+    font-size: 0.8125rem;
+  }
+
+  /* Adjust static column widths */
+  .index-header,
+  .index-cell {
+    width: 40px;
+  }
+
+  /* Mobile-specific column widths */
+  .opportunity-header,
+  .opportunity-cell {
+    min-width: 140px;
+    max-width: 180px;
+  }
+}
+
+/* Small screen adjustments */
+@media (max-width: 640px) {
+  .grid-toolbar {
+    padding: 0.5rem;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    gap: 0.25rem;
+  }
+
+  /* Force smaller dialog on mobile */
+  .w-\[90vw\].max-w-\[500px\] {
+    width: 85vw !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+  }
+
+  /* Hide less important toolbar buttons on very small screens */
+  .toolbar-right > button:not(:first-child):not(:last-child) {
+    display: none;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .grid-view {
+    padding-top: 108px;
+  }
+
+  /* Slightly larger cells on tablets */
+  .grid-cell {
+    padding: 0.625rem 0.875rem;
+  }
+}
+
+/* Large screen optimizations */
+@media (min-width: 1024px) {
+  /* Enable hover effects only on desktop */
+  .grid-cell:hover {
+    background-color: #f9fafb;
+  }
+
+  /* Show pin icons on hover only on desktop */
+  .pin-icon {
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .grid-header-cell:hover .pin-icon,
+  .static-header-cell:hover .pin-icon {
+    opacity: 1;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  .grid-toolbar button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Always show pin icons on touch devices */
+  .pin-icon {
+    opacity: 1 !important;
+  }
+
+  /* Disable hover effects on touch */
+  .grid-cell:hover {
+    background-color: transparent;
+  }
+}

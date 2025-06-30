@@ -1,0 +1,137 @@
+/* Toolbar Styles - Fixed toolbar below main navigation */
+
+/* Grid toolbar - fixed position below main navigation */
+.grid-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  justify-content: space-between;
+  background-color: #fff;
+  z-index: 9999;
+  position: fixed;
+  top: 48px;
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-height: 60px;
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-left {
+  gap: 1rem;
+}
+
+.toolbar-right {
+  gap: 0.5rem;
+}
+
+/* Search field styling */
+.search-field-container {
+  position: relative;
+  border-color: #e5e7eb;
+}
+
+.search-field-container:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem 0.5rem 0.5rem 2rem;
+  background-color: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.875rem;
+  color: #111827;
+}
+
+.search-input:focus {
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: #9ca3af;
+}
+
+/* Mobile search icon */
+.mobile-search-icon {
+  color: #6b7280;
+  cursor: pointer;
+  min-width: 28px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Mobile-optimized search container */
+.search-container-mobile {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* Expand search on mobile when active */
+.search-expanded {
+  width: 100%;
+  transition: width 0.2s ease;
+}
+
+/* Prevent layout shift during mobile search */
+.search-placeholder {
+  width: 32px;
+  height: 32px;
+}
+
+/* Search highlight */
+.search-highlight {
+  background-color: #fef3c7;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.125rem;
+}
+
+/* Toolbar visibility protection */
+body.grid-view-active .grid-toolbar {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: fixed !important;
+  top: 48px !important;
+}
+
+body.grid-scroll-active .grid-toolbar {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  position: fixed !important;
+  top: 48px !important;
+  z-index: 9999 !important;
+  transform: translateZ(0) !important;
+  will-change: transform !important;
+  transition: none !important;
+}
+
+/* Align search icon with filter icon */
+.grid-toolbar .flex.items-center .p-2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Filter button alignment */
+.flex.items-center>.ml-1 .FilterPopupBase {
+  margin-left: 0;
+}
+
+/* Force $ emoji color in the navbar */
+.text-\[\#32BAB0\] {
+  color: #32BAB0 !important;
+}

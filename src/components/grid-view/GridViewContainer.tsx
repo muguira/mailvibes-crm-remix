@@ -6,6 +6,7 @@ import { MainGridView } from './MainGridView';
 import { INDEX_COLUMN_WIDTH } from './grid-constants';
 import { toast } from '@/hooks/use-toast';
 import './styles.css';
+import { ScrollButtons } from '../ScrollButtons';
 
 export function GridViewContainer({
   columns,
@@ -29,6 +30,7 @@ export function GridViewContainer({
 }: GridContainerProps) {
   // Container references for sizing
   const containerRef = useRef<HTMLDivElement>(null);
+  const mainGridRef = useRef<any>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
 
@@ -343,6 +345,7 @@ export function GridViewContainer({
 
             {/* Main data grid - adjust width to account for static columns */}
             <MainGridView
+              ref={mainGridRef}
               columns={scrollableColumns}
               data={visibleData}
               scrollTop={scrollTop}
@@ -369,6 +372,9 @@ export function GridViewContainer({
           </>
         )}
       </div>
+
+      {/* Scroll control buttons */}
+      <ScrollButtons targetRef={mainGridRef} />
     </div>
   );
 } 

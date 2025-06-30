@@ -1,0 +1,70 @@
+/* Popovers & Dialogs - Modal, dialog, and popover styles */
+
+/* Dialog overlay and content */
+.shadcn-dialog-overlay {
+  z-index: 10002 !important;
+}
+
+.shadcn-dialog-content {
+  z-index: 10003 !important;
+}
+
+[data-radix-dialog-overlay] {
+  z-index: 10002 !important;
+}
+
+[data-radix-dialog-content] {
+  z-index: 10003 !important;
+}
+
+/* Popover content wrapper */
+[data-radix-popper-content-wrapper] {
+  z-index: 10005 !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+  transform-style: preserve-3d !important;
+  isolation: isolate !important;
+  will-change: transform !important;
+}
+
+/* Force smaller dialog on mobile */
+.w-\[90vw\].max-w-\[500px\] {
+  width: 85vw !important;
+  max-height: 80vh !important;
+  overflow-y: auto !important;
+}
+
+/* Z-Index Hierarchy Management
+ * 
+ * Z-Index Scale:
+ * 10000+ : Main navigation (highest)
+ * 10005-10007 : Calendar/date popovers
+ * 10002-10003 : Dialogs and overlays
+ * 9999 : Grid toolbar
+ * 100 : Dropdown content
+ * 50 : Frozen headers
+ * 49 : Status popovers
+ * 40-42 : Static columns
+ * 30-31 : Grid headers
+ * 20 : Selected status cells
+ * 15 : Selected cells
+ * 10 : Main grid view
+ */
+
+/* Prevent focus from affecting z-index */
+body.grid-keyboard-nav *:focus {
+  z-index: auto !important;
+}
+
+body.grid-scroll-active *:focus,
+body.grid-scroll-active .main-grid-view,
+body.grid-scroll-active .main-grid-body {
+  z-index: auto !important;
+}
+
+/* Ensure grid never gets higher z-index than toolbar */
+.main-grid-view:focus,
+.main-grid-view:focus-visible,
+.main-grid-view:focus-within {
+  z-index: 10 !important;
+}

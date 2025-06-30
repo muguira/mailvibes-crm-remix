@@ -1,0 +1,61 @@
+/* Date Picker - Calendar and date-related styles */
+
+/* Date column styles */
+[data-column-id^="date"] .grid-cell-input,
+[data-column-id="lastContacted"] .grid-cell-input {
+  text-align: left;
+  padding-left: 8px;
+}
+
+/* Invalid date input styling */
+.grid-cell-input.invalid-date {
+  border: 1px solid #f87171 !important;
+  background-color: #fee2e2 !important;
+  color: #ef4444 !important;
+}
+
+.grid-cell-input.invalid-date::placeholder {
+  color: #ef4444 !important;
+  font-size: 12px !important;
+}
+
+/* Date calendar popup styles */
+.date-options-popup {
+  min-width: 300px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 8px !important;
+  z-index: 10006 !important;
+  background-color: white !important;
+}
+
+.date-popup-header {
+  background-color: #f9fafb;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+/* Calendar styles */
+.react-calendar {
+  border: 1px solid #e5e7eb !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  background-color: white !important;
+}
+
+.react-calendar__month-view__days__day {
+  position: relative !important;
+  z-index: 10007 !important;
+}
+
+/* Calendar z-index management */
+.react-calendar,
+[role="dialog"][aria-label*="calendar"],
+[data-radix-popper-content-wrapper] [role="dialog"] {
+  z-index: 10006 !important;
+}
+
+/* Calendar popup rendering fix */
+[role="dialog"][aria-label*="calendar"] {
+  position: relative !important;
+  isolation: isolate !important;
+}

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { Column, GridRow, EditingCell } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './grid-constants';
@@ -54,7 +54,7 @@ interface MainGridViewProps {
   allColumns?: Column[];
 }
 
-export function MainGridView({
+export const MainGridView = forwardRef(function MainGridView({
   columns,
   data,
   scrollLeft,
@@ -75,7 +75,7 @@ export function MainGridView({
   editingCell,
   setEditingCell,
   allColumns
-}: MainGridViewProps) {
+}: MainGridViewProps, ref) {
   const gridRef = useRef<any>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const mainViewRef = useRef<HTMLDivElement>(null);
@@ -109,6 +109,29 @@ export function MainGridView({
     columnId: '',
     columnName: '',
   });
+
+  // Expose scroll methods via ref
+  useImperativeHandle(ref, () => ({
+    scrollToTop: () => {
+      if (gridRef.current?._outerRef) {
+        gridRef.current._outerRef.scrollTo({
+          top: 0,
+          left: gridRef.current._outerRef.scrollLeft,
+          behavior: 'smooth'
+        });
+      }
+    },
+    scrollToBottom: () => {
+      if (gridRef.current?._outerRef) {
+        const gridElement = gridRef.current._outerRef;
+        gridElement.scrollTo({
+          top: gridElement.scrollHeight,
+          left: gridElement.scrollLeft,
+          behavior: 'smooth'
+        });
+      }
+    }
+  }), []);
 
   // Add a special effect to preserve toolbar visibility on initial render
   useEffect(() => {
@@ -1433,4 +1456,4 @@ export function MainGridView({
       />
     </div>
   );
-} 
+}); 

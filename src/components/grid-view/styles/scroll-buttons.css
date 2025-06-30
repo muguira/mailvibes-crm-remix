@@ -1,0 +1,82 @@
+/* Scroll buttons container */
+.grid-scroll-buttons {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: row; /* Ensure horizontal layout */
+  gap: 12px;
+  z-index: 100; /* Above most content but below modals */
+  transition: opacity 0.3s ease;
+}
+
+/* Individual scroll button */
+.scroll-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #32BAB0;
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.scroll-button:hover {
+  background-color: #28a79d;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.scroll-button:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.scroll-button:focus-visible {
+  outline: 2px solid #62BFAA;
+  outline-offset: 2px;
+}
+
+/* Reduce opacity when scrolling */
+.grid-scroll-buttons.scrolling {
+  opacity: 0.3;
+}
+
+.grid-scroll-buttons.scrolling:hover {
+  opacity: 1;
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+  .grid-scroll-buttons {
+    gap: 8px;
+  }
+  
+  .scroll-button {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .scroll-button svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .scroll-button {
+    background-color: #32BAB0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  }
+  
+  .scroll-button:hover {
+    background-color: #3ed4c9;
+  }
+}

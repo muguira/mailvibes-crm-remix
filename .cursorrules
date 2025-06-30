@@ -1,0 +1,158 @@
+# Mailvibes CRM Remix - Cursor AI Rules
+
+## CSS Protection Rules
+
+### Grid View Styles - DO NOT MODIFY
+The following CSS files are production-ready and must not be altered without explicit approval:
+
+1. **Grid Layout Constants** (`src/components/grid-view/grid-constants.ts`)
+   - `ROW_HEIGHT = 32` - Fixed row height for header and body
+   - `INDEX_COLUMN_WIDTH = 48` - Fixed width for index column
+   - `DEFAULT_COLUMN_WIDTH = 200` - Default width for data columns
+   - These values must remain unchanged to maintain grid alignment
+
+2. **Core CSS Files** - These files implement the production grid layout:
+   - `src/components/grid-view/styles/grid-layout.css` - Core grid structure
+   - `src/components/grid-view/styles/grid-cells.css` - Cell styling and alignment
+   - `src/components/grid-view/styles/grid-headers.css` - Header styling
+   - `src/components/grid-view/styles/static-columns.css` - Frozen column behavior
+   - `src/components/grid-view/styles/pin-columns.css` - Column pinning logic
+   - `src/components/grid-view/styles/scroll-buttons.css` - Scroll controls
+   - `src/components/grid-view/styles/z-index.css` - Layer management
+
+### CSS Modification Rules
+
+1. **Never change these properties without approval:**
+   - Row heights (must stay at 32px)
+   - Column widths (index: 48px, contacts: 180px, default: 200px)
+   - Scrollbar visibility (must remain hidden with `scrollbar-width: none`)
+   - Box-sizing values
+   - Position sticky/fixed values for frozen columns
+   - Z-index values (they create a specific layering system)
+
+2. **Protected selectors - DO NOT MODIFY:**
+   ```css
+   .grid-container
+   .grid-headers
+   .grid-body
+   .grid-row
+   .grid-cell
+   .index-column
+   .static-column
+   .pinned-column
+   ```
+
+3. **When adding new styles:**
+   - Create new CSS files in `src/components/grid-view/styles/`
+   - Import them through `src/components/grid-view/styles/index.css`
+   - Never override existing grid measurements
+   - Use CSS custom properties for new values that might change
+
+### Grid Behavior Rules
+
+1. **Column Operations:**
+   - Index column (#) must always be sticky-left and 48px wide
+   - Contacts column must always be the first data column at 180px width
+   - New columns default to 200px width unless specified
+   - Column resize handles are intentionally disabled
+
+2. **Scroll Behavior:**
+   - Horizontal scroll must keep index column visible
+   - Scrollbars must remain hidden but functional
+   - Virtual scrolling is not yet implemented - don't add it without planning
+
+3. **Mobile Responsiveness:**
+   - Mobile breakpoint is at 768px
+   - Column pinning is limited to 2 columns on mobile (excluding index)
+   - Mobile-specific styles are in `responsive.css`
+
+### Code Quality Rules
+
+1. **Before modifying any grid files:**
+   - Understand the current grid invariants (see user_rules section)
+   - Test on both desktop and mobile viewports
+   - Verify alignment between headers and body cells
+   - Check that frozen columns still work correctly
+
+2. **Testing requirements for grid changes:**
+   - Must work in Chrome, Firefox, Safari, and Edge
+   - Must maintain 32px row height across all browsers
+   - Must keep headers and body cells aligned
+   - Must not introduce visible scrollbars
+
+3. **Performance considerations:**
+   - The grid currently renders all rows (no virtualization)
+   - Avoid adding expensive calculations in render loops
+   - Use React.memo and useMemo for expensive computations
+
+### Import/Migration Rules
+
+1. **CSV Import System:**
+   - Core logic is in `src/services/csvImportService.ts`
+   - Do not modify the field mapping logic without understanding the full flow
+   - Property definitions are stored in Supabase and cached locally
+
+2. **Database Schema:**
+   - Contact and account schemas are defined in Supabase
+   - Custom fields use JSONB columns
+   - Changes must include proper migrations
+
+### General Development Rules
+
+1. **Component Structure:**
+   - Keep components under 300 lines
+   - Extract reusable logic into custom hooks
+   - Use TypeScript strict mode where possible
+
+2. **State Management:**
+   - Grid state is managed locally with Supabase sync
+   - Avoid unnecessary re-renders by proper memoization
+   - Use the save indicator context for tracking changes
+
+3. **Error Handling:**
+   - All Supabase operations should have error handling
+   - Show user-friendly error messages via toast
+   - Log errors for debugging but don't expose internals
+
+### File Organization Rules
+
+1. **Don't create these files unless requested:**
+   - README.md files
+   - Documentation files
+   - Test files (unless setting up testing framework)
+
+2. **When creating new features:**
+   - Follow existing patterns in the codebase
+   - Place files in appropriate directories
+   - Update imports in index files
+
+3. **Style files organization:**
+   - Component-specific styles go in component folder
+   - Shared styles go in styles directory
+   - Use CSS modules or scoped styles for new components
+
+## Commit Message Rules
+
+Use conventional commits:
+- `feat:` for new features
+- `fix:` for bug fixes
+- `refactor:` for code improvements
+- `style:` for CSS/formatting changes
+- `chore:` for maintenance tasks
+
+## AI Assistant Behavior
+
+1. **Always verify before changing:**
+   - Check if changes affect grid layout constants
+   - Ensure mobile responsiveness is maintained
+   - Verify no scrollbars become visible
+
+2. **When asked to modify grid behavior:**
+   - First explain what the current behavior is
+   - Identify which files would need changes
+   - Warn about any invariant violations
+
+3. **Code generation preferences:**
+   - Use existing UI components from `src/components/ui/`
+   - Follow established patterns in the codebase
+   - Prefer composition over inheritance 
