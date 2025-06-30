@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { useActivityTracking, ActivityItem } from "@/hooks/use-activity-tracking";
 import { Edit, MessageSquare, UserPlus, Plus, Trash2, Filter, BarChart } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function FeedPanel() {
   const [activeTab, setActiveTab] = useState("my-feed");
@@ -153,8 +154,39 @@ export function FeedPanel() {
   if (isLoading) {
     return (
       <Card className="bg-white rounded-lg shadow-sm overflow-hidden h-full flex flex-col">
-        <div className="p-4 text-center text-slate-medium">
-          Loading activities...
+        {/* Tabs skeleton */}
+        <div className="border-b border-slate-light/30">
+          <div className="flex justify-between items-center px-4 pt-4">
+            <div className="flex gap-1 p-1 bg-muted rounded-md">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-8 w-28" />
+            </div>
+          </div>
+        </div>
+
+        {/* Activity items skeleton */}
+        <div className="overflow-y-auto flex-1">
+          {/* Date header skeleton */}
+          <div className="px-4 py-3 bg-[#f3f4f5] border-b border-slate-light/30">
+            <Skeleton className="h-4 w-16" />
+          </div>
+          
+          {/* Activity items */}
+          <div className="divide-y divide-slate-light/30">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="p-4">
+                <div className="flex gap-3">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="flex-1">
+                    <Skeleton className="h-4 w-3/4 mb-2" />
+                    <Skeleton className="h-3 w-16 mb-2" />
+                    <Skeleton className="h-16 w-full rounded-md" />
+                  </div>
+                  <Skeleton className="h-4 w-4" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </Card>
     );

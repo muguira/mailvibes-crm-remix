@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GridViewContainer } from '@/components/grid-view/GridViewContainer';
 import { Column, GridRow } from '@/components/grid-view/types';
+import { GridSkeleton } from '@/components/grid-view/GridSkeleton';
 import { 
   DEFAULT_COLUMN_WIDTH,
   MOBILE_COLUMN_WIDTH,
@@ -796,12 +797,7 @@ export function EditableLeadsGrid() {
   
   // Show better loading UI to cover any potential flash
   if (loading || !isGridReady) {
-    return (
-      <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
-        <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-        <div className="text-lg text-gray-600">Loading contacts...</div>
-      </div>
-    );
+    return <GridSkeleton rowCount={15} columnCount={10} />;
   }
   
   // Show empty state when there are no rows - GridViewContainer now has its own empty state UI

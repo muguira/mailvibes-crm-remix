@@ -9,6 +9,8 @@ import { TaskEditPopup } from "./task-edit-popup";
 import { useTasks, TaskData } from "@/hooks/supabase/use-tasks";
 import { useAuth } from "@/contexts/AuthContext";
 import { Task } from "@/types/task"; // Import the unified Task type
+import { CreateTaskDialog } from "./create-task-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Export the Task interface from the unified type
 export type { Task };
@@ -309,8 +311,23 @@ export function TasksPanel() {
 
         <div className="overflow-y-auto" style={{ height: '392px' }}>
           {isLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="px-3 py-2 space-y-2">
+              {/* Task item skeletons */}
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="py-1.5">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-5 w-5 rounded-full flex-shrink-0" />
+                    <div className="flex-1">
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Skeleton className="h-5 w-16 rounded" />
+                      <Skeleton className="h-4 w-12" />
+                    </div>
+                  </div>
+                  {index < 3 && <div className="mt-2 mx-5 border-b border-border/50" />}
+                </div>
+              ))}
             </div>
           ) : (
             <>

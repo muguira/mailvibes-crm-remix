@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { ContactDetails, ContactDetailsDialog } from "@/components/list/dialogs/contact-details-dialog";
 import { Contact } from "@/hooks/supabase/use-contacts";
 import { Json } from "@/integrations/supabase/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ContactProfile() {
   const { id } = useParams<{ id: string }>();
@@ -184,8 +185,86 @@ export default function ContactProfile() {
         
         <div className="flex-1 overflow-auto p-6">
           {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-slate-medium">Loading contact information...</div>
+            <div className="max-w-4xl mx-auto">
+              <div className="flex gap-6">
+                {/* Left column skeleton */}
+                <div className="flex-1 space-y-6">
+                  {/* Contact Details Section skeleton */}
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <Skeleton className="h-6 w-32" />
+                      <Skeleton className="h-4 w-8" />
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {/* Email skeleton */}
+                      <div className="flex items-start gap-3">
+                        <Skeleton className="w-8 h-8 rounded-full" />
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-48 mb-1" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                      </div>
+                      
+                      {/* Phone skeleton */}
+                      <div className="flex items-start gap-3">
+                        <Skeleton className="w-8 h-8 rounded-full" />
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-32 mb-1" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                      </div>
+                      
+                      {/* Address skeleton */}
+                      <div className="flex items-start gap-3">
+                        <Skeleton className="w-8 h-8 rounded-full" />
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-64 mb-1" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Experience Section skeleton */}
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <Skeleton className="h-6 w-24" />
+                      <Skeleton className="h-4 w-8" />
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <Skeleton className="w-8 h-8 rounded-full" />
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-40 mb-1" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-3">
+                        <Skeleton className="w-8 h-8 rounded-full" />
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-36 mb-1" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Right column skeleton */}
+                <div className="w-96">
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <Skeleton className="h-6 w-32 mb-4" />
+                    <div className="space-y-3">
+                      <Skeleton className="h-12 w-full" />
+                      <Skeleton className="h-12 w-full" />
+                      <Skeleton className="h-12 w-full" />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : !contact ? (
             <div className="flex flex-col items-center justify-center h-full">
