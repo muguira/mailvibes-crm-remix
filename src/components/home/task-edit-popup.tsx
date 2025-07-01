@@ -72,6 +72,13 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     onClose();
   };
 
+  // Function to disable past dates in the calendar
+  const isDateDisabled = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+    return date < today; // Disable dates before today (allow today and future dates)
+  };
+
   const contactItems = React.useMemo(() =>
     (contacts || []).map(contact => ({
       value: contact.id,
@@ -202,8 +209,19 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
+                      classNames={{
+                        cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20 [&:has([aria-selected])]:!bg-transparent",
+                        day: "h-9 w-9 p-0 font-normal flex items-center justify-center rounded-full transition-colors cursor-pointer",
+                      
+                        day_selected: "!bg-teal-600/80 !text-white hover:!bg-teal-700 focus:!bg-teal-600 rounded-md",
+                        day_today: "!bg-teal-500/50 !text-white hover:!bg-teal-400/50 rounded-md",
+                        
+                        day_outside: "text-muted-foreground opacity-50",
+                        day_disabled: "text-muted-foreground opacity-30 cursor-not-allowed",
+                      }}
                       selected={editedTask.deadline ? parseISO(editedTask.deadline) : undefined}
                       onSelect={(date) => handleChange('deadline', date ? date.toISOString() : undefined)}
+                      disabled={isDateDisabled}
                       initialFocus
                     />
                     {editedTask.deadline && (
