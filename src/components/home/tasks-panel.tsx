@@ -1,6 +1,7 @@
 import { Check, Plus, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect, useRef } from "react";
+import React from "react";
 import { cn } from "@/lib/utils";
 import { DeadlinePopup } from "./deadline-popup";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-fns";
@@ -17,53 +18,31 @@ export type { Task };
 export function TasksPanel() {
   const { user } = useAuth();
   const { tasks: supabaseTasks, isLoading, createTask, updateTask, deleteTask } = useTasks();
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [localTasks, setLocalTasks] = useState<Task[]>([]);
   const newTaskInputRef = useRef<HTMLInputElement>(null);
 
-  // Transform Supabase tasks to our Task interface format
-  useEffect(() => {
-    if (supabaseTasks) {
-      const formattedTasks = supabaseTasks.map((task) => ({
-        id: task.id,
-        title: task.title,
-        deadline: task.deadline,
-        contact: task.contact || '',
-        description: task.description,
-        display_status: task.display_status as Task['display_status'],
-        status: task.status as Task['status'],
-        type: task.type as Task['type'],
-        tag: task.tag,
-        priority: task.priority as Task['priority'],
-        user_id: task.user_id
-      }));
-      setTasks(formattedTasks);
-    }
-  }, [supabaseTasks]);
+  // Use supabase tasks directly, only add local temporary tasks for creation
+  const tasks = React.useMemo(() => {
+    const formattedTasks = (supabaseTasks || []).map((task) => ({
+      id: task.id,
+      title: task.title,
+      deadline: task.deadline,
+      contact: task.contact || '',
+      description: task.description,
+      display_status: task.display_status as Task['display_status'],
+      status: task.status as Task['status'],
+      type: task.type as Task['type'],
+      tag: task.tag,
+      priority: task.priority as Task['priority'],
+      user_id: task.user_id
+    })) as Task[];
 
-  // Check for overdue tasks
-  const checkOverdueTasks = () => {
-    const now = new Date();
-    setTasks(prevTasks =>
-      prevTasks.map(task => {
-        if (task.display_status === "completed" || !task.deadline) return task;
+    // Add any local temporary tasks (for creation)
+    return [...localTasks, ...formattedTasks];
+  }, [supabaseTasks, localTasks]);
 
-        const deadlineDate = parseISO(task.deadline);
-        // Compare with start of current day to match the calendar date concept
-        if (isPast(startOfDay(deadlineDate)) && task.display_status !== "overdue") {
-          return { ...task, display_status: "overdue" };
-        }
-        return task;
-      })
-    );
-  };
-
-  // Check for overdue tasks on mount and every minute
-  useEffect(() => {
-    checkOverdueTasks();
-    const interval = setInterval(checkOverdueTasks, 60000); // Check every minute
-    return () => clearInterval(interval);
-  }, []); // Empty dependency array to run only on mount
+  // Note: Overdue task checking is now handled in the useTasks hook
 
   const sortTasksByDate = (tasks: Task[], isEditing: boolean, sortByCreation: boolean = false) => {
     const today = startOfDay(new Date());
@@ -165,7 +144,7 @@ export function TasksPanel() {
       type: "task",
       user_id: user.id
     };
-    setTasks(prev => [newTask, ...prev]);
+    setLocalTasks(prev => [newTask, ...prev]);
     setIsCreatingTask(true);
     // Focus the input on the next render
     setTimeout(() => {
@@ -193,7 +172,7 @@ export function TasksPanel() {
   };
 
   const handleTaskTitleChange = (taskId: string, newTitle: string) => {
-    setTasks(prev =>
+    setLocalTasks(prev =>
       prev.map(task =>
         task.id === taskId
           ? { ...task, title: newTitle }
@@ -203,7 +182,7 @@ export function TasksPanel() {
   };
 
   const handleTaskTitleBlur = (taskId: string) => {
-    const task = tasks.find(t => t.id === taskId);
+    const task = localTasks.find(t => t.id === taskId);
 
     if (task && task.title.trim() !== "" && user) {
       // Create new task in Supabase
@@ -221,7 +200,7 @@ export function TasksPanel() {
       });
     }
 
-    setTasks(prev => prev.filter(task =>
+    setLocalTasks(prev => prev.filter(task =>
       task.id !== taskId || (task.id === taskId && task.title.trim() !== "")
     ));
 
@@ -235,7 +214,7 @@ export function TasksPanel() {
     }
     if (e.key === "Escape") {
       e.preventDefault();
-      setTasks(prev => prev.filter(task => task.id !== taskId));
+      setLocalTasks(prev => prev.filter(task => task.id !== taskId));
       setIsCreatingTask(false);
     }
   };
@@ -259,7 +238,14 @@ export function TasksPanel() {
   };
 
   const handleTaskDelete = (taskId: string) => {
-    deleteTask(taskId);
+    console.log('handleTaskDelete called with taskId:', taskId);
+    console.log('deleteTask function:', deleteTask);
+    try {
+      deleteTask(taskId);
+      console.log('deleteTask called successfully');
+    } catch (error) {
+      console.error('Error in handleTaskDelete:', error);
+    }
   };
 
   return (
