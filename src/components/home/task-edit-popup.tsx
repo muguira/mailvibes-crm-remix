@@ -1,4 +1,4 @@
-// Update task-edit-popup.tsx to handle both display_status and displayStatus
+// Update task-edit-popup.tsx to use display_status consistently
 import * as React from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -52,23 +52,12 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
 
   const handleChange = (field: keyof ExtendedTask, value: any) => {
     setEditedTask(prev => ({ ...prev, [field]: value }));
-
-    // Special handling for display_status to maintain both fields
-    if (field === 'display_status') {
-      setEditedTask(prev => ({
-        ...prev,
-        display_status: value,
-        displayStatus: value
-      }));
-    }
   };
 
   const handleSave = () => {
-    // Ensure both display_status and displayStatus are set for compatibility
+    // Clean up the task object before saving
     const taskToSave = {
       ...editedTask,
-      display_status: editedTask.display_status,
-      displayStatus: editedTask.display_status,
       // Map contactId to contact field if needed
       contact: editedTask.contactId
     };
