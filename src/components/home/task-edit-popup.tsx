@@ -213,8 +213,8 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                         cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20 [&:has([aria-selected])]:!bg-transparent",
                         day: "h-9 w-9 p-0 font-normal flex items-center justify-center rounded-full transition-colors cursor-pointer",
                       
-                        day_selected: "!bg-teal-600/80 !text-white hover:!bg-teal-700 focus:!bg-teal-600 rounded-md",
-                        day_today: "!bg-teal-500/50 !text-white hover:!bg-teal-400/50 rounded-md",
+                        day_selected: "!bg-teal-600/80 !text-white hover:!bg-teal-700 focus:!bg-teal-500/80 rounded-md",
+                        day_today: "!bg-gray-500/10 !text-white hover:!bg-gray/50 !text-gray-500 rounded-md",
                         
                         day_outside: "text-muted-foreground opacity-50",
                         day_disabled: "text-muted-foreground opacity-30 cursor-not-allowed",
