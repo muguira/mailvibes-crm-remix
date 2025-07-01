@@ -21,6 +21,7 @@ import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
 import { toast } from '@/components/ui/use-toast';
 import { useActivity } from "@/contexts/ActivityContext";
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { DeleteColumnDialog } from '@/components/grid-view/DeleteColumnDialog';
 
 // Constants
 const COLUMNS_STORAGE_KEY = 'gridColumns-v1';
@@ -702,6 +703,17 @@ export function EditableLeadsGrid() {
     logFilterChange({ type: 'columns_reorder', columns: columnIds });
   };
   
+  // Add state for delete column dialog
+  const [deleteColumnDialog, setDeleteColumnDialog] = useState<{
+    isOpen: boolean;
+    columnId: string;
+    columnName: string;
+  }>({
+    isOpen: false,
+    columnId: '',
+    columnName: ''
+  });
+  
   // Handle column deletion
   const handleDeleteColumn = async (columnId: string) => {
     // Don't delete the primary columns
@@ -714,26 +726,53 @@ export function EditableLeadsGrid() {
       return;
     }
     
+    // Find the column to get its name
+    const column = columns.find(col => col.id === columnId);
+    if (!column) return;
+    
+    // Show the confirmation dialog
+    setDeleteColumnDialog({
+      isOpen: true,
+      columnId,
+      columnName: column.title
+    });
+  };
+  
+  // Handle the actual deletion after confirmation
+  const handleConfirmDeleteColumn = async () => {
+    const { columnId, columnName } = deleteColumnDialog;
+    
+    // Close the dialog
+    setDeleteColumnDialog({ isOpen: false, columnId: '', columnName: '' });
+    
     // Set loading state
     setColumnOperationLoading({ type: 'delete', columnId });
     
     try {
       // Log the column deletion
-      const column = columns.find(col => col.id === columnId);
-      if (column) {
-        logColumnDelete(columnId, column.title);
-      }
+      logColumnDelete(columnId, columnName);
       
       // Remove from columns array
       const newColumns = columns.filter(col => col.id !== columnId);
       setColumns(newColumns);
+      
+      // Remove column data from all rows
+      const updatedRows = rows.map(row => {
+        const { [columnId]: _, ...rest } = row;
+        return rest;
+      });
+      
+      // Update the rows in the database
+      for (const row of updatedRows) {
+        await updateCell({ rowId: row.id, columnId, value: undefined });
+      }
       
       // Persist the column deletion
       await persistColumns(newColumns);
       
       toast({
         title: "Column deleted",
-        description: `Successfully deleted column "${column?.title}"`,
+        description: `Successfully deleted column "${columnName}" and all its data`,
       });
     } catch (error) {
       toast({
@@ -1029,11 +1068,12 @@ export function EditableLeadsGrid() {
           onColumnsReorder={handleColumnsReorder}
           onAddColumn={handleAddColumn}
           onInsertColumn={handleInsertColumn}
+          onDeleteColumn={handleDeleteColumn}
           onHideColumn={handleHideColumn}
           onUnhideColumn={handleUnhideColumn}
           hiddenColumns={hiddenColumns}
-          onSearchChange={setSearchTerm}
           searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
           className="h-full"
           columnOperationLoading={columnOperationLoading}
           cellUpdateLoading={cellUpdateLoading}
@@ -1047,6 +1087,14 @@ export function EditableLeadsGrid() {
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
         loading={loading}
+      />
+      
+      {/* Delete Column Confirmation Dialog */}
+      <DeleteColumnDialog
+        isOpen={deleteColumnDialog.isOpen}
+        columnName={deleteColumnDialog.columnName}
+        onClose={() => setDeleteColumnDialog({ isOpen: false, columnId: '', columnName: '' })}
+        onConfirm={handleConfirmDeleteColumn}
       />
     </div>
   );

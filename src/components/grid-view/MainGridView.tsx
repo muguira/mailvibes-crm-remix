@@ -27,7 +27,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { GridCell } from './GridCell';
 import { NewColumnModal } from './NewColumnModal';
-import { CannotDeleteColumnModal } from './CannotDeleteColumnModal';
 import { logger } from '@/utils/logger';
 
 interface MainGridViewProps {
@@ -100,17 +99,6 @@ export const MainGridView = forwardRef(function MainGridView({
     isOpen: false,
     direction: 'left',
     targetIndex: 0,
-  });
-
-  // Modal state for cannot delete column
-  const [cannotDeleteModalState, setCannotDeleteModalState] = useState<{
-    isOpen: boolean;
-    columnId: string;
-    columnName: string;
-  }>({
-    isOpen: false,
-    columnId: '',
-    columnName: '',
   });
 
   // Expose scroll methods via ref
@@ -1194,44 +1182,13 @@ export const MainGridView = forwardRef(function MainGridView({
     setModalState(prev => ({ ...prev, isOpen: false }));
   };
 
-  // Define default columns that cannot be deleted
-  const defaultColumnIds = [
-    'name', 'status', 'description', 'company', 'jobTitle', 'industry',
-    'phone', 'primaryLocation', 'email', 'facebook', 'instagram', 'linkedin',
-    'twitter', 'associatedDeals', 'revenue', 'closeDate', 'owner', 'source',
-    'lastContacted', 'website'
-  ];
-
   const handleDeleteColumn = (columnId: string) => {
     logger.log(`Delete column: ${columnId}`);
-
-    // Check if it's a default column
-    if (defaultColumnIds.includes(columnId)) {
-      const column = columns.find(col => col.id === columnId) ||
-        allColumns?.find(col => col.id === columnId);
-
-      setCannotDeleteModalState({
-        isOpen: true,
-        columnId,
-        columnName: column?.title || columnId,
-      });
-    } else {
-      // It's a user-added column, allow deletion
-      if (onDeleteColumn) onDeleteColumn(columnId);
-    }
-
+    
+    // Just call onDeleteColumn for all columns - the parent component will handle the confirmation
+    if (onDeleteColumn) onDeleteColumn(columnId);
+    
     if (onContextMenu) onContextMenu(null);
-  };
-
-  const handleHideColumn = () => {
-    if (onHideColumn && cannotDeleteModalState.columnId) {
-      onHideColumn(cannotDeleteModalState.columnId);
-    }
-    setCannotDeleteModalState(prev => ({ ...prev, isOpen: false }));
-  };
-
-  const handleCannotDeleteModalCancel = () => {
-    setCannotDeleteModalState(prev => ({ ...prev, isOpen: false }));
   };
 
   const handleSortAZ = (columnId: string) => {
@@ -1447,14 +1404,6 @@ export const MainGridView = forwardRef(function MainGridView({
         targetIdx={modalState.targetIndex}
         onConfirm={handleModalConfirm}
         onCancel={handleModalCancel}
-      />
-
-      {/* Cannot Delete Column Modal */}
-      <CannotDeleteColumnModal
-        isOpen={cannotDeleteModalState.isOpen}
-        columnName={cannotDeleteModalState.columnName}
-        onHideColumn={handleHideColumn}
-        onCancel={handleCannotDeleteModalCancel}
       />
     </div>
   );
