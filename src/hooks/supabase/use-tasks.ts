@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { Task } from '@/types/task';
-import { toast } from '@/hooks/use-toast';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { isPast, parseISO, startOfDay } from 'date-fns';
-import { Database } from '@/types/supabase';
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Task } from "@/types/task";
+import { toast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { isPast, parseISO, startOfDay } from "date-fns";
+import { Database } from "@/types/supabase";
 import { withRetrySupabase } from "@/utils/supabaseRetry";
-import { logger } from '@/utils/logger';
+import { logger } from "@/utils/logger";
 
 export interface TaskData {
   id: string;
@@ -30,11 +30,12 @@ export function useTasks() {
   const fetchTasks = async (): Promise<TaskData[]> => {
     if (!user) return [];
 
-    const result = await withRetrySupabase(
-      () => supabase
-        .from('tasks')
-        .select('*')
-        .order('created_at', { ascending: false }),
+    const result = await withRetrySupabase<any[]>(
+      async () =>
+        await supabase
+          .from("tasks")
+          .select("*")
+          .order("created_at", { ascending: false }),
       {
         maxAttempts: 3,
         onRetry: (error, attempt) => {
@@ -43,31 +44,34 @@ export function useTasks() {
             toast({
               title: "Connection issues",
               description: "Having trouble loading tasks. Retrying...",
-              variant: "default"
+              variant: "default",
             });
           }
-        }
+        },
       }
     );
 
     const { data, error } = result;
 
     if (error) {
-      logger.error('Error fetching tasks:', error);
+      logger.error("Error fetching tasks:", error);
       toast({
         title: "Error fetching tasks",
         description: "Failed to load tasks. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
       return [];
     }
 
-    // Check for overdue tasks
-    const tasks = data.map(task => {
+    // Check for overdue tasks and cast to TaskData type
+    const tasks = (data || []).map((task: any) => {
       if (task.display_status === "completed" || !task.deadline) return task;
 
       const deadlineDate = parseISO(task.deadline);
-      if (isPast(startOfDay(deadlineDate)) && task.display_status !== "overdue") {
+      if (
+        isPast(startOfDay(deadlineDate)) &&
+        task.display_status !== "overdue"
+      ) {
         return { ...task, display_status: "overdue" };
       }
       return task;
@@ -76,15 +80,21 @@ export function useTasks() {
     return tasks;
   };
 
-  const { data: tasks = [], isLoading, error } = useQuery({
-    queryKey: ['tasks', user?.id],
+  const {
+    data: tasks = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["tasks", user?.id],
     queryFn: fetchTasks,
     enabled: !!user,
   });
 
   const createTask = useMutation({
-    mutationFn: async (newTask: Omit<TaskData, "id" | "created_at" | "updated_at">) => {
-      if (!user) throw new Error('User must be logged in');
+    mutationFn: async (
+      newTask: Omit<TaskData, "id" | "created_at" | "updated_at">
+    ) => {
+      if (!user) throw new Error("User must be logged in");
 
       const taskWithUserId = {
         ...newTask,
@@ -95,98 +105,114 @@ export function useTasks() {
         deadline: newTask.deadline || null,
         description: newTask.description || null,
         tag: newTask.tag || null,
-        priority: newTask.priority || null
+        priority: newTask.priority || null,
       };
 
       const { data, error } = await supabase
-        .from('tasks')
+        .from("tasks")
         .insert([taskWithUserId])
-        .select('*');
+        .select("*");
 
       if (error) throw error;
       return data[0];
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', user?.id] });
-      toast({ title: "Task created", description: "Your task has been created successfully" });
+      queryClient.invalidateQueries({ queryKey: ["tasks", user?.id] });
+      toast({
+        title: "Task created",
+        description: "Your task has been created successfully",
+      });
     },
     onError: (error: any) => {
-      logger.error('Error creating task:', error);
+      logger.error("Error creating task:", error);
       toast({
         title: "Error creating task",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const updateTask = useMutation({
-    mutationFn: async (updatedTask: Omit<TaskData, "created_at" | "updated_at">) => {
-      if (!user) throw new Error('User must be logged in');
+    mutationFn: async (
+      updatedTask: Omit<TaskData, "created_at" | "updated_at">
+    ) => {
+      if (!user) throw new Error("User must be logged in");
 
-      // Ensure task has user_id and updated_at
+      // Ensure task has user_id and updated_at, and convert undefined values to null
       const taskWithMetadata = {
         ...updatedTask,
         user_id: user.id,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        // Convert undefined/empty strings to null for database compatibility
+        contact: updatedTask.contact || null,
+        deadline: updatedTask.deadline || null,
+        description: updatedTask.description || null,
+        tag: updatedTask.tag || null,
+        priority: updatedTask.priority || null,
       };
 
       const { data, error } = await supabase
-        .from('tasks')
+        .from("tasks")
         .update(taskWithMetadata)
-        .eq('id', updatedTask.id)
-        .eq('user_id', user.id) // Ensure we only update user's own tasks
-        .select('*');
+        .eq("id", updatedTask.id)
+        .eq("user_id", user.id) // Ensure we only update user's own tasks
+        .select("*");
 
       if (error) throw error;
       return data[0];
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', user?.id] });
-      toast({ title: "Task updated", description: "Your task has been updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["tasks", user?.id] });
+      toast({
+        title: "Task updated",
+        description: "Your task has been updated successfully",
+      });
     },
     onError: (error: any) => {
-      logger.error('Error updating task:', error);
+      logger.error("Error updating task:", error);
       toast({
         title: "Error updating task",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const deleteTask = useMutation({
     mutationFn: async (taskId: string) => {
-      if (!user) throw new Error('User must be logged in');
+      if (!user) throw new Error("User must be logged in");
 
-      const { error } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', taskId);
+      const { error } = await supabase.from("tasks").delete().eq("id", taskId);
 
       if (error) throw error;
       return taskId;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', user?.id] });
-      toast({ title: "Task deleted", description: "Your task has been deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ["tasks", user?.id] });
+      toast({
+        title: "Task deleted",
+        description: "Your task has been deleted successfully",
+      });
     },
     onError: (error: any) => {
-      logger.error('Error deleting task:', error);
+      logger.error("Error deleting task:", error);
       toast({
         title: "Error deleting task",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   return {
     tasks,
     isLoading,
     error,
-    createTask: (task: Omit<TaskData, "id" | "created_at" | "updated_at">) => createTask.mutate(task),
-    updateTask: (task: Omit<TaskData, "created_at" | "updated_at">) => updateTask.mutate(task),
-    deleteTask: (taskId: string) => deleteTask.mutate(taskId)
+    createTask: (task: Omit<TaskData, "id" | "created_at" | "updated_at">) =>
+      createTask.mutate(task),
+    updateTask: (task: Omit<TaskData, "created_at" | "updated_at">) =>
+      updateTask.mutate(task),
+    deleteTask: (taskId: string) => deleteTask.mutate(taskId),
   };
 }
