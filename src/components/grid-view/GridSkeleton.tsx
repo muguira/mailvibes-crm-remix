@@ -1,5 +1,6 @@
 import React from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface GridSkeletonProps {
   rowCount?: number;
@@ -45,18 +46,18 @@ export function GridSkeleton({
               <div className="w-12 text-sm text-gray-400">{i + 1}</div>
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-0" />
-              <Skeleton className="h-4 w-0" />
-              <Skeleton className="h-4 w-0" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-4 w-32" />
             </div>
           ))}
         </div>
 
         {/* Loading spinner overlay */}
         <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-          <div className="flex flex-col items-center">
-            <div className="w-10 h-10 border-3 border-gray-300 border-t-teal-500 rounded-full animate-spin mb-3"></div>
-            <p className="text-sm text-gray-600">Loading contacts...</p>
+          <div className="flex flex-col items-center gap-3">
+            <LoadingSpinner size="lg" />
+            <p className="text-sm text-gray-600 font-medium">Loading contacts...</p>
           </div>
         </div>
       </div>

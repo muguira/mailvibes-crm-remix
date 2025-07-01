@@ -1,4 +1,3 @@
-
 import { CustomButton } from "@/components/ui/custom-button";
 import { ContactsList } from "./stream/contacts-list";
 import { ActivityStream } from "./stream/activity-stream";
@@ -8,6 +7,7 @@ import { EmptyState } from "./stream/empty-state";
 import { ContactSidebarHeader } from "./stream/contact-sidebar-header";
 import { useStreamView } from "./hooks/use-stream-view";
 import { ContactData } from "./types";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface StreamViewProps {
   contacts?: ContactData[];
@@ -41,7 +41,10 @@ export function StreamView({ listName, listId }: StreamViewProps) {
         />
         
         {contactsLoading ? (
-          <div className="p-4 text-center text-slate-medium">Loading contacts...</div>
+          <div className="flex flex-col items-center justify-center p-8">
+            <LoadingSpinner size="md" />
+            <p className="mt-3 text-sm text-slate-medium">Loading contacts...</p>
+          </div>
         ) : (
           formattedContacts.length > 0 ? (
             <ContactsList 
