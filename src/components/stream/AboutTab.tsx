@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { mockContactsById } from "@/components/stream/sample-data";
 import { useActivity } from "@/contexts/ActivityContext";
 import { updateContact } from '@/helpers/updateContact';
+import { logger } from '@/utils/logger';
 
 interface Contact {
   id: string;
@@ -247,7 +248,7 @@ export default function AboutTab({ contact }: AboutTabProps) {
         });
       }
     } catch (error) {
-      console.error('Error saving field:', error);
+      logger.error('Error saving field:', error);
       toast({
         title: "Error",
         description: "Failed to update contact",

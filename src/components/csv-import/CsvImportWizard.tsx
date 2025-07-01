@@ -19,6 +19,8 @@ import { ListFieldDefinition } from "@/utils/buildFieldDefinitions";
 import { importCsvData, validateImportData } from "@/services/csvImportService";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { logger } from '@/utils/logger';
+import { LoadingOverlay } from "@/components/ui/loading-spinner";
 
 const WIZARD_STEPS: Step[] = [
   { id: "file-select", title: "Select a File" },
@@ -85,7 +87,7 @@ export function CsvImportWizard({ onComplete }: CsvImportWizardProps) {
       //   setCurrentStep(1);
       // }
     } catch (error) {
-      console.error("Error parsing CSV:", error);
+      logger.error("Error parsing CSV:", error);
       alert("Error parsing CSV file. Please check the file format.");
     } finally {
       setIsProcessing(false);
@@ -440,7 +442,13 @@ export function CsvImportWizard({ onComplete }: CsvImportWizardProps) {
 
           {/* Main content area */}
           <div className="col-span-10">
-            <Card>
+            <Card className="relative">
+              {/* Loading overlay for import process */}
+              <LoadingOverlay
+                show={isProcessing && currentStep === WIZARD_STEPS.length - 1}
+                message={`Importing data... ${importProgress}%`}
+              />
+              
               <CardContent className="p-8">
                 {renderStepContent()}
 
@@ -449,7 +457,7 @@ export function CsvImportWizard({ onComplete }: CsvImportWizardProps) {
                   <Button
                     variant="outline"
                     onClick={handleBack}
-                    disabled={currentStep === 0}
+                    disabled={currentStep === 0 || isProcessing}
                     className={cn(currentStep === 0 && "invisible")}
                   >
                     <ArrowLeft className="w-4 h-4 mr-2" />
@@ -461,6 +469,7 @@ export function CsvImportWizard({ onComplete }: CsvImportWizardProps) {
                       <Button
                         variant="outline"
                         onClick={handleNext}
+                        disabled={isProcessing}
                         className="bg-[#62BFAA] hover:bg-[#52AF9A] text-white"
                       >
                         Skip
@@ -472,7 +481,7 @@ export function CsvImportWizard({ onComplete }: CsvImportWizardProps) {
                       disabled={!canProceedToNext() || isProcessing}
                       className="bg-[#62BFAA] hover:bg-[#52AF9A] text-white"
                     >
-                      {isProcessing ? (
+                      {isProcessing && currentStep === WIZARD_STEPS.length - 1 ? (
                         <>
                           Importing... {importProgress}%
                         </>

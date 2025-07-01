@@ -6,6 +6,7 @@ import { toast } from "../use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { useDroppable } from "@/components/ui/use-droppable";
 import { withRetrySupabase, withRetry } from "@/utils/supabaseRetry";
+import { logger } from '@/utils/logger';
 
 // Hook for grid data operations
 export function useGridData(listId?: string) {
@@ -24,7 +25,7 @@ export function useGridData(listId?: string) {
       {
         maxAttempts: 3,
         onRetry: (error, attempt) => {
-          console.log(`Retrying grid data fetch (attempt ${attempt})...`);
+          logger.log(`Retrying grid data fetch (attempt ${attempt})...`);
         }
       }
     );
@@ -32,7 +33,7 @@ export function useGridData(listId?: string) {
     const { data, error } = result;
 
     if (error) {
-      console.error('Error fetching grid data:', error);
+      logger.error('Error fetching grid data:', error);
       toast({
         title: 'Error',
         description: 'Failed to load grid data. Please try again.',
@@ -128,7 +129,7 @@ export function useGridData(listId?: string) {
             return error?.message?.includes('duplicate key');
           },
           onRetry: (error, attempt) => {
-            console.log(`Retrying grid save due to duplicate key (attempt ${attempt})...`);
+            logger.log(`Retrying grid save due to duplicate key (attempt ${attempt})...`);
           }
         }
       );
@@ -143,7 +144,7 @@ export function useGridData(listId?: string) {
       }
     },
     onError: (error) => {
-      console.error('Error saving grid change:', error);
+      logger.error('Error saving grid change:', error);
       toast({
         title: 'Error',
         description: `Failed to save changes. Please try again.`,

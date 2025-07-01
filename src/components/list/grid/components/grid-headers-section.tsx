@@ -2,6 +2,7 @@
 import { useRef, useEffect } from "react";
 import { ColumnDef } from "../types";
 import { GridHeaderCell } from "../../grid-header-cell";
+import { logger } from '@/utils/logger';
 
 interface GridHeadersSectionProps {
   columns: ColumnDef[];
@@ -44,8 +45,8 @@ export function GridHeadersSection({
   
   // Force header visibility
   useEffect(() => {
-    console.log(`Rendering headers section with ${columns.length} columns`);
-    console.log("Columns:", columns.map(col => `${col.key}: ${col.header || 'no header'}`));
+    logger.log(`Rendering headers section with ${columns.length} columns`);
+    logger.log("Columns:", columns.map(col => `${col.key}: ${col.header || 'no header'}`));
     
     const ref = headerRef || localHeaderRef;
     

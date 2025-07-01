@@ -4,6 +4,7 @@ import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants'
 import { Link } from 'react-router-dom';
 import { GridCell } from './GridCell';
 import { Pin, PinOff } from 'lucide-react';
+import { logger } from '@/utils/logger';
 
 interface StaticColumnsProps {
   data: GridRow[];
@@ -40,7 +41,7 @@ export function StaticColumns({
 
   // Handle double click for contact/opportunity editing (could implement inline edit)
   const handleDoubleClick = (rowId: string) => {
-    console.log('Double clicked contact/opportunity cell:', rowId);
+    logger.log('Double clicked contact/opportunity cell:', rowId);
     // Here you could implement an inline edit functionality
   };
 

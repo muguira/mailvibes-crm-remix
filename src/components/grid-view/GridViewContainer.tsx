@@ -6,6 +6,8 @@ import { MainGridView } from './MainGridView';
 import { INDEX_COLUMN_WIDTH } from './grid-constants';
 import { toast } from '@/hooks/use-toast';
 import './styles.css';
+import { logger } from '@/utils/logger';
+import { LoadingOverlay } from '@/components/ui/loading-spinner';
 
 export function GridViewContainer({
   columns,
@@ -25,7 +27,9 @@ export function GridViewContainer({
   onHideColumn,
   onUnhideColumn,
   hiddenColumns = [],
-  className
+  className,
+  columnOperationLoading,
+  cellUpdateLoading
 }: GridContainerProps) {
   // Container references for sizing
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,7 +63,7 @@ export function GridViewContainer({
       const stored = localStorage.getItem(key);
       if (stored) return JSON.parse(stored);
     } catch (error) {
-      console.error('Error parsing frozen column IDs:', error);
+      logger.error('Error parsing frozen column IDs:', error);
     }
     // Por defecto, solo el índice está fijo
     return ['index'];
@@ -229,7 +233,7 @@ export function GridViewContainer({
 
   // Handle filter changes
   const handleApplyFilters = (filters: { columns: string[], values: Record<string, unknown> }) => {
-    console.log("Applying filters:", filters);
+    logger.log("Applying filters:", filters);
     setActiveFilters(filters);
   };
 
@@ -295,7 +299,20 @@ export function GridViewContainer({
         onTogglePin={toggleFrozenColumn}
       />
 
-      <div className="grid-components-container">
+      <div className="grid-components-container relative">
+        {/* Loading overlay for column operations */}
+        <LoadingOverlay
+          show={columnOperationLoading?.type !== null && columnOperationLoading?.type !== undefined}
+          message={
+            columnOperationLoading?.type === 'add' ? 'Adding column...' :
+            columnOperationLoading?.type === 'delete' ? 'Deleting column...' :
+            columnOperationLoading?.type === 'rename' ? 'Renaming column...' :
+            columnOperationLoading?.type === 'hide' ? 'Hiding column...' :
+            columnOperationLoading?.type === 'unhide' ? 'Showing column...' :
+            'Processing...'
+          }
+        />
+        
         {visibleData.length === 0 ? (
           // Empty state message when there are no contacts
           <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] w-full">
@@ -367,6 +384,7 @@ export function GridViewContainer({
               onInsertColumn={onInsertColumn}
               allColumns={columns}
               onHideColumn={onHideColumn}
+              cellUpdateLoading={cellUpdateLoading}
             />
           </>
         )}

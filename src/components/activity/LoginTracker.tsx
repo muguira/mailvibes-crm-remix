@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useActivity } from '@/contexts/ActivityContext';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export function LoginTracker() {
     const { logLogin } = useActivity();
@@ -8,7 +9,7 @@ export function LoginTracker() {
     useEffect(() => {
         // Subscribe to auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('LoginTracker: Auth state changed:', event, session?.user?.id);
+            logger.log('LoginTracker: Auth state changed:', event, session?.user?.id);
 
             // We no longer need to track login here since it's handled in the Auth component
             // This prevents duplicate login activities

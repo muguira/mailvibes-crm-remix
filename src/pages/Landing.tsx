@@ -8,6 +8,7 @@ import Screenshot3 from '@/images/screen3.png';
 import Screenshot4 from '@/images/screen4.png';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useRef, useEffect } from 'react';
+import { logger } from '@/utils/logger';
 
 export default function Landing() {
     const navigate = useNavigate();
@@ -32,7 +33,7 @@ export default function Landing() {
         try {
             await signOut();
         } catch (error) {
-            console.error('Error signing out:', error);
+            logger.error('Error signing out:', error);
         }
     };
 

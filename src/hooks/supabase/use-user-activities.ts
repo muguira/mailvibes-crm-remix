@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@/utils/logger';
 
 export interface UserActivity {
   id: string;
@@ -57,7 +58,7 @@ export function useUserActivities() {
       
       setActivities(data || []);
     } catch (error) {
-      console.error('Error fetching user activities:', error);
+      logger.error('Error fetching user activities:', error);
       toast({
         title: 'Error',
         description: 'Failed to load activity history',
@@ -96,7 +97,7 @@ export function useUserActivities() {
       
       return true;
     } catch (error) {
-      console.error('Error logging activity:', error);
+      logger.error('Error logging activity:', error);
       // Remove optimistically added activity
       setActivities(prev => prev.filter(a => a.id !== uuidv4()));
       return false;

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "../use-toast";
 import { Tables } from "@/types/supabase";
+import { logger } from '@/utils/logger';
 
 export type Comment = Tables<'comments'> & {
     user?: {
@@ -53,7 +54,7 @@ export function useComments(activityId?: string) {
                 }
             }));
         } catch (error) {
-            console.error('Error fetching comments:', error);
+            logger.error('Error fetching comments:', error);
             toast({
                 title: "Error",
                 description: "Failed to load comments",

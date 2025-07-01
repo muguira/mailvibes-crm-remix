@@ -2,6 +2,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { logger } from '@/utils/logger';
 
 type ContactUpdate = Partial<Database['public']['Tables']['contacts']['Row']> &
   Pick<Database['public']['Tables']['contacts']['Row'], 'id'>;
@@ -31,7 +32,7 @@ export async function updateContact({ id, ...patch }: ContactUpdate) {
       .maybeSingle();
       
     if (fetchError) {
-      console.error('Failed to fetch existing contact:', fetchError);
+      logger.error('Failed to fetch existing contact:', fetchError);
       return { error: fetchError };
     }
     
@@ -85,7 +86,7 @@ export async function updateContact({ id, ...patch }: ContactUpdate) {
         .select();
         
       if (insertError) {
-        console.error('Failed to insert contact:', insertError);
+        logger.error('Failed to insert contact:', insertError);
         return { error: insertError };
       }
       
@@ -93,7 +94,7 @@ export async function updateContact({ id, ...patch }: ContactUpdate) {
     }
     
     if (error) {
-      console.error('Failed to update contact:', error);
+      logger.error('Failed to update contact:', error);
       return { error };
     }
     
@@ -119,12 +120,12 @@ export async function updateContact({ id, ...patch }: ContactUpdate) {
         };
       }
     } catch (mockError) {
-      console.warn('Could not sync with mock data:', mockError);
+      logger.warn('Could not sync with mock data:', mockError);
     }
     
     return { data };
   } catch (e) {
-    console.error('Error in updateContact:', e);
+    logger.error('Error in updateContact:', e);
     return { error: e };
   }
 }

@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@/utils/logger';
 
 interface UseGridDataProps {
   initialData: any[];
@@ -14,7 +15,7 @@ export function useGridData({ initialData }: UseGridDataProps) {
   
   // Sync data when initialData changes
   useEffect(() => {
-    console.log("initialData updated:", initialData);
+    logger.log("initialData updated:", initialData);
     
     // Ensure all rows have valid unique IDs
     const processedData = initialData.map(row => {

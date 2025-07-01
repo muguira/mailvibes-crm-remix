@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { generateDummyLeads, mockContactsById } from '@/components/stream/sample-data';
 import { LeadContact } from '@/components/stream/sample-data';
 import { useAuth } from '@/contexts/AuthContext';
+import { logger } from '@/utils/logger';
 
 // Constants
 export const PAGE_SIZE = 100;
@@ -16,7 +17,7 @@ const loadRowsFromLocal = (): LeadContact[] => {
       return JSON.parse(savedRows);
     }
   } catch (error) {
-    console.error('Failed to load rows from localStorage:', error);
+    logger.error('Failed to load rows from localStorage:', error);
   }
   return [];
 };
@@ -25,7 +26,7 @@ const saveRowsToLocal = (rows: LeadContact[]): void => {
   try {
     localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(rows));
   } catch (error) {
-    console.error('Failed to save rows to localStorage:', error);
+    logger.error('Failed to save rows to localStorage:', error);
   }
 };
 
@@ -117,7 +118,7 @@ export function useLeadsRows() {
               
               await Promise.all(insertPromises);
             } catch (insertError) {
-              console.error('Failed to seed Supabase contacts:', insertError);
+              logger.error('Failed to seed Supabase contacts:', insertError);
             }
             
             // Also save to localStorage as fallback
@@ -153,7 +154,7 @@ export function useLeadsRows() {
           }
         }
       } catch (fetchError) {
-        console.error('Error fetching from Supabase, falling back to localStorage:', fetchError);
+        logger.error('Error fetching from Supabase, falling back to localStorage:', fetchError);
         
         // Fall back to localStorage
         const localRows = loadRowsFromLocal();
@@ -240,7 +241,7 @@ export function useLeadsRows() {
         saveRowsToLocal(newRows);
       }
     } catch (error) {
-      console.error('Failed to save to Supabase, saving to localStorage instead:', error);
+      logger.error('Failed to save to Supabase, saving to localStorage instead:', error);
 
       // Fall back to localStorage
       saveRowsToLocal(newRows);

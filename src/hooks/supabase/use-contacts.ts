@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "../use-toast";
 import { Json } from "@/integrations/supabase/types";
 import { withRetrySupabase } from "@/utils/supabaseRetry";
+import { logger } from '@/utils/logger';
 
 export interface Contact {
   id: string;
@@ -33,7 +34,7 @@ export function useContacts(listId?: string) {
       {
         maxAttempts: 3,
         onRetry: (error, attempt) => {
-          console.log(`Retrying contacts fetch (attempt ${attempt})...`);
+          logger.log(`Retrying contacts fetch (attempt ${attempt})...`);
         }
       }
     );
@@ -41,7 +42,7 @@ export function useContacts(listId?: string) {
     const { data, error } = result;
 
     if (error) {
-      console.error('Error fetching contacts:', error);
+      logger.error('Error fetching contacts:', error);
       toast({
         title: 'Error',
         description: 'Failed to load contacts. Please try again.',

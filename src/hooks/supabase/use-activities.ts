@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "../use-toast";
+import { logger } from '@/utils/logger';
 
 export interface Activity {
   id: string;
@@ -27,7 +28,7 @@ export function useActivities(contactId?: string) {
       .order('timestamp', { ascending: false });
 
     if (error) {
-      console.error('Error fetching activities:', error);
+      logger.error('Error fetching activities:', error);
       toast({
         title: 'Error',
         description: 'Failed to load activities',

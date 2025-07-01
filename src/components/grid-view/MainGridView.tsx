@@ -28,6 +28,7 @@ import { format } from 'date-fns';
 import { GridCell } from './GridCell';
 import { NewColumnModal } from './NewColumnModal';
 import { CannotDeleteColumnModal } from './CannotDeleteColumnModal';
+import { logger } from '@/utils/logger';
 
 interface MainGridViewProps {
   columns: Column[];
@@ -52,6 +53,7 @@ interface MainGridViewProps {
   editingCell: EditingCell | null;
   setEditingCell: (cell: EditingCell | null) => void;
   allColumns?: Column[];
+  cellUpdateLoading?: Set<string>;
 }
 
 export const MainGridView = forwardRef(function MainGridView({
@@ -74,7 +76,8 @@ export const MainGridView = forwardRef(function MainGridView({
   frozenColumnIds,
   editingCell,
   setEditingCell,
-  allColumns
+  allColumns,
+  cellUpdateLoading
 }: MainGridViewProps, ref) {
   const gridRef = useRef<any>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -315,8 +318,7 @@ export const MainGridView = forwardRef(function MainGridView({
           return;
         }
       } catch (e) {
-        // Handle cases where activeElement might be null or inaccessible
-        console.debug('Error checking active element:', e);
+        logger.debug('Error checking active element:', e);
         return;
       }
 
@@ -387,7 +389,7 @@ export const MainGridView = forwardRef(function MainGridView({
                 inputEl.selectionEnd = 1;
               }
             } catch (error) {
-              console.debug('Error setting input value during direct typing:', error);
+              logger.debug('Error setting input value during direct typing:', error);
             }
           }, 10);
 
@@ -541,7 +543,7 @@ export const MainGridView = forwardRef(function MainGridView({
               try {
                 setSelectedCell(null);
               } catch (e) {
-                console.debug('Error clearing selection:', e);
+                logger.debug('Error clearing selection:', e);
               }
             };
 
@@ -549,7 +551,7 @@ export const MainGridView = forwardRef(function MainGridView({
               try {
                 setSelectedCell(null);
               } catch (e) {
-                console.debug('Error clearing selection on focus:', e);
+                logger.debug('Error clearing selection on focus:', e);
               }
             };
 
@@ -558,7 +560,7 @@ export const MainGridView = forwardRef(function MainGridView({
           }
         });
       } catch (e) {
-        console.debug('Error setting up search input listeners:', e);
+        logger.debug('Error setting up search input listeners:', e);
       }
     };
 
@@ -1133,17 +1135,17 @@ export const MainGridView = forwardRef(function MainGridView({
 
   // Context menu actions
   const handleCopyColumn = (columnId: string) => {
-    console.log(`Copy column: ${columnId}`);
+    logger.log(`Copy column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
   };
 
   const handlePasteColumn = (columnId: string) => {
-    console.log(`Paste into column: ${columnId}`);
+    logger.log(`Paste into column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
   };
 
   const handleInsertLeft = (columnIndex: number) => {
-    console.log(`Insert column left of index: ${columnIndex}`);
+    logger.log(`Insert column left of index: ${columnIndex}`);
 
     // Calculate the global column index by finding the column ID in the full columns array
     const columnId = columns[columnIndex]?.id;
@@ -1158,7 +1160,7 @@ export const MainGridView = forwardRef(function MainGridView({
   };
 
   const handleInsertRight = (columnIndex: number) => {
-    console.log(`Insert column right of index: ${columnIndex}`);
+    logger.log(`Insert column right of index: ${columnIndex}`);
 
     // Calculate the global column index by finding the column ID in the full columns array
     const columnId = columns[columnIndex]?.id;
@@ -1167,7 +1169,7 @@ export const MainGridView = forwardRef(function MainGridView({
     // Don't allow adding columns after lastContacted
     const column = columns[columnIndex];
     if (column?.id === 'lastContacted') {
-      console.log("Cannot add columns after lastContacted");
+      logger.log("Cannot add columns after lastContacted");
       if (onContextMenu) onContextMenu(null);
       return;
     }
@@ -1201,7 +1203,7 @@ export const MainGridView = forwardRef(function MainGridView({
   ];
 
   const handleDeleteColumn = (columnId: string) => {
-    console.log(`Delete column: ${columnId}`);
+    logger.log(`Delete column: ${columnId}`);
 
     // Check if it's a default column
     if (defaultColumnIds.includes(columnId)) {
@@ -1233,12 +1235,12 @@ export const MainGridView = forwardRef(function MainGridView({
   };
 
   const handleSortAZ = (columnId: string) => {
-    console.log(`Sort sheet A-Z by column: ${columnId}`);
+    logger.log(`Sort sheet A-Z by column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
   };
 
   const handleSortZA = (columnId: string) => {
-    console.log(`Sort sheet Z-A by column: ${columnId}`);
+    logger.log(`Sort sheet Z-A by column: ${columnId}`);
     if (onContextMenu) onContextMenu(null);
   };
 
@@ -1321,7 +1323,7 @@ export const MainGridView = forwardRef(function MainGridView({
       }
     } catch (error) {
       // Fallback to react-window scroll only if native fails
-      console.debug('Error in native scroll, falling back to react-window scroll:', error);
+      logger.debug('Error in native scroll, falling back to react-window scroll:', error);
       if (gridRef.current?.scrollToItem) {
         gridRef.current.scrollToItem({
           columnIndex,

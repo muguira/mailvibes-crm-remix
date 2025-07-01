@@ -5,6 +5,7 @@ import { TopNavbar } from "@/components/layout/top-navbar";
 import { CustomButton } from "@/components/ui/custom-button";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from '@/utils/logger';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -33,7 +34,7 @@ export default function Profile() {
           setLastName(data.last_name || "");
         }
       } catch (error: any) {
-        console.error("Error fetching profile:", error);
+        logger.error("Error fetching profile:", error);
         toast({
           title: "Error",
           description: "Failed to load profile data",

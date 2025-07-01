@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "../use-toast";
+import { logger } from '@/utils/logger';
 
 export interface ChangeRecord {
   id: string;
@@ -33,7 +34,7 @@ export function useChangeHistory(listId?: string) {
       .limit(100);
 
     if (error) {
-      console.error('Error fetching change history:', error);
+      logger.error('Error fetching change history:', error);
       toast({
         title: 'Error',
         description: 'Failed to load change history',
@@ -111,7 +112,7 @@ export function useChangeHistory(listId?: string) {
       queryClient.invalidateQueries({ queryKey: ['change_history', listId] });
     },
     onError: (error) => {
-      console.error('Error recording change:', error);
+      logger.error('Error recording change:', error);
       // Silent failure - we don't want to disrupt the user experience
       // for change history recording failures
     },

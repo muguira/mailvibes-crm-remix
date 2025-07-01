@@ -1,5 +1,6 @@
 
 import { ColumnDef } from "../types";
+import { logger } from '@/utils/logger';
 
 interface UseColumnActionsProps {
   columns: ColumnDef[];
@@ -19,12 +20,12 @@ export function useColumnActions({
   
   // Header double click handler
   const handleHeaderDoubleClick = (colKey: string) => {
-    console.log("Double click on header:", colKey);
+    logger.log("Double click on header:", colKey);
   };
   
   // Rename column handler
   const renameColumn = (colKey: string, newName: string) => {
-    console.log("Renaming column:", colKey, "to", newName);
+    logger.log("Renaming column:", colKey, "to", newName);
     saveStateToHistory();
     setColumns(prevColumns =>
       prevColumns.map(col =>
@@ -35,7 +36,7 @@ export function useColumnActions({
   
   // Delete column handler
   const deleteColumn = (colKey: string) => {
-    console.log("Deleting column:", colKey);
+    logger.log("Deleting column:", colKey);
     saveStateToHistory();
     setColumns(prevColumns => prevColumns.filter(col => col.key !== colKey));
     setData(prevData =>
@@ -48,7 +49,7 @@ export function useColumnActions({
   
   // Duplicate column handler
   const duplicateColumn = (column: ColumnDef) => {
-    console.log("Duplicating column:", column);
+    logger.log("Duplicating column:", column);
     saveStateToHistory();
     const newKey = `${column.key}_copy`;
     const newColumn = { ...column, key: newKey, header: `${column.header} Copy` };

@@ -13,6 +13,7 @@ import { useContacts } from "@/hooks/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { logger } from '@/utils/logger';
 
 export interface PointsOfContactDialogProps {
   isOpen: boolean;
@@ -128,7 +129,7 @@ export function PointsOfContactDialog({
         ? `${selectedContacts.length} contact(s) added to ${opportunityName}`
         : `All contacts removed from ${opportunityName}`,
       action: selectedContacts.length > 0 ? 
-        <CustomButton variant="link" onClick={() => console.log("Undo action")}>
+        <CustomButton variant="link" onClick={() => logger.log("Undo action")}>
           Undo
         </CustomButton> : undefined
     });

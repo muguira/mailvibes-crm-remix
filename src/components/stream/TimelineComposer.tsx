@@ -5,6 +5,7 @@ import { SendHorizontal } from "lucide-react";
 import { useActivity } from "@/contexts/ActivityContext";
 import { useParams } from "react-router-dom";
 import { mockContactsById } from "@/components/stream/sample-data";
+import { logger } from '@/utils/logger';
 
 export default function TimelineComposer() {
   const [text, setText] = useState("");
@@ -13,7 +14,7 @@ export default function TimelineComposer() {
   
   const handleSend = () => {
     if (text.trim()) {
-      console.log("Comment:", text);
+      logger.log("Comment:", text);
       
       // Log the note to the activity feed
       if (recordId) {

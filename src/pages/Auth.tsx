@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Navigate } from "react-router-dom";
 import { CustomButton } from "@/components/ui/custom-button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { logger } from '@/utils/logger';
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -30,7 +31,7 @@ export default function Auth() {
         navigate("/dashboard");
       }
     } catch (error) {
-      console.error("Authentication error:", error);
+      logger.error("Authentication error:", error);
     } finally {
       setIsLoading(false);
     }

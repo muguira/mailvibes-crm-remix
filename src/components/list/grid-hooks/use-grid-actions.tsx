@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ColumnDef } from "../grid-view";
 import { RowData } from "./use-grid-state";
 import { toast } from "sonner";
+import { logger } from '@/utils/logger';
 
 interface UseGridActionsProps {
   columns: ColumnDef[];
@@ -182,13 +183,13 @@ export function useGridActions({
   // Fix these functions to handle the stack operations correctly without parameters
   const handleUndo = () => {
     // Implementation of undo logic
-    console.log("Undo operation");
+    logger.log("Undo operation");
     // Additional undo logic here
   };
   
   const handleRedo = () => {
     // Implementation of redo logic
-    console.log("Redo operation");
+    logger.log("Redo operation");
     // Additional redo logic here
   };
   

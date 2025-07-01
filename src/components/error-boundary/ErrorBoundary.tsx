@@ -2,6 +2,7 @@ import React, { Component, ReactNode } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { logger } from '@/utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -27,7 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error(`Error in ${this.props.sectionName || 'component'}:`, error, errorInfo);
+    logger.critical(`Error in ${this.props.sectionName || 'component'}:`, error, errorInfo);
     this.setState({ errorInfo });
     
     // You could also log to an error reporting service here

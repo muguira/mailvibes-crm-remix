@@ -11,7 +11,7 @@ export function useDragDrop({
   
   // Drag handlers
   const handleDragStart = (key: string) => {
-    console.log("Drag start:", key);
+    logger.log("Drag start:", key);
     setDraggedColumn(key);
   };
   
@@ -21,7 +21,7 @@ export function useDragDrop({
   };
   
   const handleDrop = (draggedColumn: string | null, columns: any[], setColumns: any) => (key: string) => {
-    console.log("Drop on:", key);
+    logger.log("Drop on:", key);
     if (!draggedColumn) return;
     
     const draggingColIndex = columns.findIndex(col => col.key === draggedColumn);

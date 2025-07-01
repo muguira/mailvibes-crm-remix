@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { useColumnOperations, Column, GridRow } from './use-column-operations';
 import { toast } from '@/hooks/use-toast';
+import { logger } from '@/utils/logger';
 
 // Example component showing integration
 export function GridComponentWithColumnOps() {
@@ -31,13 +32,13 @@ export function GridComponentWithColumnOps() {
         body: JSON.stringify(updatedColumns)
       });
     } catch (error) {
-      console.error('Failed to persist columns:', error);
+      logger.error('Failed to persist columns:', error);
     }
   };
 
   // Example activity logging
   const logActivity = (action: string, details: any) => {
-    console.log(`[Activity] ${action}:`, details);
+    logger.log(`[Activity] ${action}:`, details);
     // You could send this to an analytics service or activity feed
   };
 
@@ -177,7 +178,7 @@ export function EditableLeadsGridIntegration() {
     },
     onActivityLog: (action, details) => {
       // Your existing activity logging
-      console.log(`Column ${action}:`, details);
+      logger.log(`Column ${action}:`, details);
     }
   });
 

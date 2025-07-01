@@ -11,6 +11,7 @@ import { ContactDetails, ContactDetailsDialog } from "@/components/list/dialogs/
 import { Contact } from "@/hooks/supabase/use-contacts";
 import { Json } from "@/integrations/supabase/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { logger } from '@/utils/logger';
 
 export default function ContactProfile() {
   const { id } = useParams<{ id: string }>();
@@ -85,7 +86,7 @@ export default function ContactProfile() {
           });
         }
       } catch (error: any) {
-        console.error('Error fetching contact:', error);
+        logger.error('Error fetching contact:', error);
         toast.error("Failed to load contact data");
       } finally {
         setLoading(false);
@@ -156,7 +157,7 @@ export default function ContactProfile() {
       setEditMode(null);
       toast.success("Contact details have been updated successfully");
     } catch (error: any) {
-      console.error('Error updating contact:', error);
+      logger.error('Error updating contact:', error);
       toast.error(`Failed to update contact: ${error.message}`);
     }
   };

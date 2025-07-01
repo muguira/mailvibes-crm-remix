@@ -25,6 +25,7 @@ import {
   DropdownMenuPortal
 } from '@/components/ui/dropdown-menu';
 import { ContextMenu } from './ContextMenu';
+import { logger } from '@/utils/logger';
 
 interface GridHeaderProps {
   columns: Column[];
@@ -254,17 +255,17 @@ export function GridHeader({
 
   // Functions for column operations that get called from the new ContextMenu
   const handleCopyColumn = (columnId: string) => {
-    console.log(`Copy column: ${columnId}`);
+    logger.log(`Copy column: ${columnId}`);
     if (onCopy) onCopy(columnId);
   };
 
   const handlePasteColumn = (columnId: string) => {
-    console.log(`Paste into column: ${columnId}`);
+    logger.log(`Paste into column: ${columnId}`);
     if (onPaste) onPaste(columnId);
   };
 
   const handleInsertColumnLeft = (columnId: string) => {
-    console.log(`Insert column left of: ${columnId}`);
+    logger.log(`Insert column left of: ${columnId}`);
     const columnIndex = columns.findIndex(col => col.id === columnId);
     if (columnIndex > 0) {
       const prevColumnId = columns[columnIndex - 1].id;
@@ -275,22 +276,22 @@ export function GridHeader({
   };
 
   const handleInsertColumnRight = (columnId: string) => {
-    console.log(`Insert column right of: ${columnId}`);
+    logger.log(`Insert column right of: ${columnId}`);
     if (onAddColumn) onAddColumn(columnId);
   };
 
   const handleDeleteColumnAction = (columnId: string) => {
-    console.log(`Delete column: ${columnId}`);
+    logger.log(`Delete column: ${columnId}`);
     if (onDeleteColumn && columnId !== 'opportunity') onDeleteColumn(columnId);
   };
 
   const handleSortAZAction = (columnId: string) => {
-    console.log(`Sort sheet A-Z by column: ${columnId}`);
+    logger.log(`Sort sheet A-Z by column: ${columnId}`);
     if (onSortAZ) onSortAZ(columnId);
   };
 
   const handleSortZAAction = (columnId: string) => {
-    console.log(`Sort sheet Z-A by column: ${columnId}`);
+    logger.log(`Sort sheet Z-A by column: ${columnId}`);
     if (onSortZA) onSortZA(columnId);
   };
 

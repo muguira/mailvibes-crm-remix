@@ -3,6 +3,7 @@ import { ChevronDown, PencilLine, Copy, ArrowLeft, ArrowRight, SortAsc, SortDesc
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ColumnDef } from "./grid/types";
 import { useState, useEffect, useRef } from "react";
+import { logger } from '@/utils/logger';
 
 interface GridHeaderCellProps {
   column: ColumnDef;
@@ -45,7 +46,7 @@ export function GridHeaderCell({
   const displayHeader = column.header || column.key || "Unnamed Column";
   
   useEffect(() => {
-    console.log("Rendering header cell:", displayHeader, column.key);
+    logger.log("Rendering header cell:", displayHeader, column.key);
     
     // Force visibility of the header cell 
     if (headerRef.current) {

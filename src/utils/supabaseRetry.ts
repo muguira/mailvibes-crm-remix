@@ -1,4 +1,5 @@
 import { PostgrestError } from '@supabase/supabase-js';
+import { logger } from '@/utils/logger';
 
 interface RetryOptions {
   maxAttempts?: number;
@@ -26,7 +27,7 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
     return true;
   },
   onRetry: (error: any, attempt: number) => {
-    console.warn(`Retry attempt ${attempt} after error:`, error?.message || error);
+    logger.warn(`Retry attempt ${attempt} after error:`, error?.message || error);
   }
 };
 

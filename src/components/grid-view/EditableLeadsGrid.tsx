@@ -16,9 +16,11 @@ import { mockContactsById } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
 import { PAGE_SIZE, LEADS_STORAGE_KEY } from '@/constants/grid';
 import { useAuth } from '@/contexts/AuthContext';
+import { logger } from '@/utils/logger';
 import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
 import { toast } from '@/components/ui/use-toast';
 import { useActivity } from "@/contexts/ActivityContext";
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 // Constants
 const COLUMNS_STORAGE_KEY = 'gridColumns-v1';
@@ -26,21 +28,21 @@ const COLUMNS_STORAGE_KEY = 'gridColumns-v1';
 // Save columns to localStorage
 const saveColumnsToLocal = (columns: Column[]): void => {
   try {
-    localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(columns));
+    localStorage.setItem('grid-columns-v1', JSON.stringify(columns));
   } catch (error) {
-    console.error('Failed to save columns to localStorage:', error);
+    logger.error('Failed to save columns to localStorage:', error);
   }
 };
 
 // Load columns from localStorage
 const loadColumnsFromLocal = (): Column[] | null => {
   try {
-    const savedColumns = localStorage.getItem(COLUMNS_STORAGE_KEY);
-    if (savedColumns) {
-      return JSON.parse(savedColumns);
+    const saved = localStorage.getItem('grid-columns-v1');
+    if (saved) {
+      return JSON.parse(saved);
     }
   } catch (error) {
-    console.error('Failed to load columns from localStorage:', error);
+    logger.error('Failed to load columns from localStorage:', error);
   }
   return null;
 };
@@ -63,13 +65,13 @@ const saveColumnsToSupabase = async (user: any, columns: Column[]): Promise<void
     if (error) {
       // Only log error if it's not a 404 (table not found)
       if (!error.message?.includes('404')) {
-        console.error('Failed to save columns to Supabase:', error);
+        logger.error('Failed to save columns to Supabase:', error);
       }
     }
   } catch (error) {
     // Silently fail for 404 errors
     if (!String(error).includes('404')) {
-      console.error('Error saving columns to Supabase:', error);
+      logger.error('Error saving columns to Supabase:', error);
     }
   }
 };
@@ -93,7 +95,7 @@ const loadColumnsFromSupabase = async (user: any): Promise<Column[] | null> => {
         return null;
       }
       // Only log other errors
-      console.error('Error loading columns from Supabase:', error);
+      logger.error('Error loading columns from Supabase:', error);
       return null;
     }
     
@@ -101,7 +103,7 @@ const loadColumnsFromSupabase = async (user: any): Promise<Column[] | null> => {
   } catch (error) {
     // Silently fail for 404 errors
     if (!String(error).includes('404')) {
-      console.error('Error loading columns from Supabase:', error);
+      logger.error('Error loading columns from Supabase:', error);
     }
     return null;
   }
@@ -375,6 +377,15 @@ export function EditableLeadsGrid() {
   const [isGridReady, setIsGridReady] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Add loading states for column operations
+  const [columnOperationLoading, setColumnOperationLoading] = useState<{
+    type: 'add' | 'delete' | 'rename' | 'hide' | 'unhide' | null;
+    columnId?: string;
+  }>({ type: null });
+  
+  // Add loading state for cell updates
+  const [cellUpdateLoading, setCellUpdateLoading] = useState<Set<string>>(new Set());
+  
   // Use our custom hook for leads data
   const { 
     rows, 
@@ -512,7 +523,7 @@ export function EditableLeadsGrid() {
           handleResize();
         }
       } catch (error) {
-        console.error('Error loading stored columns:', error);
+        logger.error('Error loading stored columns:', error);
         // Keep default columns on error
       }
     };
@@ -540,12 +551,12 @@ export function EditableLeadsGrid() {
           });
           
         if (error && !error.message?.includes('404')) {
-          console.error('Failed to save hidden columns:', error);
+          logger.error('Failed to save hidden columns:', error);
         }
       }
     } catch (error) {
       if (!String(error).includes('404')) {
-        console.error('Failed to save hidden columns:', error);
+        logger.error('Failed to save hidden columns:', error);
       }
     }
   };
@@ -568,7 +579,7 @@ export function EditableLeadsGrid() {
           if (data && !error) {
             storedHiddenColumns = data.setting_value as Column[];
           } else if (error && !error.message?.includes('404') && error.code !== 'PGRST116') {
-            console.error('Error loading hidden columns:', error);
+            logger.error('Error loading hidden columns:', error);
           }
         }
         
@@ -584,7 +595,7 @@ export function EditableLeadsGrid() {
         }
       } catch (error) {
         if (!String(error).includes('404')) {
-          console.error('Error loading hidden columns:', error);
+          logger.error('Error loading hidden columns:', error);
         }
       }
     };
@@ -633,26 +644,46 @@ export function EditableLeadsGrid() {
   }, [handleResize]);
   
   // Handle cell edit
-  const handleCellChange = (rowId: string, columnId: string, value: any) => {
-    // Find the old value for activity logging
-    const row = rows.find(r => r.id === rowId);
-    const oldValue = row ? row[columnId] : null;
-            
-    // Save to Supabase through our hook
-    updateCell({ rowId, columnId, value });
-        
-        // Sync with mockContactsById
-    const updatedRow = rows.find(r => r.id === rowId) || { id: rowId };
-    updatedRow[columnId] = value;
-    syncContact(updatedRow as GridRow);
+  const handleCellChange = async (rowId: string, columnId: string, value: any) => {
+    const cellKey = `${rowId}-${columnId}`;
     
-    // Log the activity with contact name if available
-    logCellEdit(
-      rowId, 
-      columnId, 
-      value, 
-      oldValue
-    );
+    // Add to loading set
+    setCellUpdateLoading(prev => new Set(prev).add(cellKey));
+    
+    try {
+      // Find the old value for activity logging
+      const row = rows.find(r => r.id === rowId);
+      const oldValue = row ? row[columnId] : null;
+              
+      // Save to Supabase through our hook
+      await updateCell({ rowId, columnId, value });
+          
+      // Sync with mockContactsById
+      const updatedRow = rows.find(r => r.id === rowId) || { id: rowId };
+      updatedRow[columnId] = value;
+      syncContact(updatedRow as GridRow);
+      
+      // Log the activity with contact name if available
+      logCellEdit(
+        rowId, 
+        columnId, 
+        value, 
+        oldValue
+      );
+    } catch (error) {
+      toast({
+        title: "Error updating cell",
+        description: "Failed to save changes. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      // Remove from loading set
+      setCellUpdateLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(cellKey);
+        return newSet;
+      });
+    }
   };
   
   // Handle columns reordering
@@ -672,7 +703,7 @@ export function EditableLeadsGrid() {
   };
   
   // Handle column deletion
-  const handleDeleteColumn = (columnId: string) => {
+  const handleDeleteColumn = async (columnId: string) => {
     // Don't delete the primary columns
     if (['name', 'status', 'company'].includes(columnId)) {
       toast({
@@ -683,184 +714,277 @@ export function EditableLeadsGrid() {
       return;
     }
     
-    // Log the column deletion
-    const column = columns.find(col => col.id === columnId);
-    if (column) {
-      logColumnDelete(columnId, column.title);
+    // Set loading state
+    setColumnOperationLoading({ type: 'delete', columnId });
+    
+    try {
+      // Log the column deletion
+      const column = columns.find(col => col.id === columnId);
+      if (column) {
+        logColumnDelete(columnId, column.title);
+      }
+      
+      // Remove from columns array
+      const newColumns = columns.filter(col => col.id !== columnId);
+      setColumns(newColumns);
+      
+      // Persist the column deletion
+      await persistColumns(newColumns);
+      
+      toast({
+        title: "Column deleted",
+        description: `Successfully deleted column "${column?.title}"`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error deleting column",
+        description: "Failed to delete the column. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setColumnOperationLoading({ type: null });
     }
-    
-    // Remove from columns array
-    const newColumns = columns.filter(col => col.id !== columnId);
-    setColumns(newColumns);
-    
-    // Persist the column deletion
-    persistColumns(newColumns);
   };
   
   // Handle adding a new column
-  const handleAddColumn = (afterColumnId: string) => {
-    // Create a new unique column ID
-    const columnId = `column-${uuidv4().substring(0, 8)}`;
+  const handleAddColumn = async (afterColumnId: string) => {
+    // Set loading state
+    setColumnOperationLoading({ type: 'add' });
     
-    // Create the new column - defaulting to text type
-    const newColumn: Column = {
-      id: columnId,
-      title: `New Column`,
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    };
-    
-    // Find the index where we need to insert
-    const afterIndex = columns.findIndex(col => col.id === afterColumnId);
-    
-    // Log the activity
-    logColumnAdd(newColumn.id, newColumn.title);
-    
-    // Add the column at the right position
-    setColumns([
-      ...columns.slice(0, afterIndex + 1),
-      newColumn,
-      ...columns.slice(afterIndex + 1)
-    ]);
+    try {
+      // Create a new unique column ID
+      const columnId = `column-${uuidv4().substring(0, 8)}`;
+      
+      // Create the new column - defaulting to text type
+      const newColumn: Column = {
+        id: columnId,
+        title: `New Column`,
+        type: 'text',
+        width: DEFAULT_COLUMN_WIDTH,
+        editable: true,
+      };
+      
+      // Find the index where we need to insert
+      const afterIndex = columns.findIndex(col => col.id === afterColumnId);
+      
+      // Log the activity
+      logColumnAdd(newColumn.id, newColumn.title);
+      
+      // Add the column at the right position
+      const newColumns = [
+        ...columns.slice(0, afterIndex + 1),
+        newColumn,
+        ...columns.slice(afterIndex + 1)
+      ];
+      
+      setColumns(newColumns);
+      await persistColumns(newColumns);
+      
+      toast({
+        title: "Column added",
+        description: "Successfully added new column",
+      });
+    } catch (error) {
+      toast({
+        title: "Error adding column",
+        description: "Failed to add new column. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setColumnOperationLoading({ type: null });
+    }
   };
 
   // Handle inserting a new column with specific direction and header name
-  const handleInsertColumn = (direction: 'left' | 'right', targetIndex: number, headerName: string, columnType: string, config?: any) => {
-    // Create a new unique column ID
-    const columnId = `column-${uuidv4().substring(0, 8)}`;
+  const handleInsertColumn = async (direction: 'left' | 'right', targetIndex: number, headerName: string, columnType: string, config?: any) => {
+    // Set loading state
+    setColumnOperationLoading({ type: 'add' });
     
-    // Create the new column with the provided header name and type
-    const newColumn: Column = {
-      id: columnId,
-      title: headerName,
-      type: columnType as Column['type'], // Use proper type instead of any
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    };
-
-    // Apply configuration based on column type
-    if (columnType === 'currency' && config?.currencyType) {
-      // Store currency type in the column for formatting
-      newColumn.currencyType = config.currencyType;
-    } else if (columnType === 'status' && config?.options && config?.colors) {
-      // Add status options and colors from config
-      newColumn.options = config.options;
-      newColumn.colors = config.colors;
-    } else if (columnType === 'status') {
-      // Default status options if no config provided
-      newColumn.options = ['Option 1', 'Option 2', 'Option 3'];
-      newColumn.colors = {
-        'Option 1': '#E4E5E8',
-        'Option 2': '#DBCDF0', 
-        'Option 3': '#C6DEF1',
+    try {
+      // Create a new unique column ID
+      const columnId = `column-${uuidv4().substring(0, 8)}`;
+      
+      // Create the new column with the provided header name and type
+      const newColumn: Column = {
+        id: columnId,
+        title: headerName,
+        type: columnType as Column['type'], // Use proper type instead of any
+        width: DEFAULT_COLUMN_WIDTH,
+        editable: true,
       };
+
+      // Apply configuration based on column type
+      if (columnType === 'currency' && config?.currencyType) {
+        // Store currency type in the column for formatting
+        newColumn.currencyType = config.currencyType;
+      } else if (columnType === 'status' && config?.options && config?.colors) {
+        // Add status options and colors from config
+        newColumn.options = config.options;
+        newColumn.colors = config.colors;
+      } else if (columnType === 'status') {
+        // Default status options if no config provided
+        newColumn.options = ['Option 1', 'Option 2', 'Option 3'];
+        newColumn.colors = {
+          'Option 1': '#E4E5E8',
+          'Option 2': '#DBCDF0', 
+          'Option 3': '#C6DEF1',
+        };
+      }
+      
+      // Calculate insertion index based on direction
+      const insertAt = direction === 'left' ? targetIndex : targetIndex + 1;
+      
+      // Log the activity
+      logColumnAdd(newColumn.id, newColumn.title);
+      
+      // Insert the column at the calculated position
+      const newColumns = [
+        ...columns.slice(0, insertAt),
+        newColumn,
+        ...columns.slice(insertAt)
+      ];
+      
+      setColumns(newColumns);
+      
+      // Persist the new columns configuration
+      await persistColumns(newColumns);
+      
+      toast({
+        title: "Column added",
+        description: `Successfully added column "${headerName}"`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error adding column",
+        description: "Failed to add new column. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setColumnOperationLoading({ type: null });
     }
-    
-    // Calculate insertion index based on direction
-    const insertAt = direction === 'left' ? targetIndex : targetIndex + 1;
-    
-    // Log the activity
-    logColumnAdd(newColumn.id, newColumn.title);
-    
-    // Insert the column at the calculated position
-    const newColumns = [
-      ...columns.slice(0, insertAt),
-      newColumn,
-      ...columns.slice(insertAt)
-    ];
-    
-    setColumns(newColumns);
-    
-    // Persist the new columns configuration
-    persistColumns(newColumns);
   };
 
   // Handle hiding a column (remove from view but don't delete data)
-  const handleHideColumn = (columnId: string) => {
-    // Log the activity
-    const column = columns.find(col => col.id === columnId);
-    if (column) {
-      logFilterChange({ type: 'column_hidden', columnId, columnName: column.title });
+  const handleHideColumn = async (columnId: string) => {
+    // Set loading state
+    setColumnOperationLoading({ type: 'hide', columnId });
+    
+    try {
+      // Log the activity
+      const column = columns.find(col => col.id === columnId);
+      if (column) {
+        logFilterChange({ type: 'column_hidden', columnId, columnName: column.title });
+        
+        // Store the current index of the column before hiding
+        const currentIndex = columns.findIndex(col => col.id === columnId);
+        const columnWithIndex = { ...column, originalIndex: currentIndex };
+        
+        // Add to hidden columns list with original index
+        const newHiddenColumns = [...hiddenColumns, columnWithIndex];
+        setHiddenColumns(newHiddenColumns);
+        await saveHiddenColumns(newHiddenColumns);
+      }
       
-      // Store the current index of the column before hiding
-      const currentIndex = columns.findIndex(col => col.id === columnId);
-      const columnWithIndex = { ...column, originalIndex: currentIndex };
+      // Remove from columns array (this hides it from view)
+      const newColumns = columns.filter(col => col.id !== columnId);
+      setColumns(newColumns);
       
-      // Add to hidden columns list with original index
-      const newHiddenColumns = [...hiddenColumns, columnWithIndex];
-      setHiddenColumns(newHiddenColumns);
-      saveHiddenColumns(newHiddenColumns);
+      // Persist the column changes
+      await persistColumns(newColumns);
+      
+      toast({
+        title: "Column hidden",
+        description: `Column "${column?.title}" is now hidden`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error hiding column",
+        description: "Failed to hide the column. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setColumnOperationLoading({ type: null });
     }
-    
-    // Remove from columns array (this hides it from view)
-    const newColumns = columns.filter(col => col.id !== columnId);
-    setColumns(newColumns);
-    
-    // Persist the column changes
-    persistColumns(newColumns);
   };
 
   // Handle unhiding a column
-  const handleUnhideColumn = (columnId: string) => {
-    // Find the column in hidden columns
-    const columnToUnhide = hiddenColumns.find(col => col.id === columnId);
-    if (!columnToUnhide) return;
-
-    // Restore render functions for social links and contact column
-    let restoredColumn = { ...columnToUnhide };
-    if (['facebook', 'instagram', 'linkedin', 'twitter'].includes(columnToUnhide.id)) {
-      restoredColumn.renderCell = renderSocialLink;
-    } else if (columnToUnhide.id === 'name') {
-      restoredColumn.renderCell = (value, row) => (
-        <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
-          {value}
-        </Link>
-      );
-    }
-
-    // Remove the originalIndex property as it's not part of the Column interface
-    const { originalIndex, ...cleanColumn } = restoredColumn as any;
-
-    // Calculate where to insert the column based on original index
-    let insertIndex = originalIndex || 0;
+  const handleUnhideColumn = async (columnId: string) => {
+    // Set loading state
+    setColumnOperationLoading({ type: 'unhide', columnId });
     
-    // Adjust the insert index if columns have been removed since hiding
-    const currentColumnIds = columns.map(col => col.id);
-    const defaultColumnOrder = getDefaultColumns().map(col => col.id);
-    
-    // Count how many columns that should come before this one are currently visible
-    let adjustedIndex = 0;
-    for (let i = 0; i < defaultColumnOrder.length && i < originalIndex; i++) {
-      const colId = defaultColumnOrder[i];
-      if (currentColumnIds.includes(colId)) {
-        adjustedIndex++;
+    try {
+      // Find the column in hidden columns
+      const columnToUnhide = hiddenColumns.find(col => col.id === columnId);
+      if (!columnToUnhide) return;
+
+      // Restore render functions for social links and contact column
+      let restoredColumn = { ...columnToUnhide };
+      if (['facebook', 'instagram', 'linkedin', 'twitter'].includes(columnToUnhide.id)) {
+        restoredColumn.renderCell = renderSocialLink;
+      } else if (columnToUnhide.id === 'name') {
+        restoredColumn.renderCell = (value, row) => (
+          <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
+            {value}
+          </Link>
+        );
       }
-    }
-    
-    // Ensure we don't insert beyond the current array length
-    insertIndex = Math.min(adjustedIndex, columns.length);
-    
-    // Always keep lastContacted at the end if it exists
-    const lastContactedIndex = columns.findIndex(col => col.id === 'lastContacted');
-    if (lastContactedIndex !== -1 && insertIndex >= lastContactedIndex) {
-      insertIndex = lastContactedIndex;
-    }
-    
-    // Insert the column at the calculated position
-    const newColumns = [...columns];
-    newColumns.splice(insertIndex, 0, cleanColumn);
-    
-    setColumns(newColumns);
-    persistColumns(newColumns);
 
-    // Remove from hidden columns
-    const newHiddenColumns = hiddenColumns.filter(col => col.id !== columnId);
-    setHiddenColumns(newHiddenColumns);
-    saveHiddenColumns(newHiddenColumns);
+      // Remove the originalIndex property as it's not part of the Column interface
+      const { originalIndex, ...cleanColumn } = restoredColumn as any;
 
-    // Log the activity
-    logFilterChange({ type: 'column_unhidden', columnId, columnName: cleanColumn.title });
+      // Calculate where to insert the column based on original index
+      let insertIndex = originalIndex || 0;
+      
+      // Adjust the insert index if columns have been removed since hiding
+      const currentColumnIds = columns.map(col => col.id);
+      const defaultColumnOrder = getDefaultColumns().map(col => col.id);
+      
+      // Count how many columns that should come before this one are currently visible
+      let adjustedIndex = 0;
+      for (let i = 0; i < defaultColumnOrder.length && i < originalIndex; i++) {
+        const colId = defaultColumnOrder[i];
+        if (currentColumnIds.includes(colId)) {
+          adjustedIndex++;
+        }
+      }
+      
+      // Ensure we don't insert beyond the current array length
+      insertIndex = Math.min(adjustedIndex, columns.length);
+      
+      // Always keep lastContacted at the end if it exists
+      const lastContactedIndex = columns.findIndex(col => col.id === 'lastContacted');
+      if (lastContactedIndex !== -1 && insertIndex >= lastContactedIndex) {
+        insertIndex = lastContactedIndex;
+      }
+      
+      // Insert the column at the calculated position
+      const newColumns = [...columns];
+      newColumns.splice(insertIndex, 0, cleanColumn);
+      
+      setColumns(newColumns);
+      await persistColumns(newColumns);
+
+      // Remove from hidden columns
+      const newHiddenColumns = hiddenColumns.filter(col => col.id !== columnId);
+      setHiddenColumns(newHiddenColumns);
+      await saveHiddenColumns(newHiddenColumns);
+
+      // Log the activity
+      logFilterChange({ type: 'column_unhidden', columnId, columnName: cleanColumn.title });
+      
+      toast({
+        title: "Column unhidden",
+        description: `Column "${cleanColumn.title}" is now visible`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error unhiding column",
+        description: "Failed to unhide the column. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setColumnOperationLoading({ type: null });
+    }
   };
   
   // Show better loading UI to cover any potential flash
@@ -893,17 +1017,17 @@ export function EditableLeadsGrid() {
   
   return (
     <div className="h-full w-full flex flex-col">
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
         <GridViewContainer 
-        columns={columns} 
+          columns={columns} 
           data={rows}  // Use all rows instead of paginated data
-        listName="All Leads"
-        listType="Lead"
-        listId="leads-grid"
+          listName="All Leads"
+          listType="Lead"
+          listId="leads-grid"
           firstRowIndex={(currentPage - 1) * pageSize}  // Calculate the correct start index for row numbering
-        onCellChange={handleCellChange}
-        onColumnsReorder={handleColumnsReorder}
-        onAddColumn={handleAddColumn}
+          onCellChange={handleCellChange}
+          onColumnsReorder={handleColumnsReorder}
+          onAddColumn={handleAddColumn}
           onInsertColumn={handleInsertColumn}
           onHideColumn={handleHideColumn}
           onUnhideColumn={handleUnhideColumn}
@@ -911,6 +1035,8 @@ export function EditableLeadsGrid() {
           onSearchChange={setSearchTerm}
           searchTerm={searchTerm}
           className="h-full"
+          columnOperationLoading={columnOperationLoading}
+          cellUpdateLoading={cellUpdateLoading}
         />
       </div>
       <GridPagination

@@ -1,6 +1,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { ColumnDef, ColumnType } from "../types";
+import { logger } from '@/utils/logger';
 
 interface UseGridColumnsProps {
   initialColumns: ColumnDef[];
@@ -15,20 +16,20 @@ export function useGridColumns({ initialColumns }: UseGridColumnsProps) {
   
   // Sync columns when initialColumns change
   useEffect(() => {
-    console.log("initialColumns updated:", initialColumns);
+    logger.log("initialColumns updated:", initialColumns);
     setColumns(initialColumns);
   }, [initialColumns]);
   
   // Memoized frozen and scrollable columns
   const frozenColumns = useMemo(() => {
     const frozen = columns.filter(col => col.frozen);
-    console.log("Frozen columns computed:", frozen);
+    logger.log("Frozen columns computed:", frozen);
     return frozen;
   }, [columns]);
   
   const scrollableColumns = useMemo(() => {
     const scrollable = columns.filter(col => !col.frozen);
-    console.log("Scrollable columns computed:", scrollable);
+    logger.log("Scrollable columns computed:", scrollable);
     return scrollable;
   }, [columns]);
   

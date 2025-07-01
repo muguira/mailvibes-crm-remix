@@ -10,6 +10,7 @@ import {
   useNewColumn
 } from "./hooks";
 import { ColumnDef, ColumnType } from "./types";
+import { logger } from '@/utils/logger';
 
 interface GridSetupProps {
   initialColumns: ColumnDef[];
@@ -101,7 +102,7 @@ export function useGridSetup({
       colors: newColumn.type === 'status' ? newColumn.colors : undefined,
     };
     
-    console.log("Adding new column:", newColumnDef);
+    logger.log("Adding new column:", newColumnDef);
     saveStateToHistory();
     setColumns(prevColumns => [...prevColumns, newColumnDef]);
     

@@ -3,6 +3,7 @@ import { RefObject, useRef, useEffect } from "react";
 import { ColumnDef, ColumnType } from "./grid/types";
 import { GridHeadersSection } from "./grid/components/grid-headers-section";
 import { AddColumnButton } from "./grid/components/add-column-button";
+import { logger } from '@/utils/logger';
 
 interface GridHeadersProps {
   frozenColumns: ColumnDef[];
@@ -69,7 +70,7 @@ export function GridHeaders({
   const localHeaderRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
-    console.log("GridHeaders rendering with columns:", { 
+    logger.log("GridHeaders rendering with columns:", { 
       frozen: frozenColumns, 
       scrollable: scrollableColumns 
     });

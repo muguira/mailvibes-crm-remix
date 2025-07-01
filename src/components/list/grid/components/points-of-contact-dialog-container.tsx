@@ -1,6 +1,7 @@
 
 import { useState, forwardRef, useImperativeHandle } from "react";
 import { PointsOfContactDialog } from "../../dialogs/points-of-contact-dialog";
+import { logger } from '@/utils/logger';
 
 interface PointsOfContactDialogContainerProps {
   listId?: string;
@@ -43,7 +44,7 @@ export const PointsOfContactDialogContainer = forwardRef<
     if (!currentOpportunity) return;
     
     // In a real implementation, this would update the opportunity's contacts in the database
-    console.log(`Saved ${contacts.length} contacts for opportunity ${currentOpportunity.name}`);
+    logger.log(`Saved ${contacts.length} contacts for opportunity ${currentOpportunity.name}`);
     
     // Update the primary contact in the grid if needed
     if (contacts.length > 0 && onCellChange) {

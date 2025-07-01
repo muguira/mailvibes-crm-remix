@@ -2,13 +2,14 @@ import React from "react";
 import { CsvImportWizard, ImportData } from "@/components/csv-import/CsvImportWizard";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { logger } from '@/utils/logger';
 
 export default function Import() {
   const navigate = useNavigate();
 
   const handleImportComplete = (data: ImportData, listId: string | null) => {
-    console.log("Import completed with data:", data);
-    console.log("Created list ID:", listId);
+    logger.log("Import completed with data:", data);
+    logger.log("Created list ID:", listId);
     
     // Dispatch event to notify that contacts were added
     const event = new Event('contact-added');

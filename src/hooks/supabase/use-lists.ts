@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "../use-toast";
+import { logger } from '@/utils/logger';
 
 // Types for lists
 export interface UserList {
@@ -27,7 +28,7 @@ export function useLists() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching lists:', error);
+      logger.error('Error fetching lists:', error);
       toast({
         title: 'Error',
         description: 'Failed to load lists',

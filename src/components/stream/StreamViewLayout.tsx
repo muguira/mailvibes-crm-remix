@@ -8,6 +8,7 @@ import StreamToolbar from './StreamToolbar';
 import FilterPanel from './FilterPanel';
 import { EmptyState } from "@/components/ui/empty-state";
 import { useActivity } from "@/contexts/ActivityContext";
+import { logger } from '@/utils/logger';
 
 // Layout constants
 const LEFT_RAIL_WIDTH = 400; // px
@@ -57,7 +58,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
       if (contactId === contact.id) {
         // Update local state to trigger component re-render
         setUpdatedContact(prevContact => {
-          console.log(`StreamViewLayout: Updating field ${field} to: ${value}`);
+          logger.log(`StreamViewLayout: Updating field ${field} to: ${value}`);
           return {
             ...prevContact,
             [field]: value
@@ -72,7 +73,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
           oldValue
         );
         
-        console.log(`Profile card updated: ${field} = ${value}`);
+        logger.log(`Profile card updated: ${field} = ${value}`);
       }
     };
     
@@ -81,7 +82,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
       const { contactId, status, previousStatus } = event.detail;
       
       if (contactId === contact.id) {
-        console.log(`StreamViewLayout: Status change detected: ${previousStatus} -> ${status}`);
+        logger.log(`StreamViewLayout: Status change detected: ${previousStatus} -> ${status}`);
         // Force update for status field specifically
         setUpdatedContact(prevContact => ({
           ...prevContact,
@@ -155,7 +156,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
   } = { ...contact, ...updatedContact }; // Merge with updatedContact
 
   // Log the status fields for debugging
-  console.log("Stream View status fields:", { 
+  logger.log("Stream View status fields:", { 
     contactStatus: contact.status,
     updatedStatus: updatedContact.status,
     finalStatus: status

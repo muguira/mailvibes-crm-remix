@@ -3,6 +3,7 @@ import { useState } from "react";
 import { MessageSquare, Phone, Calendar, Pencil } from "lucide-react";
 import { ContactData } from "../types";
 import { PointsOfContactDialog } from "../dialogs/points-of-contact-dialog";
+import { logger } from '@/utils/logger';
 
 interface ActivityHeaderProps {
   selectedContact: ContactData;
@@ -29,7 +30,7 @@ export function ActivityHeader({ selectedContact, listId }: ActivityHeaderProps)
   
   const handleSaveContacts = (contacts: any[]) => {
     // In a real implementation, this would update the contact's associated contacts
-    console.log("Saved contacts:", contacts);
+    logger.log("Saved contacts:", contacts);
   };
 
   return (

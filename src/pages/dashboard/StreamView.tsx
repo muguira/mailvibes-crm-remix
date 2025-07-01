@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import { logger } from '@/utils/logger';
 
 export default function StreamView() {
   const isMobile = useIsMobile();
@@ -42,7 +43,7 @@ export default function StreamView() {
           .single();
           
         if (error) {
-          console.error('Error fetching contact:', error);
+          logger.error('Error fetching contact:', error);
           setContact(null);
         } else if (data) {
           // Transform the data to match the expected format
@@ -61,7 +62,7 @@ export default function StreamView() {
           setContact(transformedContact);
         }
       } catch (error) {
-        console.error('Error fetching contact:', error);
+        logger.error('Error fetching contact:', error);
         setContact(null);
       } finally {
         setLoading(false);

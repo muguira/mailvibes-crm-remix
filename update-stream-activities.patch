@@ -1,0 +1,58 @@
+--- a/src/components/stream/StreamViewLayout.tsx
++++ b/src/components/stream/StreamViewLayout.tsx
+@@ -46,7 +46,7 @@
+ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
+   // State to trigger updates on avatar when contact data changes
+   const [updatedContact, setUpdatedContact] = useState(contact);
+-  const { logCellEdit } = useActivity();
++  const { logCellEdit, activities: contextActivities } = useActivity();
+   
+   // Add state for selected activity type
+   const [selectedActivityType, setSelectedActivityType] = useState<'call' | 'email' | 'task' | 'note' | 'meeting' | null>(null);
+@@ -233,7 +233,32 @@
+         {/* Main content area - desktop only */}
+         <div className="hidden lg:block flex-1 bg-slate-light/5 rounded-md overflow-y-auto self-start h-full">
+           <StreamTimeline 
+-            activities={activities} 
++            activities={contextActivities
++              .filter(activity => activity.entityId === contact.id)
++              .map((activity) => ({
++                id: activity.id,
++                timestamp: activity.timestamp,
++                relativeTime: getRelativeTime(activity.timestamp),
++                type: 'note' as const,
++                user: {
++                  name: activity.userName,
++                  initials: activity.userName.split(' ').map(n => n[0]).join('').toUpperCase()
++                },
++                summary: activity.activityType === 'note_add' ? 'Added a note' :
++                         activity.activityType === 'cell_edit' ? `Updated ${activity.fieldName}` :
++                         'Activity',
++                body: activity.newValue || activity.details?.note || '',
++                via: 'Mailvibes CRM'
++              }))
++              .reverse()
++            } 
+             selectedActivityType={selectedActivityType}
+             onActivityTypeChange={setSelectedActivityType}
+           />
+@@ -252,3 +277,18 @@
+     </div>
+   );
+ }
++
++// Helper function to get relative time
++function getRelativeTime(timestamp: string): string {
++  const now = new Date();
++  const then = new Date(timestamp);
++  const diffMs = now.getTime() - then.getTime();
++  const diffMins = Math.floor(diffMs / 60000);
++  const diffHours = Math.floor(diffMins / 60);
++  const diffDays = Math.floor(diffHours / 24);
++  
++  if (diffMins < 1) return 'now';
++  if (diffMins < 60) return `${diffMins}m`;
++  if (diffHours < 24) return `${diffHours}h`;
++  if (diffDays < 7) return `${diffDays}d`;
++  return `${Math.floor(diffDays / 7)}w`;
++}

@@ -6,11 +6,12 @@ import { toast } from "../use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { GridRow } from "@/components/grid-view/types";
 import { LEADS_STORAGE_KEY } from "@/constants/grid";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { LeadContact } from '@/components/stream/sample-data';
 import { mockContactsById } from '@/components/stream/sample-data';
 import { updateContact } from '@/helpers/updateContact';
 import { withRetrySupabase } from '@/utils/supabaseRetry';
+import { logger } from '@/utils/logger';
 
 /**
  * Helper function to transform row IDs to database-compatible format
@@ -27,7 +28,7 @@ function transformRowId(id: string): string | number {
       const cleanNumeric = numericPart.replace(/^0+/, '');
       return parseInt(cleanNumeric, 10);
     } catch (e) {
-      console.warn(`Could not transform row ID ${id} to number:`, e);
+      logger.warn(`Could not transform row ID ${id} to number:`, e);
     }
   }
   // Return original ID as fallback
@@ -97,7 +98,7 @@ const loadRowsFromLocal = (): LeadContact[] => {
       return JSON.parse(savedRows);
     }
   } catch (error) {
-    console.error('Failed to load rows from localStorage:', error);
+    logger.error('Failed to load rows from localStorage:', error);
   }
   return [];
 };
@@ -106,7 +107,7 @@ const saveRowsToLocal = (rows: LeadContact[]): void => {
   try {
     localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(rows));
   } catch (error) {
-    console.error('Failed to save rows to localStorage:', error);
+    logger.error('Failed to save rows to localStorage:', error);
   }
 };
 
@@ -150,14 +151,14 @@ export function useLeadsRows() {
     
     // Prevent duplicate fetches for the same page
     if (fetchingPages.has(cacheKey) && !forceRefresh) {
-      console.log(`Already fetching page ${page}, skipping duplicate request`);
+      logger.log(`Already fetching page ${page}, skipping duplicate request`);
       return { totalCount: totalCount };
     }
     
     const cached = pageCache.get(cacheKey);
     
     if (!forceRefresh && cached && isCacheValid(cached.timestamp)) {
-      console.log(`Using cached data for page ${page}`);
+      logger.log(`Using cached data for page ${page}`);
       setRows(cached.data);
       setLoading(false);
       return { totalCount: totalCount || cached.data.length };
@@ -201,11 +202,11 @@ export function useLeadsRows() {
         const { count } = countResult;
         
         if (error) {
-          console.error("SUPABASE ERROR:", error);
+          logger.error("SUPABASE ERROR:", error);
           throw error;
         }
           
-        console.log(`Loaded page ${page} with ${data?.length || 0} contacts (Total: ${count || 0})`);
+        logger.log(`Loaded page ${page} with ${data?.length || 0} contacts (Total: ${count || 0})`);
         
         // Store the total count
         setTotalCount(count || 0);
@@ -280,7 +281,7 @@ export function useLeadsRows() {
                 timestamp: Date.now()
               }));
             } catch (e) {
-              console.warn('Failed to cache to localStorage:', e);
+              logger.warn('Failed to cache to localStorage:', e);
             }
           }
           
@@ -308,7 +309,7 @@ export function useLeadsRows() {
         return { totalCount: 0 };
       }
     } catch (fetchError) {
-      console.error('Error fetching from Supabase:', fetchError);
+      logger.error('Error fetching from Supabase:', fetchError);
       // Start with empty state on error
       setRows([]);
       setTotalCount(0);
@@ -334,7 +335,7 @@ export function useLeadsRows() {
   // Listen for contact-added events to refresh the data
   useEffect(() => {
     const handleContactAdded = () => {
-      console.log('Contact added event received, clearing cache and refreshing data...');
+      logger.log('Contact added event received, clearing cache and refreshing data...');
       pageCache.clear(); // Clear cache when data changes
       fetchLeadsRows(1, 50, true); // Force refresh
     };
@@ -404,7 +405,7 @@ export function useLeadsRows() {
         saveRowsToLocal(rows);
       }
     } catch (error) {
-      console.error('Failed to save to Supabase, saving to localStorage instead:', error);
+      logger.error('Failed to save to Supabase, saving to localStorage instead:', error);
       
       // Fall back to localStorage
       saveRowsToLocal(rows);
@@ -473,19 +474,19 @@ export function useLeadsRows() {
     
     // DEBUG: Add this to test simple connection
     if (columnId === 'name') {
-      console.log("-----SUPABASE DEBUG-----");
-      console.log("Testing simple query to contacts table...");
+      logger.debug("-----SUPABASE DEBUG-----");
+      logger.debug("Testing simple query to contacts table...");
       const { data: testData, error: testError } = await supabase
         .from('contacts')
         .select('id, name')
         .limit(5);
       
       if (testError) {
-        console.error("Test query failed:", JSON.stringify(testError, null, 2));
+        logger.error("Test query failed:", JSON.stringify(testError, null, 2));
       } else {
-        console.log("Test query successful:", testData);
+        logger.debug("Test query successful:", testData);
       }
-      console.log("------------------------");
+      logger.debug("------------------------");
     }
     
     try {
@@ -502,7 +503,7 @@ export function useLeadsRows() {
         throw response.error;
       }
     } catch (error) {
-      console.error('Error updating cell:', error);
+      logger.error('Error updating cell:', error);
       // Fall back to localStorage
       saveRowsToLocal(rows);
       
@@ -534,7 +535,7 @@ export function useLeadsRows() {
           name: newContact.name || 'Untitled Contact' // Ensure name field is used
         };
         
-        console.log("Adding new contact with name:", contactToSave.name);
+        logger.log("Adding new contact with name:", contactToSave.name);
         
         // Add to local state first for immediate UI feedback - always at the beginning
         setRows(prevRows => [contactToSave, ...prevRows]);
@@ -571,7 +572,7 @@ export function useLeadsRows() {
           });
           
         if (error) {
-          console.error('Error adding contact to Supabase:', error);
+          logger.error('Error adding contact to Supabase:', error);
           // Still keep the contact in local state
         }
         
@@ -591,7 +592,7 @@ export function useLeadsRows() {
         saveRowsToLocal(rows);
       }
     } catch (error) {
-      console.error('Error adding contact:', error);
+      logger.error('Error adding contact:', error);
       // Show error toast
       toast({
         title: "Error",

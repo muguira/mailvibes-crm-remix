@@ -3,6 +3,7 @@ import { ParsedCsvResult } from "@/utils/parseCsv";
 import { FieldMapping, mapColumnsToContact } from "@/utils/mapColumnsToContact";
 import { AccountFieldMapping, mapColumnsToAccount } from "@/utils/mapColumnsToAccount";
 import { ListFieldDefinition } from "@/utils/buildFieldDefinitions";
+import { logger } from '@/utils/logger';
 
 interface ImportResult {
   contactsCreated: number;
@@ -187,7 +188,7 @@ export async function importCsvData(
               .select();
 
             if (insertError) {
-              console.error("Insert error:", insertError);
+              logger.error("Insert error:", insertError);
               result.errors.push(`Insert error: ${insertError.message}`);
             } else {
               result.contactsCreated += insertedContacts?.length || 0;
@@ -212,7 +213,7 @@ export async function importCsvData(
               .eq('email', contact.email);
 
             if (updateError) {
-              console.error("Update error for email", contact.email, ":", updateError);
+              logger.error("Update error for email", contact.email, ":", updateError);
               result.errors.push(`Failed to update contact with email ${contact.email}`);
             } else {
               result.contactsUpdated += 1;
@@ -220,7 +221,7 @@ export async function importCsvData(
             }
           }
         } catch (error: any) {
-          console.error("Error processing contacts with emails:", error);
+          logger.error("Error processing contacts with emails:", error);
           result.errors.push(`Batch processing error: ${error.message}`);
         }
       }
@@ -233,7 +234,7 @@ export async function importCsvData(
           .select();
 
         if (insertError) {
-          console.error("Insert error for contacts without email:", insertError);
+          logger.error("Insert error for contacts without email:", insertError);
           result.errors.push(`Insert error: ${insertError.message}`);
         } else {
           result.contactsCreated += insertedContacts?.length || 0;
@@ -256,7 +257,7 @@ export async function importCsvData(
     result.contactsSkipped = totalRows - result.contactsCreated - result.contactsUpdated;
 
   } catch (error: any) {
-    console.error("Import error:", error);
+    logger.error("Import error:", error);
     result.errors.push(error.message);
   }
 

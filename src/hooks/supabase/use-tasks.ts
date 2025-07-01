@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isPast, parseISO, startOfDay } from 'date-fns';
 import { Database } from '@/types/supabase';
 import { withRetrySupabase } from "@/utils/supabaseRetry";
+import { logger } from '@/utils/logger';
 
 export interface TaskData {
   id: string;
@@ -37,7 +38,7 @@ export function useTasks() {
       {
         maxAttempts: 3,
         onRetry: (error, attempt) => {
-          console.log(`Retrying tasks fetch (attempt ${attempt})...`);
+          logger.log(`Retrying tasks fetch (attempt ${attempt})...`);
           if (attempt === 2) {
             toast({
               title: "Connection issues",
@@ -52,7 +53,7 @@ export function useTasks() {
     const { data, error } = result;
 
     if (error) {
-      console.error('Error fetching tasks:', error);
+      logger.error('Error fetching tasks:', error);
       toast({
         title: "Error fetching tasks",
         description: "Failed to load tasks. Please try again.",
@@ -110,7 +111,7 @@ export function useTasks() {
       toast({ title: "Task created", description: "Your task has been created successfully" });
     },
     onError: (error: any) => {
-      console.error('Error creating task:', error);
+      logger.error('Error creating task:', error);
       toast({
         title: "Error creating task",
         description: error.message,
@@ -145,7 +146,7 @@ export function useTasks() {
       toast({ title: "Task updated", description: "Your task has been updated successfully" });
     },
     onError: (error: any) => {
-      console.error('Error updating task:', error);
+      logger.error('Error updating task:', error);
       toast({
         title: "Error updating task",
         description: error.message,
@@ -171,7 +172,7 @@ export function useTasks() {
       toast({ title: "Task deleted", description: "Your task has been deleted successfully" });
     },
     onError: (error: any) => {
-      console.error('Error deleting task:', error);
+      logger.error('Error deleting task:', error);
       toast({
         title: "Error deleting task",
         description: error.message,

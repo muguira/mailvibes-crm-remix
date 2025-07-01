@@ -2,6 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
+import { logger } from '@/utils/logger';
 
 export interface PresenceUser {
   id: string;
@@ -117,7 +118,7 @@ export function useRealtimePresence(listId?: string) {
         ...userPresence
       });
     } catch (error) {
-      console.error("Error tracking cursor position:", error);
+      logger.error("Error tracking cursor position:", error);
     }
   };
 

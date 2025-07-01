@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@/utils/logger';
 
 export interface ActivityItem {
   id: string;
@@ -57,7 +58,7 @@ export function useActivityTracking() {
 
       setActivities(data || []);
     } catch (error) {
-      console.error('Error fetching activities:', error);
+      logger.error('Error fetching activities:', error);
       // Fall back to localStorage
       const localActivities = loadFromLocalStorage();
       setActivities(localActivities);
@@ -72,7 +73,7 @@ export function useActivityTracking() {
       const saved = localStorage.getItem(ACTIVITY_STORAGE_KEY);
       return saved ? JSON.parse(saved) : [];
     } catch (error) {
-      console.error('Failed to load activities from localStorage:', error);
+      logger.error('Failed to load activities from localStorage:', error);
       return [];
     }
   };
@@ -133,19 +134,19 @@ export function useActivityTracking() {
           details: newActivity.details ? JSON.stringify(newActivity.details) : null
         };
 
-        console.log("Logging activity to Supabase:", supabaseActivity);
+        logger.log("Logging activity to Supabase:", supabaseActivity);
         
         const { error } = await supabase
           .from('user_activities')
           .upsert(supabaseActivity, { onConflict: 'id' });
 
         if (error) {
-          console.error('Error logging activity to Supabase:', error);
+          logger.error('Error logging activity to Supabase:', error);
           // Don't throw the error - we still have the activity in local state
         }
       }
     } catch (error) {
-      console.error('Error logging activity:', error);
+      logger.error('Error logging activity:', error);
       // Activity is already in local state and localStorage, so we continue
     }
   };

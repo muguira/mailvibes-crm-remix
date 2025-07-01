@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { mockContactsById } from "@/components/stream/sample-data";
 import { useActivity } from "@/contexts/ActivityContext";
 import { updateContact } from '@/helpers/updateContact';
+import { logger } from '@/utils/logger';
 
 interface Contact {
   id: string;
@@ -232,7 +233,7 @@ export default function AboutThisContact({
         const idMapping = JSON.parse(localStorage.getItem('id-mapping') || '{}');
         const dbId = idMapping[contact.id] || contact.id;
         
-        console.log(`Attempting to save field ${field} for contact ${contact.id} (DB ID: ${dbId})`);
+        logger.log(`Attempting to save field ${field} for contact ${contact.id} (DB ID: ${dbId})`);
         
         // Determine if this is a main field or a data field
         const mainFields = ['email', 'phone', 'company', 'source', 'industry', 'jobTitle', 'leadStatus', 'website', 'name'];
@@ -273,7 +274,7 @@ export default function AboutThisContact({
             description: "Contact updated successfully"
           });
         } catch (supabaseError) {
-          console.error("Supabase error:", supabaseError);
+          logger.error("Supabase error:", supabaseError);
           
           // Show success toast anyway since we updated the mock data
           toast({
@@ -283,7 +284,7 @@ export default function AboutThisContact({
         }
       }
     } catch (error) {
-      console.error("Error saving contact:", error);
+      logger.error("Error saving contact:", error);
       // Still show success since we updated the mock data
       toast({
         title: "Success",
@@ -516,7 +517,7 @@ export default function AboutThisContact({
     // Debug the Supabase connection
     const debugSupabase = async () => {
       try {
-        console.log("Testing Supabase connection...");
+        logger.log("Testing Supabase connection...");
         
         // First, just check if we can connect at all
         const { data, error } = await supabase
@@ -526,13 +527,13 @@ export default function AboutThisContact({
           .limit(5);
         
         if (error) {
-          console.error("SUPABASE ERROR:", error);
+          logger.error("SUPABASE ERROR:", error);
           return;
         }
         
-        console.log("Connection successful:", data);
+        logger.log("Connection successful:", data);
       } catch (e) {
-        console.error("Unexpected error:", e);
+        logger.error("Unexpected error:", e);
       }
     };
     

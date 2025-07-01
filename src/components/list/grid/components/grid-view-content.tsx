@@ -7,6 +7,7 @@ import { GridViewProps } from "../types";
 import { PointsOfContactDialogContainer } from "./points-of-contact-dialog-container";
 import { usePointsOfContact } from "../hooks/use-points-of-contact";
 import "../grid-view.css";
+import { logger } from '@/utils/logger';
 
 interface GridViewContentProps extends GridViewProps {
   listId?: string;
@@ -79,7 +80,7 @@ export function GridViewContent({
 
   // Debug log to verify columns data
   useEffect(() => {
-    console.log("GridViewContent: Columns data", {
+    logger.log("GridViewContent: Columns data", {
       frozen: frozenColumns,
       scrollable: scrollableColumns,
       all: columns
@@ -90,7 +91,7 @@ export function GridViewContent({
   useEffect(() => {
     const forceHeaderVisibility = () => {
       if (headerRef.current) {
-        console.log("Forcing header visibility");
+        logger.log("Forcing header visibility");
         
         // Add !important styles
         headerRef.current.setAttribute('style', 'visibility: visible !important; opacity: 1 !important; display: flex !important');

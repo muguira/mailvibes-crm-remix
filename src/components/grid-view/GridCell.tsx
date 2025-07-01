@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandList, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Calendar } from '@/components/ui/calendar';
 import { formatCellValue, renderStatusPill } from './gridCellFormatUtils';
+import { logger } from '@/utils/logger';
 
 interface GridCellProps {
   row: GridRow;
@@ -68,12 +69,12 @@ export const GridCell: React.FC<GridCellProps> = ({
   };
 
   const handleClose = () => {
-    console.log('cerrar popover/celda', row.id, column.id);
+    logger.log('cerrar popover/celda', row.id, column.id);
     if (setEditingCell) setTimeout(() => setEditingCell(null), 0);
   };
 
   const handleChange = (val: any) => {
-    console.log('cambiar valor y cerrar', row.id, column.id, val);
+    logger.log('cambiar valor y cerrar', row.id, column.id, val);
     if (onCellChange) onCellChange(row.id, column.id, val);
     if (onFinishEdit) onFinishEdit(row.id, column.id, val);
     if (setEditingCell) setTimeout(() => setEditingCell(null), 0);
@@ -101,7 +102,7 @@ export const GridCell: React.FC<GridCellProps> = ({
               key={`${row.id}-${column.id}-${isEditing}`}
               open={isEditing}
               onOpenChange={open => {
-                console.log('Popover onOpenChange', open, row.id, column.id);
+                logger.log('Popover onOpenChange', open, row.id, column.id);
                 if (!open && setEditingCell) setEditingCell(null);
                 if (open && setEditingCell) setEditingCell({ rowId: row.id, columnId: column.id });
               }}
@@ -189,7 +190,7 @@ export const GridCell: React.FC<GridCellProps> = ({
               key={`${row.id}-${column.id}-${isEditing}`}
               open={isEditing}
               onOpenChange={open => {
-                console.log('Popover onOpenChange', open, row.id, column.id);
+                logger.log('Popover onOpenChange', open, row.id, column.id);
                 if (!open && setEditingCell) setEditingCell(null);
                 if (open && setEditingCell) setEditingCell({ rowId: row.id, columnId: column.id });
               }}
@@ -222,7 +223,7 @@ export const GridCell: React.FC<GridCellProps> = ({
                     mode="single"
                     selected={displayValue ? new Date(displayValue) : undefined}
                     onSelect={(date) => {
-                      console.log('calendar select', date, row.id, column.id);
+                      logger.log('calendar select', date, row.id, column.id);
                       if (date) {
                         const adjustedDate = new Date(date);
                         adjustedDate.setDate(adjustedDate.getDate() + 1);

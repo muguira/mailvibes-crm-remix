@@ -2,6 +2,7 @@
 import { RefObject } from "react";
 import { GridRow } from "../grid-row";
 import { ColumnDef } from "./types";
+import { logger } from '@/utils/logger';
 
 interface GridBodyProps {
   data: { id: string; [key: string]: any }[];
@@ -33,8 +34,8 @@ export function GridBody({
   // Use the provided data directly as we've already ensured sufficient rows in ListContent
   const displayData = data;
 
-  console.log("GridBody: frozenColumns", frozenColumns);
-  console.log("GridBody: scrollableColumns", scrollableColumns);
+  logger.log("GridBody: frozenColumns", frozenColumns);
+  logger.log("GridBody: scrollableColumns", scrollableColumns);
 
   return (
     <div className="overflow-auto flex-1 bg-white" ref={bodyRef}>
