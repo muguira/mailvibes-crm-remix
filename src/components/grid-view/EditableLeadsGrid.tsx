@@ -64,8 +64,8 @@ const saveColumnsToSupabase = async (user: any, columns: Column[]): Promise<void
       });
     
     if (error) {
-      // Only log error if it's not a 404 (table not found)
-      if (!error.message?.includes('404')) {
+      // Only log error if it's not a 404 (table not found) or 42P01 (relation does not exist)
+      if (!error.message?.includes('404') && error.code !== '42P01') {
         logger.error('Failed to save columns to Supabase:', error);
       }
     }
@@ -91,8 +91,8 @@ const loadColumnsFromSupabase = async (user: any): Promise<Column[] | null> => {
       .single();
     
     if (error) {
-      // Return null for 404 errors (table not found)
-      if (error.message?.includes('404') || error.code === 'PGRST116') {
+      // Return null for 404 errors or table not found errors
+      if (error.message?.includes('404') || error.code === 'PGRST116' || error.code === '42P01') {
         return null;
       }
       // Only log other errors
@@ -602,12 +602,12 @@ export function EditableLeadsGrid() {
             updated_at: new Date().toISOString()
           });
           
-        if (error && !error.message?.includes('404')) {
+        if (error && !error.message?.includes('404') && error.code !== '42P01') {
           logger.error('Failed to save hidden columns:', error);
         }
       }
     } catch (error) {
-      if (!String(error).includes('404')) {
+      if (!String(error).includes('404') && !String(error).includes('42P01')) {
         logger.error('Failed to save hidden columns:', error);
       }
     }
@@ -630,6 +630,9 @@ export function EditableLeadsGrid() {
           
           if (data && !error) {
             storedHiddenColumns = data.setting_value as Column[];
+          } else if (error && error.code === '42P01') {
+            // Table doesn't exist - silently fall back to localStorage
+            // This prevents the error from being logged
           } else if (error && !error.message?.includes('404') && error.code !== 'PGRST116') {
             logger.error('Error loading hidden columns:', error);
           }
@@ -646,7 +649,9 @@ export function EditableLeadsGrid() {
           setHiddenColumns(storedHiddenColumns);
         }
       } catch (error) {
-        if (!String(error).includes('404')) {
+        // Only log errors that aren't related to missing table
+        const errorMessage = String(error);
+        if (!errorMessage.includes('404') && !errorMessage.includes('42P01')) {
           logger.error('Error loading hidden columns:', error);
         }
       }
