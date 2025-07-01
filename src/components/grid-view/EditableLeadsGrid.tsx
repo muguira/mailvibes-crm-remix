@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { PAGE_SIZE, LEADS_STORAGE_KEY } from '@/constants/grid';
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/utils/logger';
-import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
+import { useLeadsRows } from '@/hooks/useLeadsRows';
 import { toast } from '@/components/ui/use-toast';
 import { useActivity } from "@/contexts/ActivityContext";
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -377,6 +377,7 @@ export function EditableLeadsGrid() {
   // Set up state for grid
   const [isGridReady, setIsGridReady] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilters, setActiveFilters] = useState<{ columns: string[], values: Record<string, unknown> }>({ columns: [], values: {} });
   
   // Add loading states for column operations
   const [columnOperationLoading, setColumnOperationLoading] = useState<{
@@ -386,6 +387,23 @@ export function EditableLeadsGrid() {
   
   // Add loading state for cell updates
   const [cellUpdateLoading, setCellUpdateLoading] = useState<Set<string>>(new Set());
+  
+  // Define columns for the grid - start with default columns, then load from storage
+  const [columns, setColumns] = useState<Column[]>(getDefaultColumns);
+  
+  // State to track hidden columns for unhide functionality
+  const [hiddenColumns, setHiddenColumns] = useState<Column[]>([]);
+  
+  // Add state for delete column dialog
+  const [deleteColumnDialog, setDeleteColumnDialog] = useState<{
+    isOpen: boolean;
+    columnId: string;
+    columnName: string;
+  }>({
+    isOpen: false,
+    columnId: '',
+    columnName: ''
+  });
   
   // Use our custom hook for leads data
   const { 
@@ -407,20 +425,10 @@ export function EditableLeadsGrid() {
   const totalItems = totalCount; // Use totalCount from the hook
   const totalPages = Math.ceil(totalItems / pageSize);
   
-  // Reset to first page when data changes significantly
+  // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
-  
-  // Load data when page or page size changes
-  useEffect(() => {
-    // Add a small delay to debounce rapid page changes
-    const timeoutId = setTimeout(() => {
-      fetchLeadsRows(currentPage, pageSize);
-    }, 50);
-    
-    return () => clearTimeout(timeoutId);
-  }, [currentPage, pageSize, fetchLeadsRows]);
+  }, [searchTerm, activeFilters]);
   
   // Handle page change
   const handlePageChange = (page: number) => {
@@ -438,6 +446,55 @@ export function EditableLeadsGrid() {
     // Reset to first page when changing page size
     setCurrentPage(1);
   };
+  
+  // Function to persist columns to both localStorage and Supabase
+  const persistColumns = async (newColumns: Column[]) => {
+    // Save to localStorage immediately
+    saveColumnsToLocal(newColumns);
+    
+    // Save to Supabase if user is authenticated
+    if (user) {
+      await saveColumnsToSupabase(user, newColumns);
+    }
+  };
+  
+  // Resize handler extracted so it can be reused
+  const handleResize = useCallback(() => {
+    const isMobile = window.innerWidth < 768; // Standard mobile breakpoint
+    const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
+
+    setColumns(prevColumns =>
+      prevColumns.map(col => {
+        // On mobile, keep the Contact column at 120px; otherwise use 180px
+        if (col.id === 'name') {
+          return { ...col, width: isMobile ? 120 : 180 };
+        }
+
+        // Update all other columns to use the appropriate width
+        return { ...col, width: columnWidth };
+      })
+    );
+  }, []);
+  
+  // Load data when page, page size, or filters change
+  useEffect(() => {
+    // Add a small delay to debounce rapid changes
+    const timeoutId = setTimeout(() => {
+      // Convert activeFilters to the format expected by fetchLeadsRows
+      const columnFilters = activeFilters.columns.map(columnId => ({
+        columnId,
+        value: activeFilters.values[columnId],
+        type: columns.find(col => col.id === columnId)?.type
+      }));
+      
+      fetchLeadsRows(currentPage, pageSize, {
+        searchTerm,
+        columnFilters: columnFilters.length > 0 ? columnFilters : undefined
+      });
+    }, 300); // 300ms debounce for search/filter changes
+    
+    return () => clearTimeout(timeoutId);
+  }, [currentPage, pageSize, fetchLeadsRows, searchTerm, activeFilters, columns]);
   
   // Set grid ready state when data is loaded
   useEffect(() => {
@@ -461,9 +518,6 @@ export function EditableLeadsGrid() {
       document.removeEventListener('contact-added', handleContactAdded);
     };
   }, [refreshData]);
-  
-  // Define columns for the grid - start with default columns, then load from storage
-  const [columns, setColumns] = useState<Column[]>(getDefaultColumns);
 
   // Add dynamic columns based on imported data
   useEffect(() => {
@@ -481,7 +535,7 @@ export function EditableLeadsGrid() {
         setColumns(prev => [...prev, ...newColumns]);
       }
     }
-  }, [rows]);
+  }, [rows, columns]);
 
   // Load columns from storage on component mount
   useEffect(() => {
@@ -530,10 +584,7 @@ export function EditableLeadsGrid() {
     };
 
     loadStoredColumns();
-  }, [user]);
-
-  // State to track hidden columns for unhide functionality
-  const [hiddenColumns, setHiddenColumns] = useState<Column[]>([]);
+  }, [user, handleResize]);
 
   // Function to save hidden columns to storage
   const saveHiddenColumns = async (hiddenCols: Column[]) => {
@@ -604,35 +655,6 @@ export function EditableLeadsGrid() {
     loadHiddenColumns();
   }, [user]);
 
-  // Function to persist columns to both localStorage and Supabase
-  const persistColumns = async (newColumns: Column[]) => {
-    // Save to localStorage immediately
-    saveColumnsToLocal(newColumns);
-    
-    // Save to Supabase if user is authenticated
-    if (user) {
-      await saveColumnsToSupabase(user, newColumns);
-    }
-  };
-  
-  // Resize handler extracted so it can be reused
-  const handleResize = useCallback(() => {
-    const isMobile = window.innerWidth < 768; // Standard mobile breakpoint
-    const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
-
-    setColumns(prevColumns =>
-      prevColumns.map(col => {
-        // On mobile, keep the Contact column at 120px; otherwise use 180px
-        if (col.id === 'name') {
-          return { ...col, width: isMobile ? 120 : 180 };
-        }
-
-        // Update all other columns to use the appropriate width
-        return { ...col, width: columnWidth };
-      })
-    );
-  }, []);
-
   // Add effect to adjust column widths based on screen size
   useEffect(() => {
     handleResize(); // Initial call
@@ -702,17 +724,6 @@ export function EditableLeadsGrid() {
     // Log the activity
     logFilterChange({ type: 'columns_reorder', columns: columnIds });
   };
-  
-  // Add state for delete column dialog
-  const [deleteColumnDialog, setDeleteColumnDialog] = useState<{
-    isOpen: boolean;
-    columnId: string;
-    columnName: string;
-  }>({
-    isOpen: false,
-    columnId: '',
-    columnName: ''
-  });
   
   // Handle column deletion
   const handleDeleteColumn = async (columnId: string) => {
@@ -1032,7 +1043,7 @@ export function EditableLeadsGrid() {
   }
   
   // Show empty state when there are no rows - GridViewContainer now has its own empty state UI
-  if (rows.length === 0) {
+  if (rows.length === 0 && !searchTerm && activeFilters.columns.length === 0) {
     return (
       <div className="flex flex-col h-full">
         {/* Empty state is now handled by GridViewContainer */}
@@ -1049,6 +1060,8 @@ export function EditableLeadsGrid() {
           hiddenColumns={hiddenColumns}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
+          activeFilters={activeFilters}
+          onApplyFilters={setActiveFilters}
         />
       </div>
     );
@@ -1072,8 +1085,10 @@ export function EditableLeadsGrid() {
           onHideColumn={handleHideColumn}
           onUnhideColumn={handleUnhideColumn}
           hiddenColumns={hiddenColumns}
-          searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
+          searchTerm={searchTerm}
+          activeFilters={activeFilters}
+          onApplyFilters={setActiveFilters}
           className="h-full"
           columnOperationLoading={columnOperationLoading}
           cellUpdateLoading={cellUpdateLoading}

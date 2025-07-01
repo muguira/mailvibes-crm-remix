@@ -61,10 +61,16 @@ export function GridToolbar({
   const { updateCell, addContact } = useLeadsRows();
   const [isMobile, setIsMobile] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
   
   // Pin management state
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [tempPinnedColumns, setTempPinnedColumns] = useState<string[]>(frozenColumnIds);
+  
+  // Sync local search term with external search term
+  useEffect(() => {
+    setLocalSearchTerm(searchTerm);
+  }, [searchTerm]);
   
   // Update temp pinned columns when frozenColumnIds changes
   useEffect(() => {
@@ -591,17 +597,27 @@ export function GridToolbar({
                         type="text"
                         className="search-input-field w-full pl-0 pr-6 py-1 text-sm focus:outline-none border-b border-gray-300 focus:border-[#62bfaa]"
                         placeholder="Search contacts..."
-                        value={searchTerm}
-                        onChange={(e) => onSearchChange(e.target.value)}
-                        onBlur={() => {
-                          if (searchTerm.length === 0) {
-                            setIsSearchExpanded(false);
+                        value={localSearchTerm}
+                        onChange={(e) => setLocalSearchTerm(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            onSearchChange(localSearchTerm);
                           }
                         }}
+                        onBlur={() => {
+                          if (localSearchTerm.length === 0) {
+                            setIsSearchExpanded(false);
+                          }
+                          // Trigger search on blur as well
+                          onSearchChange(localSearchTerm);
+                        }}
                       />
-                      {searchTerm && (
+                      {localSearchTerm && (
                         <button 
-                          onClick={() => onSearchChange('')}
+                          onClick={() => {
+                            setLocalSearchTerm('');
+                            onSearchChange('');
+                          }}
                           className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                         >
                           <X size={16} />
@@ -709,9 +725,9 @@ export function GridToolbar({
             // Desktop layout remains the same
             <>
               <SearchInput
-                value={searchTerm}
-                onChange={onSearchChange}
-                placeholder="Search contacts..."
+                value={localSearchTerm}
+                onChange={(value) => setLocalSearchTerm(value)}
+                onSubmit={(value) => onSearchChange(value)}
                 width="w-[240px]"
               />
               

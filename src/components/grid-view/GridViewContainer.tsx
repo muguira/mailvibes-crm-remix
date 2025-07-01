@@ -18,6 +18,8 @@ export function GridViewContainer({
   firstRowIndex = 0,
   searchTerm: externalSearchTerm,
   onSearchChange: externalSearchChange,
+  activeFilters: externalActiveFilters,
+  onApplyFilters: externalOnApplyFilters,
   onCellChange,
   onColumnChange,
   onColumnsReorder,
@@ -45,9 +47,9 @@ export function GridViewContainer({
   const [scrollTop, setScrollTop] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
 
-  // Filter state
-  const [activeFilters, setActiveFilters] = useState<{ columns: string[], values: Record<string, unknown> }>({ columns: [], values: {} });
-  const [visibleData, setVisibleData] = useState<GridRow[]>(data);
+  // Filter state - use external if provided, otherwise local
+  const [localActiveFilters, setLocalActiveFilters] = useState<{ columns: string[], values: Record<string, unknown> }>({ columns: [], values: {} });
+  const activeFilters = externalActiveFilters !== undefined ? externalActiveFilters : localActiveFilters;
 
   // Context menu state
   const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
@@ -132,96 +134,6 @@ export function GridViewContainer({
     };
   }, []);
 
-  // Filter data based on search term and active filters
-  const applyFilters = useCallback(() => {
-    // Start with all data
-    let result = data;
-
-    // Apply search filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(row => {
-        return columns.some(column => {
-          const value = row[column.id];
-          if (value === null || value === undefined) return false;
-          return String(value).toLowerCase().includes(term);
-        });
-      });
-    }
-
-    // Apply column filters
-    if (activeFilters.columns.length > 0) {
-      result = result.filter(row => {
-        return activeFilters.columns.every(columnId => {
-          const value = row[columnId];
-          const filterValue = activeFilters.values[columnId];
-          const column = columns.find(col => col.id === columnId);
-
-          if (!column) return true;
-
-          // Different filter logic based on column type
-          switch (column.type) {
-            case 'status':
-              if (!filterValue || (Array.isArray(filterValue) && filterValue.length === 0)) {
-                return value !== null && value !== undefined && value !== '';
-              }
-              return Array.isArray(filterValue) && typeof value === 'string' && filterValue.includes(value);
-
-            case 'date':
-              {
-                if (!filterValue) return value !== null && value !== undefined && value !== '';
-
-                const dateValue = value ? new Date(value) : null;
-                if (!dateValue) return false;
-
-                const startDate = (filterValue as { start?: string }).start ? new Date((filterValue as { start: string }).start) : null;
-                const endDate = (filterValue as { end?: string }).end ? new Date((filterValue as { end: string }).end) : null;
-
-                if (startDate && endDate) {
-                  return dateValue >= startDate && dateValue <= endDate;
-                } else if (startDate) {
-                  return dateValue >= startDate;
-                } else if (endDate) {
-                  return dateValue <= endDate;
-                }
-                return true;
-              }
-
-            default:
-              return value !== null && value !== undefined && value !== '';
-          }
-        });
-      });
-    }
-
-    // Sort data to show contacts in ascending order by their ID number
-    result.sort((a, b) => {
-      // Extract the numeric part from lead-XXX format (e.g., lead-001 → 1)
-      const getNumberFromId = (id: string) => {
-        if (id.startsWith('lead-')) {
-          const numericPart = id.replace('lead-', '');
-          // Parse as integer to remove leading zeros
-          return parseInt(numericPart, 10);
-        }
-        return 0; // Default for non-lead IDs
-      };
-
-      const aNum = getNumberFromId(a.id);
-      const bNum = getNumberFromId(b.id);
-
-      // Sort numerically in ascending order
-      return aNum - bNum;
-    });
-
-    return result;
-  }, [data, columns, searchTerm, activeFilters]);
-
-  // Apply filters whenever filter conditions change
-  useEffect(() => {
-    const filteredData = applyFilters();
-    setVisibleData(filteredData);
-  }, [applyFilters, searchTerm, activeFilters]);
-
   // Handle search change
   const handleSearchChange = (term: string) => {
     if (externalSearchChange) {
@@ -234,7 +146,11 @@ export function GridViewContainer({
   // Handle filter changes
   const handleApplyFilters = (filters: { columns: string[], values: Record<string, unknown> }) => {
     logger.log("Applying filters:", filters);
-    setActiveFilters(filters);
+    if (externalOnApplyFilters) {
+      externalOnApplyFilters(filters);
+    } else {
+      setLocalActiveFilters(filters);
+    }
   };
 
   // Open context menu for columns
@@ -313,7 +229,7 @@ export function GridViewContainer({
           }
         />
         
-        {visibleData.length === 0 ? (
+        {data.length === 0 ? (
           // Empty state message when there are no contacts
           <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] w-full">
             <div className="rounded-full bg-gray-100 p-6 mb-4">
@@ -347,7 +263,7 @@ export function GridViewContainer({
           <>
             {/* Left static columns (index + contact/opportunity) */}
             <StaticColumns
-              data={visibleData}
+              data={data}
               frozenColumns={frozenColumns}
               scrollTop={scrollTop}
               firstRowIndex={firstRowIndex}
@@ -363,7 +279,7 @@ export function GridViewContainer({
             <MainGridView
               ref={mainGridRef}
               columns={scrollableColumns}
-              data={visibleData}
+              data={data}
               scrollTop={scrollTop}
               scrollLeft={scrollLeft}
               containerWidth={(containerWidth - frozenColumns.reduce((w, c) => w + (c.width || 180), 0)) || 300}
