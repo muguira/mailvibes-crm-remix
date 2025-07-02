@@ -1,210 +1,217 @@
-import { Check, Plus, Calendar } from "lucide-react";
+import {  useRef, useEffect, useState } from "react";
+import {  Plus, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useEffect, useRef } from "react";
-import React from "react";
-import { cn } from "@/lib/utils";
-import { DeadlinePopup } from "./deadline-popup";
-import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-fns";
-import { es } from 'date-fns/locale';
-import { TaskEditPopup } from "./task-edit-popup";
-import { useTasks } from "@/hooks/supabase/use-tasks";
+import { useStore } from "@/stores";
 import { useAuth } from "@/contexts/AuthContext";
 import { Task } from "@/types/task"; // Import the unified Task type
 import { Skeleton } from "@/components/ui/skeleton";
+import { TaskItem } from "./Task-Item";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { DeadlinePopup } from "./deadline-popup";
 
 // Export the Task interface from the unified type
 export type { Task };
 
 export function TasksPanel() {
   const { user } = useAuth();
-  const { tasks: supabaseTasks, isLoading, createTask, updateTask, deleteTask, createTaskMutation } = useTasks();
-  const [isCreatingTask, setIsCreatingTask] = useState(false);
-  const [localTasks, setLocalTasks] = useState<Task[]>([]);
+  const {
+    // State
+    isTaskBeingCreated,
+    categorizedTasks,
+    localTasks,
+    loading,
+    isInitialized,
+    // Actions
+    setIsTaskBeingCreated,
+    initialize,
+    createTask,
+    updateTask,
+    deleteTask,
+    changeTaskStatus,
+    changeTaskDeadline,
+    addLocalTask,
+    removeLocalTask,
+    updateLocalTask,
+    getTaskById,
+  } = useStore();
+
   const newTaskInputRef = useRef<HTMLInputElement>(null);
+  const newTaskCalendarRef = useRef<HTMLButtonElement>(null);
+  const newTaskContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Local state for the new task being created
+  const [newTaskId, setNewTaskId] = useState<string | null>(null);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDeadline, setNewTaskDeadline] = useState<string | undefined>(undefined);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  // Use supabase tasks directly, only add local temporary tasks for creation
-  const tasks = React.useMemo(() => {
-    const formattedTasks = (supabaseTasks || []).map((task) => ({
-      id: task.id,
-      title: task.title,
-      deadline: task.deadline,
-      contact: task.contact || '',
-      description: task.description,
-      display_status: task.display_status as Task['display_status'],
-      status: task.status as Task['status'],
-      type: task.type as Task['type'],
-      tag: task.tag,
-      priority: task.priority as Task['priority'],
-      user_id: task.user_id
-    })) as Task[];
-
-    // Add any local temporary tasks (for creation)
-    return [...localTasks, ...formattedTasks];
-  }, [supabaseTasks, localTasks]);
-
-  // Note: Overdue task checking is now handled in the useTasks hook
-
-  const sortTasksByDate = (tasks: Task[], isEditing: boolean, sortByCreation: boolean = false) => {
-    const today = startOfDay(new Date());
-
-    return [...tasks].sort((a, b) => {
-      // During editing, keep the new task at the top
-      if (isEditing) {
-        if (a.title === "") return -1;
-        if (b.title === "") return 1;
-      }
-
-      // If sorting by creation order (for upcoming tasks), maintain original database order
-      if (sortByCreation) {
-        return 0; // Maintain original order from database (created_at DESC)
-      }
-
-      // If neither task has a deadline, maintain original order
-      if (!a.deadline && !b.deadline) return 0;
-      // Tasks with no deadline go to the end
-      if (!a.deadline) return 1;
-      if (!b.deadline) return -1;
-
-      const dateA = startOfDay(parseISO(a.deadline));
-      const dateB = startOfDay(parseISO(b.deadline));
-
-      // Calculate days from today for both dates
-      const daysFromTodayA = Math.floor((dateA.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      const daysFromTodayB = Math.floor((dateB.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-      // Sort by days from today (ascending)
-      return daysFromTodayA - daysFromTodayB;
-    });
-  };
-
-  const upcomingTasks = sortTasksByDate(tasks.filter(task => task.display_status === "upcoming"), isCreatingTask, true);
-  const overdueTasks = sortTasksByDate(tasks.filter(task => task.display_status === "overdue"), false, false);
-  const completedTasks = sortTasksByDate(tasks.filter(task => task.display_status === "completed"), false, false);
-
-  const handleTaskStatusChange = (taskId: string, newStatus: Task["display_status"]) => {
-    const taskToUpdate = tasks.find(task => task.id === taskId);
-    if (taskToUpdate && user) {
-      updateTask({
-        id: taskId,
-        display_status: newStatus,
-        title: taskToUpdate.title,
-        status: taskToUpdate.status,
-        type: taskToUpdate.type,
-        deadline: taskToUpdate.deadline,
-        contact: taskToUpdate.contact,
-        description: taskToUpdate.description,
-        tag: taskToUpdate.tag,
-        priority: taskToUpdate.priority,
-        user_id: user?.id // Add user ID here
-      });
+  // Initialize tasks when component mounts and user is available
+  useEffect(() => {
+    if (user?.id && !isInitialized) {
+      initialize(user.id);
     }
-  };
+  }, [user?.id, isInitialized, initialize]);
 
-  const handleDeadlineChange = (taskId: string, deadline: string | undefined) => {
-    const taskToUpdate = tasks.find(task => task.id === taskId);
-    if (!taskToUpdate || !user) return;
+  // Focus the input when a new task is being created
+  useEffect(() => {
+    if (isTaskBeingCreated && newTaskInputRef.current) {
+      setTimeout(() => {
+        newTaskInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isTaskBeingCreated]);
 
-        // When setting a new deadline, check if it's already overdue
-    let newStatus = taskToUpdate.display_status;
-        if (deadline) {
-          const deadlineDate = parseISO(deadline);
-          if (isPast(startOfDay(deadlineDate))) {
-        newStatus = "overdue";
-          }
-          // If task was overdue but new deadline is in the future, move back to upcoming
-      else if (taskToUpdate.display_status === "overdue") {
-        newStatus = "upcoming";
+  // Handle click outside of the new task input and calendar button
+  useEffect(() => {
+    /**
+     * Handle click outside of the new task input and calendar button
+     * @param event - The mouse event
+     */
+    function handleClickOutside(event: MouseEvent) {
+      if (isTaskBeingCreated && !isCalendarOpen && newTaskContainerRef.current && !newTaskContainerRef.current.contains(event.target as Node)) {
+        handleCreateTask();
       }
     }
 
-    updateTask({
-      id: taskId,
-      deadline: deadline || '',
-      display_status: newStatus,
-      title: taskToUpdate.title,
-      status: taskToUpdate.status,
-      type: taskToUpdate.type,
-      contact: taskToUpdate.contact,
-      description: taskToUpdate.description,
-      tag: taskToUpdate.tag,
-      priority: taskToUpdate.priority,
-      user_id: user?.id // Add user ID here
-    });
+    // Add event listener to document
+    document.addEventListener("mousedown", handleClickOutside);
+
+    // Cleanup function to remove the event listener when the component unmounts
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isTaskBeingCreated, newTaskTitle, newTaskDeadline, isCalendarOpen]);
+
+  // Get categorized tasks from store
+  const upcomingTasks = categorizedTasks.upcoming;
+  const overdueTasks = categorizedTasks.overdue;
+  const completedTasks = categorizedTasks.completed;
+
+  // Combine upcoming tasks with local tasks for display
+  const displayUpcomingTasks = [...localTasks, ...upcomingTasks];
+
+  const handleTaskStatusChange = async (taskId: string, newStatus: Task["display_status"]) => {
+    try {
+      await changeTaskStatus(taskId, newStatus);
+    } catch (error) {
+      console.error("Failed to update task status:", error);
+    }
+  };
+
+  const handleDeadlineChange = async (taskId: string, deadline: string | undefined) => {
+    try {
+      await changeTaskDeadline(taskId, deadline);
+    } catch (error) {
+      console.error("Failed to update task deadline:", error);
+    }
   };
 
   const handleCreateNewTask = () => {
-    if (!user) return; // Don't allow creating tasks if not logged in
+    if (!user) return;
 
-    const newTask: Task = {
-      id: crypto.randomUUID(),
-      title: "",
-      contact: "",
-      display_status: "upcoming",
-      status: "on-track",
-      type: "task",
-      user_id: user.id
-    };
-    setLocalTasks(prev => [newTask, ...prev]);
-    setIsCreatingTask(true);
-    // Focus the input on the next render
-    setTimeout(() => {
-      newTaskInputRef.current?.focus();
-    }, 0);
+    const taskId = crypto.randomUUID();
+    setNewTaskId(taskId);
+    setNewTaskTitle("");
+    setNewTaskDeadline(undefined);
+    setIsTaskBeingCreated(true);
   };
 
-  const handleCreateTask = (task: {
-    title: string;
-    deadline?: string;
-    type: "follow-up" | "respond" | "task";
-    tag?: string;
-  }) => {
-    if (!user) return; // Don't allow creating tasks if not logged in
-
-    createTask({
-      title: task.title,
-      deadline: task.deadline || '',
-      type: task.type,
-      tag: task.tag || '',
-      display_status: "upcoming",
-      status: "on-track",
-      user_id: user.id // Add user ID here
-    });
+  const handleNewTaskTitleChange = (newTitle: string) => {
+    setNewTaskTitle(newTitle);
   };
 
-  const handleTaskTitleChange = (taskId: string, newTitle: string) => {
-    setLocalTasks(prev =>
-      prev.map(task =>
-        task.id === taskId
-          ? { ...task, title: newTitle }
-          : task
-      )
-    );
+  const handleNewTaskDeadlineChange = (deadline: string | undefined) => {
+    setNewTaskDeadline(deadline);
   };
 
-  const handleTaskTitleBlur = (taskId: string) => {
-    const task = localTasks.find(t => t.id === taskId);
+  const handleCalendarOpenChange = (open: boolean) => {
+    setIsCalendarOpen(open);
+  };
 
-    if (task && task.title.trim() !== "" && user) {
-      // Create new task in Supabase
-      createTask({
-        title: task.title,
-        type: task.type,
+  const handleCreateTask = async () => {
+    if (!user || !newTaskTitle.trim()) {
+      // Cancel creation if no title
+      handleCancelTaskCreation();
+      return;
+    }
+
+    try {
+      // Create new task in database
+      await createTask({
+        title: newTaskTitle.trim(),
+        type: "task",
         display_status: "upcoming",
         status: "on-track",
         contact: '',
-        deadline: '',
+        deadline: newTaskDeadline || '',
         description: '',
         tag: '',
         priority: 'medium',
         user_id: user.id
       });
+      
+      // Reset state after successful creation
+      handleCancelTaskCreation();
+    } catch (error) {
+      console.error("Failed to create task:", error);
     }
+  };
 
-    setLocalTasks(prev => prev.filter(task =>
-      task.id !== taskId || (task.id === taskId && task.title.trim() !== "")
-    ));
+  const handleCancelTaskCreation = () => {
+    setNewTaskId(null);
+    setNewTaskTitle("");
+    setNewTaskDeadline(undefined);
+    setIsTaskBeingCreated(false);
+  };
 
-    setIsCreatingTask(false);
+  const handleNewTaskKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleCreateTask();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      handleCancelTaskCreation();
+    }
+  };
+
+  const handleTaskTitleChange = (taskId: string, newTitle: string) => {
+    updateLocalTask(taskId, { title: newTitle });
+  };
+
+  const handleTaskTitleBlur = async (taskId: string) => {
+    const task = getTaskById(taskId);
+
+    if (task && task.title.trim() !== "" && user) {
+      try {
+        // Create new task in database
+        await createTask({
+          title: task.title,
+          type: task.type,
+          display_status: "upcoming",
+          status: "on-track",
+          contact: '',
+          deadline: '',
+          description: '',
+          tag: '',
+          priority: 'medium',
+          user_id: user.id
+        });
+        
+        // Remove the local task after successful creation
+        removeLocalTask(taskId);
+        // Reset the task creation state
+        setIsTaskBeingCreated(false);
+      } catch (error) {
+        console.error("Failed to create task:", error);
+      }
+    } else {
+      // If task is empty or user not logged in, just remove the local task
+      removeLocalTask(taskId);
+      // Reset the task creation state
+      setIsTaskBeingCreated(false);
+    }
   };
 
   const handleTaskTitleKeyDown = (e: React.KeyboardEvent, taskId: string) => {
@@ -214,44 +221,40 @@ export function TasksPanel() {
     }
     if (e.key === "Escape") {
       e.preventDefault();
-      setLocalTasks(prev => prev.filter(task => task.id !== taskId));
-      setIsCreatingTask(false);
+      removeLocalTask(taskId);
+      setIsTaskBeingCreated(false);
     }
   };
 
-  const handleTaskUpdate = (updatedTask: Task) => {
+  const handleTaskUpdate = async (updatedTask: Task) => {
     if (!user) return;
 
-    updateTask({
-      id: updatedTask.id,
-      title: updatedTask.title,
-      deadline: updatedTask.deadline || '',
-      contact: updatedTask.contact || '',
-      description: updatedTask.description || '',
-      display_status: updatedTask.display_status,
-      status: updatedTask.status,
-      type: updatedTask.type,
-      tag: updatedTask.tag,
-      priority: updatedTask.priority,
-      user_id: user?.id // Add user ID here
-    });
+    try {
+      await updateTask({
+        id: updatedTask.id,
+        title: updatedTask.title,
+        deadline: updatedTask.deadline || '',
+        contact: updatedTask.contact || '',
+        description: updatedTask.description || '',
+        display_status: updatedTask.display_status,
+        status: updatedTask.status,
+        type: updatedTask.type,
+        tag: updatedTask.tag,
+        priority: updatedTask.priority,
+        user_id: user.id
+      });
+    } catch (error) {
+      console.error("Failed to update task:", error);
+    }
   };
 
-  const handleTaskDelete = (taskId: string) => {
-    deleteTask(taskId);
+  const handleTaskDelete = async (taskId: string) => {
+    try {
+      await deleteTask(taskId);
+    } catch (error) {
+      console.error("Failed to delete task:", error);
+    }
   };
-
-  // Remove local temp task when real task is created
-  React.useEffect(() => {
-    if (!createTaskMutation.isSuccess || !createTaskMutation.data) return;
-    setLocalTasks(prev => prev.filter(task => {
-      if (task.title === createTaskMutation.data.title && (!task.id || task.id.length > 20)) {
-        return false;
-      }
-      return true;
-    }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createTaskMutation.isSuccess, createTaskMutation.data]);
 
   return (
     <div className="bg-background text-foreground rounded-lg overflow-hidden flex flex-col shadow-lg h-[500px]">
@@ -270,7 +273,7 @@ export function TasksPanel() {
               value="upcoming"
               className="flex-1 py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
             >
-              Upcoming {upcomingTasks.length > 0 && `(${upcomingTasks.length})`}
+              Upcoming {displayUpcomingTasks.length > 0 && `(${displayUpcomingTasks.length})`}
             </TabsTrigger>
             <TabsTrigger
               value="overdue"
@@ -287,17 +290,60 @@ export function TasksPanel() {
           </TabsList>
         </div>
 
-        <div className="p-2 pt-3">
+        <div className="pt-3">
           {user ? (
             <>
-          <button
-                className="w-full text-left text-muted-foreground flex items-center gap-2 py-1 hover:text-foreground transition-colors"
-            onClick={handleCreateNewTask}
-            disabled={isCreatingTask}
-          >
+              <button
+                className="px-3 w-full text-left text-muted-foreground flex items-center gap-2 py-1 hover:text-foreground transition-colors"
+                onClick={handleCreateNewTask}
+                disabled={isTaskBeingCreated}
+              >
                 <Plus size={16} />
-            Create task
-          </button>
+                Create task
+              </button>
+              
+              {/* New Task Input */}
+              {isTaskBeingCreated && (
+                <div ref={newTaskContainerRef} className="px-3 py-1.5 group">
+                  <div className="flex items-center gap-3">
+                    <div className="h-5 w-5 rounded-full border-2 border-muted-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <input
+                        ref={newTaskInputRef}
+                        type="text"
+                        value={newTaskTitle}
+                        onChange={(e) => handleNewTaskTitleChange(e.target.value)}
+                        onKeyDown={handleNewTaskKeyDown}
+                        className="w-full bg-transparent border-none focus:outline-none text-foreground"
+                        placeholder="Enter task title"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs capitalize">
+                        task
+                      </span>
+                      <DeadlinePopup
+                        calendarRef={newTaskCalendarRef}
+                        date={newTaskDeadline ? new Date(newTaskDeadline) : undefined}
+                        onSelect={(date) => handleNewTaskDeadlineChange(date?.toISOString())}
+                        onCalendarOpenChange={handleCalendarOpenChange}
+                      >
+                        <button 
+                          className="flex items-center gap-1 hover:opacity-80 transition-opacity text-xs ml-1 text-muted-foreground"
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          {newTaskDeadline ? (
+                            format(new Date(newTaskDeadline), "MMM d, yyyy", { locale: es })
+                          ) : (
+                            <Calendar className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </DeadlinePopup>
+                    </div>
+                  </div>
+                  <div className="mt-2 mx-5 border-b border-border/50 group-last:border-0" />
+                </div>
+              )}
             </>
           ) : (
             <div className="text-center text-sm text-muted-foreground py-2">
@@ -307,7 +353,7 @@ export function TasksPanel() {
         </div>
 
         <div className="overflow-y-auto" style={{ height: '392px' }}>
-          {isLoading ? (
+          {loading.fetching ? (
             <div className="px-3 py-2 space-y-2">
               {/* Task item skeletons */}
               {Array.from({ length: 4 }).map((_, index) => (
@@ -328,76 +374,77 @@ export function TasksPanel() {
             </div>
           ) : (
             <>
-          <TabsContent value="upcoming" className="m-0">
-                {upcomingTasks.length > 0 ? (
-                  upcomingTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                isNew={isCreatingTask && task.id === upcomingTasks[0]?.id}
-                inputRef={isCreatingTask && task.id === upcomingTasks[0]?.id ? newTaskInputRef : undefined}
-                onStatusChange={handleTaskStatusChange}
-                onDeadlineChange={handleDeadlineChange}
-                onTitleChange={handleTaskTitleChange}
-                onTitleBlur={handleTaskTitleBlur}
-                onTitleKeyDown={handleTaskTitleKeyDown}
-                onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
-                allTasks={tasks}
-              />
+              <TabsContent value="upcoming" className="m-0">
+                {displayUpcomingTasks.length > 0 ? (
+                  displayUpcomingTasks.map((task) => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      isNew={task.title === ""}
+                      inputRef={task.title === "" ? newTaskInputRef : undefined}
+                      calendarRef={task.title === "" ? newTaskCalendarRef : undefined}
+                      onStatusChange={handleTaskStatusChange}
+                      onDeadlineChange={handleDeadlineChange}
+                      onTitleChange={handleTaskTitleChange}
+                      onTitleBlur={handleTaskTitleBlur}
+                      onTitleKeyDown={handleTaskTitleKeyDown}
+                      onTaskUpdate={handleTaskUpdate}
+                      onDelete={handleTaskDelete}
+                      allTasks={[...displayUpcomingTasks, ...overdueTasks, ...completedTasks]}
+                    />
                   ))
                 ) : (
                   <div className="text-center text-sm text-muted-foreground py-8">
                     No upcoming tasks
                   </div>
                 )}
-          </TabsContent>
+              </TabsContent>
 
-          <TabsContent value="overdue" className="m-0">
+              <TabsContent value="overdue" className="m-0">
                 {overdueTasks.length > 0 ? (
                   overdueTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onStatusChange={handleTaskStatusChange}
-                onDeadlineChange={handleDeadlineChange}
-                onTitleChange={handleTaskTitleChange}
-                onTitleBlur={handleTaskTitleBlur}
-                onTitleKeyDown={handleTaskTitleKeyDown}
-                onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
-                allTasks={tasks}
-              />
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      onStatusChange={handleTaskStatusChange}
+                      onDeadlineChange={handleDeadlineChange}
+                      onTitleChange={handleTaskTitleChange}
+                      onTitleBlur={handleTaskTitleBlur}
+                      onTitleKeyDown={handleTaskTitleKeyDown}
+                      onTaskUpdate={handleTaskUpdate}
+                      onDelete={handleTaskDelete}
+                      allTasks={[...displayUpcomingTasks, ...overdueTasks, ...completedTasks]}
+                    />
                   ))
                 ) : (
                   <div className="text-center text-sm text-muted-foreground py-8">
                     No overdue tasks
                   </div>
                 )}
-          </TabsContent>
+              </TabsContent>
 
-          <TabsContent value="completed" className="m-0">
+              <TabsContent value="completed" className="m-0">
                 {completedTasks.length > 0 ? (
                   completedTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onStatusChange={handleTaskStatusChange}
-                onDeadlineChange={handleDeadlineChange}
-                onTitleChange={handleTaskTitleChange}
-                onTitleBlur={handleTaskTitleBlur}
-                onTitleKeyDown={handleTaskTitleKeyDown}
-                onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
-                allTasks={tasks}
-              />
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      onStatusChange={handleTaskStatusChange}
+                      onDeadlineChange={handleDeadlineChange}
+                      onTitleChange={handleTaskTitleChange}
+                      onTitleBlur={handleTaskTitleBlur}
+                      onTitleKeyDown={handleTaskTitleKeyDown}
+                      onTaskUpdate={handleTaskUpdate}
+                      onDelete={handleTaskDelete}
+                      allTasks={[...displayUpcomingTasks, ...overdueTasks, ...completedTasks]}
+                    />
                   ))
                 ) : (
                   <div className="text-center text-sm text-muted-foreground py-8">
                     No completed tasks
                   </div>
                 )}
-          </TabsContent>
+              </TabsContent>
             </>
           )}
         </div>
@@ -406,149 +453,3 @@ export function TasksPanel() {
   );
 }
 
-interface TaskItemProps {
-  task: Task;
-  isNew?: boolean;
-  inputRef?: React.RefObject<HTMLInputElement>;
-  onStatusChange: (taskId: string, newStatus: Task["display_status"]) => void;
-  onDeadlineChange: (taskId: string, deadline: string | undefined) => void;
-  onTitleChange: (taskId: string, newTitle: string) => void;
-  onTitleBlur: (taskId: string) => void;
-  onTitleKeyDown: (e: React.KeyboardEvent, taskId: string) => void;
-  onTaskUpdate: (updatedTask: Task) => void;
-  onDelete: (taskId: string) => void;
-  allTasks: Task[];
-}
-
-function TaskItem({
-  task,
-  isNew,
-  inputRef,
-  onStatusChange,
-  onDeadlineChange,
-  onTitleChange,
-  onTitleBlur,
-  onTitleKeyDown,
-  onTaskUpdate,
-  onDelete,
-  allTasks
-}: TaskItemProps) {
-  const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
-  const deadline = task.deadline ? parseISO(task.deadline) : undefined;
-
-  const getDueDateDisplay = () => {
-    if (!deadline) return null;
-
-    if (isToday(deadline)) {
-      return "Today";
-    }
-    if (isTomorrow(deadline)) {
-      return "Tomorrow";
-    }
-    return format(deadline, "MMM d, yyyy", { locale: es });
-  };
-
-  const getDueDateColor = () => {
-    if (!deadline) return "text-muted-foreground";
-
-    if (task.display_status === "overdue" || isPast(startOfDay(deadline))) {
-      return "text-red-400";
-    }
-    if (isToday(deadline) || isTomorrow(deadline)) {
-      return "text-emerald-400";
-    }
-    return "text-muted-foreground";
-  };
-
-  const handleTaskSave = (updatedTask: Task) => {
-    // Update all task fields in the parent component
-    onTitleChange(updatedTask.id, updatedTask.title);
-    if (updatedTask.deadline !== task.deadline) {
-      onDeadlineChange(updatedTask.id, updatedTask.deadline);
-    }
-  };
-
-  return (
-    <div className="px-3 py-1.5 group">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => onStatusChange(task.id, task.display_status === "completed" ? "upcoming" : "completed")}
-          className="flex-shrink-0 hover:opacity-80 transition-opacity"
-          aria-label={task.display_status === "completed" ? "Mark as incomplete" : "Mark as complete"}
-        >
-          <div className={cn(
-            "h-5 w-5 rounded-full flex items-center justify-center transition-colors",
-            task.display_status === "completed"
-              ? "bg-emerald-500 border-emerald-500"
-              : "border-2 border-muted-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10"
-          )}>
-            <Check className={cn(
-              "h-3 w-3",
-              task.display_status === "completed"
-                ? "text-white"
-                : "text-muted-foreground hover:text-emerald-500/50"
-            )} />
-          </div>
-        </button>
-        <div className="flex-1 min-w-0">
-          {isNew ? (
-            <input
-              ref={inputRef}
-              type="text"
-              value={task.title}
-              onChange={(e) => onTitleChange(task.id, e.target.value)}
-              onBlur={() => onTitleBlur(task.id)}
-              onKeyDown={(e) => onTitleKeyDown(e, task.id)}
-              className="w-full bg-transparent border-none focus:outline-none text-foreground"
-              placeholder="Enter task title"
-            />
-          ) : (
-            <h3
-              onDoubleClick={() => setIsEditPopupOpen(true)}
-              className={cn(
-                "font-medium cursor-pointer select-none truncate",
-                task.display_status === "completed" ? "line-through text-muted-foreground" : "text-foreground"
-              )}
-            >
-              {task.title}
-            </h3>
-          )}
-        </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {task.type && (
-            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs capitalize">
-              {task.type === "follow-up" ? "Follow Up" : task.type.replace(/-/g, ' ')}
-            </span>
-          )}
-          <DeadlinePopup
-            date={deadline}
-            onSelect={(date) => onDeadlineChange(task.id, date?.toISOString())}
-          >
-            <button
-              className={cn(
-                "flex items-center gap-1 hover:opacity-80 transition-opacity text-xs ml-1",
-                getDueDateColor()
-              )}
-            >
-              {deadline ? (
-                getDueDateDisplay()
-              ) : (
-                <Calendar className="h-3.5 w-3.5" />
-              )}
-            </button>
-          </DeadlinePopup>
-        </div>
-      </div>
-      <div className="mt-2 mx-5 border-b border-border/50 group-last:border-0"></div>
-      <TaskEditPopup
-        task={task}
-        open={isEditPopupOpen}
-        onClose={() => setIsEditPopupOpen(false)}
-        onSave={onTaskUpdate}
-        onStatusChange={onStatusChange}
-        onDelete={onDelete}
-        allTasks={allTasks}
-      />
-    </div>
-  );
-}
