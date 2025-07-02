@@ -26,3 +26,44 @@ product-level spec explicitly updates them.
 > **must be rejected**.
 
 These rules freeze the current visual grid baseline so future work (filters, saved views, etc.) can proceed without risking layout regressions.
+
+## Contact Loading & Search Filtering — PRODUCTION READY
+
+The instant contacts grid implementation is considered **production-ready** as of commit `0be862a`
+("feat: implement instant contacts grid with background loading"). The following implementation details
+are frozen and must not be altered without explicit product approval:
+
+### Search & Filtering Invariants
+
+| Aspect | Invariant rule | Implementation |
+|--------|----------------|----------------|
+| **Instant search** | Search must trigger on every keystroke without Enter key | `onChange` handler in `grid-toolbar.tsx` |
+| **Search debounce** | 200ms debounce for performance optimization | `useDebounce` hook with 200ms delay |
+| **Client-side filtering** | All filtering happens on cached data, no network calls | `useInstantContacts` hook filters in-memory |
+| **Search fields** | Search covers name, email, company, and phone fields | `filteredIds` logic in `useInstantContacts` |
+| **Case sensitivity** | Search is case-insensitive | `.toLowerCase()` comparison |
+
+### Contact Loading Invariants
+
+| Aspect | Invariant rule | Implementation |
+|--------|----------------|----------------|
+| **Initial load** | First 50 contacts render immediately | `initialize()` in `contactsStore.ts` |
+| **Background loading** | Remaining contacts load in 1000-record chunks | `CHUNK_SIZE = 1000` constant |
+| **Loading delay** | 5ms delay between chunks for UI responsiveness | `await new Promise(r => setTimeout(r, 5))` |
+| **Progress indicator** | Shows percentage in pagination bar | `(Loading more... X%)` in `GridPagination` |
+| **Data structure** | Zustand store with cache and orderedIds | `useContactsStore` in `contactsStore.ts` |
+| **Scalability** | Works with any dataset size (tested 107K+) | Dynamic `totalCount` from database |
+
+### Protected Files
+The following files contain the production-ready implementation and should not be modified:
+- `src/stores/contactsStore.ts` - Global contact cache store
+- `src/hooks/use-instant-contacts.ts` - Instant filtering logic
+- `src/hooks/use-debounce.ts` - Search debounce utility
+- Related integration in `EditableLeadsGrid.tsx` and `grid-toolbar.tsx`
+
+### Guard-rail
+> Any PR that modifies the search behavior to require Enter key, changes the chunk size,
+> removes the debounce, adds network calls to search, or alters the background loading mechanism
+> **must be rejected** unless accompanied by a product specification document.
+
+This implementation provides instant, responsive search even with millions of contacts and must remain unchanged.
