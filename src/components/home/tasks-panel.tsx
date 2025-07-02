@@ -1,6 +1,6 @@
 import { Check, Plus, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import React from "react";
 import { cn } from "@/lib/utils";
 import { DeadlinePopup } from "./deadline-popup";
