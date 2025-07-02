@@ -126,7 +126,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
       <Dialog open={open} onOpenChange={(isOpen) => {
         if (!isOpen) onClose();
       }}>
-        <DialogContent className="sm:max-w-lg w-full max-w-[95vw]">
+        <DialogContent className="sm:max-w-lg w-full max-w-[95vw]" style={{ zIndex: 50 }}>
           <DialogTitle className="sr-only">Edit Task</DialogTitle>
           <div className="space-y-4 py-4 px-6 max-h-[80vh] overflow-y-auto">
             <div>
@@ -308,7 +308,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                     Delete
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-0" align="center" side="top" sideOffset={8}>
+                <PopoverContent className="w-80 p-0 z-40" align="center" side="top" sideOffset={8} style={{ zIndex: 9999 }}>
                   <div className="p-4 space-y-3">
                     <div className="text-center">
                       <h4 className="font-semibold text-sm">Delete Task</h4>
@@ -329,7 +329,12 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                         variant="destructive"
                         size="sm"
                         onClick={handleDeleteConfirm}
-                        className="flex-1"
+                        onPointerDown={(e) => {
+                          console.log('Delete button pointer down event');
+                          e.stopPropagation();
+                        }}
+                        className="flex-1 relative z-[10000]"
+                        style={{ position: 'relative', zIndex: 10000 }}
                       >
                         Delete
                       </Button>
