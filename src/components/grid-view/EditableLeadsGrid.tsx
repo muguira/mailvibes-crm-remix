@@ -17,7 +17,9 @@ import { Button } from '@/components/ui/button';
 import { PAGE_SIZE, LEADS_STORAGE_KEY } from '@/constants/grid';
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/utils/logger';
-import { useLeadsRows } from '@/hooks/useLeadsRows';
+import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
+import { useInstantContacts } from '@/hooks/use-instant-contacts';
+import { useDebounce } from '@/hooks/use-debounce';
 import { toast } from '@/components/ui/use-toast';
 import { useActivity } from "@/contexts/ActivityContext";
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -405,25 +407,35 @@ export function EditableLeadsGrid() {
     columnName: ''
   });
   
-  // Use our custom hook for leads data
-  const { 
-    rows, 
-    loading, 
-    PAGE_SIZE,
-    updateCell,
-    addContact,
-    refreshData,
-    fetchLeadsRows,
-    totalCount
-  } = useLeadsRows();
-
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50); // Default to 50 rows per page
   
-  // Use server-side pagination - rows are already paginated from the hook
-  const totalItems = totalCount; // Use totalCount from the hook
-  const totalPages = Math.ceil(totalItems / pageSize);
+  // Debounce search term for better performance
+  const debouncedSearchTerm = useDebounce(searchTerm, 200);
+  
+  // Use the new instant contacts hook
+  const {
+    rows,
+    loading,
+    totalCount,
+    isBackgroundLoading,
+    loadedCount
+  } = useInstantContacts({
+    searchTerm: debouncedSearchTerm,
+    pageSize,
+    currentPage
+  });
+  
+  // Keep the original hook for mutations only
+  const { 
+    updateCell,
+    addContact,
+    refreshData
+  } = useLeadsRows();
+
+  // Calculate total pages based on filtered results
+  const totalPages = Math.ceil(totalCount / pageSize);
   
   // Reset to first page when filters change
   useEffect(() => {
@@ -475,26 +487,6 @@ export function EditableLeadsGrid() {
       })
     );
   }, []);
-  
-  // Load data when page, page size, or filters change
-  useEffect(() => {
-    // Add a small delay to debounce rapid changes
-    const timeoutId = setTimeout(() => {
-      // Convert activeFilters to the format expected by fetchLeadsRows
-      const columnFilters = activeFilters.columns.map(columnId => ({
-        columnId,
-        value: activeFilters.values[columnId],
-        type: columns.find(col => col.id === columnId)?.type
-      }));
-      
-      fetchLeadsRows(currentPage, pageSize, {
-        searchTerm,
-        columnFilters: columnFilters.length > 0 ? columnFilters : undefined
-      });
-    }, 300); // 300ms debounce for search/filter changes
-    
-    return () => clearTimeout(timeoutId);
-  }, [currentPage, pageSize, fetchLeadsRows, searchTerm, activeFilters]); // Removed columns from dependencies
   
   // Set grid ready state when data is loaded
   useEffect(() => {
@@ -1118,10 +1110,12 @@ export function EditableLeadsGrid() {
         currentPage={currentPage}
         totalPages={totalPages}
         pageSize={pageSize}
-        totalItems={totalItems}
+        totalItems={totalCount}
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
         loading={loading}
+        isBackgroundLoading={isBackgroundLoading}
+        loadedCount={loadedCount}
       />
       
       {/* Delete Column Confirmation Dialog */}
