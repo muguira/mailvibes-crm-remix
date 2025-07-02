@@ -24,6 +24,8 @@ import { toast } from '@/components/ui/use-toast';
 import { useActivity } from "@/contexts/ActivityContext";
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { DeleteColumnDialog } from '@/components/grid-view/DeleteColumnDialog';
+import { Database } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 // Constants
 const COLUMNS_STORAGE_KEY = 'gridColumns-v1';
@@ -1061,7 +1063,70 @@ export function EditableLeadsGrid() {
     currentPage > Math.ceil(loadedCount / pageSize);
   
   if (waitingForPageData) {
-    return <GridSkeleton rowCount={15} columnCount={10} />;
+    const percentage = Math.round((loadedCount / totalCount) * 100);
+    const remainingContacts = totalCount - loadedCount;
+    const estimatedSeconds = Math.ceil(remainingContacts / 1000 * 0.5); // ~0.5s per 1000 contacts
+    const estimatedMinutes = Math.floor(estimatedSeconds / 60);
+    const remainingSeconds = estimatedSeconds % 60;
+    
+    return (
+      <div className="flex items-center justify-center h-full bg-gray-50/50 backdrop-blur-sm">
+        <div className="bg-white rounded-xl shadow-2xl border border-gray-100 p-8 max-w-md w-full mx-4 transform transition-all animate-in fade-in-0 zoom-in-95 duration-300">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 bg-[#4ab4a7]/20 rounded-full animate-ping"></div>
+              <div className="absolute inset-0 bg-[#4ab4a7]/10 rounded-full animate-pulse"></div>
+              <Database className="h-8 w-8 text-[#4ab4a7] relative z-10" />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900">Preloading contacts...</h3>
+              <p className="text-sm text-gray-500 mt-0.5">Please wait while we load your data</p>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            {/* Custom progress bar with moving pill */}
+            <div className="relative h-8 bg-gray-100 rounded-full overflow-hidden">
+              {/* Filled progress background */}
+              <div 
+                className="absolute inset-y-0 left-0 bg-[#4ab4a7] transition-all duration-300 ease-out"
+                style={{ width: `${percentage}%` }}
+              />
+              
+              {/* Moving percentage pill */}
+              <div 
+                className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-out"
+                style={{ left: `calc(${percentage}% - ${percentage > 95 ? '60px' : percentage < 5 ? '0px' : '30px'})` }}
+              >
+                <div className="bg-white px-3 py-1 rounded-full shadow-md border border-gray-200">
+                  <span className="text-sm font-semibold text-gray-700">{percentage}%</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between text-sm">
+              <div>
+                <span className="text-gray-900 font-medium">{loadedCount.toLocaleString()}</span>
+                <span className="text-gray-500"> of </span>
+                <span className="text-gray-900 font-medium">{totalCount.toLocaleString()}</span>
+                <span className="text-gray-500"> contacts</span>
+              </div>
+              {estimatedSeconds > 0 && (
+                <div className="text-gray-500">
+                  ~{estimatedMinutes > 0 ? `${estimatedMinutes}m ${remainingSeconds}s` : `${remainingSeconds}s`} remaining
+                </div>
+              )}
+            </div>
+            
+            <div className="pt-3 border-t border-gray-100">
+              <p className="text-xs text-gray-500 text-center">
+                💡 Tip: You can navigate to other pages while contacts load in the background
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
   
   // Show empty state when there are no rows - GridViewContainer now has its own empty state UI
