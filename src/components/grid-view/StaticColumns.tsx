@@ -114,7 +114,7 @@ export function StaticColumns({
             }}
           >
             <span
-              className={`pin-icon mr-2 md:ml-2 md:mr-0 md:order-last ${frozenColumnIds.includes(col.id) ? 'text-[#62BFAA]' : 'text-gray-400'} md:group-hover:opacity-100 md:opacity-0 hidden md:block`}
+              className={`pin-icon mr-2 md:ml-2 md:mr-0 md:order-last ${frozenColumnIds.includes(col.id) ? 'text-brand-teal' : 'text-gray-400'} md:group-hover:opacity-100 md:opacity-0 hidden md:block`}
               style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
               onClick={e => { e.stopPropagation(); onTogglePin(col.id); }}
             >

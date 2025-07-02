@@ -14,9 +14,10 @@
     opacity: 1 !important;
   }
   
-  .pin-icon.text-\[#62BFAA\] svg {
-    color: #62BFAA;
-  }
+  .pin-icon.text-teal-500 svg,
+.pin-icon-active svg {
+  color: #62BFAA;
+}
   
   .pin-icon.text-gray-400 svg {
     color: #9ca3af;

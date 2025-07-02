@@ -1,8 +1,14 @@
 /* Task Edit Popup specific styles to override grid styles */
 
+:root {
+  --task-dialog-z-index: 10010;
+  --task-popover-z-index: 10011;
+}
+
 /* Ensure the dialog content has the correct z-index */
 .task-edit-dialog [data-radix-dialog-content] {
-  z-index: 10010 !important;
+  z-index: var(--task-dialog-z-index) !important;
+  isolation: isolate !important;
 }
 
 /* Override any grid-specific popover positioning for combobox */
@@ -11,21 +17,25 @@
   left: auto !important;
   top: auto !important;
   transform: none !important;
-  z-index: 10011 !important;
+  z-index: var(--task-popover-z-index) !important;
   padding-bottom: 0 !important;
   margin-bottom: 0 !important;
+  isolation: isolate !important;
 }
 
 /* Ensure combobox popover content is properly positioned */
 .task-edit-dialog [data-radix-popover-content] {
-  z-index: 10011 !important;
+  z-index: var(--task-popover-z-index) !important;
   position: absolute !important;
   pointer-events: auto !important;
+  isolation: isolate !important;
+  will-change: transform !important;
 }
 
 /* Ensure calendar popover also works */  
 .task-edit-dialog [data-radix-popover-content] .react-day-picker {
-  z-index: 10011 !important;
+  z-index: var(--task-popover-z-index) !important;
+  isolation: isolate !important;
 }
 
 /* Force proper event handling */
@@ -33,17 +43,21 @@
   pointer-events: auto !important;
   position: relative !important;
   z-index: 1 !important;
+  isolation: isolate !important;
 }
 
 /* Ensure scroll works in combobox lists */
 .task-edit-dialog [data-radix-popover-content] div[role="listbox"] {
   pointer-events: auto !important;
+  isolation: isolate !important;
 }
 
 /* Ensure scrollable container works */
 .task-edit-dialog [data-radix-popover-content] .overflow-y-auto {
   pointer-events: auto !important;
   touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+  will-change: scroll-position !important;
 }
 
 /* Ensure list items are clickable */
@@ -51,4 +65,17 @@
   pointer-events: auto !important;
   cursor: pointer !important;
   user-select: none !important;
+  isolation: isolate !important;
+  will-change: background-color !important;
+}
+
+/* Additional production-specific fixes */
+.task-edit-dialog [data-radix-popover-content] * {
+  box-sizing: border-box !important;
+}
+
+/* Ensure proper stacking context */
+.task-edit-dialog {
+  isolation: isolate !important;
+  contain: layout style paint !important;
 } 

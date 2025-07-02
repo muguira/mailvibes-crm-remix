@@ -1,0 +1,108 @@
+/* Brand Colors - Define custom colors to avoid Tailwind arbitrary value issues in production */
+
+:root {
+  --brand-teal: #62BFAA;
+  --brand-teal-hover: #52AF9A;
+  --brand-teal-light: #62BFAA;
+  --brand-teal-bg: rgba(98, 191, 170, 0.05);
+  --brand-teal-bg-70: rgba(98, 191, 170, 0.7);
+}
+
+/* Text colors */
+.text-brand-teal {
+  color: var(--brand-teal) !important;
+}
+
+.text-brand-teal-hover:hover {
+  color: var(--brand-teal) !important;
+}
+
+/* Background colors */
+.bg-brand-teal {
+  background-color: var(--brand-teal) !important;
+}
+
+.bg-brand-teal-hover:hover {
+  background-color: var(--brand-teal-hover) !important;
+}
+
+.bg-brand-teal-light {
+  background-color: var(--brand-teal-bg) !important;
+}
+
+.bg-brand-teal-70 {
+  background-color: var(--brand-teal-bg-70) !important;
+}
+
+/* Border colors */
+.border-brand-teal {
+  border-color: var(--brand-teal) !important;
+}
+
+.border-b-brand-teal {
+  border-bottom-color: var(--brand-teal) !important;
+}
+
+/* Focus styles */
+.focus\:border-brand-teal:focus {
+  border-color: var(--brand-teal) !important;
+}
+
+/* Outline styles */
+.outline-brand-teal {
+  outline: 2px solid var(--brand-teal) !important;
+}
+
+/* Calendar day styles */
+.day-brand-selected {
+  background-color: var(--brand-teal) !important;
+  color: white !important;
+}
+
+.day-brand-selected:hover {
+  background-color: var(--brand-teal) !important;
+  color: white !important;
+}
+
+.day-brand-selected:focus {
+  background-color: var(--brand-teal) !important;
+  color: white !important;
+}
+
+.day-brand-hover:hover {
+  background-color: var(--brand-teal-bg-70) !important;
+  color: white !important;
+}
+
+.day-brand-focus:focus-visible {
+  background-color: var(--brand-teal) !important;
+  color: white !important;
+}
+
+.day-brand-today {
+  color: var(--brand-teal) !important;
+  font-weight: 600 !important;
+}
+
+/* Checkbox styles */
+.checkbox-brand[data-state="checked"] {
+  background-color: var(--brand-teal) !important;
+  border-color: var(--brand-teal) !important;
+}
+
+/* Stepper styles */
+.stepper-active {
+  background-color: var(--brand-teal) !important;
+  border-color: var(--brand-teal) !important;
+  color: white !important;
+}
+
+.stepper-completed {
+  border-color: var(--brand-teal) !important;
+  color: var(--brand-teal) !important;
+  background-color: white !important;
+}
+
+.stepper-line-completed {
+  background-color: var(--brand-teal) !important;
+} 
