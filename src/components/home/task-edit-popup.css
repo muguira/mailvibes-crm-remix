@@ -46,13 +46,7 @@
   isolation: isolate !important;
 }
 
-/* Ensure scroll works in combobox lists */
-.task-edit-dialog [data-radix-popover-content] div[role="listbox"] {
-  pointer-events: auto !important;
-  isolation: isolate !important;
-}
-
-/* Ensure scrollable container works */
+/* Ensure scroll works in contact lists */
 .task-edit-dialog [data-radix-popover-content] .overflow-y-auto {
   pointer-events: auto !important;
   touch-action: pan-y !important;
@@ -60,8 +54,8 @@
   will-change: scroll-position !important;
 }
 
-/* Ensure list items are clickable */
-.task-edit-dialog [data-radix-popover-content] button[role="option"] {
+/* Ensure contact list items are clickable */
+.task-edit-dialog [data-radix-popover-content] button {
   pointer-events: auto !important;
   cursor: pointer !important;
   user-select: none !important;

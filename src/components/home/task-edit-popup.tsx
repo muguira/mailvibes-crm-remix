@@ -9,11 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, CheckIcon, AlertCircle, Trash2 } from "lucide-react";
+import { CalendarIcon, CheckIcon, AlertCircle, Trash2, Search, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Task } from "@/types/task";
-
-import { Combobox } from "@/components/ui/combobox";
 import { useContactSearch } from "@/hooks/use-contact-search";
 
 // Extend the Task type to include contactId
@@ -33,7 +31,10 @@ interface TaskEditPopupProps {
 
 export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onDelete, allTasks }: TaskEditPopupProps) {
   const [editedTask, setEditedTask] = React.useState<ExtendedTask>({ ...task });
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [contactPopoverOpen, setContactPopoverOpen] = React.useState(false);
   const titleInputRef = React.useRef<HTMLInputElement>(null);
+  const contactSearchInputRef = React.useRef<HTMLInputElement>(null);
   const { contacts, isLoading, searchContacts } = useContactSearch();
 
   // Reset the form when the task changes
@@ -53,6 +54,12 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
   const handleChange = (field: keyof ExtendedTask, value: any) => {
     setEditedTask(prev => ({ ...prev, [field]: value }));
   };
+
+  const handleSearchChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    searchContacts(query);
+  }, [searchContacts]);
 
   const handleSave = () => {
     // Clean up the task object before saving
@@ -88,10 +95,14 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     [contacts]
   );
 
-  const handleSearch = React.useCallback((search: string) => {
-    if (search === undefined) return;
-    searchContacts(search);
-  }, [searchContacts]);
+  // Focus contact search input when popover opens
+  React.useEffect(() => {
+    if (contactPopoverOpen && contactSearchInputRef.current) {
+      setTimeout(() => {
+        contactSearchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [contactPopoverOpen]);
 
   // Initialize contactId from contact field if needed
   React.useEffect(() => {
@@ -259,21 +270,101 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
 
             <div>
               <label className="text-sm font-medium mb-1 block">Contact</label>
-              <div className="w-full">
-                <Combobox
-                  items={contactItems}
-                  value={editedTask.contactId}
-                  onValueChange={(value) => {
-                    handleChange('contactId', value || '');
-                    handleChange('contact', value || ''); // Update both fields
-                  }}
-                  onSearch={handleSearch}
-                  placeholder="Search contacts..."
-                  emptyText={isLoading ? "Loading contacts..." : "No contacts found"}
-                  isLoading={isLoading}
-                  className="w-full"
-                />
-              </div>
+              <Popover open={contactPopoverOpen} onOpenChange={setContactPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !editedTask.contactId && "text-muted-foreground"
+                    )}
+                  >
+                    <User className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">
+                      {editedTask.contactId ? (
+                        contactItems.find(item => item.value === editedTask.contactId)?.label || "Contact selected"
+                      ) : (
+                        "Search contacts..."
+                      )}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 min-w-[300px]">
+                  <div className="p-2">
+                    <div className="flex items-center border-b pb-2 mb-2">
+                      <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                      <Input
+                        ref={contactSearchInputRef}
+                        placeholder="Search contacts..."
+                        value={searchQuery}
+                        onChange={handleSearchChange}
+                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-8"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck="false"
+                      />
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto">
+                      {isLoading ? (
+                        <div className="py-6 text-center">
+                          <div className="text-sm text-muted-foreground">
+                            Loading contacts...
+                          </div>
+                        </div>
+                      ) : contactItems.length === 0 ? (
+                        <div className="py-6 text-center text-sm text-muted-foreground">
+                          No contacts found
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          {contactItems.map((item) => (
+                            <button
+                              key={item.value}
+                              type="button"
+                              className={cn(
+                                "w-full flex items-center gap-2 px-2 py-1.5 text-left text-sm rounded-sm",
+                                "hover:bg-accent hover:text-accent-foreground",
+                                "focus:bg-accent focus:text-accent-foreground focus:outline-none",
+                                "cursor-pointer transition-colors"
+                              )}
+                              onClick={() => {
+                                handleChange('contactId', item.value);
+                                handleChange('contact', item.value);
+                                setSearchQuery("");
+                                setContactPopoverOpen(false);
+                              }}
+                            >
+                              <CheckIcon
+                                className={cn(
+                                  "h-4 w-4 flex-shrink-0",
+                                  editedTask.contactId === item.value ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <span className="truncate">{item.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {editedTask.contactId && (
+                      <div className="pt-2 border-t flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            handleChange('contactId', '');
+                            handleChange('contact', '');
+                            setSearchQuery("");
+                            setContactPopoverOpen(false);
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
 
