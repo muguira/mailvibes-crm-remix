@@ -64,14 +64,14 @@ const saveColumnsToSupabase = async (user: any, columns: Column[]): Promise<void
       });
     
     if (error) {
-      // Only log error if it's not a 404 (table not found)
-      if (!error.message?.includes('404')) {
+      // Only log error if it's not a 404 (table not found) or 42P01 (relation does not exist)
+      if (!error.message?.includes('404') && error.code !== '42P01') {
         logger.error('Failed to save columns to Supabase:', error);
       }
     }
   } catch (error) {
     // Silently fail for 404 errors
-    if (!String(error).includes('404')) {
+    if (!String(error).includes('404') && !String(error).includes('42P01')) {
       logger.error('Error saving columns to Supabase:', error);
     }
   }
@@ -91,8 +91,8 @@ const loadColumnsFromSupabase = async (user: any): Promise<Column[] | null> => {
       .single();
     
     if (error) {
-      // Return null for 404 errors (table not found)
-      if (error.message?.includes('404') || error.code === 'PGRST116') {
+      // Return null for 404 errors or table not found errors
+      if (error.message?.includes('404') || error.code === 'PGRST116' || error.code === '42P01') {
         return null;
       }
       // Only log other errors
@@ -103,7 +103,7 @@ const loadColumnsFromSupabase = async (user: any): Promise<Column[] | null> => {
     return data?.setting_value as Column[];
   } catch (error) {
     // Silently fail for 404 errors
-    if (!String(error).includes('404')) {
+    if (!String(error).includes('404') && !String(error).includes('42P01')) {
       logger.error('Error loading columns from Supabase:', error);
     }
     return null;
@@ -494,7 +494,7 @@ export function EditableLeadsGrid() {
     }, 300); // 300ms debounce for search/filter changes
     
     return () => clearTimeout(timeoutId);
-  }, [currentPage, pageSize, fetchLeadsRows, searchTerm, activeFilters, columns]);
+  }, [currentPage, pageSize, fetchLeadsRows, searchTerm, activeFilters]); // Removed columns from dependencies
   
   // Set grid ready state when data is loaded
   useEffect(() => {
@@ -535,26 +535,29 @@ export function EditableLeadsGrid() {
         setColumns(prev => [...prev, ...newColumns]);
       }
     }
-  }, [rows, columns]);
+  }, [rows]); // Removed columns from dependencies to prevent re-renders
+
+  // Add loading state to prevent duplicate loads
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   // Load columns from storage on component mount
   useEffect(() => {
+    let isMounted = true;
+    
     const loadStoredColumns = async () => {
+      if (!isMounted) return;
+      
       try {
-        // First try to load from Supabase if user is authenticated
-        let storedColumns: Column[] | null = null;
+        // First try localStorage to avoid unnecessary network requests
+        let storedColumns: Column[] | null = loadColumnsFromLocal();
         
-    if (user) {
+        // Only try Supabase if no local storage and user is authenticated
+        if (!storedColumns && user) {
           storedColumns = await loadColumnsFromSupabase(user);
         }
         
-        // If no columns from Supabase, try localStorage
-        if (!storedColumns) {
-          storedColumns = loadColumnsFromLocal();
-        }
-        
         // If we found stored columns, use them
-        if (storedColumns && storedColumns.length > 0) {
+        if (storedColumns && storedColumns.length > 0 && isMounted) {
           // Ensure renderCell functions are preserved for social links
           const columnsWithRenderFunctions = storedColumns.map(col => {
             if (['facebook', 'instagram', 'linkedin', 'twitter'].includes(col.id)) {
@@ -580,10 +583,18 @@ export function EditableLeadsGrid() {
       } catch (error) {
         logger.error('Error loading stored columns:', error);
         // Keep default columns on error
+      } finally {
+        if (isMounted) {
+          setIsLoadingSettings(false);
+        }
       }
     };
 
     loadStoredColumns();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user, handleResize]);
 
   // Function to save hidden columns to storage
@@ -602,12 +613,12 @@ export function EditableLeadsGrid() {
             updated_at: new Date().toISOString()
           });
           
-        if (error && !error.message?.includes('404')) {
+        if (error && !error.message?.includes('404') && error.code !== '42P01') {
           logger.error('Failed to save hidden columns:', error);
         }
       }
     } catch (error) {
-      if (!String(error).includes('404')) {
+      if (!String(error).includes('404') && !String(error).includes('42P01')) {
         logger.error('Failed to save hidden columns:', error);
       }
     }
@@ -615,11 +626,18 @@ export function EditableLeadsGrid() {
 
   // Load hidden columns on mount
   useEffect(() => {
+    let isMounted = true;
+    
     const loadHiddenColumns = async () => {
+      if (!isMounted) return;
+      
       try {
-        let storedHiddenColumns: Column[] | null = null;
+        // First try localStorage to avoid unnecessary network requests
+        const savedHidden = localStorage.getItem('hiddenColumns-v1');
+        let storedHiddenColumns: Column[] | null = savedHidden ? JSON.parse(savedHidden) : null;
         
-        if (user) {
+        // Only try Supabase if no local storage and user is authenticated
+        if (!storedHiddenColumns && user) {
           const { supabase } = await import('@/integrations/supabase/client');
           const { data, error } = await supabase
             .from('user_settings' as any) // Type assertion to bypass TypeScript error
@@ -630,29 +648,31 @@ export function EditableLeadsGrid() {
           
           if (data && !error) {
             storedHiddenColumns = data.setting_value as Column[];
+          } else if (error && error.code === '42P01') {
+            // Table doesn't exist - silently fall back to localStorage
+            // This prevents the error from being logged
           } else if (error && !error.message?.includes('404') && error.code !== 'PGRST116') {
             logger.error('Error loading hidden columns:', error);
           }
         }
         
-        if (!storedHiddenColumns) {
-          const savedHidden = localStorage.getItem('hiddenColumns-v1');
-          if (savedHidden) {
-            storedHiddenColumns = JSON.parse(savedHidden);
-          }
-        }
-        
-        if (storedHiddenColumns) {
+        if (storedHiddenColumns && isMounted) {
           setHiddenColumns(storedHiddenColumns);
         }
       } catch (error) {
-        if (!String(error).includes('404')) {
+        // Only log errors that aren't related to missing table
+        const errorMessage = String(error);
+        if (!errorMessage.includes('404') && !errorMessage.includes('42P01')) {
           logger.error('Error loading hidden columns:', error);
         }
       }
     };
 
     loadHiddenColumns();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   // Add effect to adjust column widths based on screen size
@@ -1038,7 +1058,7 @@ export function EditableLeadsGrid() {
   };
   
   // Show better loading UI to cover any potential flash
-  if (loading || !isGridReady) {
+  if (loading || !isGridReady || isLoadingSettings) {
     return <GridSkeleton rowCount={15} columnCount={10} />;
   }
   
