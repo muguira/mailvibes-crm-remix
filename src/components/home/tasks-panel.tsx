@@ -1,25 +1,70 @@
+import { useState, useRef } from "react";
 import { Check, Plus, Calendar } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useEffect, useRef } from "react";
 import React from "react";
-import { cn } from "@/lib/utils";
-import { DeadlinePopup } from "./deadline-popup";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-fns";
 import { es } from 'date-fns/locale';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Task } from "@/types/task";
+import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { DeadlinePopup } from "./deadline-popup";
 import { TaskEditPopup } from "./task-edit-popup";
 import { useTasks } from "@/hooks/supabase/use-tasks";
-import { useAuth } from "@/contexts/AuthContext";
-import { Task } from "@/types/task"; // Import the unified Task type
-import { Skeleton } from "@/components/ui/skeleton";
 
-// Export the Task interface from the unified type
 export type { Task };
 
+/**
+ * TasksPanel
+ * 
+ * Panel principal para la gestión de tareas del usuario. Permite ver, crear, editar, completar y eliminar tareas.
+ * Utiliza Supabase para persistencia y Zustand para estado local temporal de creación.
+ * 
+ * Características:
+ * - Tabs para ver tareas próximas, vencidas y completadas
+ * - Crear nueva tarea con input alineado
+ * - Edición inline de título y fecha límite
+ * - Sincronización con Supabase
+ * - Optimización de UX para creación y edición
+ *
+ * @component
+ * @returns {JSX.Element} Panel de tareas del usuario
+ */
 export function TasksPanel() {
+  /**
+   * Usuario autenticado actual
+   * @type {import("@/types/user").User | null}
+   */
   const { user } = useAuth();
+
+  /**
+   * Hook personalizado para tareas de Supabase
+   * @type {object}
+   * @property {Task[]} tasks - Tareas desde Supabase
+   * @property {boolean} isLoading - Si está cargando
+   * @property {function} createTask - Crear tarea
+   * @property {function} updateTask - Actualizar tarea
+   * @property {function} deleteTask - Eliminar tarea
+   * @property {object} createTaskMutation - Estado de la mutación de creación
+   */
   const { tasks: supabaseTasks, isLoading, createTask, updateTask, deleteTask, createTaskMutation } = useTasks();
+
+  /**
+   * Estado para saber si se está creando una tarea nueva
+   * @type {boolean}
+   */
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+
+  /**
+   * Estado local para tareas temporales (solo durante creación)
+   * @type {Task[]}
+   */
   const [localTasks, setLocalTasks] = useState<Task[]>([]);
+
+  /**
+   * Ref para el input de nueva tarea
+   * @type {React.RefObject<HTMLInputElement>}
+   */
   const newTaskInputRef = useRef<HTMLInputElement>(null);
 
   // Use supabase tasks directly, only add local temporary tasks for creation
@@ -81,6 +126,15 @@ export function TasksPanel() {
   const overdueTasks = sortTasksByDate(tasks.filter(task => task.display_status === "overdue"), false, false);
   const completedTasks = sortTasksByDate(tasks.filter(task => task.display_status === "completed"), false, false);
 
+  /**
+   * handleTaskStatusChange
+   * 
+   * Maneja el cambio de estado de una tarea. Actualiza la tarea en Supabase.
+   * 
+   * @param {string} taskId - ID de la tarea a actualizar
+   * @param {Task["display_status"]} newStatus - Nuevo estado de la tarea
+   * @returns {void}
+   */
   const handleTaskStatusChange = (taskId: string, newStatus: Task["display_status"]) => {
     const taskToUpdate = tasks.find(task => task.id === taskId);
     if (taskToUpdate && user) {
@@ -100,6 +154,15 @@ export function TasksPanel() {
     }
   };
 
+  /**
+   * handleDeadlineChange
+   * 
+   * Maneja el cambio de fecha límite de una tarea. Actualiza la tarea en Supabase.
+   * 
+   * @param {string} taskId - ID de la tarea a actualizar 
+   * @param {string | undefined} deadline - Nueva fecha límite
+   * @returns {void}
+   */
   const handleDeadlineChange = (taskId: string, deadline: string | undefined) => {
     const taskToUpdate = tasks.find(task => task.id === taskId);
     if (!taskToUpdate || !user) return;
@@ -132,6 +195,13 @@ export function TasksPanel() {
     });
   };
 
+  /**
+   * handleCreateNewTask
+   * 
+   * Maneja la creación de una nueva tarea. Crea una tarea temporal y establece el estado de creación.
+   * 
+   * @returns {void}
+   */
   const handleCreateNewTask = () => {
     if (!user) return; // Don't allow creating tasks if not logged in
 
@@ -152,25 +222,15 @@ export function TasksPanel() {
     }, 0);
   };
 
-  const handleCreateTask = (task: {
-    title: string;
-    deadline?: string;
-    type: "follow-up" | "respond" | "task";
-    tag?: string;
-  }) => {
-    if (!user) return; // Don't allow creating tasks if not logged in
-
-    createTask({
-      title: task.title,
-      deadline: task.deadline || '',
-      type: task.type,
-      tag: task.tag || '',
-      display_status: "upcoming",
-      status: "on-track",
-      user_id: user.id // Add user ID here
-    });
-  };
-
+  /**
+   * handleTaskTitleChange
+   * 
+   * Maneja el cambio de título de una tarea. Actualiza la tarea en el estado local.
+   * 
+   * @param {string} taskId - ID de la tarea a actualizar
+   * @param {string} newTitle - Nuevo título de la tarea
+   * @returns {void}
+   */
   const handleTaskTitleChange = (taskId: string, newTitle: string) => {
     setLocalTasks(prev =>
       prev.map(task =>
@@ -181,6 +241,14 @@ export function TasksPanel() {
     );
   };
 
+  /**
+   * handleTaskTitleBlur
+   * 
+   * Maneja el blur del input de título de una tarea. Crea la tarea en Supabase si es válida.
+   * 
+   * @param {string} taskId - ID de la tarea a actualizar 
+   * @returns {void}
+   */
   const handleTaskTitleBlur = (taskId: string) => {
     const task = localTasks.find(t => t.id === taskId);
 
@@ -207,6 +275,15 @@ export function TasksPanel() {
     setIsCreatingTask(false);
   };
 
+  /**
+   * handleTaskTitleKeyDown
+   * 
+   * Maneja el evento de tecla presionada en el input de título de una tarea.
+   * 
+   * @param {React.KeyboardEvent} e - Evento de teclado 
+   * @param {string} taskId - ID de la tarea a actualizar 
+   * @returns {void}
+   */
   const handleTaskTitleKeyDown = (e: React.KeyboardEvent, taskId: string) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -237,9 +314,6 @@ export function TasksPanel() {
     });
   };
 
-  const handleTaskDelete = (taskId: string) => {
-    deleteTask(taskId);
-  };
 
   // Remove local temp task when real task is created
   React.useEffect(() => {
@@ -342,7 +416,7 @@ export function TasksPanel() {
                 onTitleBlur={handleTaskTitleBlur}
                 onTitleKeyDown={handleTaskTitleKeyDown}
                 onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
+                onDelete={deleteTask}
                 allTasks={tasks}
               />
                   ))
@@ -365,7 +439,7 @@ export function TasksPanel() {
                 onTitleBlur={handleTaskTitleBlur}
                 onTitleKeyDown={handleTaskTitleKeyDown}
                 onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
+                onDelete={deleteTask}
                 allTasks={tasks}
               />
                   ))
@@ -388,7 +462,7 @@ export function TasksPanel() {
                 onTitleBlur={handleTaskTitleBlur}
                 onTitleKeyDown={handleTaskTitleKeyDown}
                 onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
+                onDelete={deleteTask}
                 allTasks={tasks}
               />
                   ))
@@ -406,6 +480,25 @@ export function TasksPanel() {
   );
 }
 
+/**
+ * TaskItem
+ *
+ * Componente para renderizar una fila de tarea, con edición inline y acciones.
+ *
+ * @param {object} props
+ * @param {Task} props.task - Tarea a mostrar
+ * @param {boolean} [props.isNew] - Si es una tarea nueva (input editable)
+ * @param {React.RefObject<HTMLInputElement>} [props.inputRef] - Ref para el input de nueva tarea
+ * @param {function} props.onStatusChange - Handler para cambiar estado (completada/pending)
+ * @param {function} props.onDeadlineChange - Handler para cambiar deadline
+ * @param {function} props.onTitleChange - Handler para cambiar título
+ * @param {function} props.onTitleBlur - Handler para blur del input
+ * @param {function} props.onTitleKeyDown - Handler para teclas en input
+ * @param {function} props.onTaskUpdate - Handler para actualizar tarea
+ * @param {function} props.onDelete - Handler para eliminar tarea
+ * @param {Task[]} props.allTasks - Todas las tareas (para popups)
+ * @returns {JSX.Element}
+ */
 interface TaskItemProps {
   task: Task;
   isNew?: boolean;
