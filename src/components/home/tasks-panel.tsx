@@ -17,7 +17,7 @@ export type { Task };
 
 export function TasksPanel() {
   const { user } = useAuth();
-  const { tasks: supabaseTasks, isLoading, createTask, updateTask, deleteTask } = useTasks();
+  const { tasks: supabaseTasks, isLoading, createTask, updateTask, deleteTask, createTaskMutation } = useTasks();
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [localTasks, setLocalTasks] = useState<Task[]>([]);
   const newTaskInputRef = useRef<HTMLInputElement>(null);
@@ -240,6 +240,18 @@ export function TasksPanel() {
   const handleTaskDelete = (taskId: string) => {
     deleteTask(taskId);
   };
+
+  // Remove local temp task when real task is created
+  React.useEffect(() => {
+    if (!createTaskMutation.isSuccess || !createTaskMutation.data) return;
+    setLocalTasks(prev => prev.filter(task => {
+      if (task.title === createTaskMutation.data.title && (!task.id || task.id.length > 20)) {
+        return false;
+      }
+      return true;
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createTaskMutation.isSuccess, createTaskMutation.data]);
 
   return (
     <div className="bg-background text-foreground rounded-lg overflow-hidden flex flex-col shadow-lg h-[500px]">

@@ -215,6 +215,7 @@ export function useTasks() {
     error,
     createTask: (task: Omit<TaskData, "id" | "created_at" | "updated_at">) =>
       createTask.mutate(task),
+    createTaskMutation: createTask,
     updateTask: (task: Omit<TaskData, "created_at" | "updated_at">) =>
       updateTask.mutate(task),
     deleteTask: (taskId: string) => deleteTask.mutate(taskId),
