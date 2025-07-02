@@ -7,6 +7,7 @@ import { ActivityProvider } from "@/contexts/ActivityContext";
 import { PrivateRoute } from "@/components/PrivateRoute";
 import { AuthenticatedRedirect } from "@/components/AuthenticatedRedirect";
 import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
+import { ContactPreloaderIndicator } from "@/components/layout/contact-preloader-indicator";
 import Index from "@/pages/dashboard/Index";
 import Lists from "@/pages/dashboard/Lists";
 import NewGrid from "@/pages/NewGrid";
@@ -56,6 +57,7 @@ function App() {
                   <Route path="/import" element={<PrivateRoute><Import /></PrivateRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                <ContactPreloaderIndicator />
                 <Toaster />
                 <SonnerToaster 
                   position="top-right"

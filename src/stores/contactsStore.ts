@@ -13,19 +13,25 @@ interface ContactsState {
   hasMore: boolean;                       // whether more chunks exist
   totalCount: number;                     // total contacts in database
   loadedCount: number;                    // contacts loaded so far
+  isBackgroundLoading: boolean;           // background loading active
   
   // Methods
   fetchNext: () => Promise<void>;         // pulls the next chunk
   initialize: (userId: string) => Promise<void>; // initial load
+  startBackgroundLoading: () => Promise<void>; // start background loading
   clear: () => void;                      // clear cache
   
   // Internal state
   _offset: number;                        // current offset for pagination
   _userId: string | null;                 // current user ID
   _chunkSize: number;                     // size of each chunk
+  _backgroundLoadingActive: boolean;      // track if background loading is running
 }
 
 const CHUNK_SIZE = 1000; // Fetch 1000 contacts at a time
+
+// Store the background loading promise outside of the store
+let backgroundLoadingPromise: Promise<void> | null = null;
 
 export const useContactsStore = create<ContactsState>((set, get) => ({
   // Initial state
@@ -35,14 +41,19 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   hasMore: true,
   totalCount: 0,
   loadedCount: 0,
+  isBackgroundLoading: false,
   
   // Internal state
   _offset: 0,
   _userId: null,
   _chunkSize: CHUNK_SIZE,
+  _backgroundLoadingActive: false,
   
   // Clear the cache
   clear: () => {
+    // Cancel any ongoing background loading
+    backgroundLoadingPromise = null;
+    
     set({
       cache: {},
       orderedIds: [],
@@ -50,7 +61,9 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
       hasMore: true,
       totalCount: 0,
       loadedCount: 0,
+      isBackgroundLoading: false,
       _offset: 0,
+      _backgroundLoadingActive: false,
     });
   },
   
@@ -58,8 +71,12 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   initialize: async (userId: string) => {
     const state = get();
     
-    // If already initialized for this user, skip
+    // If already initialized for this user, just start background loading if needed
     if (state._userId === userId && state.orderedIds.length > 0) {
+      // If we have more to load and not currently loading, start background loading
+      if (state.hasMore && !state._backgroundLoadingActive) {
+        get().startBackgroundLoading();
+      }
       return;
     }
     
@@ -121,6 +138,11 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
         });
         
         logger.log(`Initialized contacts store with ${data.length} contacts`);
+        
+        // Start background loading after initial load
+        if ((count || 0) > 50) {
+          get().startBackgroundLoading();
+        }
       } else {
         set({ loading: false, hasMore: false });
       }
@@ -128,6 +150,48 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
       logger.error('Failed to initialize contacts store:', error);
       set({ loading: false, hasMore: false });
     }
+  },
+  
+  // Start background loading process
+  startBackgroundLoading: async () => {
+    const state = get();
+    
+    // If already loading or no more data, return existing promise or resolve
+    if (state._backgroundLoadingActive || !state.hasMore || !state._userId) {
+      return backgroundLoadingPromise || Promise.resolve();
+    }
+    
+    // If we already have a background loading promise, return it
+    if (backgroundLoadingPromise) {
+      return backgroundLoadingPromise;
+    }
+    
+    set({ _backgroundLoadingActive: true, isBackgroundLoading: true });
+    
+    // Create the background loading promise
+    backgroundLoadingPromise = (async () => {
+      try {
+        // Wait a bit for initial render to complete
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Keep loading while there's more data
+        while (get().hasMore && get()._userId === state._userId) {
+          await get().fetchNext();
+          
+          // Small delay between chunks to keep UI responsive
+          await new Promise(resolve => setTimeout(resolve, 5));
+        }
+        
+        logger.log('Background loading complete');
+      } catch (error) {
+        logger.error('Background loading error:', error);
+      } finally {
+        set({ _backgroundLoadingActive: false, isBackgroundLoading: false });
+        backgroundLoadingPromise = null;
+      }
+    })();
+    
+    return backgroundLoadingPromise;
   },
   
   // Fetch next chunk of data

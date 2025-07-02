@@ -31,6 +31,7 @@ describe('useInstantContacts', () => {
       hasMore: false,
       totalCount: 3,
       loadedCount: 3,
+      isBackgroundLoading: false,
       fetchNext: vi.fn(),
       initialize: vi.fn()
     });
@@ -66,6 +67,7 @@ describe('useInstantContacts', () => {
       hasMore: false,
       totalCount: 3,
       loadedCount: 3,
+      isBackgroundLoading: false,
       fetchNext: vi.fn(),
       initialize: vi.fn()
     });
@@ -107,6 +109,7 @@ describe('useInstantContacts', () => {
       hasMore: false,
       totalCount: 25,
       loadedCount: 25,
+      isBackgroundLoading: false,
       fetchNext: vi.fn(),
       initialize: vi.fn()
     });
@@ -136,5 +139,36 @@ describe('useInstantContacts', () => {
     expect(page2Result.current.rows).toHaveLength(10);
     expect(page2Result.current.rows[0].name).toBe('Contact 11');
     expect(page2Result.current.rows[9].name).toBe('Contact 20');
+  });
+  
+  it('should return isBackgroundLoading state from store', () => {
+    const mockCache = {
+      '1': { id: '1', name: 'Test User', email: 'test@example.com', company: 'ABC Corp', phone: '123-456-7890' }
+    };
+    
+    const mockOrderedIds = ['1'];
+    
+    (useContactsStore as any).mockReturnValue({
+      cache: mockCache,
+      orderedIds: mockOrderedIds,
+      loading: true,
+      hasMore: true,
+      totalCount: 100,
+      loadedCount: 1,
+      isBackgroundLoading: true,
+      fetchNext: vi.fn(),
+      initialize: vi.fn()
+    });
+    
+    const { result } = renderHook(() => 
+      useInstantContacts({
+        searchTerm: '',
+        pageSize: 10,
+        currentPage: 1
+      })
+    );
+    
+    expect(result.current.isBackgroundLoading).toBe(true);
+    expect(result.current.loading).toBe(false); // Initial loading is false since we have some data
   });
 }); 

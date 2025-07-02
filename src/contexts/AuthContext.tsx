@@ -2,6 +2,8 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useContactsStore } from "@/stores/contactsStore";
+import { logger } from "@/utils/logger";
 
 interface AuthContextType {
   session: Session | null;
@@ -24,8 +26,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         setUser(session.user);
+        setSession(session);
+        
+        // Start preloading contacts immediately after authentication
+        logger.log('User authenticated, starting contact preloading...');
+        useContactsStore.getState().initialize(session.user.id);
       } else {
         setUser(null);
+        setSession(null);
+        
+        // Clear contacts when user logs out
+        useContactsStore.getState().clear();
       }
       setLoading(false);
     });
@@ -34,6 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
+        setSession(session);
+        
+        // Start preloading contacts for existing session
+        logger.log('Existing session found, starting contact preloading...');
+        useContactsStore.getState().initialize(session.user.id);
       }
       setLoading(false);
     });
