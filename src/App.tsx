@@ -19,6 +19,7 @@ import ContactProfile from "@/pages/dashboard/ContactProfile";
 import StreamView from "@/pages/dashboard/StreamView"; // Import the new StreamView page
 import Landing from "@/pages/Landing";
 import Import from "@/pages/Import";
+import { useRadixPointerEventsFix } from "@/hooks/use-radix-pointer-events-fix";
 // Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,6 +31,9 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  // Fix for Radix UI pointer-events: none bug in production
+  useRadixPointerEventsFix();
+
   return (
     <ErrorBoundary sectionName="Application">
       <QueryClientProvider client={queryClient}>

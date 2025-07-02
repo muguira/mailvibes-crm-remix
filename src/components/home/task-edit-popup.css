@@ -21,6 +21,8 @@
   padding-bottom: 0 !important;
   margin-bottom: 0 !important;
   isolation: isolate !important;
+  width: var(--radix-popover-trigger-width) !important;
+  max-width: calc(100vw - 2rem) !important;
 }
 
 /* Ensure combobox popover content is properly positioned */
@@ -72,4 +74,30 @@
 .task-edit-dialog {
   isolation: isolate !important;
   contain: layout style paint !important;
+}
+
+/* Fix for Radix UI pointer-events: none bug in production */
+/* This addresses the known issue: https://github.com/radix-ui/primitives/issues/2961 */
+body:not(:has([data-radix-dialog-content])):not(:has([data-radix-popover-content])) {
+  pointer-events: auto !important;
+}
+
+/* Force body to be interactive when only our task dialog is open */
+body:has(.task-edit-dialog) {
+  pointer-events: auto !important;
+}
+
+/* Ensure all Radix UI components inside our dialog are interactive */
+.task-edit-dialog [data-radix-popover-content],
+.task-edit-dialog [data-radix-select-content],
+.task-edit-dialog [data-radix-dialog-content] {
+  pointer-events: auto !important;
+}
+
+/* Production-specific fixes for event handling */
+@media (prefers-reduced-motion: no-preference) {
+  .task-edit-dialog [data-radix-popover-content] {
+    animation: none !important;
+    transition: none !important;
+  }
 } 

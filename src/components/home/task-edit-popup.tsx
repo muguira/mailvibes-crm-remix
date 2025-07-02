@@ -13,6 +13,7 @@ import { CalendarIcon, CheckIcon, AlertCircle, Trash2, Search, User } from "luci
 import { cn } from "@/lib/utils";
 import { Task } from "@/types/task";
 import { useContactSearch } from "@/hooks/use-contact-search";
+import { useRadixPointerEventsFix } from "@/hooks/use-radix-pointer-events-fix";
 
 // Extend the Task type to include contactId
 interface ExtendedTask extends Task {
@@ -36,6 +37,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
   const titleInputRef = React.useRef<HTMLInputElement>(null);
   const contactSearchInputRef = React.useRef<HTMLInputElement>(null);
   const { contacts, isLoading, searchContacts } = useContactSearch();
+  const { forceCleanup } = useRadixPointerEventsFix();
 
   // Reset the form when the task changes
   React.useEffect(() => {
@@ -70,11 +72,13 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     };
 
     onSave(taskToSave);
+    forceCleanup(); // Fix pointer-events bug before closing
     onClose();
   };
 
   const handleDelete = () => {
     onDelete(task.id);
+    forceCleanup(); // Fix pointer-events bug before closing
     onClose();
   };
 
@@ -114,12 +118,56 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     }
   }, [task]);
 
+  // Set trigger width for popover sizing
+  React.useEffect(() => {
+    const button = document.querySelector('.task-edit-dialog [data-radix-popover-trigger]');
+    if (button) {
+      const width = button.getBoundingClientRect().width;
+      document.documentElement.style.setProperty('--radix-popover-trigger-width', `${width}px`);
+    }
+  }, [open]);
+
+  // Force cleanup of pointer-events: none on body when dialog closes
+  // This fixes the Radix UI bug in production where body gets stuck with pointer-events: none
+  React.useEffect(() => {
+    if (!open) {
+      // Force cleanup after dialog closes
+      const timeoutId = setTimeout(() => {
+        if (document.body.style.pointerEvents === 'none') {
+          document.body.style.pointerEvents = '';
+          console.log('Fixed stuck pointer-events: none on body');
+        }
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [open]);
+
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => {
         if (!isOpen) onClose();
-      }} modal={true}>
-        <DialogContent className="task-edit-dialog sm:max-w-lg w-full max-w-[95vw]" style={{ zIndex: 'var(--task-dialog-z-index, 10010)' }}>
+      }} modal={false}>
+        <DialogContent 
+          className="task-edit-dialog sm:max-w-lg w-full max-w-[95vw]" 
+          style={{ zIndex: 'var(--task-dialog-z-index, 10010)' }}
+          onPointerDownOutside={(e) => {
+            // Prevent the dialog from closing when interacting with popovers inside
+            const target = e.target as Element;
+            if (target.closest('[data-radix-popover-content]') || 
+                target.closest('[data-radix-select-content]')) {
+              e.preventDefault();
+            }
+          }}
+          onInteractOutside={(e) => {
+            // Prevent the dialog from closing when interacting with popovers inside
+            const target = e.target as Element;
+            if (target.closest('[data-radix-popover-content]') || 
+                target.closest('[data-radix-select-content]')) {
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogTitle className="sr-only">Edit Task</DialogTitle>
           <div className="space-y-4 py-4 px-6 max-h-[80vh] overflow-y-auto">
             <div>
@@ -270,7 +318,22 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
 
             <div>
               <label className="text-sm font-medium mb-1 block">Contact</label>
-              <Popover open={contactPopoverOpen} onOpenChange={setContactPopoverOpen}>
+              <Popover 
+                open={contactPopoverOpen} 
+                onOpenChange={(isOpen) => {
+                  setContactPopoverOpen(isOpen);
+                  
+                  // Fix for Radix UI bug in production - force cleanup of pointer-events: none
+                  if (!isOpen) {
+                    setTimeout(() => {
+                      if (document.body.style.pointerEvents === 'none') {
+                        document.body.style.pointerEvents = '';
+                        console.log('Fixed pointer-events after popover close');
+                      }
+                    }, 50);
+                  }
+                }}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -289,7 +352,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                     </span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 min-w-[300px]">
+                <PopoverContent className="w-[300px] p-0" style={{ width: 'var(--radix-popover-trigger-width)' }}>
                   <div className="p-2">
                     <div className="flex items-center border-b pb-2 mb-2">
                       <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
@@ -367,8 +430,6 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
               </Popover>
             </div>
 
-
-
             <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
               <Button
                 variant="outline"
@@ -392,8 +453,6 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
           </div>
         </DialogContent>
       </Dialog>
-
-
     </>
   );
 }
