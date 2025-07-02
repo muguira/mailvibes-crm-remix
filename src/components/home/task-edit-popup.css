@@ -1,0 +1,36 @@
+/* Task Edit Popup specific styles to override grid styles */
+
+/* Ensure the dialog content has the correct z-index */
+.task-edit-dialog [data-radix-dialog-content] {
+  z-index: 10010 !important;
+}
+
+/* Override any grid-specific popover positioning for combobox */
+.task-edit-dialog [data-radix-popper-content-wrapper] {
+  position: fixed !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  z-index: 10011 !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Ensure combobox popover content is properly positioned */
+.task-edit-dialog [data-radix-popover-content] {
+  z-index: 10011 !important;
+  position: absolute !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure calendar popover also works */  
+.task-edit-dialog [data-radix-popover-content] .react-day-picker {
+  z-index: 10011 !important;
+}
+
+/* Force proper event handling */
+.task-edit-dialog [data-radix-popover-content] button {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 1 !important;
+} 

@@ -1,6 +1,7 @@
 // Update task-edit-popup.tsx to use display_status consistently
 import * as React from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import "./task-edit-popup.css";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -106,8 +107,8 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     <>
       <Dialog open={open} onOpenChange={(isOpen) => {
         if (!isOpen) onClose();
-      }}>
-        <DialogContent className="sm:max-w-lg w-full max-w-[95vw]" style={{ zIndex: 10002 }}>
+      }} modal={true}>
+        <DialogContent className="task-edit-dialog sm:max-w-lg w-full max-w-[95vw]" style={{ zIndex: 10010 }}>
           <DialogTitle className="sr-only">Edit Task</DialogTitle>
           <div className="space-y-4 py-4 px-6 max-h-[80vh] overflow-y-auto">
             <div>
