@@ -33,4 +33,22 @@
   pointer-events: auto !important;
   position: relative !important;
   z-index: 1 !important;
+}
+
+/* Ensure scroll works in combobox lists */
+.task-edit-dialog [data-radix-popover-content] div[role="listbox"] {
+  pointer-events: auto !important;
+}
+
+/* Ensure scrollable container works */
+.task-edit-dialog [data-radix-popover-content] .overflow-y-auto {
+  pointer-events: auto !important;
+  touch-action: pan-y !important;
+}
+
+/* Ensure list items are clickable */
+.task-edit-dialog [data-radix-popover-content] button[role="option"] {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  user-select: none !important;
 } 
