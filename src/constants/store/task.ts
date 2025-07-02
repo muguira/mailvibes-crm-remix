@@ -63,6 +63,8 @@ export const INITIAL_IS_INITIALIZED = false;
 
 export const INITIAL_LAST_SYNC_AT: string | null = null;
 
+export const INITIAL_IS_TASK_BEING_CREATED = false;
+
 // =============================================
 // ESTADO INICIAL COMPLETO
 // =============================================
@@ -78,6 +80,7 @@ export const INITIAL_TASK_STATE = {
   sortOptions: DEFAULT_SORT_OPTIONS,
   isInitialized: INITIAL_IS_INITIALIZED,
   lastSyncAt: INITIAL_LAST_SYNC_AT,
+  isTaskBeingCreated: INITIAL_IS_TASK_BEING_CREATED,
 } as const;
 
 // =============================================
@@ -96,6 +99,7 @@ export const RESET_TASK_STATE = {
   },
   errors: { fetch: null, create: null, update: null, delete: null },
   filters: {},
+  isTaskBeingCreated: false,
   isInitialized: false,
   lastSyncAt: null,
 } as const;

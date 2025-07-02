@@ -102,6 +102,9 @@ export interface ITaskState {
   tasks: ITaskWithMetadata[];
   categorizedTasks: ICategorizedTasks;
 
+  // Flags de estado
+  isTaskBeingCreated: boolean;
+
   // Tareas temporales (durante creación)
   localTasks: ITaskWithMetadata[];
 
@@ -191,6 +194,9 @@ export interface ITaskActions {
 
   // --- CONFIGURACIÓN ---
   setRetryConfig: (config: Partial<ITaskRetryConfig>) => void;
+
+  // --- MANEJO DE TAREAS TEMPORALES ---
+  setIsTaskBeingCreated: (isCreating: boolean) => void;
 }
 
 // =============================================

@@ -94,6 +94,16 @@ export const useTasksSlice: StateCreator<
   },
 
   /**
+   * Set the flag to indicate if a task is being created
+   * @param isCreating - The flag to set
+   */
+  setIsTaskBeingCreated: (isCreating: boolean) => {
+    set((state) => {
+      state.isTaskBeingCreated = isCreating;
+    });
+  },
+
+  /**
    * Fetch tasks from the database
    * @param userId - The ID of the user to fetch tasks for
    */
