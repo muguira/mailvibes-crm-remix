@@ -1,7 +1,4 @@
 import * as React from "react";
-import { Calendar as CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -13,14 +10,18 @@ import { es } from 'date-fns/locale';
 import { X } from "lucide-react";
 
 interface DeadlinePopupProps {
+    calendarRef?: React.RefObject<HTMLButtonElement>;
     date?: Date;
     onSelect: (date: Date | undefined) => void;
+    onCalendarOpenChange?: (open: boolean) => void;
     children: React.ReactNode;
 }
 
 export function DeadlinePopup({
+    calendarRef,
     date,
     onSelect,
+    onCalendarOpenChange,
     children
 }: DeadlinePopupProps) {
     const [isOpen, setIsOpen] = React.useState(false);
@@ -29,11 +30,17 @@ export function DeadlinePopup({
         onSelect(newDate);
         if (newDate) {
             setIsOpen(false);
+            onCalendarOpenChange?.(false);
         }
     };
 
+    const handleOpenChange = (open: boolean) => {
+        setIsOpen(open);
+        onCalendarOpenChange?.(open);
+    };
+
     return (
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <Popover open={isOpen} onOpenChange={handleOpenChange}>
             <PopoverTrigger asChild>
                 {children}
             </PopoverTrigger>
@@ -41,6 +48,7 @@ export function DeadlinePopup({
                 <div className="flex items-center justify-between p-2 border-b border-border">
                     <span className="text-sm font-medium">Select date</span>
                     <Button
+                        ref={calendarRef}
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6 p-0 hover:bg-accent"
