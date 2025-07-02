@@ -25,6 +25,8 @@
   transform-style: preserve-3d !important;
   isolation: isolate !important;
   will-change: transform !important;
+  left: 170px !important;
+  top: -140px !important;
 }
 
 /* Force smaller dialog on mobile */

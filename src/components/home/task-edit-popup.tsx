@@ -1,6 +1,6 @@
-// Update task-edit-popup.tsx to handle both display_status and displayStatus
+// Update task-edit-popup.tsx to use display_status consistently
 import * as React from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { format, parseISO } from "date-fns";
 import { CalendarIcon, CheckIcon, AlertCircle, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Task } from "@/types/task";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+
 import { Combobox } from "@/components/ui/combobox";
 import { useContactSearch } from "@/hooks/use-contact-search";
 
@@ -31,8 +31,9 @@ interface TaskEditPopupProps {
 }
 
 export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onDelete, allTasks }: TaskEditPopupProps) {
+  console.log('TaskEditPopup rendered with:', { task, open, onDelete: typeof onDelete });
   const [editedTask, setEditedTask] = React.useState<ExtendedTask>({ ...task });
-  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = React.useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const titleInputRef = React.useRef<HTMLInputElement>(null);
   const { contacts, isLoading, searchContacts } = useContactSearch();
 
@@ -52,23 +53,12 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
 
   const handleChange = (field: keyof ExtendedTask, value: any) => {
     setEditedTask(prev => ({ ...prev, [field]: value }));
-
-    // Special handling for display_status to maintain both fields
-    if (field === 'display_status') {
-      setEditedTask(prev => ({
-        ...prev,
-        display_status: value,
-        displayStatus: value
-      }));
-    }
   };
 
   const handleSave = () => {
-    // Ensure both display_status and displayStatus are set for compatibility
+    // Clean up the task object before saving
     const taskToSave = {
       ...editedTask,
-      display_status: editedTask.display_status,
-      displayStatus: editedTask.display_status,
       // Map contactId to contact field if needed
       contact: editedTask.contactId
     };
@@ -77,10 +67,18 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     onClose();
   };
 
-  const handleDelete = () => {
-    setIsDeleteAlertOpen(false);
+  const handleDeleteConfirm = () => {
+    console.log('handleDeleteConfirm called with task ID:', task.id);
+    setShowDeleteConfirm(false);
     onDelete(task.id);
     onClose();
+  };
+
+  // Function to disable past dates in the calendar
+  const isDateDisabled = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+    return date < today; // Disable dates before today (allow today and future dates)
   };
 
   const contactItems = React.useMemo(() =>
@@ -114,6 +112,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
         if (!isOpen) onClose();
       }}>
         <DialogContent className="sm:max-w-lg w-full max-w-[95vw]">
+          <DialogTitle className="sr-only">Edit Task</DialogTitle>
           <div className="space-y-4 py-4 px-6 max-h-[80vh] overflow-y-auto">
             <div>
               <label className="text-sm font-medium mb-1 block">Title</label>
@@ -213,8 +212,19 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
+                      classNames={{
+                        cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20 [&:has([aria-selected])]:!bg-transparent",
+                        day: "h-9 w-9 p-0 font-normal flex items-center justify-center rounded-full transition-colors cursor-pointer",
+                      
+                        day_selected: "!bg-teal-600/80 !text-white hover:!bg-teal-700 focus:!bg-teal-500/80 rounded-md",
+                        day_today: "!bg-gray-500/10 !text-white hover:!bg-gray/50 !text-gray-500 rounded-md",
+                        
+                        day_outside: "text-muted-foreground opacity-50",
+                        day_disabled: "text-muted-foreground opacity-30 cursor-not-allowed",
+                      }}
                       selected={editedTask.deadline ? parseISO(editedTask.deadline) : undefined}
                       onSelect={(date) => handleChange('deadline', date ? date.toISOString() : undefined)}
+                      disabled={isDateDisabled}
                       initialFocus
                     />
                     {editedTask.deadline && (
@@ -269,16 +279,49 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
               </div>
             </div>
 
+
+
             <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsDeleteAlertOpen(true)}
-                className="text-destructive hover:bg-destructive/10 w-full sm:w-auto"
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Delete
-              </Button>
+              <Popover open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10 w-full sm:w-auto"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0" align="center" side="top" sideOffset={8}>
+                  <div className="p-4 space-y-3">
+                    <div className="text-center">
+                      <h4 className="font-semibold text-sm">Delete Task</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Are you sure you want to delete this task? This action cannot be undone.
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDeleteConfirm}
+                        className="flex-1"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
 
               <div className="flex gap-2 w-full sm:w-auto">
                 <Button variant="outline" size="sm" onClick={onClose} className="flex-1 sm:flex-none">
@@ -293,22 +336,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Task</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this task? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
     </>
   );
 }

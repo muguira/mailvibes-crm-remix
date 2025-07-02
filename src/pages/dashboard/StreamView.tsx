@@ -47,6 +47,7 @@ export default function StreamView() {
           setContact(null);
         } else if (data) {
           // Transform the data to match the expected format
+          const contactData = data.data && typeof data.data === 'object' ? data.data as Record<string, any> : {};
           const transformedContact = {
             id: data.id,
             name: data.name,
@@ -54,7 +55,7 @@ export default function StreamView() {
             phone: data.phone || '',
             company: data.company || '',
             status: data.status || '',
-            ...(data.data || {})
+            ...contactData
           };
           
           // Also update mockContactsById for consistency
@@ -100,7 +101,6 @@ export default function StreamView() {
             {/* Content with proper padding to account for fixed navbar */}
             <div className={`px-6 pt-12 ${isMobile ? "pb-6" : "pb-6"}`}>
               <StreamHeader />
-              
               <ErrorBoundary sectionName="Stream Content">
                 <StreamViewLayout contact={contact || {
                   id: id || 'not-found',
