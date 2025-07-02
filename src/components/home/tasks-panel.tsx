@@ -17,7 +17,7 @@ export type { Task };
 
 export function TasksPanel() {
   const { user } = useAuth();
-  const { tasks: supabaseTasks, isLoading, createTask, updateTask, deleteTask } = useTasks();
+  const { tasks: supabaseTasks, isLoading, createTask, updateTask, deleteTask, createTaskMutation } = useTasks();
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [localTasks, setLocalTasks] = useState<Task[]>([]);
   const newTaskInputRef = useRef<HTMLInputElement>(null);
@@ -41,6 +41,20 @@ export function TasksPanel() {
     // Add any local temporary tasks (for creation)
     return [...localTasks, ...formattedTasks];
   }, [supabaseTasks, localTasks]);
+
+  // Clean up local tasks when a real task is successfully created
+  React.useEffect(() => {
+    if (createTaskMutation?.isSuccess && createTaskMutation?.data) {
+      const createdTask = createTaskMutation.data;
+      // Remove local tasks that match the created task title (trim both for comparison)
+      setLocalTasks(prev => 
+        prev.filter(localTask => 
+          localTask.title.trim() !== createdTask.title.trim()
+        )
+      );
+      setIsCreatingTask(false);
+    }
+  }, [createTaskMutation?.isSuccess, createTaskMutation?.data]);
 
   // Note: Overdue task checking is now handled in the useTasks hook
 
@@ -198,13 +212,11 @@ export function TasksPanel() {
         priority: 'medium',
         user_id: user.id
       });
+    } else {
+      // If task is empty or user not logged in, just remove the local task
+      setLocalTasks(prev => prev.filter(task => task.id !== taskId));
+      setIsCreatingTask(false);
     }
-
-    setLocalTasks(prev => prev.filter(task =>
-      task.id !== taskId || (task.id === taskId && task.title.trim() !== "")
-    ));
-
-    setIsCreatingTask(false);
   };
 
   const handleTaskTitleKeyDown = (e: React.KeyboardEvent, taskId: string) => {

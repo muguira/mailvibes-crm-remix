@@ -228,5 +228,6 @@ export function useTasks() {
     updateTask: (task: Omit<TaskData, "created_at" | "updated_at">) =>
       updateTask.mutate(task),
     deleteTask: (taskId: string) => deleteTask.mutate(taskId),
+    createTaskMutation: createTask,
   };
 }
