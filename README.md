@@ -79,7 +79,7 @@ To properly set up Row Level Security for the contacts table in Supabase, run th
 ```sql
 -- Create proper contacts RLS policy
 create policy "Auth users can access their own contacts"
-on contacts 
+on contacts
 for all -- applies to all operations
 to authenticated -- authenticated users only
 using (user_id = auth.uid())
@@ -87,14 +87,56 @@ with check (user_id = auth.uid());
 
 -- Alternative policy for upsert operations
 create policy "Auth users can upsert their own contacts"
-on contacts 
+on contacts
 for insert
-to authenticated 
+to authenticated
 with check (user_id = auth.uid());
 ```
 
 This will ensure that:
+
 1. Only authenticated users can access the contacts table
 2. Users can only see and modify their own contacts (where user_id = their auth.uid())
 3. All operations (select, insert, update, delete) are covered by the policy
 4. The policy enforces user_id = auth.uid() for both reading and writing data
+
+# Supabase RLS Setup for Tasks Table
+
+To properly set up Row Level Security for the tasks table in Supabase, run the following SQL in your Supabase SQL Editor:
+
+```sql
+-- Enable RLS on tasks table
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for SELECT
+CREATE POLICY "Users can view their own tasks"
+ON tasks FOR SELECT
+TO authenticated
+USING (auth.uid() = user_id);
+
+-- Create policy for INSERT
+CREATE POLICY "Users can create their own tasks"
+ON tasks FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_id);
+
+-- Create policy for UPDATE
+CREATE POLICY "Users can update their own tasks"
+ON tasks FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- Create policy for DELETE
+CREATE POLICY "Users can delete their own tasks"
+ON tasks FOR DELETE
+TO authenticated
+USING (auth.uid() = user_id);
+```
+
+This will ensure that:
+
+1. Only authenticated users can access the tasks table
+2. Users can only see and modify their own tasks (where user_id = their auth.uid())
+3. All operations (select, insert, update, delete) are covered by separate policies
+4. The policy enforces user_id = auth.uid() for all operations

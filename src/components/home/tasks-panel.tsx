@@ -11,6 +11,7 @@ import { useTasks } from "@/hooks/supabase/use-tasks";
 import { useAuth } from "@/contexts/AuthContext";
 import { Task } from "@/types/task"; // Import the unified Task type
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
 
 // Export the Task interface from the unified type
 export type { Task };
@@ -240,11 +241,23 @@ export function TasksPanel() {
   const handleTaskDelete = (taskId: string) => {
     console.log('handleTaskDelete called with taskId:', taskId);
     console.log('deleteTask function:', deleteTask);
+    console.log('typeof deleteTask:', typeof deleteTask);
+    console.log('Environment:', import.meta.env.MODE);
+    
+    // Add debugging for production
+    if (import.meta.env.MODE === 'production') {
+      console.log('Running in PRODUCTION mode');
+      console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+      console.log('Has Supabase key:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+    }
+    
     try {
+      console.log('About to call deleteTask...');
       deleteTask(taskId);
       console.log('deleteTask called successfully');
     } catch (error) {
       console.error('Error in handleTaskDelete:', error);
+      console.error('Error stack:', error.stack);
     }
   };
 
@@ -293,6 +306,29 @@ export function TasksPanel() {
                 <Plus size={16} />
             Create task
           </button>
+          
+          {/* Temporary debug button for production */}
+          {import.meta.env.MODE === 'production' && (
+            <button
+              className="w-full text-left text-red-500 flex items-center gap-2 py-1 hover:text-red-700 transition-colors text-xs"
+              onClick={async () => {
+                console.log('Test Supabase connection...');
+                try {
+                  const { data, error } = await supabase
+                    .from('tasks')
+                    .select('id')
+                    .limit(1);
+                  console.log('Supabase test result:', { data, error });
+                  alert(`Supabase test: ${error ? 'FAILED - ' + error.message : 'SUCCESS'}`);
+                } catch (err) {
+                  console.error('Supabase test error:', err);
+                  alert('Supabase test FAILED: ' + err.message);
+                }
+              }}
+            >
+              🧪 Test Supabase Connection
+            </button>
+          )}
             </>
           ) : (
             <div className="text-center text-sm text-muted-foreground py-2">

@@ -182,19 +182,33 @@ export function useTasks() {
   const deleteTask = useMutation({
     mutationFn: async (taskId: string) => {
       console.log("deleteTask mutation started for taskId:", taskId);
-      if (!user) throw new Error("User must be logged in");
+      console.log("Current environment:", import.meta.env.MODE);
+      console.log("Supabase URL:", import.meta.env.VITE_SUPABASE_URL);
+      console.log("User object:", user);
+
+      if (!user) {
+        console.error("No user found!");
+        throw new Error("User must be logged in");
+      }
 
       console.log("Calling supabase delete for user:", user.id);
-      const { error, data } = await supabase
-        .from("tasks")
-        .delete()
-        .eq("id", taskId)
-        .eq("user_id", user.id); // Ensure we only delete user's own tasks
+      console.log("Supabase client:", supabase);
 
-      console.log("Supabase delete response:", { error, data });
-      if (error) throw error;
-      console.log("Task deleted successfully");
-      return taskId;
+      try {
+        const { error, data } = await supabase
+          .from("tasks")
+          .delete()
+          .eq("id", taskId)
+          .eq("user_id", user.id); // Ensure we only delete user's own tasks
+
+        console.log("Supabase delete response:", { error, data });
+        if (error) throw error;
+        console.log("Task deleted successfully");
+        return taskId;
+      } catch (err) {
+        console.error("Error during delete operation:", err);
+        throw err;
+      }
     },
     onSuccess: () => {
       console.log("deleteTask onSuccess called");

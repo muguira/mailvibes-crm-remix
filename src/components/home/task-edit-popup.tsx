@@ -69,8 +69,23 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
 
   const handleDeleteConfirm = () => {
     console.log('handleDeleteConfirm called with task ID:', task.id);
+    console.log('onDelete type:', typeof onDelete);
+    console.log('onDelete function:', onDelete);
+    
     setShowDeleteConfirm(false);
-    onDelete(task.id);
+    
+    try {
+      console.log('About to call onDelete...');
+      if (typeof onDelete === 'function') {
+        onDelete(task.id);
+        console.log('onDelete called successfully');
+      } else {
+        console.error('onDelete is not a function!', onDelete);
+      }
+    } catch (error) {
+      console.error('Error calling onDelete:', error);
+    }
+    
     onClose();
   };
 
