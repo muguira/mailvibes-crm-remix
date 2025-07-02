@@ -8,6 +8,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
+import * as PopoverPrimitive from "@radix-ui/react-popover"
 
 export interface ComboboxItem {
     value: string
@@ -76,61 +77,63 @@ export function Combobox({
                     )}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent
-                className="w-[--radix-popover-trigger-width] p-2"
-                align="start"
-                side="bottom"
-                sideOffset={4}
-            >
-                <div className="flex items-center border-b mb-2">
-                    <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                    <Input
-                        placeholder={`Search ${placeholder.toLowerCase()}...`}
-                        value={searchQuery}
-                        onChange={handleSearchChange}
-                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                    />
-                </div>
-                <div className="max-h-[300px] overflow-auto">
-                    {isLoading ? (
-                        <div className="py-6 text-center">
-                            <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                            <div className="text-sm text-muted-foreground mt-2">
-                                Loading...
+            <PopoverPrimitive.Portal container={typeof window !== 'undefined' ? document.body : undefined}>
+                <PopoverContent
+                    className="w-[--radix-popover-trigger-width] p-2 z-[10005]"
+                    align="start"
+                    side="bottom"
+                    sideOffset={4}
+                >
+                    <div className="flex items-center border-b mb-2">
+                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                        <Input
+                            placeholder={`Search ${placeholder.toLowerCase()}...`}
+                            value={searchQuery}
+                            onChange={handleSearchChange}
+                            className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                        />
+                    </div>
+                    <div className="max-h-[300px] overflow-auto">
+                        {isLoading ? (
+                            <div className="py-6 text-center">
+                                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                                <div className="text-sm text-muted-foreground mt-2">
+                                    Loading...
+                                </div>
                             </div>
-                        </div>
-                    ) : safeItems.length === 0 ? (
-                        <div className="py-6 text-center text-sm text-muted-foreground">
-                            {emptyText}
-                        </div>
-                    ) : (
-                        <div className="space-y-1">
-                            {safeItems.map((item) => (
-                                <Button
-                                    key={item.value}
-                                    variant="ghost"
-                                    className="w-full justify-start gap-2"
-                                    onClick={(e) => {
-                                        e.preventDefault()
-                                        e.stopPropagation()
-                                        onValueChange(item.value === value ? "" : item.value)
-                                        setOpen(false)
-                                        setSearchQuery("")
-                                    }}
-                                >
-                                    <Check
-                                        className={cn(
-                                            "h-4 w-4",
-                                            value === item.value ? "opacity-100" : "opacity-0"
-                                        )}
-                                    />
-                                    {item.label}
-                                </Button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </PopoverContent>
+                        ) : safeItems.length === 0 ? (
+                            <div className="py-6 text-center text-sm text-muted-foreground">
+                                {emptyText}
+                            </div>
+                        ) : (
+                            <div className="space-y-1">
+                                {safeItems.map((item) => (
+                                    <Button
+                                        key={item.value}
+                                        variant="ghost"
+                                        className="w-full justify-start gap-2"
+                                        onClick={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            onValueChange(item.value === value ? "" : item.value)
+                                            setOpen(false)
+                                            setSearchQuery("")
+                                        }}
+                                    >
+                                        <Check
+                                            className={cn(
+                                                "h-4 w-4",
+                                                value === item.value ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
+                                        {item.label}
+                                    </Button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </PopoverContent>
+            </PopoverPrimitive.Portal>
         </Popover>
     )
 } 

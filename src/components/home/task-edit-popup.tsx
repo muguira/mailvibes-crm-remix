@@ -107,7 +107,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
       <Dialog open={open} onOpenChange={(isOpen) => {
         if (!isOpen) onClose();
       }}>
-        <DialogContent className="sm:max-w-lg w-full max-w-[95vw]" style={{ zIndex: 50 }}>
+        <DialogContent className="sm:max-w-lg w-full max-w-[95vw]" style={{ zIndex: 10002 }}>
           <DialogTitle className="sr-only">Edit Task</DialogTitle>
           <div className="space-y-4 py-4 px-6 max-h-[80vh] overflow-y-auto">
             <div>
