@@ -31,9 +31,7 @@ interface TaskEditPopupProps {
 }
 
 export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onDelete, allTasks }: TaskEditPopupProps) {
-  console.log('TaskEditPopup rendered with:', { task, open, onDelete: typeof onDelete });
   const [editedTask, setEditedTask] = React.useState<ExtendedTask>({ ...task });
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const titleInputRef = React.useRef<HTMLInputElement>(null);
   const { contacts, isLoading, searchContacts } = useContactSearch();
 
@@ -67,25 +65,8 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     onClose();
   };
 
-  const handleDeleteConfirm = () => {
-    console.log('handleDeleteConfirm called with task ID:', task.id);
-    console.log('onDelete type:', typeof onDelete);
-    console.log('onDelete function:', onDelete);
-    
-    setShowDeleteConfirm(false);
-    
-    try {
-      console.log('About to call onDelete...');
-      if (typeof onDelete === 'function') {
-        onDelete(task.id);
-        console.log('onDelete called successfully');
-      } else {
-        console.error('onDelete is not a function!', onDelete);
-      }
-    } catch (error) {
-      console.error('Error calling onDelete:', error);
-    }
-    
+  const handleDelete = () => {
+    onDelete(task.id);
     onClose();
   };
 
@@ -297,51 +278,15 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
 
 
             <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
-              <Popover open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive hover:bg-destructive/10 w-full sm:w-auto"
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Delete
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-0 z-40" align="center" side="top" sideOffset={8} style={{ zIndex: 9999 }}>
-                  <div className="p-4 space-y-3">
-                    <div className="text-center">
-                      <h4 className="font-semibold text-sm">Delete Task</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Are you sure you want to delete this task? This action cannot be undone.
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowDeleteConfirm(false)}
-                        className="flex-1"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleDeleteConfirm}
-                        onPointerDown={(e) => {
-                          console.log('Delete button pointer down event');
-                          e.stopPropagation();
-                        }}
-                        className="flex-1 relative z-[10000]"
-                        style={{ position: 'relative', zIndex: 10000 }}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDelete}
+                className="text-destructive hover:bg-destructive/10 w-full sm:w-auto"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete
+              </Button>
 
               <div className="flex gap-2 w-full sm:w-auto">
                 <Button variant="outline" size="sm" onClick={onClose} className="flex-1 sm:flex-none">
