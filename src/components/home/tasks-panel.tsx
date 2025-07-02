@@ -1,6 +1,6 @@
 import { Check, Plus, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import React from "react";
 import { cn } from "@/lib/utils";
 import { DeadlinePopup } from "./deadline-popup";
@@ -250,15 +250,20 @@ export function TasksPanel() {
   };
 
   const handleTaskDelete = (taskId: string) => {
-    console.log('handleTaskDelete called with taskId:', taskId);
-    console.log('deleteTask function:', deleteTask);
-    try {
-      deleteTask(taskId);
-      console.log('deleteTask called successfully');
-    } catch (error) {
-      console.error('Error in handleTaskDelete:', error);
-    }
+    deleteTask(taskId);
   };
+
+  // Remove local temp task when real task is created
+  React.useEffect(() => {
+    if (!createTaskMutation.isSuccess || !createTaskMutation.data) return;
+    setLocalTasks(prev => prev.filter(task => {
+      if (task.title === createTaskMutation.data.title && (!task.id || task.id.length > 20)) {
+        return false;
+      }
+      return true;
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createTaskMutation.isSuccess, createTaskMutation.data]);
 
   return (
     <div className="bg-background text-foreground rounded-lg overflow-hidden flex flex-col shadow-lg h-[500px]">

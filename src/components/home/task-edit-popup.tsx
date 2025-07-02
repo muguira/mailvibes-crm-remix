@@ -1,6 +1,7 @@
 // Update task-edit-popup.tsx to use display_status consistently
 import * as React from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import "./task-edit-popup.css";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -8,12 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, CheckIcon, AlertCircle, Trash2 } from "lucide-react";
+import { CalendarIcon, CheckIcon, AlertCircle, Trash2, Search, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Task } from "@/types/task";
-
-import { Combobox } from "@/components/ui/combobox";
 import { useContactSearch } from "@/hooks/use-contact-search";
+import { useRadixPointerEventsFix } from "@/hooks/use-radix-pointer-events-fix";
 
 // Extend the Task type to include contactId
 interface ExtendedTask extends Task {
@@ -31,11 +31,13 @@ interface TaskEditPopupProps {
 }
 
 export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onDelete, allTasks }: TaskEditPopupProps) {
-  console.log('TaskEditPopup rendered with:', { task, open, onDelete: typeof onDelete });
   const [editedTask, setEditedTask] = React.useState<ExtendedTask>({ ...task });
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [contactPopoverOpen, setContactPopoverOpen] = React.useState(false);
   const titleInputRef = React.useRef<HTMLInputElement>(null);
+  const contactSearchInputRef = React.useRef<HTMLInputElement>(null);
   const { contacts, isLoading, searchContacts } = useContactSearch();
+  const { forceCleanup } = useRadixPointerEventsFix();
 
   // Reset the form when the task changes
   React.useEffect(() => {
@@ -55,6 +57,12 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     setEditedTask(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleSearchChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    searchContacts(query);
+  }, [searchContacts]);
+
   const handleSave = () => {
     // Clean up the task object before saving
     const taskToSave = {
@@ -64,13 +72,13 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     };
 
     onSave(taskToSave);
+    forceCleanup(); // Fix pointer-events bug before closing
     onClose();
   };
 
-  const handleDeleteConfirm = () => {
-    console.log('handleDeleteConfirm called with task ID:', task.id);
-    setShowDeleteConfirm(false);
+  const handleDelete = () => {
     onDelete(task.id);
+    forceCleanup(); // Fix pointer-events bug before closing
     onClose();
   };
 
@@ -91,10 +99,14 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     [contacts]
   );
 
-  const handleSearch = React.useCallback((search: string) => {
-    if (search === undefined) return;
-    searchContacts(search);
-  }, [searchContacts]);
+  // Focus contact search input when popover opens
+  React.useEffect(() => {
+    if (contactPopoverOpen && contactSearchInputRef.current) {
+      setTimeout(() => {
+        contactSearchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [contactPopoverOpen]);
 
   // Initialize contactId from contact field if needed
   React.useEffect(() => {
@@ -106,12 +118,56 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     }
   }, [task]);
 
+  // Set trigger width for popover sizing
+  React.useEffect(() => {
+    const button = document.querySelector('.task-edit-dialog [data-radix-popover-trigger]');
+    if (button) {
+      const width = button.getBoundingClientRect().width;
+      document.documentElement.style.setProperty('--radix-popover-trigger-width', `${width}px`);
+    }
+  }, [open]);
+
+  // Force cleanup of pointer-events: none on body when dialog closes
+  // This fixes the Radix UI bug in production where body gets stuck with pointer-events: none
+  React.useEffect(() => {
+    if (!open) {
+      // Force cleanup after dialog closes
+      const timeoutId = setTimeout(() => {
+        if (document.body.style.pointerEvents === 'none') {
+          document.body.style.pointerEvents = '';
+          console.log('Fixed stuck pointer-events: none on body');
+        }
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [open]);
+
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => {
         if (!isOpen) onClose();
-      }}>
-        <DialogContent className="sm:max-w-lg w-full max-w-[95vw]">
+      }} modal={false}>
+        <DialogContent 
+          className="task-edit-dialog sm:max-w-lg w-full max-w-[95vw]" 
+          style={{ zIndex: 'var(--task-dialog-z-index, 10010)' }}
+          onPointerDownOutside={(e) => {
+            // Prevent the dialog from closing when interacting with popovers inside
+            const target = e.target as Element;
+            if (target.closest('[data-radix-popover-content]') || 
+                target.closest('[data-radix-select-content]')) {
+              e.preventDefault();
+            }
+          }}
+          onInteractOutside={(e) => {
+            // Prevent the dialog from closing when interacting with popovers inside
+            const target = e.target as Element;
+            if (target.closest('[data-radix-popover-content]') || 
+                target.closest('[data-radix-select-content]')) {
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogTitle className="sr-only">Edit Task</DialogTitle>
           <div className="space-y-4 py-4 px-6 max-h-[80vh] overflow-y-auto">
             <div>
@@ -262,66 +318,128 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
 
             <div>
               <label className="text-sm font-medium mb-1 block">Contact</label>
-              <div className="w-full">
-                <Combobox
-                  items={contactItems}
-                  value={editedTask.contactId}
-                  onValueChange={(value) => {
-                    handleChange('contactId', value || '');
-                    handleChange('contact', value || ''); // Update both fields
-                  }}
-                  onSearch={handleSearch}
-                  placeholder="Search contacts..."
-                  emptyText={isLoading ? "Loading contacts..." : "No contacts found"}
-                  isLoading={isLoading}
-                  className="w-full"
-                />
-              </div>
-            </div>
-
-
-
-            <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
-              <Popover open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+              <Popover 
+                open={contactPopoverOpen} 
+                onOpenChange={(isOpen) => {
+                  setContactPopoverOpen(isOpen);
+                  
+                  // Fix for Radix UI bug in production - force cleanup of pointer-events: none
+                  if (!isOpen) {
+                    setTimeout(() => {
+                      if (document.body.style.pointerEvents === 'none') {
+                        document.body.style.pointerEvents = '';
+                        console.log('Fixed pointer-events after popover close');
+                      }
+                    }, 50);
+                  }
+                }}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    size="sm"
-                    className="text-destructive hover:bg-destructive/10 w-full sm:w-auto"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !editedTask.contactId && "text-muted-foreground"
+                    )}
                   >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Delete
+                    <User className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">
+                      {editedTask.contactId ? (
+                        contactItems.find(item => item.value === editedTask.contactId)?.label || "Contact selected"
+                      ) : (
+                        "Search contacts..."
+                      )}
+                    </span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-0" align="center" side="top" sideOffset={8}>
-                  <div className="p-4 space-y-3">
-                    <div className="text-center">
-                      <h4 className="font-semibold text-sm">Delete Task</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Are you sure you want to delete this task? This action cannot be undone.
-                      </p>
+                <PopoverContent className="w-[300px] p-0" style={{ width: 'var(--radix-popover-trigger-width)' }}>
+                  <div className="p-2">
+                    <div className="flex items-center border-b pb-2 mb-2">
+                      <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                      <Input
+                        ref={contactSearchInputRef}
+                        placeholder="Search contacts..."
+                        value={searchQuery}
+                        onChange={handleSearchChange}
+                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-8"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck="false"
+                      />
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowDeleteConfirm(false)}
-                        className="flex-1"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleDeleteConfirm}
-                        className="flex-1"
-                      >
-                        Delete
-                      </Button>
+                    <div className="max-h-[200px] overflow-y-auto">
+                      {isLoading ? (
+                        <div className="py-6 text-center">
+                          <div className="text-sm text-muted-foreground">
+                            Loading contacts...
+                          </div>
+                        </div>
+                      ) : contactItems.length === 0 ? (
+                        <div className="py-6 text-center text-sm text-muted-foreground">
+                          No contacts found
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          {contactItems.map((item) => (
+                            <button
+                              key={item.value}
+                              type="button"
+                              className={cn(
+                                "w-full flex items-center gap-2 px-2 py-1.5 text-left text-sm rounded-sm",
+                                "hover:bg-accent hover:text-accent-foreground",
+                                "focus:bg-accent focus:text-accent-foreground focus:outline-none",
+                                "cursor-pointer transition-colors"
+                              )}
+                              onClick={() => {
+                                handleChange('contactId', item.value);
+                                handleChange('contact', item.value);
+                                setSearchQuery("");
+                                setContactPopoverOpen(false);
+                              }}
+                            >
+                              <CheckIcon
+                                className={cn(
+                                  "h-4 w-4 flex-shrink-0",
+                                  editedTask.contactId === item.value ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <span className="truncate">{item.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
+                    {editedTask.contactId && (
+                      <div className="pt-2 border-t flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            handleChange('contactId', '');
+                            handleChange('contact', '');
+                            setSearchQuery("");
+                            setContactPopoverOpen(false);
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </PopoverContent>
               </Popover>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDelete}
+                className="text-destructive hover:bg-destructive/10 w-full sm:w-auto"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete
+              </Button>
 
               <div className="flex gap-2 w-full sm:w-auto">
                 <Button variant="outline" size="sm" onClick={onClose} className="flex-1 sm:flex-none">
@@ -335,8 +453,6 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
           </div>
         </DialogContent>
       </Dialog>
-
-
     </>
   );
 }

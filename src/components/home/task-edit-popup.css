@@ -1,0 +1,103 @@
+/* Task Edit Popup specific styles to override grid styles */
+
+:root {
+  --task-dialog-z-index: 10010;
+  --task-popover-z-index: 10011;
+}
+
+/* Ensure the dialog content has the correct z-index */
+.task-edit-dialog [data-radix-dialog-content] {
+  z-index: var(--task-dialog-z-index) !important;
+  isolation: isolate !important;
+}
+
+/* Override any grid-specific popover positioning for combobox */
+.task-edit-dialog [data-radix-popper-content-wrapper] {
+  position: fixed !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  z-index: var(--task-popover-z-index) !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+  isolation: isolate !important;
+  width: var(--radix-popover-trigger-width) !important;
+  max-width: calc(100vw - 2rem) !important;
+}
+
+/* Ensure combobox popover content is properly positioned */
+.task-edit-dialog [data-radix-popover-content] {
+  z-index: var(--task-popover-z-index) !important;
+  position: absolute !important;
+  pointer-events: auto !important;
+  isolation: isolate !important;
+  will-change: transform !important;
+}
+
+/* Ensure calendar popover also works */  
+.task-edit-dialog [data-radix-popover-content] .react-day-picker {
+  z-index: var(--task-popover-z-index) !important;
+  isolation: isolate !important;
+}
+
+/* Force proper event handling */
+.task-edit-dialog [data-radix-popover-content] button {
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 1 !important;
+  isolation: isolate !important;
+}
+
+/* Ensure scroll works in contact lists */
+.task-edit-dialog [data-radix-popover-content] .overflow-y-auto {
+  pointer-events: auto !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+  will-change: scroll-position !important;
+}
+
+/* Ensure contact list items are clickable */
+.task-edit-dialog [data-radix-popover-content] button {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  isolation: isolate !important;
+  will-change: background-color !important;
+}
+
+/* Additional production-specific fixes */
+.task-edit-dialog [data-radix-popover-content] * {
+  box-sizing: border-box !important;
+}
+
+/* Ensure proper stacking context */
+.task-edit-dialog {
+  isolation: isolate !important;
+  contain: layout style paint !important;
+}
+
+/* Fix for Radix UI pointer-events: none bug in production */
+/* This addresses the known issue: https://github.com/radix-ui/primitives/issues/2961 */
+body:not(:has([data-radix-dialog-content])):not(:has([data-radix-popover-content])) {
+  pointer-events: auto !important;
+}
+
+/* Force body to be interactive when only our task dialog is open */
+body:has(.task-edit-dialog) {
+  pointer-events: auto !important;
+}
+
+/* Ensure all Radix UI components inside our dialog are interactive */
+.task-edit-dialog [data-radix-popover-content],
+.task-edit-dialog [data-radix-select-content],
+.task-edit-dialog [data-radix-dialog-content] {
+  pointer-events: auto !important;
+}
+
+/* Production-specific fixes for event handling */
+@media (prefers-reduced-motion: no-preference) {
+  .task-edit-dialog [data-radix-popover-content] {
+    animation: none !important;
+    transition: none !important;
+  }
+} 

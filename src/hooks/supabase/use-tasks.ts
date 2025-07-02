@@ -181,35 +181,25 @@ export function useTasks() {
 
   const deleteTask = useMutation({
     mutationFn: async (taskId: string) => {
-      console.log("deleteTask mutation started for taskId:", taskId);
       if (!user) throw new Error("User must be logged in");
 
-      console.log("Calling supabase delete for user:", user.id);
-      const { error, data } = await supabase
+      const { error } = await supabase
         .from("tasks")
         .delete()
         .eq("id", taskId)
-        .eq("user_id", user.id); // Ensure we only delete user's own tasks
+        .eq("user_id", user.id);
 
-      console.log("Supabase delete response:", { error, data });
       if (error) throw error;
-      console.log("Task deleted successfully");
       return taskId;
     },
     onSuccess: () => {
-      console.log("deleteTask onSuccess called");
-      // This line updates the UI after deleting from database
       queryClient.invalidateQueries({ queryKey: ["tasks", user?.id] });
-
-      console.log("Task deletion completed, showing toast");
       toast({
         title: "Task deleted",
         description: "Your task has been deleted successfully",
       });
-      console.log("deleteTask onSuccess completed");
     },
     onError: (error: any) => {
-      console.error("deleteTask onError called:", error);
       logger.error("Error deleting task:", error);
       toast({
         title: "Error deleting task",
@@ -225,6 +215,7 @@ export function useTasks() {
     error,
     createTask: (task: Omit<TaskData, "id" | "created_at" | "updated_at">) =>
       createTask.mutate(task),
+    createTaskMutation: createTask,
     updateTask: (task: Omit<TaskData, "created_at" | "updated_at">) =>
       updateTask.mutate(task),
     deleteTask: (taskId: string) => deleteTask.mutate(taskId),

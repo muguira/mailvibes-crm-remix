@@ -593,24 +593,17 @@ export function GridToolbar({
                 {isSearchExpanded && (
                   <div className="absolute left-10 right-0 z-10 bg-white transition-all duration-200 ease-in-out flex items-center">
                     <div className="relative flex-grow">
-                      <input
-                        type="text"
-                        className="search-input-field w-full pl-0 pr-6 py-1 text-sm focus:outline-none border-b border-gray-300 focus:border-[#62bfaa]"
-                        placeholder="Search contacts..."
+                      <SearchInput 
                         value={localSearchTerm}
-                        onChange={(e) => setLocalSearchTerm(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            onSearchChange(localSearchTerm);
-                          }
+                        onChange={(value) => {
+                          setLocalSearchTerm(value);
+                          onSearchChange(value); // Trigger search immediately on every keystroke
                         }}
-                        onBlur={() => {
-                          if (localSearchTerm.length === 0) {
-                            setIsSearchExpanded(false);
-                          }
-                          // Trigger search on blur as well
-                          onSearchChange(localSearchTerm);
-                        }}
+                        placeholder="Search in grid..."
+                        className={cn(
+                          "search-input-field transition-all duration-200",
+                          isSearchExpanded ? "w-full opacity-100" : "w-0 opacity-0"
+                        )}
                       />
                       {localSearchTerm && (
                         <button 
@@ -726,8 +719,10 @@ export function GridToolbar({
             <>
               <SearchInput
                 value={localSearchTerm}
-                onChange={(value) => setLocalSearchTerm(value)}
-                onSubmit={(value) => onSearchChange(value)}
+                onChange={(value) => {
+                  setLocalSearchTerm(value);
+                  onSearchChange(value); // Trigger search immediately on every keystroke
+                }}
                 width="w-[240px]"
               />
               

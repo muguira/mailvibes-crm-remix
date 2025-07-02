@@ -11,6 +11,8 @@ interface GridPaginationProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   loading?: boolean;
+  isBackgroundLoading?: boolean;
+  loadedCount?: number;
 }
 
 export function GridPagination({
@@ -20,7 +22,9 @@ export function GridPagination({
   totalItems,
   onPageChange,
   onPageSizeChange,
-  loading = false
+  loading = false,
+  isBackgroundLoading = false,
+  loadedCount = 0
 }: GridPaginationProps) {
   // Calculate the range of items being displayed
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -69,10 +73,17 @@ export function GridPagination({
         {totalItems === 0 ? (
           <span>No contacts to display</span>
         ) : (
-          <span>
-            Showing <strong>{startItem}</strong> to <strong>{endItem}</strong> of{" "}
-            <strong>{totalItems}</strong> contacts
-          </span>
+          <>
+            <span>
+              Showing <strong>{startItem}</strong> to <strong>{endItem}</strong> of{" "}
+              <strong>{totalItems}</strong> contacts
+            </span>
+            {isBackgroundLoading && loadedCount < totalItems && (
+              <span className="ml-3 text-sm text-gray-500">
+                (Loading more... {Math.round((loadedCount / totalItems) * 100)}%)
+              </span>
+            )}
+          </>
         )}
       </div>
 
