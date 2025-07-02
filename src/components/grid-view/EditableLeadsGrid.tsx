@@ -1049,13 +1049,24 @@ export function EditableLeadsGrid() {
     }
   };
   
-  // Show better loading UI to cover any potential flash
-  if (loading || !isGridReady || isLoadingSettings) {
+  // Show loading skeleton only when there are no contacts loaded yet
+  // This prevents showing skeleton when contacts are preloaded but settings are still loading
+  if (loading && rows.length === 0) {
+    return <GridSkeleton rowCount={15} columnCount={10} />;
+  }
+  
+  // Check if we're waiting for contacts to load for the current page
+  // This happens when user jumps to a page beyond what's loaded (e.g., clicking page 2142)
+  const waitingForPageData = rows.length === 0 && isBackgroundLoading && 
+    currentPage > Math.ceil(loadedCount / pageSize);
+  
+  if (waitingForPageData) {
     return <GridSkeleton rowCount={15} columnCount={10} />;
   }
   
   // Show empty state when there are no rows - GridViewContainer now has its own empty state UI
-  if (rows.length === 0 && !searchTerm && activeFilters.columns.length === 0) {
+  // Only show this if we're truly empty (not loading and no total contacts)
+  if (rows.length === 0 && !searchTerm && activeFilters.columns.length === 0 && totalCount === 0) {
     return (
       <div className="flex flex-col h-full">
         {/* Empty state is now handled by GridViewContainer */}
