@@ -6,13 +6,13 @@ alwaysApply: false
 ## Grid Sizing Invariants — DO NOT ALTER
 
 The spreadsheet list view is considered **production-ready** as of commit `fix(grid): fully remove onColumnResize prop to restore build`  
-(“grid works perfect”). All future changes must respect these invariants unless a new
+("grid works perfect"). All future changes must respect these invariants unless a new
 product-level spec explicitly updates them.
 
 | Aspect                    | Invariant rule | Where the value lives |
 |---------------------------|----------------|-----------------------|
 | **Row height**            | Fixed, identical for header & body; no per-row overrides. | `ROW_HEIGHT` constant in `grid-constants.ts` |
-| **Index “#” column** | Frozen at its current width; **sticky-left (remains visible during horizontal scroll)**; never resizes. | `INDEX_COL_WIDTH` constant |
+| **Index "#" column** | Frozen at its current width; **sticky-left (remains visible during horizontal scroll)**; never resizes. | `INDEX_COL_WIDTH` constant |
 | **Other columns**         | Widths are the values currently stored in `columnWidths` state. No drag-resize handles; adding a column must set an explicit width in code. | `columnWidths` array |
 | **Alignment**             | Header and body share the same `columnWidth` callback; no CSS transforms/margins allowed that shift rows. | `VariableSizeGrid` props |
 | **Borders / gap**         | Header bottom border must sit flush on top of Row 1; no blank or grey spacer row permitted. | CSS: `.gridHeaderRow` & `.gridRow` |
@@ -50,13 +50,12 @@ are frozen and must not be altered without explicit product approval:
 | **Initial load** | First 50 contacts render immediately | `initialize()` in `contactsStore.ts` |
 | **Background loading** | Remaining contacts load in 1000-record chunks | `CHUNK_SIZE = 1000` constant |
 | **Loading delay** | 5ms delay between chunks for UI responsiveness | `await new Promise(r => setTimeout(r, 5))` |
-| **Progress indicator** | Shows percentage in pagination bar | `(Loading more... X%)` in `GridPagination` |
+| **Progress indicator** | Shows percentage in pagination bar when viewing contacts | `(Loading more... X%)` in `GridPagination` |
 | **Data structure** | Zustand store with cache and orderedIds | `useContactsStore` in `contactsStore.ts` |
 | **Scalability** | Works with any dataset size (tested 107K+) | Dynamic `totalCount` from database |
 | **Persistent loading** | Background loading continues even when navigating away from Contacts tab | `startBackgroundLoading()` in store |
 | **Session persistence** | Loaded contacts remain in memory for entire browser session | Global store outside components |
 | **Login preloading** | Contact loading starts immediately upon user authentication | `AuthContext` triggers `initialize()` |
-| **Progress notification** | Subtle progress indicator shows in bottom-right corner | `ContactPreloaderIndicator` component |
 
 ### Protected Files
 The following files contain the production-ready implementation and should not be modified:
@@ -64,7 +63,6 @@ The following files contain the production-ready implementation and should not b
 - `src/hooks/use-instant-contacts.ts` - Instant filtering logic
 - `src/hooks/use-debounce.ts` - Search debounce utility
 - `src/contexts/AuthContext.tsx` - Authentication context with contact preloading trigger
-- `src/components/layout/contact-preloader-indicator.tsx` - Progress indicator component
 - Related integration in `EditableLeadsGrid.tsx` and `grid-toolbar.tsx`
 
 ### Guard-rail
