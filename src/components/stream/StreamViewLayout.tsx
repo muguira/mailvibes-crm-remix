@@ -29,6 +29,7 @@ interface StreamViewLayoutProps {
     leadStatus?: string;
     lifecycleStage?: string;
     source?: string;
+    status?: string;
     industry?: string;
     jobTitle?: string;
     address?: string;
@@ -249,7 +250,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
             maxWidth: RIGHT_RAIL_WIDTH,
           }}
         >
-          <FilterPanel />
+          <FilterPanel contact={safeContact} />
         </div>
       </div>
     </div>
