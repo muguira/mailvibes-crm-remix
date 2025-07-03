@@ -381,7 +381,7 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
         </TabsList>
 
         <TabsContent value="upcoming" className="m-0">
-          <div className="h-[280px] overflow-y-auto pr-2 border border-gray-200 rounded">
+          <div className="h-[280px] overflow-y-auto pr-2 rounded">
             {upcomingTasks.length === 0 ? (
               <p className="text-muted-foreground text-sm py-4 px-2">No upcoming tasks</p>
             ) : (
