@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@/components/auth";
 import { supabase } from "@/integrations/supabase/client";
 import debounce from "lodash/debounce";
@@ -15,6 +15,7 @@ export function useContactSearch() {
   const [contacts, setContacts] = useState<SearchContact[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const fetchContacts = useCallback(async () => {
     if (!user) return;
@@ -32,6 +33,7 @@ export function useContactSearch() {
       if (error) throw error;
 
       setContacts(data || []);
+      setHasInitialized(true);
     } catch (err) {
       setError(
         err instanceof Error
@@ -43,9 +45,7 @@ export function useContactSearch() {
     }
   }, [user]);
 
-  useEffect(() => {
-    fetchContacts();
-  }, [fetchContacts]);
+  // Remove automatic fetching - only fetch when explicitly requested
 
   const debouncedSearch = useCallback(
     debounce(async (searchTerm: string) => {
@@ -83,12 +83,15 @@ export function useContactSearch() {
   const searchContacts = useCallback(
     (searchTerm: string) => {
       if (searchTerm.trim() === "") {
-        fetchContacts();
+        // Only fetch if we haven't initialized yet
+        if (!hasInitialized) {
+          fetchContacts();
+        }
       } else {
         debouncedSearch(searchTerm);
       }
     },
-    [fetchContacts, debouncedSearch]
+    [fetchContacts, debouncedSearch, hasInitialized]
   );
 
   return {
@@ -96,5 +99,6 @@ export function useContactSearch() {
     isLoading,
     error,
     searchContacts,
+    hasInitialized,
   };
 }
