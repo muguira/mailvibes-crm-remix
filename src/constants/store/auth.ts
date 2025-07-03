@@ -128,10 +128,10 @@ export const AUTH_SUCCESS_MESSAGES = {
 // =============================================
 
 export const AUTH_VALIDATION_CONFIG = {
-  MIN_PASSWORD_LENGTH: 8,
+  MIN_PASSWORD_LENGTH: 7,
   MAX_PASSWORD_LENGTH: 128,
   EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  PASSWORD_REGEX: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/,
+  PASSWORD_REGEX: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{7,}$/,
 } as const;
 
 // =============================================
