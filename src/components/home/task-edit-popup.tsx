@@ -53,7 +53,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEdi
   const [contactPopoverOpen, setContactPopoverOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const contactSearchInputRef = useRef<HTMLInputElement>(null);
-  const { contacts, isLoading, searchContacts } = useContactSearch();
+  const { contacts, isLoading, searchContacts, hasInitialized } = useContactSearch();
   const { forceCleanup } = useRadixPointerEventsFix();
 
   /**
@@ -175,17 +175,20 @@ export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEdi
    * Focus contact search input when popover opens and load initial contacts
    */
   useEffect(() => {
-    if (contactPopoverOpen && contactSearchInputRef.current) {
-      setTimeout(() => {
-        contactSearchInputRef.current?.focus();
-      }, 100);
+    if (contactPopoverOpen) {
+      // Focus the search input
+      if (contactSearchInputRef.current) {
+        setTimeout(() => {
+          contactSearchInputRef.current?.focus();
+        }, 100);
+      }
       
-      // Load initial contacts if no search query and no contacts loaded
-      if (!searchQuery && contacts.length === 0) {
+      // Load initial contacts when popover opens for the first time
+      if (!hasInitialized) {
         searchContacts('');
       }
     }
-  }, [contactPopoverOpen, searchQuery, contacts.length, searchContacts]);
+  }, [contactPopoverOpen, searchContacts, hasInitialized]);
 
   /**
    * Initialize contactId from contact field if needed
