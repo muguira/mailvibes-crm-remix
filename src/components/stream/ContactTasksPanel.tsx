@@ -186,9 +186,11 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
   const createTaskInSupabase = async () => {
     if (!draftTask || !draftTask.title.trim()) return;
 
+    // Guardar referencia a la tarea antes de limpiar el estado
+    const taskToCreate = { ...draftTask };
+    
     try {
       // Limpiar estado local antes de crear en Supabase
-      const taskToCreate = { ...draftTask };
       setDraftTask(null);
       setIsTaskBeingCreated(false);
 
@@ -204,7 +206,10 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
         priority: 'medium'
       });
     } catch (error) {
-      // El error ya se maneja en el store
+      // En caso de error, restaurar el estado para que el usuario pueda intentar de nuevo
+      console.error('Error creating task:', error);
+      setDraftTask(taskToCreate);
+      setIsTaskBeingCreated(true);
     }
   };
 
@@ -290,8 +295,10 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
     if (draftTask && taskId === draftTask.id) {
       setDraftTask(prev => prev ? { ...prev, deadline } : null);
       
-      // NO crear automáticamente en Supabase aquí, solo actualizar el estado local
-      // La tarea se creará cuando el usuario haga blur o presione Enter
+      // Si tiene título, crear en Supabase
+      if (draftTask.title.trim()) {
+        createTaskInSupabase();
+      }
       return;
     }
 
