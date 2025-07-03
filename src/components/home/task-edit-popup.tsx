@@ -154,10 +154,20 @@ export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEdi
    * @returns {Array<{value: string, label: string}>} - Array de contactos
    */
   const contactItems = useMemo(() =>
-    (contacts || []).map(contact => ({
-      value: contact.id,
-      label: contact.name + (contact.email ? ` - ${contact.email}` : '')
-    })) || [],
+    (contacts || []).map(contact => {
+      const hasName = contact.name && contact.name.trim() !== '';
+      const hasEmail = contact.email && contact.email.trim() !== '';
+      
+      if (hasName && hasEmail) {
+        return { value: contact.id, label: `${contact.name} - ${contact.email}` };
+      } else if (hasName) {
+        return { value: contact.id, label: contact.name };
+      } else if (hasEmail) {
+        return { value: contact.id, label: contact.email };
+      } else {
+        return { value: contact.id, label: 'Contact without name or email' };
+      }
+    }) || [],
     [contacts]
   );
 
