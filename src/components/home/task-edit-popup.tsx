@@ -154,25 +154,38 @@ export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEdi
    * @returns {Array<{value: string, label: string}>} - Array de contactos
    */
   const contactItems = useMemo(() =>
-    (contacts || []).map(contact => ({
-      value: contact.id,
-      label: contact.name +
-        (contact.company ? ` (${contact.company})` : '') +
-        (contact.email ? ` - ${contact.email}` : '')
-    })) || [],
+    (contacts || []).map(contact => {
+      const hasName = contact.name && contact.name.trim() !== '';
+      const hasEmail = contact.email && contact.email.trim() !== '';
+      
+      if (hasName && hasEmail) {
+        return { value: contact.id, label: `${contact.name} - ${contact.email}` };
+      } else if (hasName) {
+        return { value: contact.id, label: contact.name };
+      } else if (hasEmail) {
+        return { value: contact.id, label: contact.email };
+      } else {
+        return { value: contact.id, label: 'Contact without name or email' };
+      }
+    }) || [],
     [contacts]
   );
 
   /**
-   * Focus contact search input when popover opens
+   * Focus contact search input when popover opens and load initial contacts
    */
   useEffect(() => {
     if (contactPopoverOpen && contactSearchInputRef.current) {
       setTimeout(() => {
         contactSearchInputRef.current?.focus();
       }, 100);
+      
+      // Load initial contacts if no search query and no contacts loaded
+      if (!searchQuery && contacts.length === 0) {
+        searchContacts('');
+      }
     }
-  }, [contactPopoverOpen]);
+  }, [contactPopoverOpen, searchQuery, contacts.length, searchContacts]);
 
   /**
    * Initialize contactId from contact field if needed
@@ -396,21 +409,26 @@ export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEdi
 
             <div>
               <label className="text-sm font-medium mb-1 block">Contact</label>
-              <Popover 
-                open={contactPopoverOpen} 
-                onOpenChange={(isOpen) => {
-                  setContactPopoverOpen(isOpen);
-                  
-                  // Fix for Radix UI bug in production - force cleanup of pointer-events: none
-                  if (!isOpen) {
-                    setTimeout(() => {
-                      if (document.body.style.pointerEvents === 'none') {
-                        document.body.style.pointerEvents = '';
-                      }
-                    }, 50);
-                  }
-                }}
-              >
+                              <Popover 
+                  open={contactPopoverOpen} 
+                  onOpenChange={(isOpen) => {
+                    setContactPopoverOpen(isOpen);
+                    
+                    // Clear search when closing popover
+                    if (!isOpen) {
+                      setSearchQuery("");
+                    }
+                    
+                    // Fix for Radix UI bug in production - force cleanup of pointer-events: none
+                    if (!isOpen) {
+                      setTimeout(() => {
+                        if (document.body.style.pointerEvents === 'none') {
+                          document.body.style.pointerEvents = '';
+                        }
+                      }, 50);
+                    }
+                  }}
+                >
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -424,7 +442,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEdi
                       {editedTask.contactId ? (
                         contactItems.find(item => item.value === editedTask.contactId)?.label || "Contact selected"
                       ) : (
-                        "Search contacts..."
+                        "Search by name or email..."
                       )}
                     </span>
                   </Button>
@@ -442,7 +460,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEdi
                       <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                       <Input
                         ref={contactSearchInputRef}
-                        placeholder="Search contacts..."
+                        placeholder="Search by name or email..."
                         value={searchQuery}
                         onChange={handleSearchChange}
                         className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-8"
@@ -460,7 +478,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEdi
                         </div>
                       ) : contactItems.length === 0 ? (
                         <div className="py-6 text-center text-sm text-muted-foreground">
-                          {searchQuery ? 'No contacts found' : 'Start typing to search contacts'}
+                          {searchQuery ? 'No contacts found' : 'Start typing to search by name or email'}
                         </div>
                       ) : (
                         <div className="space-y-1">
