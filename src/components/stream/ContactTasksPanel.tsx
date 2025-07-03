@@ -48,7 +48,6 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
       updateTask({
         ...taskToUpdate,
         display_status: newStatus,
-        user_id: user.id
       });
     }
   };
@@ -57,7 +56,6 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
     if (!user) return;
     updateTask({
       ...updatedTask,
-      user_id: user.id
     });
   };
 
@@ -74,12 +72,11 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
       type: "task",
       display_status: "upcoming",
       status: "on-track",
-      deadline: '',
-      description: '',
-      tag: '',
-      priority: 'medium',
-      user_id: user.id
-    });
+      deadline: null,
+      description: null,
+      tag: null,
+      priority: 'medium'
+    } as const);
   };
 
   const handleTaskDoubleClick = (task: Task) => {

@@ -74,7 +74,7 @@ export interface IPendingTasks {
 // Datos para crear nueva tarea
 export type TCreateTaskInput = Omit<
   ITaskWithMetadata,
-  "created_at" | "updated_at" | "user_id"
+  "created_at" | "updated_at" | "user_id" | "id"
 >;
 
 // Datos para actualizar tarea
