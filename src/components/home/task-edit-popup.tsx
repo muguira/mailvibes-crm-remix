@@ -429,7 +429,14 @@ export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEdi
                     </span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0" style={{ width: 'var(--radix-popover-trigger-width)' }}>
+                <PopoverContent 
+                  className="w-[300px] p-0" 
+                  style={{ width: 'var(--radix-popover-trigger-width)' }}
+                  side="bottom"
+                  align="start"
+                  sideOffset={4}
+                  avoidCollisions={false}
+                >
                   <div className="p-2">
                     <div className="flex items-center border-b pb-2 mb-2">
                       <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
@@ -444,7 +451,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEdi
                         spellCheck="false"
                       />
                     </div>
-                    <div className="max-h-[200px] overflow-y-auto">
+                    <div className="max-h-[200px] min-h-[120px] overflow-y-auto">
                       {isLoading ? (
                         <div className="py-6 text-center">
                           <div className="text-sm text-muted-foreground">
@@ -453,7 +460,7 @@ export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEdi
                         </div>
                       ) : contactItems.length === 0 ? (
                         <div className="py-6 text-center text-sm text-muted-foreground">
-                          No contacts found
+                          {searchQuery ? 'No contacts found' : 'Start typing to search contacts'}
                         </div>
                       ) : (
                         <div className="space-y-1">
