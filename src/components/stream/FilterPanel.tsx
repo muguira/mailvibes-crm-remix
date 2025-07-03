@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,13 +15,13 @@ export default function FilterPanel({ contact }: FilterPanelProps) {
   return (
     <div className="space-y-2">
       {/* Tasks Card */}
-      <Card className="shadow-sm">
-        <CardHeader className="pb-2">
+      <Card className="shadow-sm max-h-[400px] flex flex-col">
+        <CardHeader className="pb-2 flex-shrink-0">
           <CardTitle className="text-lg">Tasks</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 flex-1 overflow-hidden">
           {contact?.id ? (
-            <div className="h-[300px]">
+            <div className="h-full flex flex-col">
               <ContactTasksPanel 
                 contactId={contact.id} 
                 contactName={contact.name}
