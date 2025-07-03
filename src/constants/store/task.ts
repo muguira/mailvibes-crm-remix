@@ -22,6 +22,8 @@ export const INITIAL_CATEGORIZED_TASKS: ICategorizedTasks = {
   completed: [],
 };
 
+export const INITIAL_PENDING_TASKS = {} as const;
+
 export const INITIAL_LOCAL_TASKS: ITaskWithMetadata[] = [];
 
 export const INITIAL_LOADING_STATE: ITaskLoadingState = {
@@ -72,6 +74,7 @@ export const INITIAL_IS_TASK_BEING_CREATED = false;
 export const INITIAL_TASK_STATE = {
   tasks: INITIAL_TASKS,
   categorizedTasks: INITIAL_CATEGORIZED_TASKS,
+  pendingTasks: INITIAL_PENDING_TASKS,
   localTasks: INITIAL_LOCAL_TASKS,
   loading: INITIAL_LOADING_STATE,
   errors: INITIAL_ERROR_STATE,
@@ -90,6 +93,7 @@ export const INITIAL_TASK_STATE = {
 export const RESET_TASK_STATE = {
   tasks: [],
   categorizedTasks: { upcoming: [], overdue: [], completed: [] },
+  pendingTasks: {},
   localTasks: [],
   loading: {
     fetching: false,

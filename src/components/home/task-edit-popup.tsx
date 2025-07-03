@@ -207,7 +207,6 @@ export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEdi
       const timeoutId = setTimeout(() => {
         if (document.body.style.pointerEvents === 'none') {
           document.body.style.pointerEvents = '';
-          console.log('Fixed stuck pointer-events: none on body');
         }
       }, 100);
       
@@ -407,7 +406,6 @@ export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEdi
                     setTimeout(() => {
                       if (document.body.style.pointerEvents === 'none') {
                         document.body.style.pointerEvents = '';
-                        console.log('Fixed pointer-events after popover close');
                       }
                     }, 50);
                   }

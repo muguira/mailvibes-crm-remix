@@ -1,5 +1,6 @@
 import React, { useEffect, ReactNode } from "react";
 import { useAuthStore } from "@/hooks/useAuthStore";
+import { useStore } from "@/stores";
 import { logger } from "@/utils/logger";
 
 interface AuthProviderProps {
@@ -13,7 +14,7 @@ interface AuthProviderProps {
  * - Initializes the auth state from Zustand
  * - Handles the auth state change listener setup
  * - Provides loading state while auth is initializing
- * - Automatically integrates with contacts store
+ * - Automatically integrates with contacts store and tasks store
  * 
  * @example
  * ```typescript
@@ -24,7 +25,9 @@ interface AuthProviderProps {
  */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const { isInitialized, initialize, loading, errors } = useAuthStore();
+  const store = useStore();
 
+  // Initialize auth state
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
@@ -49,6 +52,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
   }, [isInitialized, initialize, loading.initializing]);
+
+  // Initialize tasks when user is authenticated
+  useEffect(() => {
+    const user = store.authUser;
+    const tasksInitialized = store.isInitialized;
+
+    if (user && !tasksInitialized && !store.loading.fetching) {
+      logger.log('AuthProvider: Initializing tasks for user:', user.id);
+      store.initialize();
+    }
+  }, [store.authUser, store.isInitialized, store.loading.fetching]);
 
   // Solo mostramos el loading si estamos en el proceso inicial de carga
   if (loading.initializing && !isInitialized) {

@@ -55,6 +55,18 @@ export interface ICategorizedTasks {
   completed: ITaskWithMetadata[];
 }
 
+// Estado de tareas pendientes para actualizaciones optimistas
+export interface IPendingTask {
+  tempId: string;
+  task: ITaskWithMetadata;
+  status: "creating" | "updating" | "deleting";
+  originalData?: ITaskWithMetadata; // Para rollback en caso de error
+}
+
+export interface IPendingTasks {
+  [key: string]: IPendingTask;
+}
+
 // =============================================
 // TIPOS DE ENTRADA Y OPERACIONES
 // =============================================
@@ -62,13 +74,13 @@ export interface ICategorizedTasks {
 // Datos para crear nueva tarea
 export type TCreateTaskInput = Omit<
   ITaskWithMetadata,
-  "id" | "created_at" | "updated_at"
+  "created_at" | "updated_at" | "user_id"
 >;
 
 // Datos para actualizar tarea
 export type TUpdateTaskInput = Omit<
   ITaskWithMetadata,
-  "created_at" | "updated_at"
+  "created_at" | "updated_at" | "user_id"
 >;
 
 // Tipos auxiliares para acciones específicas
@@ -101,6 +113,7 @@ export interface ITaskState {
   // Estado principal
   tasks: ITaskWithMetadata[];
   categorizedTasks: ICategorizedTasks;
+  pendingTasks: IPendingTasks;
 
   // Flags de estado
   isTaskBeingCreated: boolean;
@@ -132,11 +145,11 @@ export interface ITaskState {
 
 export interface ITaskActions {
   // --- INICIALIZACIÓN ---
-  initialize: (userId: string) => Promise<void>;
+  initialize: () => Promise<void>;
   reset: () => void;
 
   // --- CRUD OPERATIONS ---
-  fetchTasks: (userId: string) => Promise<void>;
+  fetchTasks: () => Promise<void>;
   createTask: (task: TCreateTaskInput) => Promise<ITaskWithMetadata>;
   updateTask: (task: TUpdateTaskInput) => Promise<ITaskWithMetadata>;
   deleteTask: (taskId: string) => Promise<void>;

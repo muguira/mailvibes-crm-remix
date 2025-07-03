@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Check, Plus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useTasks } from "@/hooks/supabase/use-tasks";
 import { useAuth } from "@/components/auth";
 import { Task } from "@/types/task";
 import { TaskEditPopup } from "@/components/home/task-edit-popup";
@@ -9,6 +8,7 @@ import { DeadlinePopup } from "@/components/home/deadline-popup";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useStore } from "@/stores";
 
 interface ContactTasksPanelProps {
   contactId: string;
@@ -17,7 +17,8 @@ interface ContactTasksPanelProps {
 
 export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelProps) {
   const { user } = useAuth();
-  const { tasks: allTasks, isLoading, createTask, updateTask, deleteTask } = useTasks();
+  const store = useStore();
+  const { tasks: allTasks, loading: { fetching: isLoading }, createTask, updateTask, deleteTask } = store;
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   // Filter tasks for this contact

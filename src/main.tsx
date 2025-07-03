@@ -10,8 +10,6 @@ if (import.meta.env.PROD) {
     
     if (!brandTealVar || !taskDialogZVar) {
       console.warn('CSS variables not loaded properly in production. Brand styles may not work correctly.');
-    } else {
-      console.log('CSS variables loaded successfully in production');
     }
   };
   
