@@ -121,9 +121,13 @@ export function TaskEditPopup({
    * @returns {void}
    */
   const handleSave = () => {
+    // Crear una copia de la tarea sin el campo contactId que no existe en Supabase
+    const { contactId, ...taskWithoutContactId } = editedTask;
+    
     const taskToSave = {
-      ...editedTask,
-      contact: editedTask.contactId
+      ...taskWithoutContactId,
+      // Si hay contactId, usarlo para el campo contact
+      contact: contactId || editedTask.contact || ''
     };
 
     onSave(taskToSave);
