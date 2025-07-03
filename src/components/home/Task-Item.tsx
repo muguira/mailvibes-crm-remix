@@ -22,6 +22,27 @@ interface TaskItemProps {
     allTasks: Task[];
 }
 
+/**
+ * TaskItem
+ *
+ * Componente para renderizar una fila de tarea, con edición inline, cambio de estado, deadline y acciones de edición/eliminación.
+ *
+ * @component
+ * @param {object} props
+ * @param {Task} props.task - Tarea a mostrar
+ * @param {boolean} [props.isNew] - Si es una tarea nueva (input editable)
+ * @param {React.RefObject<HTMLInputElement>} [props.inputRef] - Ref para el input de nueva tarea
+ * @param {React.RefObject<HTMLButtonElement>} [props.calendarRef] - Ref para el botón de calendario (opcional)
+ * @param {function} props.onStatusChange - Handler para cambiar estado (completada/pending)
+ * @param {function} props.onDeadlineChange - Handler para cambiar deadline
+ * @param {function} props.onTitleChange - Handler para cambiar título
+ * @param {function} props.onTitleBlur - Handler para blur del input
+ * @param {function} props.onTitleKeyDown - Handler para teclas en input
+ * @param {function} props.onTaskUpdate - Handler para actualizar tarea
+ * @param {function} props.onDelete - Handler para eliminar tarea
+ * @param {Task[]} props.allTasks - Todas las tareas (para popups)
+ * @returns {JSX.Element}
+ */
 export function TaskItem({
     task,
     isNew,
@@ -39,6 +60,13 @@ export function TaskItem({
     const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
     const deadline = task.deadline ? parseISO(task.deadline) : undefined;
   
+    /**
+     * getDueDateDisplay
+     * 
+     * Obtiene la fecha de vencimiento de la tarea en formato legible.
+     * 
+     * @returns {string | null} - Fecha de vencimiento en formato legible o null si no hay fecha
+     */
     const getDueDateDisplay = () => {
       if (!deadline) return null;
   
@@ -51,6 +79,13 @@ export function TaskItem({
       return format(deadline, "MMM d, yyyy", { locale: es });
     };
   
+    /**
+     * getDueDateColor
+     * 
+     * Obtiene el color de la fecha de vencimiento de la tarea.
+     * 
+     * @returns {string} - Color de la fecha de vencimiento
+     */
     const getDueDateColor = () => {
       if (!deadline) return "text-muted-foreground";
   
@@ -63,17 +98,13 @@ export function TaskItem({
       return "text-muted-foreground";
     };
   
-
-
-
-    const handleTaskSave = (updatedTask: Task) => {
-      // Update all task fields in the parent component
-      onTitleChange(updatedTask.id, updatedTask.title);
-      if (updatedTask.deadline !== task.deadline) {
-        onDeadlineChange(updatedTask.id, updatedTask.deadline);
-      }
-    };
-  
+    /**
+     * render
+     * 
+     * Renderiza el componente de tarea.
+     * 
+     * @returns {JSX.Element}
+     */
     return (
       <div className="px-3 py-1.5 group">
         <div className="flex items-center gap-3">

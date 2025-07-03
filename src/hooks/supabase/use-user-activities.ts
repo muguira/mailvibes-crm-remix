@@ -1,10 +1,9 @@
-
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { v4 as uuidv4 } from 'uuid';
-import { logger } from '@/utils/logger';
+import { useState, useEffect } from "react";
+import { useAuth } from "@/components/auth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { v4 as uuidv4 } from "uuid";
+import { logger } from "@/utils/logger";
 
 export interface UserActivity {
   id: string;
@@ -43,26 +42,26 @@ export function useUserActivities() {
   // Fetch activities from Supabase
   const fetchActivities = async () => {
     if (!user) return;
-    
+
     setIsLoading(true);
-    
+
     try {
       const { data, error } = await supabase
-        .from('user_activities')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('timestamp', { ascending: false })
+        .from("user_activities")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("timestamp", { ascending: false })
         .limit(100);
 
       if (error) throw error;
-      
+
       setActivities(data || []);
     } catch (error) {
-      logger.error('Error fetching user activities:', error);
+      logger.error("Error fetching user activities:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to load activity history',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load activity history",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -70,36 +69,42 @@ export function useUserActivities() {
   };
 
   // Log activity to Supabase
-  const logActivity = async (activityData: Omit<UserActivity, 'id' | 'user_id' | 'user_name' | 'user_email' | 'timestamp' | 'created_at'>) => {
+  const logActivity = async (
+    activityData: Omit<
+      UserActivity,
+      "id" | "user_id" | "user_name" | "user_email" | "timestamp" | "created_at"
+    >
+  ) => {
     if (!user) return false;
-    
+
     setIsLogging(true);
-    
+
     try {
       const newActivity = {
         id: uuidv4(),
         user_id: user.id,
-        user_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+        user_name:
+          user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
         user_email: user.email || null,
         timestamp: new Date().toISOString(),
-        ...activityData
+        ...activityData,
       };
-      
+
       // Optimistically update UI
-      setActivities(prev => [newActivity as UserActivity, ...prev]);
-      
+      setActivities((prev) => [newActivity as UserActivity, ...prev]);
+
       // Save to Supabase
       const { error } = await supabase
-        .from('user_activities')
+        .from("user_activities")
         .insert(newActivity);
-      
+
       if (error) throw error;
-      
+
       return true;
     } catch (error) {
-      logger.error('Error logging activity:', error);
+      logger.error("Error logging activity:", error);
       // Remove optimistically added activity
-      setActivities(prev => prev.filter(a => a.id !== uuidv4()));
+      setActivities((prev) => prev.filter((a) => a.id !== uuidv4()));
       return false;
     } finally {
       setIsLogging(false);
@@ -107,47 +112,58 @@ export function useUserActivities() {
   };
 
   // Helper functions for common activity types
-  const logCellEdit = async (entityId: string, fieldName: string, newValue: any, oldValue: any) => {
+  const logCellEdit = async (
+    entityId: string,
+    fieldName: string,
+    newValue: any,
+    oldValue: any
+  ) => {
     return logActivity({
-      activity_type: 'cell_edit',
+      activity_type: "cell_edit",
       entity_id: entityId,
-      entity_type: 'contact',
+      entity_type: "contact",
       field_name: fieldName,
       old_value: oldValue,
-      new_value: newValue
+      new_value: newValue,
     });
   };
 
   const logContactAdd = async (entityId: string, contactName: string) => {
     return logActivity({
-      activity_type: 'contact_add',
+      activity_type: "contact_add",
       entity_id: entityId,
-      entity_type: 'contact',
-      entity_name: contactName
+      entity_type: "contact",
+      entity_name: contactName,
     });
   };
 
-  const logContactUpdate = async (entityId: string, contactName: string, fieldName: string, oldValue: any, newValue: any) => {
+  const logContactUpdate = async (
+    entityId: string,
+    contactName: string,
+    fieldName: string,
+    oldValue: any,
+    newValue: any
+  ) => {
     return logActivity({
-      activity_type: 'contact_update',
+      activity_type: "contact_update",
       entity_id: entityId,
-      entity_type: 'contact', 
+      entity_type: "contact",
       entity_name: contactName,
       field_name: fieldName,
       old_value: oldValue,
-      new_value: newValue
+      new_value: newValue,
     });
   };
 
   const logLogin = async () => {
     return logActivity({
-      activity_type: 'login'
+      activity_type: "login",
     });
   };
 
   const logLogout = async () => {
     return logActivity({
-      activity_type: 'logout'
+      activity_type: "logout",
     });
   };
 
@@ -161,6 +177,6 @@ export function useUserActivities() {
     logContactUpdate,
     logLogin,
     logLogout,
-    logActivity
+    logActivity,
   };
 }

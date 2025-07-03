@@ -1,5 +1,7 @@
 // Update task-edit-popup.tsx to use display_status consistently
-import * as React from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { CalendarIcon, CheckIcon, AlertCircle, Trash2, Search, User } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import "./task-edit-popup.css";
 import { Input } from "@/components/ui/input";
@@ -8,8 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, parseISO } from "date-fns";
-import { CalendarIcon, CheckIcon, AlertCircle, Trash2, Search, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Task } from "@/types/task";
 import { useContactSearch } from "@/hooks/use-contact-search";
@@ -30,22 +30,43 @@ interface TaskEditPopupProps {
   allTasks: Task[];
 }
 
-export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onDelete, allTasks }: TaskEditPopupProps) {
-  const [editedTask, setEditedTask] = React.useState<ExtendedTask>({ ...task });
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [contactPopoverOpen, setContactPopoverOpen] = React.useState(false);
-  const titleInputRef = React.useRef<HTMLInputElement>(null);
-  const contactSearchInputRef = React.useRef<HTMLInputElement>(null);
+/**
+ * TaskEditPopup
+ *
+ * Componente de diálogo para editar una tarea existente. Permite modificar título, descripción, estado, tipo, deadline, prioridad y contacto asociado.
+ * Incluye búsqueda de contactos y validaciones de fechas.
+ *
+ * @component
+ * @param {object} props
+ * @param {Task} props.task - Tarea a editar (puede incluir contactId)
+ * @param {boolean} props.open - Si el popup está abierto
+ * @param {function} props.onClose - Handler para cerrar el popup
+ * @param {function} props.onSave - Handler para guardar cambios (recibe la tarea editada)
+ * @param {function} props.onStatusChange - Handler para cambiar estado (no usado directamente aquí)
+ * @param {function} props.onDelete - Handler para eliminar la tarea
+ * @param {Task[]} props.allTasks - Todas las tareas (para validaciones o popups relacionados)
+ * @returns {JSX.Element}
+ */
+export function TaskEditPopup({ task, open, onClose, onSave, onDelete }: TaskEditPopupProps) {
+  const [editedTask, setEditedTask] = useState<ExtendedTask>({ ...task });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [contactPopoverOpen, setContactPopoverOpen] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const contactSearchInputRef = useRef<HTMLInputElement>(null);
   const { contacts, isLoading, searchContacts } = useContactSearch();
   const { forceCleanup } = useRadixPointerEventsFix();
 
-  // Reset the form when the task changes
-  React.useEffect(() => {
+  /**
+   * Reset the form when the task changes
+   */
+  useEffect(() => {
     setEditedTask({ ...task });
   }, [task]);
 
-  // Focus the title input when the dialog opens
-  React.useEffect(() => {
+  /**
+   * Focus the title input when the dialog opens
+   */
+  useEffect(() => {
     if (open && titleInputRef.current) {
       setTimeout(() => {
         titleInputRef.current?.focus();
@@ -53,43 +74,86 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     }
   }, [open]);
 
+  /**
+   * handleChange
+   * 
+   * Maneja el cambio de un campo en la tarea editada.
+   * 
+   * @param {keyof ExtendedTask} field - Campo a actualizar
+   * @param {any} value - Nuevo valor para el campo
+   * @returns {void}
+   */
   const handleChange = (field: keyof ExtendedTask, value: any) => {
     setEditedTask(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSearchChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  /**
+   * handleSearchChange
+   * 
+   * Maneja el cambio de búsqueda en el input de búsqueda de contactos.
+   * 
+   * @param {React.ChangeEvent<HTMLInputElement>} e - Evento de cambio
+   * @returns {void}
+   */
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
     searchContacts(query);
   }, [searchContacts]);
 
+  /**
+   * handleSave
+   * 
+   * Maneja la acción de guardar los cambios en la tarea.
+   * 
+   * @returns {void}
+   */
   const handleSave = () => {
-    // Clean up the task object before saving
     const taskToSave = {
       ...editedTask,
-      // Map contactId to contact field if needed
       contact: editedTask.contactId
     };
 
     onSave(taskToSave);
-    forceCleanup(); // Fix pointer-events bug before closing
+    forceCleanup();
     onClose();
   };
 
+  /**
+   * handleDelete
+   * 
+   * Maneja la acción de eliminar la tarea.
+   * 
+   * @returns {void}
+   */
   const handleDelete = () => {
     onDelete(task.id);
-    forceCleanup(); // Fix pointer-events bug before closing
+    forceCleanup(); 
     onClose();
   };
 
-  // Function to disable past dates in the calendar
+  /**
+   * isDateDisabled
+   * 
+   * Verifica si una fecha es válida para el calendario.
+   * 
+   * @param {Date} date - Fecha a verificar
+   * @returns {boolean} - true si la fecha es válida, false en caso contrario
+   */
   const isDateDisabled = (date: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
     return date < today; // Disable dates before today (allow today and future dates)
   };
 
-  const contactItems = React.useMemo(() =>
+  /**
+   * contactItems
+   * 
+   * Crea un array de objetos con los contactos.
+   * 
+   * @returns {Array<{value: string, label: string}>} - Array de contactos
+   */
+  const contactItems = useMemo(() =>
     (contacts || []).map(contact => ({
       value: contact.id,
       label: contact.name +
@@ -99,8 +163,10 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     [contacts]
   );
 
-  // Focus contact search input when popover opens
-  React.useEffect(() => {
+  /**
+   * Focus contact search input when popover opens
+   */
+  useEffect(() => {
     if (contactPopoverOpen && contactSearchInputRef.current) {
       setTimeout(() => {
         contactSearchInputRef.current?.focus();
@@ -108,8 +174,10 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     }
   }, [contactPopoverOpen]);
 
-  // Initialize contactId from contact field if needed
-  React.useEffect(() => {
+  /**
+   * Initialize contactId from contact field if needed
+   */
+  useEffect(() => {
     if (task.contact && !task.contactId) {
       setEditedTask(prev => ({
         ...prev,
@@ -118,8 +186,10 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     }
   }, [task]);
 
-  // Set trigger width for popover sizing
-  React.useEffect(() => {
+  /**
+   * Set trigger width for popover sizing
+   */
+  useEffect(() => {
     const button = document.querySelector('.task-edit-dialog [data-radix-popover-trigger]');
     if (button) {
       const width = button.getBoundingClientRect().width;
@@ -127,15 +197,16 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     }
   }, [open]);
 
-  // Force cleanup of pointer-events: none on body when dialog closes
-  // This fixes the Radix UI bug in production where body gets stuck with pointer-events: none
-  React.useEffect(() => {
+  /**
+   * Force cleanup of pointer-events: none on body when dialog closes
+   * This fixes the Radix UI bug in production where body gets stuck with pointer-events: none
+   */
+  useEffect(() => {
     if (!open) {
       // Force cleanup after dialog closes
       const timeoutId = setTimeout(() => {
         if (document.body.style.pointerEvents === 'none') {
           document.body.style.pointerEvents = '';
-          console.log('Fixed stuck pointer-events: none on body');
         }
       }, 100);
       
@@ -143,6 +214,13 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
     }
   }, [open]);
 
+  /**
+   * render
+   * 
+   * Renderiza el componente de edición de tarea.
+   * 
+   * @returns {JSX.Element}
+   */
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => {
@@ -328,7 +406,6 @@ export function TaskEditPopup({ task, open, onClose, onSave, onStatusChange, onD
                     setTimeout(() => {
                       if (document.body.style.pointerEvents === 'none') {
                         document.body.style.pointerEvents = '';
-                        console.log('Fixed pointer-events after popover close');
                       }
                     }, 50);
                   }

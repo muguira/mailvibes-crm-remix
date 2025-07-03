@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useContacts, useActivities } from "@/hooks/use-supabase-data";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { ContactData } from "../types";
 
 export function useStreamView(listId?: string) {

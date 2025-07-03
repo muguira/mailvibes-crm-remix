@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { CustomButton } from "@/components/ui/custom-button";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { v4 as uuidv4 } from 'uuid';
 
 interface Company {

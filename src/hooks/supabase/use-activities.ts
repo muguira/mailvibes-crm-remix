@@ -1,9 +1,9 @@
 // @ts-nocheck
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "../use-toast";
-import { logger } from '@/utils/logger';
+import { logger } from "@/utils/logger";
 
 export interface Activity {
   id: string;
@@ -22,17 +22,17 @@ export function useActivities(contactId?: string) {
     if (!user || !contactId) return [];
 
     const { data, error } = await supabase
-      .from('activities')
-      .select('*')
-      .eq('contact_id', contactId)
-      .order('timestamp', { ascending: false });
+      .from("activities")
+      .select("*")
+      .eq("contact_id", contactId)
+      .order("timestamp", { ascending: false });
 
     if (error) {
-      logger.error('Error fetching activities:', error);
+      logger.error("Error fetching activities:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to load activities',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load activities",
+        variant: "destructive",
       });
       return [];
     }
@@ -42,19 +42,19 @@ export function useActivities(contactId?: string) {
 
   // Query to fetch activities
   const activitiesQuery = useQuery({
-    queryKey: ['activities', user?.id, contactId],
+    queryKey: ["activities", user?.id, contactId],
     queryFn: fetchActivities,
     enabled: !!user && !!contactId,
   });
 
   // Mutation to create an activity
   const createActivityMutation = useMutation({
-    mutationFn: async (newActivity: { type: string; content?: string; }) => {
-      if (!user) throw new Error('User not authenticated');
-      if (!contactId) throw new Error('Contact ID is required');
+    mutationFn: async (newActivity: { type: string; content?: string }) => {
+      if (!user) throw new Error("User not authenticated");
+      if (!contactId) throw new Error("Contact ID is required");
 
       const { data, error } = await supabase
-        .from('activities')
+        .from("activities")
         .insert({
           user_id: user.id,
           contact_id: contactId,
@@ -67,17 +67,19 @@ export function useActivities(contactId?: string) {
       return data[0];
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activities', user?.id, contactId] });
+      queryClient.invalidateQueries({
+        queryKey: ["activities", user?.id, contactId],
+      });
       toast({
-        title: 'Success',
-        description: 'Activity recorded successfully',
+        title: "Success",
+        description: "Activity recorded successfully",
       });
     },
     onError: (error) => {
       toast({
-        title: 'Error',
+        title: "Error",
         description: `Failed to record activity: ${error.message}`,
-        variant: 'destructive',
+        variant: "destructive",
       });
     },
   });

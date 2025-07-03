@@ -3,7 +3,7 @@ import { TopNavbar } from "@/components/layout/top-navbar";
 import { TasksPanel } from "@/components/home/tasks-panel";
 import { FeedPanel } from "@/components/home/feed-panel";
 import { WelcomeHeader } from "@/components/home/welcome-header";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { Navigate } from 'react-router-dom';
 
 const Index = () => {

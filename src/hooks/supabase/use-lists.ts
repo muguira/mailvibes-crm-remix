@@ -1,9 +1,8 @@
-
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "../use-toast";
-import { logger } from '@/utils/logger';
+import { logger } from "@/utils/logger";
 
 // Types for lists
 export interface UserList {
@@ -23,16 +22,16 @@ export function useLists() {
     if (!user) return [];
 
     const { data, error } = await supabase
-      .from('user_lists')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .from("user_lists")
+      .select("*")
+      .order("created_at", { ascending: false });
 
     if (error) {
-      logger.error('Error fetching lists:', error);
+      logger.error("Error fetching lists:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to load lists',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load lists",
+        variant: "destructive",
       });
       return [];
     }
@@ -42,7 +41,7 @@ export function useLists() {
 
   // Query to fetch lists
   const listsQuery = useQuery({
-    queryKey: ['lists', user?.id],
+    queryKey: ["lists", user?.id],
     queryFn: fetchLists,
     enabled: !!user,
   });
@@ -50,10 +49,10 @@ export function useLists() {
   // Mutation to create a list
   const createListMutation = useMutation({
     mutationFn: async (newList: { name: string; type: string }) => {
-      if (!user) throw new Error('User not authenticated');
+      if (!user) throw new Error("User not authenticated");
 
       const { data, error } = await supabase
-        .from('user_lists')
+        .from("user_lists")
         .insert({
           user_id: user.id,
           name: newList.name,
@@ -65,17 +64,17 @@ export function useLists() {
       return data[0];
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lists', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["lists", user?.id] });
       toast({
-        title: 'Success',
-        description: 'List created successfully',
+        title: "Success",
+        description: "List created successfully",
       });
     },
     onError: (error) => {
       toast({
-        title: 'Error',
+        title: "Error",
         description: `Failed to create list: ${error.message}`,
-        variant: 'destructive',
+        variant: "destructive",
       });
     },
   });
@@ -84,30 +83,30 @@ export function useLists() {
   const updateListMutation = useMutation({
     mutationFn: async (updatedList: Partial<UserList> & { id: string }) => {
       const { data, error } = await supabase
-        .from('user_lists')
+        .from("user_lists")
         .update({
           name: updatedList.name,
           type: updatedList.type,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', updatedList.id)
+        .eq("id", updatedList.id)
         .select();
 
       if (error) throw error;
       return data[0];
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lists', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["lists", user?.id] });
       toast({
-        title: 'Success',
-        description: 'List updated successfully',
+        title: "Success",
+        description: "List updated successfully",
       });
     },
     onError: (error) => {
       toast({
-        title: 'Error',
+        title: "Error",
         description: `Failed to update list: ${error.message}`,
-        variant: 'destructive',
+        variant: "destructive",
       });
     },
   });

@@ -17,7 +17,7 @@ import { FieldMapping } from "@/utils/mapColumnsToContact";
 import { AccountFieldMapping } from "@/utils/mapColumnsToAccount";
 import { ListFieldDefinition } from "@/utils/buildFieldDefinitions";
 import { importCsvData, validateImportData } from "@/services/csvImportService";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { toast } from "sonner";
 import { logger } from '@/utils/logger';
 import { LoadingOverlay } from "@/components/ui/loading-spinner";

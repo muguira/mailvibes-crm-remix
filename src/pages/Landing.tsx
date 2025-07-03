@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/components/auth';
 import Group6 from '@/components/svgs/Group6.svg';
 import ContactScreen from '@/images/contact-screen.png';
 import Screenshot1 from '@/images/screen1.png';

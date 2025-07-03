@@ -39,7 +39,6 @@ import { INITIAL_TASK_STATE, RESET_TASK_STATE } from "@/constants/store/task";
  * await createTask({
  *   title: "Follow up with client",
  *   type: "follow-up",
- *   user_id: "user123",
  *   deadline: "2024-01-15T10:00:00Z"
  * });
  * ```
@@ -54,18 +53,23 @@ export const useTasksSlice: StateCreator<
   ...INITIAL_TASK_STATE,
 
   /**
-   * Initialize the tasks state by fetching tasks for a specific user
-   * @param userId - The ID of the user to initialize tasks for
+   * Initialize the tasks state by fetching tasks for the current user
    * @returns Promise that resolves when initialization is complete
    */
-  initialize: async (userId: string) => {
+  initialize: async () => {
+    const user = get().authUser;
+    if (!user) {
+      logger.error("Cannot initialize tasks: No authenticated user");
+      return;
+    }
+
     set((state) => {
       state.loading.fetching = true;
       state.errors.fetch = null;
     });
 
     try {
-      await get().fetchTasks(userId);
+      await get().fetchTasks();
       set((state) => {
         state.isInitialized = true;
         state.lastSyncAt = new Date().toISOString();
@@ -104,10 +108,15 @@ export const useTasksSlice: StateCreator<
   },
 
   /**
-   * Fetch tasks from the database
-   * @param userId - The ID of the user to fetch tasks for
+   * Fetch tasks from the database for the current user
    */
-  fetchTasks: async (userId: string) => {
+  fetchTasks: async () => {
+    const user = get().authUser;
+    if (!user) {
+      logger.error("Cannot fetch tasks: No authenticated user");
+      return;
+    }
+
     set((state) => {
       state.loading.fetching = true;
       state.errors.fetch = null;
@@ -119,7 +128,7 @@ export const useTasksSlice: StateCreator<
           await supabase
             .from("tasks")
             .select("*")
-            .eq("user_id", userId)
+            .eq("user_id", user.id)
             .order("created_at", { ascending: false }),
         get().retryConfig
       );
@@ -167,66 +176,104 @@ export const useTasksSlice: StateCreator<
   },
 
   /**
-   * Create a new task
+   * Create a new task with optimistic updates
    * @param task - The task to create
    * @returns The created task
    */
-  createTask: async (task: TCreateTaskInput): Promise<ITaskWithMetadata> => {
+  createTask: async (
+    task: Omit<TCreateTaskInput, "user_id">
+  ): Promise<ITaskWithMetadata> => {
+    const user = get().authUser;
+    if (!user) {
+      const error = new Error("Cannot create task: No authenticated user");
+      logger.error(error);
+      throw error;
+    }
+
+    // Crear una versión temporal de la tarea con un ID temporal
+    const tempTask: ITaskWithMetadata = {
+      ...task,
+      id: `temp-${Date.now()}`, // ID temporal que será reemplazado
+      user_id: user.id,
+      deadline: task.deadline || null,
+      contact: task.contact || null,
+      description: task.description || null,
+      tag: task.tag || null,
+      status: task.status || ("on-track" as const),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      display_status: "upcoming",
+      type: "task",
+    };
+
+    // Agregar inmediatamente la tarea temporal al estado
     set((state) => {
-      state.loading.creating = true;
-      state.errors.create = null;
+      state.tasks.unshift(tempTask);
     });
+    get().categorizeTasks();
 
     try {
-      const taskWithMetadata = {
+      // Preparar la tarea para Supabase
+      const taskForSupabase = {
         ...task,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        contact: task.contact || null,
+        user_id: user.id,
         deadline: task.deadline || null,
+        contact: task.contact || null,
         description: task.description || null,
         tag: task.tag || null,
-        priority: task.priority || null,
+        status: task.status || ("on-track" as const),
       };
 
-      const { data, error } = await supabase
+      // Intentar crear en Supabase
+      const { data: supabaseTask, error } = await supabase
         .from("tasks")
-        .insert([taskWithMetadata])
-        .select("*");
+        .insert([taskForSupabase])
+        .select()
+        .single();
 
       if (error) throw error;
 
-      const newTask = data[0] as ITaskWithMetadata;
-
+      // Reemplazar la tarea temporal con la versión de Supabase
       set((state) => {
-        state.tasks.unshift(newTask);
+        const taskIndex = state.tasks.findIndex((t) => t.id === tempTask.id);
+        if (taskIndex !== -1) {
+          state.tasks[taskIndex] = supabaseTask as ITaskWithMetadata;
+        }
+        state.loading.creating = false;
       });
 
       get().categorizeTasks();
 
+      // Mostrar notificación de éxito
       toast({
-        title: "Task created",
-        description: "Your task has been created successfully",
+        title: "Task created successfully",
+        description: `Task "${task.title}" has been created.`,
+        variant: "default",
       });
 
-      return newTask;
+      return supabaseTask as ITaskWithMetadata;
     } catch (error) {
+      // En caso de error, eliminar la tarea temporal
+      set((state) => {
+        state.tasks = state.tasks.filter((t) => t.id !== tempTask.id);
+        state.loading.creating = false;
+        state.errors.create =
+          error instanceof Error ? error.message : "Failed to create task";
+      });
+
+      get().categorizeTasks();
+
       logger.error("Error creating task:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Failed to create task";
-      set((state) => {
-        state.errors.create = errorMessage;
-      });
+
       toast({
         title: "Error creating task",
         description: errorMessage,
         variant: "destructive",
       });
+
       throw error;
-    } finally {
-      set((state) => {
-        state.loading.creating = false;
-      });
     }
   },
 
@@ -235,7 +282,16 @@ export const useTasksSlice: StateCreator<
    * @param task - The task to update
    * @returns The updated task
    */
-  updateTask: async (task: TUpdateTaskInput): Promise<ITaskWithMetadata> => {
+  updateTask: async (
+    task: Omit<TUpdateTaskInput, "user_id">
+  ): Promise<ITaskWithMetadata> => {
+    const user = get().authUser;
+    if (!user) {
+      const error = new Error("Cannot update task: No authenticated user");
+      logger.error(error);
+      throw error;
+    }
+
     set((state) => {
       state.loading.updating = true;
       state.errors.update = null;
@@ -244,6 +300,7 @@ export const useTasksSlice: StateCreator<
     try {
       const taskWithMetadata = {
         ...task,
+        user_id: user.id,
         updated_at: new Date().toISOString(),
         contact: task.contact || null,
         deadline: task.deadline || null,
@@ -256,7 +313,7 @@ export const useTasksSlice: StateCreator<
         .from("tasks")
         .update(taskWithMetadata)
         .eq("id", task.id)
-        .eq("user_id", task.user_id)
+        .eq("user_id", user.id)
         .select("*");
 
       if (error) throw error;
