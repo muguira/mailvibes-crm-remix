@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useLists, useGridData, useContacts, useChangeHistory, useRealtimePresence } from "@/hooks/supabase";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { toast } from "@/components/ui/use-toast";
 import { v4 as uuidv4 } from "uuid";
 

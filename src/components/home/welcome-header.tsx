@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTasks } from '@/hooks/supabase/use-tasks';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/components/auth';
 
 interface WelcomeHeaderProps {
   username?: string;

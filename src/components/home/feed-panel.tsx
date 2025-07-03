@@ -5,7 +5,7 @@ import { Avatar } from "@/components/shared/avatar";
 import { Card } from "@/components/ui/card";
 import { useActivityTracking, ActivityItem } from "@/hooks/use-activity-tracking";
 import { Edit, MessageSquare, UserPlus, Plus, Trash2, Filter, BarChart } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function FeedPanel() {

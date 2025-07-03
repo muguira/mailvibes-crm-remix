@@ -3,6 +3,7 @@ import { immer } from "zustand/middleware/immer";
 import { subscribeWithSelector } from "zustand/middleware";
 import { TStore } from "@/types/store/store";
 import { useTasksSlice } from "./useTasksSlice";
+import { useAuthSlice } from "./useAuthSlice";
 
 /**
  * Main store for the application
@@ -12,13 +13,14 @@ import { useTasksSlice } from "./useTasksSlice";
  * @example
  * ```typescript
  * // Usage in component
- * const { tasks, createTask, fetchTasks } = useStore();
+ * const { tasks, createTask, fetchTasks, user, signIn, signOut } = useStore();
  * ```
  */
 export const useStore = create<TStore>()(
   subscribeWithSelector(
     immer((...a) => ({
       ...useTasksSlice(...a),
+      ...useAuthSlice(...a),
     }))
   )
 );

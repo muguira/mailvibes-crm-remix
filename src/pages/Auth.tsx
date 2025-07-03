@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { useNavigate, Navigate } from "react-router-dom";
 import { CustomButton } from "@/components/ui/custom-button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -24,11 +24,11 @@ export default function Auth() {
     
     try {
       if (isSignUp) {
-        await signUp(email, password);
-        navigate("/dashboard");
+        await signUp({ email, password });
+        navigate("/");
       } else {
-        await signIn(email, password);
-        navigate("/dashboard");
+        await signIn({ email, password });
+        navigate("/");
       }
     } catch (error) {
       logger.error("Authentication error:", error);

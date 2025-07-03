@@ -1,4 +1,4 @@
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { LogOut, Settings, User } from "lucide-react";
 import {
   DropdownMenu,

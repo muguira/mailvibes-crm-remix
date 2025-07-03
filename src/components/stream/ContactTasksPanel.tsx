@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Check, Plus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTasks } from "@/hooks/supabase/use-tasks";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { Task } from "@/types/task";
 import { TaskEditPopup } from "@/components/home/task-edit-popup";
 import { DeadlinePopup } from "@/components/home/deadline-popup";

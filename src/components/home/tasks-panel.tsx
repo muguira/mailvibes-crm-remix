@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Task } from "@/types/task";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { DeadlinePopup } from "./deadline-popup";
 import { TaskEditPopup } from "./task-edit-popup";
 import { useTasks } from "@/hooks/supabase/use-tasks";

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { CustomButton } from "@/components/ui/custom-button";
 import { toast } from "@/hooks/use-toast";

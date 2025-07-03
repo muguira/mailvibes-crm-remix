@@ -1,11 +1,8 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { Task } from "@/types/task";
 import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { isPast, parseISO, startOfDay } from "date-fns";
-import { Database } from "@/types/supabase";
 import { withRetrySupabase } from "@/utils/supabaseRetry";
 import { logger } from "@/utils/logger";
 
