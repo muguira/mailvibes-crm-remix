@@ -200,10 +200,8 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
     if (draftTask && taskId === draftTask.id) {
       setDraftTask(prev => prev ? { ...prev, deadline } : null);
       
-      // Si tiene título, crear en Supabase
-      if (draftTask.title.trim()) {
-        createTaskInSupabase();
-      }
+      // NO crear automáticamente en Supabase aquí, solo actualizar el estado local
+      // La tarea se creará cuando el usuario haga blur o presione Enter
       return;
     }
 
@@ -246,7 +244,7 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="h-full p-3">
       <div className="mb-2">
         <button
           onClick={handleCreateTask}
@@ -258,8 +256,8 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
         </button>
       </div>
 
-      <Tabs defaultValue="upcoming" className="flex-1 flex flex-col">
-        <TabsList className="w-full flex p-0 bg-transparent h-auto">
+      <Tabs defaultValue="upcoming">
+        <TabsList className="w-full flex p-0 bg-transparent h-auto mb-2">
           <TabsTrigger
             value="upcoming"
             className="flex-1 py-1 px-2 text-xs rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
@@ -280,78 +278,72 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
           </TabsTrigger>
         </TabsList>
 
-        <div className="flex-1 overflow-y-auto">
-          <TabsContent value="upcoming" className="m-0 p-2">
-            {upcomingTasks.length > 0 ? (
-              <div className="space-y-1">
-                {upcomingTasks.map((task) => (
-                  <TaskListItem
-                    key={task.id}
-                    task={task}
-                    isNew={isTaskBeingCreated && task.id === upcomingTasks[0]?.id}
-                    inputRef={isTaskBeingCreated && task.id === upcomingTasks[0]?.id ? newTaskInputRef : undefined}
-                    onStatusChange={handleTaskStatusChange}
-                    onDeadlineChange={handleDeadlineChange}
-                    onTitleChange={handleTaskTitleChange}
-                    onTitleBlur={handleTaskTitleBlur}
-                    onTitleKeyDown={handleTaskTitleKeyDown}
-                    onDoubleClick={handleTaskDoubleClick}
-                  />
-                ))}
-              </div>
+        <TabsContent value="upcoming" className="m-0">
+          <div className="h-[280px] overflow-y-auto pr-2 border border-gray-200 rounded">
+            {upcomingTasks.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-4 px-2">No upcoming tasks</p>
             ) : (
-              <div className="text-center text-xs text-muted-foreground py-4">
-                No upcoming tasks
-              </div>
+              upcomingTasks.map((task) => (
+                <TaskListItem
+                  key={task.id}
+                  task={task}
+                  isNew={isTaskBeingCreated && task.id === draftTask?.id}
+                  inputRef={isTaskBeingCreated && task.id === draftTask?.id ? newTaskInputRef : undefined}
+                  onDoubleClick={handleTaskDoubleClick}
+                  onTitleChange={handleTaskTitleChange}
+                  onTitleBlur={handleTaskTitleBlur}
+                  onTitleKeyDown={handleTaskTitleKeyDown}
+                  onDeadlineChange={handleDeadlineChange}
+                  onStatusChange={handleTaskStatusChange}
+                />
+              ))
             )}
-          </TabsContent>
+          </div>
+        </TabsContent>
 
-          <TabsContent value="overdue" className="m-0 p-2">
-            {overdueTasks.length > 0 ? (
-              <div className="space-y-1">
-                {overdueTasks.map((task) => (
-                  <TaskListItem
-                    key={task.id}
-                    task={task}
-                    onStatusChange={handleTaskStatusChange}
-                    onDeadlineChange={handleDeadlineChange}
-                    onTitleChange={handleTaskTitleChange}
-                    onTitleBlur={handleTaskTitleBlur}
-                    onTitleKeyDown={handleTaskTitleKeyDown}
-                    onDoubleClick={handleTaskDoubleClick}
-                  />
-                ))}
-              </div>
+        <TabsContent value="overdue" className="m-0">
+          <div className="h-[280px] overflow-y-auto pr-2 border border-gray-200 rounded">
+            {overdueTasks.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-4 px-2">No overdue tasks</p>
             ) : (
-              <div className="text-center text-xs text-muted-foreground py-4">
-                No overdue tasks
-              </div>
+              overdueTasks.map((task) => (
+                <TaskListItem
+                  key={task.id}
+                  task={task}
+                  isNew={false}
+                  onDoubleClick={handleTaskDoubleClick}
+                  onTitleChange={handleTaskTitleChange}
+                  onTitleBlur={handleTaskTitleBlur}
+                  onTitleKeyDown={handleTaskTitleKeyDown}
+                  onDeadlineChange={handleDeadlineChange}
+                  onStatusChange={handleTaskStatusChange}
+                />
+              ))
             )}
-          </TabsContent>
+          </div>
+        </TabsContent>
 
-          <TabsContent value="completed" className="m-0 p-2">
-            {completedTasks.length > 0 ? (
-              <div className="space-y-1">
-                {completedTasks.map((task) => (
-                  <TaskListItem
-                    key={task.id}
-                    task={task}
-                    onStatusChange={handleTaskStatusChange}
-                    onDeadlineChange={handleDeadlineChange}
-                    onTitleChange={handleTaskTitleChange}
-                    onTitleBlur={handleTaskTitleBlur}
-                    onTitleKeyDown={handleTaskTitleKeyDown}
-                    onDoubleClick={handleTaskDoubleClick}
-                  />
-                ))}
-              </div>
+        <TabsContent value="completed" className="m-0">
+          <div className="h-[280px] overflow-y-auto pr-2 border border-gray-200 rounded">
+            {completedTasks.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-4 px-2">No completed tasks</p>
             ) : (
-              <div className="text-center text-xs text-muted-foreground py-4">
-                No completed tasks
-              </div>
+              completedTasks.map((task) => (
+                <TaskListItem
+                  key={task.id}
+                  task={task}
+                  isNew={false}
+                  onDoubleClick={handleTaskDoubleClick}
+                  onTitleChange={handleTaskTitleChange}
+                  onTitleBlur={handleTaskTitleBlur}
+                  onTitleKeyDown={handleTaskTitleKeyDown}
+                  onDeadlineChange={handleDeadlineChange}
+                  onStatusChange={handleTaskStatusChange}
+                />
+              ))
             )}
-          </TabsContent>
-        </div>
+          </div>
+        </TabsContent>
       </Tabs>
 
       {editingTask && (
@@ -463,11 +455,6 @@ function TaskListItem({
               )}>
                 {task.title}
               </h4>
-              {deadline && (
-                <p className={cn("text-xs mt-0.5", getDueDateColor())}>
-                  {getDueDateDisplay()}
-                </p>
-              )}
             </div>
           )}
         </div>
