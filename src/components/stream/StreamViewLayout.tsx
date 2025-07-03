@@ -12,7 +12,7 @@ import { logger } from '@/utils/logger';
 
 // Layout constants
 const LEFT_RAIL_WIDTH = 400; // px
-const RIGHT_RAIL_WIDTH = 300; // px
+const RIGHT_RAIL_WIDTH = 380; // px - Aumentado de 300px a 380px para hacer la sección de Tasks más ancha
 
 interface StreamViewLayoutProps {
   contact: {
@@ -199,7 +199,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
         <StreamToolbar />
       </div>
       
-      <div className="flex flex-col lg:grid lg:grid-cols-[400px_1fr_300px] lg:gap-4 mt-4">
+      <div className="flex flex-col lg:grid lg:grid-cols-[400px_1fr_380px] lg:gap-4 mt-4">
         {/* Left rail - w-full on mobile, fixed 400px width on desktop */}
         <div 
           className="w-full lg:w-[400px] shrink-0 self-start"
