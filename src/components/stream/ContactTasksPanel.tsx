@@ -68,8 +68,17 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
   /** State to indicate if a task is currently being created */
   const [isTaskBeingCreated, setIsTaskBeingCreated] = useState(false);
   
+  /** State to track which task is being edited inline */
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  
   /** Reference to the new task input element for focus management */
   const newTaskInputRef = useRef<HTMLInputElement>(null);
+  
+  /** Reference to the inline editing input element for focus management */
+  const editingInputRef = useRef<HTMLInputElement>(null);
+  
+  /** Reference to store the single click timeout */
+  const singleClickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Filters all tasks to show only those associated with the current contact
@@ -183,11 +192,12 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
    * Creates the draft task in Supabase and cleans up local state
    * Only executes if the draft task has a valid title
    */
-  const createTaskInSupabase = async () => {
-    if (!draftTask || !draftTask.title.trim()) return;
+  const createTaskInSupabase = async (taskToCreate?: typeof draftTask) => {
+    const taskData = taskToCreate || draftTask;
+    if (!taskData || !taskData.title.trim()) return;
 
     // Guardar referencia a la tarea antes de limpiar el estado
-    const taskToCreate = { ...draftTask };
+    const finalTaskToCreate = { ...taskData };
     
     try {
       // Limpiar estado local antes de crear en Supabase
@@ -195,8 +205,8 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
       setIsTaskBeingCreated(false);
 
       await createTask({
-        title: taskToCreate.title,
-        deadline: taskToCreate.deadline || null,
+        title: finalTaskToCreate.title,
+        deadline: finalTaskToCreate.deadline || null,
         contact: contactId, // Automáticamente ligada al contacto
         type: 'task',
         display_status: 'upcoming',
@@ -208,7 +218,7 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
     } catch (error) {
       // En caso de error, restaurar el estado para que el usuario pueda intentar de nuevo
       console.error('Error creating task:', error);
-      setDraftTask(taskToCreate);
+      setDraftTask(finalTaskToCreate);
       setIsTaskBeingCreated(true);
     }
   };
@@ -222,6 +232,12 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
     // Si es la tarea en borrador, actualizar estado local
     if (draftTask && taskId === draftTask.id) {
       setDraftTask(prev => prev ? { ...prev, title: newTitle } : null);
+      return;
+    }
+
+    // Si es una tarea existente siendo editada inline, no actualizar en Supabase aún
+    // Solo actualizar cuando se termine la edición
+    if (editingTaskId === taskId) {
       return;
     }
 
@@ -293,11 +309,12 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
   const handleDeadlineChange = (taskId: string, deadline: string | undefined) => {
     // Si es la tarea en borrador, actualizar estado local
     if (draftTask && taskId === draftTask.id) {
-      setDraftTask(prev => prev ? { ...prev, deadline } : null);
+      const updatedDraftTask = { ...draftTask, deadline };
+      setDraftTask(updatedDraftTask);
       
       // Si tiene título, crear en Supabase
-      if (draftTask.title.trim()) {
-        createTaskInSupabase();
+      if (updatedDraftTask.title.trim()) {
+        createTaskInSupabase(updatedDraftTask);
       }
       return;
     }
@@ -327,12 +344,83 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
   };
 
   /**
+   * Handles single-click events on task items to start inline editing
+   * Uses a timeout to distinguish between single and double clicks
+   * @param {Task} task - The task to edit inline
+   */
+  const handleTaskSingleClick = (task: Task) => {
+    // No permitir edición inline si es una tarea en borrador o ya se está editando otra
+    if (draftTask || editingTaskId || isTaskBeingCreated) return;
+    
+    // Clear any existing timeout
+    if (singleClickTimeoutRef.current) {
+      clearTimeout(singleClickTimeoutRef.current);
+    }
+    
+    // Set a timeout to handle single click after double click delay
+    singleClickTimeoutRef.current = setTimeout(() => {
+      setEditingTaskId(task.id);
+      
+      // Focus the input on the next render
+      setTimeout(() => {
+        editingInputRef.current?.focus();
+      }, 0);
+    }, 300); // 300ms delay to allow for double click
+  };
+
+  /**
    * Handles double-click events on task items to open edit popup
    * @param {Task} task - The task to edit
    */
   const handleTaskDoubleClick = (task: Task) => {
+    // Clear the single click timeout to prevent inline editing
+    if (singleClickTimeoutRef.current) {
+      clearTimeout(singleClickTimeoutRef.current);
+      singleClickTimeoutRef.current = null;
+    }
+    
+    // Si está en modo de edición inline, cancelar y abrir popup
+    if (editingTaskId === task.id) {
+      setEditingTaskId(null);
+    }
     setEditingTask(task);
   };
+
+  /**
+   * Handles finishing inline editing of a task title
+   * @param {string} taskId - The ID of the task being edited
+   * @param {string} newTitle - The new title text
+   */
+  const handleInlineEditComplete = (taskId: string, newTitle: string) => {
+    const taskToUpdate = contactTasks.find(task => task.id === taskId);
+    if (!taskToUpdate) return;
+
+    // Solo actualizar si el título cambió
+    if (newTitle.trim() !== taskToUpdate.title) {
+      updateTask({
+        ...taskToUpdate,
+        title: newTitle.trim()
+      });
+    }
+    
+    setEditingTaskId(null);
+  };
+
+  /**
+   * Handles canceling inline editing
+   */
+  const handleInlineEditCancel = () => {
+    setEditingTaskId(null);
+  };
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (singleClickTimeoutRef.current) {
+        clearTimeout(singleClickTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Show loading skeleton while tasks are being fetched
   if (isLoading) {
@@ -390,11 +478,16 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
                   key={task.id}
                   task={task}
                   isNew={isTaskBeingCreated && task.id === draftTask?.id}
+                  isInlineEditing={editingTaskId === task.id}
                   inputRef={isTaskBeingCreated && task.id === draftTask?.id ? newTaskInputRef : undefined}
+                  inlineEditRef={editingTaskId === task.id ? editingInputRef : undefined}
+                  onSingleClick={handleTaskSingleClick}
                   onDoubleClick={handleTaskDoubleClick}
                   onTitleChange={handleTaskTitleChange}
                   onTitleBlur={handleTaskTitleBlur}
                   onTitleKeyDown={handleTaskTitleKeyDown}
+                  onInlineEditComplete={handleInlineEditComplete}
+                  onInlineEditCancel={handleInlineEditCancel}
                   onDeadlineChange={handleDeadlineChange}
                   onStatusChange={handleTaskStatusChange}
                 />
@@ -413,10 +506,15 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
                   key={task.id}
                   task={task}
                   isNew={false}
+                  isInlineEditing={editingTaskId === task.id}
+                  inlineEditRef={editingTaskId === task.id ? editingInputRef : undefined}
+                  onSingleClick={handleTaskSingleClick}
                   onDoubleClick={handleTaskDoubleClick}
                   onTitleChange={handleTaskTitleChange}
                   onTitleBlur={handleTaskTitleBlur}
                   onTitleKeyDown={handleTaskTitleKeyDown}
+                  onInlineEditComplete={handleInlineEditComplete}
+                  onInlineEditCancel={handleInlineEditCancel}
                   onDeadlineChange={handleDeadlineChange}
                   onStatusChange={handleTaskStatusChange}
                 />
@@ -435,10 +533,15 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
                   key={task.id}
                   task={task}
                   isNew={false}
+                  isInlineEditing={editingTaskId === task.id}
+                  inlineEditRef={editingTaskId === task.id ? editingInputRef : undefined}
+                  onSingleClick={handleTaskSingleClick}
                   onDoubleClick={handleTaskDoubleClick}
                   onTitleChange={handleTaskTitleChange}
                   onTitleBlur={handleTaskTitleBlur}
                   onTitleKeyDown={handleTaskTitleKeyDown}
+                  onInlineEditComplete={handleInlineEditComplete}
+                  onInlineEditCancel={handleInlineEditCancel}
                   onDeadlineChange={handleDeadlineChange}
                   onStatusChange={handleTaskStatusChange}
                 />
@@ -474,8 +577,16 @@ interface TaskListItemProps {
   task: Task;
   /** Whether this is a new task being created */
   isNew?: boolean;
+  /** Whether this task is being edited inline */
+  isInlineEditing?: boolean;
   /** Reference to the input element for focus management */
   inputRef?: React.RefObject<HTMLInputElement>;
+  /** Reference to the inline editing input element */
+  inlineEditRef?: React.RefObject<HTMLInputElement>;
+  /** Callback for single-click events to start inline editing */
+  onSingleClick: (task: Task) => void;
+  /** Callback for double-click events to open edit popup */
+  onDoubleClick: (task: Task) => void;
   /** Callback for task status changes */
   onStatusChange: (taskId: string, newStatus: Task["display_status"]) => void;
   /** Callback for deadline changes */
@@ -486,8 +597,10 @@ interface TaskListItemProps {
   onTitleBlur: (taskId: string, e: React.FocusEvent<HTMLInputElement>) => void;
   /** Callback for keyboard events on title input */
   onTitleKeyDown: (e: React.KeyboardEvent, taskId: string) => void;
-  /** Callback for double-click events to open edit popup */
-  onDoubleClick: (task: Task) => void;
+  /** Callback for completing inline editing */
+  onInlineEditComplete: (taskId: string, newTitle: string) => void;
+  /** Callback for canceling inline editing */
+  onInlineEditCancel: () => void;
 }
 
 /**
@@ -512,16 +625,58 @@ interface TaskListItemProps {
 function TaskListItem({ 
   task, 
   isNew, 
+  isInlineEditing,
   inputRef, 
+  inlineEditRef,
+  onSingleClick,
+  onDoubleClick,
   onStatusChange, 
   onDeadlineChange, 
   onTitleChange, 
   onTitleBlur, 
-  onTitleKeyDown, 
-  onDoubleClick 
+  onTitleKeyDown,
+  onInlineEditComplete,
+  onInlineEditCancel
 }: TaskListItemProps) {
+  /** State for inline editing title */
+  const [inlineTitle, setInlineTitle] = useState(task.title);
+  
   /** Parsed deadline date object */
   const deadline = task.deadline ? parseISO(task.deadline) : undefined;
+
+  /**
+   * Update inline title when task title changes
+   */
+  React.useEffect(() => {
+    setInlineTitle(task.title);
+  }, [task.title]);
+
+  /**
+   * Handles inline editing blur events
+   */
+  const handleInlineBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Check if the blur was caused by clicking on the calendar button
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    const isCalendarButton = relatedTarget?.closest('button')?.querySelector('.lucide-calendar');
+    
+    if (!isCalendarButton) {
+      onInlineEditComplete(task.id, inlineTitle);
+    }
+  };
+
+  /**
+   * Handles inline editing keyboard events
+   */
+  const handleInlineKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onInlineEditComplete(task.id, inlineTitle);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setInlineTitle(task.title); // Reset to original title
+      onInlineEditCancel();
+    }
+  };
 
   /**
    * Formats the deadline for display
@@ -590,8 +745,22 @@ function TaskListItem({
               className="w-full bg-transparent border-none focus:outline-none text-foreground text-sm"
               placeholder="Enter task title"
             />
+          ) : isInlineEditing ? (
+            <input
+              ref={inlineEditRef}
+              type="text"
+              value={inlineTitle}
+              onChange={(e) => setInlineTitle(e.target.value)}
+              onBlur={handleInlineBlur}
+              onKeyDown={handleInlineKeyDown}
+              className="w-full bg-transparent border-none focus:outline-none text-foreground text-sm"
+            />
           ) : (
-            <div onDoubleClick={() => onDoubleClick(task)}>
+            <div 
+              onClick={() => onSingleClick(task)}
+              onDoubleClick={() => onDoubleClick(task)}
+              className="cursor-pointer"
+            >
               <h4 className={cn(
                 "text-sm font-medium truncate",
                 task.display_status === "completed" ? "line-through text-muted-foreground" : "text-foreground"
