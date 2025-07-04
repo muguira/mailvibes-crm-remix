@@ -255,12 +255,17 @@ export function TaskEditPopup({
    */
   return (
     <>
+      {/* Mobile Overlay - Behind the popup */}
+      {open && (
+        <div className="sm:hidden fixed inset-0 bg-black/50 z-[9999]" />
+      )}
+      
       <Dialog open={open} onOpenChange={(isOpen) => {
         if (!isOpen) onClose();
       }} modal={false}>
         <DialogContent 
-          className="task-edit-dialog sm:max-w-lg w-full max-w-[95vw]" 
-          style={{ zIndex: 'var(--task-dialog-z-index, 10010)' }}
+          className="task-edit-dialog sm:max-w-lg w-full max-w-[95vw] max-h-[95vh] sm:max-h-[80vh] p-0 shadow-2xl sm:shadow-lg" 
+          style={{ zIndex: 10010 }}
           onPointerDownOutside={(e) => {
             // Prevent the dialog from closing when interacting with popovers inside
             const target = e.target as Element;
@@ -553,7 +558,7 @@ export function TaskEditPopup({
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 pb-[20px] sm:pb-0">
               <Button
                 variant="outline"
                 size="sm"
