@@ -83,8 +83,8 @@ export function GridViewContainer({
   // Select all rows on current page
   const handleSelectAllRows = useCallback((select: boolean) => {
     if (select) {
-      // Select all rows (max 100 for performance)
-      const rowsToSelect = data.slice(0, 100).map(row => row.id);
+      // Select all rows in the current data set
+      const rowsToSelect = data.map(row => row.id);
       setSelectedRowIds(new Set(rowsToSelect));
     } else {
       // Clear selection
