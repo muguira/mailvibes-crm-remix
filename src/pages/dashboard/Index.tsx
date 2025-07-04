@@ -33,7 +33,7 @@ const Index = () => {
           <WelcomeHeader />
           
           {/* Content Section - Positioned very close to My Week bar */}
-          <div className="px-6 -mt-14">
+          <div className="md:px-6 px-2 -mt-14">
             <div className="flex flex-col md:flex-row gap-6 h-full">
               {/* Left Column - Tasks - Fixed width */}
               <div className="w-full md:w-[570px] flex-shrink-0">
