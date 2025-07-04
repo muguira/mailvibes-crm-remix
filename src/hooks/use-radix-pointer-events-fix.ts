@@ -27,7 +27,6 @@ export function useRadixPointerEventsFix() {
         // If no dialogs/popovers are open, remove the pointer-events: none
         if (!hasOpenDialog && !hasOpenPopover && !hasOpenSelect) {
           document.body.style.pointerEvents = "";
-          console.log("🔧 Fixed stuck pointer-events: none on body");
         }
       }
     }, 100);
@@ -46,7 +45,6 @@ export function useRadixPointerEventsFix() {
   const forceCleanup = () => {
     if (document.body.style.pointerEvents === "none") {
       document.body.style.pointerEvents = "";
-      console.log("🔧 Manually fixed pointer-events: none");
     }
   };
 

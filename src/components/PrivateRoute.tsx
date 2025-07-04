@@ -1,15 +1,15 @@
 import { Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 
 interface PrivateRouteProps {
     children: React.ReactNode;
 }
 
 export function PrivateRoute({ children }: PrivateRouteProps) {
-    const { user, loading } = useAuth();
+    const { user, loading, isInitialized } = useAuth();
 
-    // Show nothing while checking authentication state
-    if (loading) {
+    // Solo mostramos el loader durante la inicialización inicial
+    if (!isInitialized && loading) {
         return (
             <div className="h-screen w-full flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -17,10 +17,11 @@ export function PrivateRoute({ children }: PrivateRouteProps) {
         );
     }
 
-    if (!user) {
-        // Redirect to auth page if not authenticated
+    // Si no hay usuario después de la inicialización, redirigimos
+    if (isInitialized && !user) {
         return <Navigate to="/auth" />;
     }
 
+    // Si hay usuario o estamos en proceso de carga post-inicialización, mostramos el contenido
     return <>{children}</>;
 } 

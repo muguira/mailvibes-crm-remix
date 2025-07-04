@@ -1,30 +1,75 @@
+import { useState, useRef } from "react";
 import { Check, Plus, Calendar } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useEffect, useRef } from "react";
 import React from "react";
-import { cn } from "@/lib/utils";
-import { DeadlinePopup } from "./deadline-popup";
 import { format, isToday, isTomorrow, parseISO, isPast, startOfDay } from "date-fns";
 import { es } from 'date-fns/locale';
-import { TaskEditPopup } from "./task-edit-popup";
-import { useTasks } from "@/hooks/supabase/use-tasks";
-import { useAuth } from "@/contexts/AuthContext";
-import { Task } from "@/types/task"; // Import the unified Task type
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Task } from "@/types/task";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/components/auth";
+import { DeadlinePopup } from "./deadline-popup";
+import { TaskEditPopup } from "./task-edit-popup";
+import { useStore } from "@/stores";
 
-// Export the Task interface from the unified type
 export type { Task };
 
+/**
+ * TasksPanel
+ * 
+ * Panel principal para la gestión de tareas del usuario. Permite ver, crear, editar, completar y eliminar tareas.
+ * Utiliza Supabase para persistencia y Zustand para estado local temporal de creación.
+ * 
+ * Características:
+ * - Tabs para ver tareas próximas, vencidas y completadas
+ * - Crear nueva tarea con input alineado
+ * - Edición inline de título y fecha límite
+ * - Sincronización con Supabase
+ * - Optimización de UX para creación y edición
+ *
+ * @component
+ * @returns {JSX.Element} Panel de tareas del usuario
+ */
 export function TasksPanel() {
   const { user } = useAuth();
-  const { tasks: supabaseTasks, isLoading, createTask, updateTask, deleteTask, createTaskMutation } = useTasks();
-  const [isCreatingTask, setIsCreatingTask] = useState(false);
-  const [localTasks, setLocalTasks] = useState<Task[]>([]);
+  const store = useStore();
+  const {
+    tasks: supabaseTasks,
+    loading: { fetching: isLoading, creating: isCreating },
+    createTask,
+    updateTask,
+    deleteTask,
+    isInitialized,
+    initialize,
+    setIsTaskBeingCreated,
+    isTaskBeingCreated
+  } = store;
+
+  // Initialize tasks if not already initialized
+  React.useEffect(() => {
+    if (user && !isInitialized && !isLoading) {
+      initialize();
+    }
+  }, [user, isInitialized, isLoading, initialize]);
+
+  /**
+   * Estado local para la tarea que se está creando
+   */
+  const [draftTask, setDraftTask] = useState<{
+    id: string;
+    title: string;
+    deadline?: string;
+  } | null>(null);
+
+  /**
+   * Ref para el input de nueva tarea
+   * @type {React.RefObject<HTMLInputElement>}
+   */
   const newTaskInputRef = useRef<HTMLInputElement>(null);
 
-  // Use supabase tasks directly, only add local temporary tasks for creation
+  // Formatear las tareas de Supabase
   const tasks = React.useMemo(() => {
-    const formattedTasks = (supabaseTasks || []).map((task) => ({
+    return (supabaseTasks || []).map((task) => ({
       id: task.id,
       title: task.title,
       deadline: task.deadline,
@@ -37,12 +82,7 @@ export function TasksPanel() {
       priority: task.priority as Task['priority'],
       user_id: task.user_id
     })) as Task[];
-
-    // Add any local temporary tasks (for creation)
-    return [...localTasks, ...formattedTasks];
-  }, [supabaseTasks, localTasks]);
-
-  // Note: Overdue task checking is now handled in the useTasks hook
+  }, [supabaseTasks]);
 
   const sortTasksByDate = (tasks: Task[], isEditing: boolean, sortByCreation: boolean = false) => {
     const today = startOfDay(new Date());
@@ -54,7 +94,7 @@ export function TasksPanel() {
         if (b.title === "") return 1;
       }
 
-      // If sorting by creation order (for upcoming tasks), maintain original database order
+      // If sorting by creation order (for upcoming tasks), maintain original order
       if (sortByCreation) {
         return 0; // Maintain original order from database (created_at DESC)
       }
@@ -77,10 +117,49 @@ export function TasksPanel() {
     });
   };
 
-  const upcomingTasks = sortTasksByDate(tasks.filter(task => task.display_status === "upcoming"), isCreatingTask, true);
-  const overdueTasks = sortTasksByDate(tasks.filter(task => task.display_status === "overdue"), false, false);
-  const completedTasks = sortTasksByDate(tasks.filter(task => task.display_status === "completed"), false, false);
+  const upcomingTasks = React.useMemo(() => {
+    // Si hay una tarea en borrador y no está en las tareas de Supabase
+    const draftTaskExists = draftTask && !tasks.some(t => t.id === draftTask.id);
+    
+    const tasksToSort = draftTaskExists ? [
+      {
+        id: draftTask.id,
+        title: draftTask.title,
+        deadline: draftTask.deadline,
+        contact: '',
+        description: '',
+        display_status: 'upcoming' as const,
+        status: 'on-track' as const,
+        type: 'task' as const,
+        tag: '',
+        priority: 'medium' as const,
+        user_id: user?.id || ''
+      },
+      ...tasks.filter(task => task.display_status === "upcoming")
+    ] : tasks.filter(task => task.display_status === "upcoming");
 
+    return sortTasksByDate(tasksToSort, isTaskBeingCreated, true);
+  }, [tasks, draftTask, isTaskBeingCreated, user?.id]);
+
+  const overdueTasks = React.useMemo(() => 
+    sortTasksByDate(tasks.filter(task => task.display_status === "overdue"), false, false),
+    [tasks]
+  );
+
+  const completedTasks = React.useMemo(() =>
+    sortTasksByDate(tasks.filter(task => task.display_status === "completed"), false, false),
+    [tasks]
+  );
+
+  /**
+   * handleTaskStatusChange
+   * 
+   * Maneja el cambio de estado de una tarea. Actualiza la tarea en Supabase.
+   * 
+   * @param {string} taskId - ID de la tarea a actualizar
+   * @param {Task["display_status"]} newStatus - Nuevo estado de la tarea
+   * @returns {void}
+   */
   const handleTaskStatusChange = (taskId: string, newStatus: Task["display_status"]) => {
     const taskToUpdate = tasks.find(task => task.id === taskId);
     if (taskToUpdate && user) {
@@ -94,24 +173,45 @@ export function TasksPanel() {
         contact: taskToUpdate.contact,
         description: taskToUpdate.description,
         tag: taskToUpdate.tag,
-        priority: taskToUpdate.priority,
-        user_id: user?.id // Add user ID here
+        priority: taskToUpdate.priority
       });
     }
   };
 
+  /**
+   * handleDeadlineChange
+   * 
+   * Maneja el cambio de fecha límite de una tarea. Actualiza la tarea en Supabase.
+   * 
+   * @param {string} taskId - ID de la tarea a actualizar 
+   * @param {string | undefined} deadline - Nueva fecha límite
+   * @returns {void}
+   */
   const handleDeadlineChange = (taskId: string, deadline: string | undefined) => {
+    // Si es la tarea en borrador, actualizar estado local
+    if (draftTask && taskId === draftTask.id) {
+      const updatedDraftTask = { ...draftTask, deadline };
+      setDraftTask(updatedDraftTask);
+      
+      // Si tiene título, crear en Supabase
+      if (updatedDraftTask.title.trim()) {
+        createTaskInSupabase(updatedDraftTask);
+      }
+      return;
+    }
+
+    // Si es una tarea existente, actualizar en Supabase
     const taskToUpdate = tasks.find(task => task.id === taskId);
     if (!taskToUpdate || !user) return;
 
-        // When setting a new deadline, check if it's already overdue
+    // When setting a new deadline, check if it's already overdue
     let newStatus = taskToUpdate.display_status;
-        if (deadline) {
-          const deadlineDate = parseISO(deadline);
-          if (isPast(startOfDay(deadlineDate))) {
+    if (deadline) {
+      const deadlineDate = parseISO(deadline);
+      if (isPast(startOfDay(deadlineDate))) {
         newStatus = "overdue";
-          }
-          // If task was overdue but new deadline is in the future, move back to upcoming
+      }
+      // If task was overdue but new deadline is in the future, move back to upcoming
       else if (taskToUpdate.display_status === "overdue") {
         newStatus = "upcoming";
       }
@@ -127,140 +227,150 @@ export function TasksPanel() {
       contact: taskToUpdate.contact,
       description: taskToUpdate.description,
       tag: taskToUpdate.tag,
-      priority: taskToUpdate.priority,
-      user_id: user?.id // Add user ID here
+      priority: taskToUpdate.priority
     });
   };
 
+  /**
+   * handleCreateNewTask
+   * 
+   * Maneja la creación de una nueva tarea. Crea una tarea temporal en estado local.
+   * 
+   * @returns {void}
+   */
   const handleCreateNewTask = () => {
     if (!user) return; // Don't allow creating tasks if not logged in
 
-    const newTask: Task = {
-      id: crypto.randomUUID(),
-      title: "",
-      contact: "",
-      display_status: "upcoming",
-      status: "on-track",
-      type: "task",
-      user_id: user.id
-    };
-    setLocalTasks(prev => [newTask, ...prev]);
-    setIsCreatingTask(true);
+    const newTaskId = crypto.randomUUID();
+    setDraftTask({
+      id: newTaskId,
+      title: ""
+    });
+    setIsTaskBeingCreated(true);
+    
     // Focus the input on the next render
     setTimeout(() => {
       newTaskInputRef.current?.focus();
     }, 0);
   };
 
-  const handleCreateTask = (task: {
-    title: string;
-    deadline?: string;
-    type: "follow-up" | "respond" | "task";
-    tag?: string;
-  }) => {
-    if (!user) return; // Don't allow creating tasks if not logged in
+  /**
+   * handleTaskTitleChange
+   * 
+   * Maneja el cambio de título de una tarea.
+   * 
+   * @param {string} taskId - ID de la tarea a actualizar
+   * @param {string} newTitle - Nuevo título de la tarea
+   * @returns {void}
+   */
+  const handleTaskTitleChange = (taskId: string, newTitle: string) => {
+    // Si es la tarea en borrador, actualizar estado local
+    if (draftTask && taskId === draftTask.id) {
+      setDraftTask(prev => prev ? { ...prev, title: newTitle } : null);
+      return;
+    }
 
-    createTask({
-      title: task.title,
-      deadline: task.deadline || '',
-      type: task.type,
-      tag: task.tag || '',
-      display_status: "upcoming",
-      status: "on-track",
-      user_id: user.id // Add user ID here
+    // Si es una tarea existente, actualizar en Supabase
+    const taskToUpdate = tasks.find(task => task.id === taskId);
+    if (!taskToUpdate) return;
+
+    updateTask({
+      ...taskToUpdate,
+      title: newTitle
     });
   };
 
-  const handleTaskTitleChange = (taskId: string, newTitle: string) => {
-    setLocalTasks(prev =>
-      prev.map(task =>
-        task.id === taskId
-          ? { ...task, title: newTitle }
-          : task
-      )
-    );
-  };
+  /**
+   * Crea la tarea en Supabase y limpia el estado local
+   */
+  const createTaskInSupabase = async (taskToCreate?: typeof draftTask) => {
+    const taskData = taskToCreate || draftTask;
+    if (!taskData || !taskData.title.trim()) return;
 
-  const handleTaskTitleBlur = (taskId: string) => {
-    const task = localTasks.find(t => t.id === taskId);
+    try {
+      // Limpiar estado local antes de crear en Supabase
+      const finalTaskToCreate = { ...taskData };
+      setDraftTask(null);
+      setIsTaskBeingCreated(false);
 
-    if (task && task.title.trim() !== "" && user) {
-      // Create new task in Supabase
-      createTask({
-        title: task.title,
-        type: task.type,
-        display_status: "upcoming",
-        status: "on-track",
+      await createTask({
+        title: finalTaskToCreate.title,
+        deadline: finalTaskToCreate.deadline || '',
+        type: 'task',
+        display_status: 'upcoming',
+        status: 'on-track',
         contact: '',
-        deadline: '',
         description: '',
         tag: '',
-        priority: 'medium',
-        user_id: user.id
+        priority: 'medium'
       });
+    } catch (error) {
+      // El error ya se maneja en el store
     }
-
-    setLocalTasks(prev => prev.filter(task =>
-      task.id !== taskId || (task.id === taskId && task.title.trim() !== "")
-    ));
-
-    setIsCreatingTask(false);
   };
 
+  /**
+   * handleTaskTitleBlur
+   * 
+   * Maneja el blur del input de título de una tarea.
+   * 
+   * @param {string} taskId - ID de la tarea a actualizar 
+   * @param {React.FocusEvent<HTMLInputElement>} e - Evento de blur
+   * @returns {void}
+   */
+  const handleTaskTitleBlur = (taskId: string, e: React.FocusEvent<HTMLInputElement>) => {
+    // Solo procesar si es la tarea en borrador
+    if (!draftTask || taskId !== draftTask.id) return;
+
+    // Si el título está vacío, eliminar el borrador
+    if (!draftTask.title.trim()) {
+      setDraftTask(null);
+      setIsTaskBeingCreated(false);
+      return;
+    }
+
+    // Verificar si el click fue en el botón del calendario
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    const isCalendarButton = relatedTarget?.closest('button')?.querySelector('.lucide-calendar');
+    
+    // Si no se hizo click en el botón del calendario, crear la tarea
+    if (!isCalendarButton) {
+      createTaskInSupabase();
+    }
+  };
+
+  /**
+   * handleTaskTitleKeyDown
+   * 
+   * Maneja el evento de tecla presionada en el input de título de una tarea.
+   * 
+   * @param {React.KeyboardEvent} e - Evento de teclado 
+   * @param {string} taskId - ID de la tarea a actualizar 
+   * @returns {void}
+   */
   const handleTaskTitleKeyDown = (e: React.KeyboardEvent, taskId: string) => {
-    if (e.key === "Enter") {
+    // Solo procesar si es la tarea en borrador
+    if (!draftTask || taskId !== draftTask.id) return;
+    
+    if (e.key === "Enter" && draftTask.title.trim()) {
       e.preventDefault();
-      (e.target as HTMLInputElement).blur();
+      createTaskInSupabase();
     }
     if (e.key === "Escape") {
       e.preventDefault();
-      setLocalTasks(prev => prev.filter(task => task.id !== taskId));
-      setIsCreatingTask(false);
+      setDraftTask(null);
+      setIsTaskBeingCreated(false);
     }
   };
-
-  const handleTaskUpdate = (updatedTask: Task) => {
-    if (!user) return;
-
-    updateTask({
-      id: updatedTask.id,
-      title: updatedTask.title,
-      deadline: updatedTask.deadline || '',
-      contact: updatedTask.contact || '',
-      description: updatedTask.description || '',
-      display_status: updatedTask.display_status,
-      status: updatedTask.status,
-      type: updatedTask.type,
-      tag: updatedTask.tag,
-      priority: updatedTask.priority,
-      user_id: user?.id // Add user ID here
-    });
-  };
-
-  const handleTaskDelete = (taskId: string) => {
-    deleteTask(taskId);
-  };
-
-  // Remove local temp task when real task is created
-  React.useEffect(() => {
-    if (!createTaskMutation.isSuccess || !createTaskMutation.data) return;
-    setLocalTasks(prev => prev.filter(task => {
-      if (task.title === createTaskMutation.data.title && (!task.id || task.id.length > 20)) {
-        return false;
-      }
-      return true;
-    }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createTaskMutation.isSuccess, createTaskMutation.data]);
 
   return (
     <div className="bg-background text-foreground rounded-lg overflow-hidden flex flex-col shadow-lg h-[500px]">
       <div className="p-3 pb-2 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
           {/* Add your profile image here */}
           <div className="w-full h-full bg-muted-foreground/20" />
         </div>
-        <h2 className="text-xl font-semibold">My tasks</h2>
+        <h2 className="text-lg sm:text-xl font-semibold">My tasks</h2>
       </div>
 
       <Tabs defaultValue="upcoming" className="flex-1">
@@ -268,32 +378,44 @@ export function TasksPanel() {
           <TabsList className="w-full flex p-0 bg-transparent">
             <TabsTrigger
               value="upcoming"
-              className="flex-1 py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
+              className="flex-1 py-2 px-1 sm:px-2 sm:py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors text-xs sm:text-sm min-w-0"
             >
-              Upcoming {upcomingTasks.length > 0 && `(${upcomingTasks.length})`}
+              <span className="hidden md:inline">Upcoming</span>
+              <span className="md:hidden truncate">Up</span>
+              {upcomingTasks.length > 0 && (
+                <span className="ml-0.5 sm:ml-1">({upcomingTasks.length})</span>
+              )}
             </TabsTrigger>
             <TabsTrigger
               value="overdue"
-              className="flex-1 py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
+              className="flex-1 py-2 px-1 sm:px-2 sm:py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors text-xs sm:text-sm min-w-0"
             >
-              Overdue {overdueTasks.length > 0 && `(${overdueTasks.length})`}
+              <span className="hidden md:inline">Overdue</span>
+              <span className="md:hidden truncate">Over</span>
+              {overdueTasks.length > 0 && (
+                <span className="ml-0.5 sm:ml-1">({overdueTasks.length})</span>
+              )}
             </TabsTrigger>
             <TabsTrigger
               value="completed"
-              className="flex-1 py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
+              className="flex-1 py-2 px-1 sm:px-2 sm:py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors text-xs sm:text-sm min-w-0"
             >
-              Completed {completedTasks.length > 0 && `(${completedTasks.length})`}
+              <span className="hidden md:inline">Completed</span>
+              <span className="md:hidden truncate">Done</span>
+              {completedTasks.length > 0 && (
+                <span className="ml-0.5 sm:ml-1">({completedTasks.length})</span>
+              )}
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <div className="p-2 pt-3">
+        <div className="p-2 pt-3 px-3 sm:px-2">
           {user ? (
             <>
           <button
-                className="w-full text-left text-muted-foreground flex items-center gap-2 py-1 hover:text-foreground transition-colors"
+                className="w-full text-left text-muted-foreground flex items-center gap-2 py-2 sm:py-1 hover:text-foreground transition-colors"
             onClick={handleCreateNewTask}
-            disabled={isCreatingTask}
+            disabled={isTaskBeingCreated}
           >
                 <Plus size={16} />
             Create task
@@ -334,15 +456,15 @@ export function TasksPanel() {
               <TaskItem
                 key={task.id}
                 task={task}
-                isNew={isCreatingTask && task.id === upcomingTasks[0]?.id}
-                inputRef={isCreatingTask && task.id === upcomingTasks[0]?.id ? newTaskInputRef : undefined}
+                isNew={isTaskBeingCreated && task.id === upcomingTasks[0]?.id}
+                inputRef={isTaskBeingCreated && task.id === upcomingTasks[0]?.id ? newTaskInputRef : undefined}
                 onStatusChange={handleTaskStatusChange}
                 onDeadlineChange={handleDeadlineChange}
                 onTitleChange={handleTaskTitleChange}
                 onTitleBlur={handleTaskTitleBlur}
                 onTitleKeyDown={handleTaskTitleKeyDown}
-                onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
+                onTaskUpdate={updateTask}
+                onDelete={deleteTask}
                 allTasks={tasks}
               />
                   ))
@@ -364,8 +486,8 @@ export function TasksPanel() {
                 onTitleChange={handleTaskTitleChange}
                 onTitleBlur={handleTaskTitleBlur}
                 onTitleKeyDown={handleTaskTitleKeyDown}
-                onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
+                onTaskUpdate={updateTask}
+                onDelete={deleteTask}
                 allTasks={tasks}
               />
                   ))
@@ -387,8 +509,8 @@ export function TasksPanel() {
                 onTitleChange={handleTaskTitleChange}
                 onTitleBlur={handleTaskTitleBlur}
                 onTitleKeyDown={handleTaskTitleKeyDown}
-                onTaskUpdate={handleTaskUpdate}
-                onDelete={handleTaskDelete}
+                onTaskUpdate={updateTask}
+                onDelete={deleteTask}
                 allTasks={tasks}
               />
                   ))
@@ -406,6 +528,25 @@ export function TasksPanel() {
   );
 }
 
+/**
+ * TaskItem
+ *
+ * Componente para renderizar una fila de tarea, con edición inline y acciones.
+ *
+ * @param {object} props
+ * @param {Task} props.task - Tarea a mostrar
+ * @param {boolean} [props.isNew] - Si es una tarea nueva (input editable)
+ * @param {React.RefObject<HTMLInputElement>} [props.inputRef] - Ref para el input de nueva tarea
+ * @param {function} props.onStatusChange - Handler para cambiar estado (completada/pending)
+ * @param {function} props.onDeadlineChange - Handler para cambiar deadline
+ * @param {function} props.onTitleChange - Handler para cambiar título
+ * @param {function} props.onTitleBlur - Handler para blur del input
+ * @param {function} props.onTitleKeyDown - Handler para teclas en input
+ * @param {function} props.onTaskUpdate - Handler para actualizar tarea
+ * @param {function} props.onDelete - Handler para eliminar tarea
+ * @param {Task[]} props.allTasks - Todas las tareas (para popups)
+ * @returns {JSX.Element}
+ */
 interface TaskItemProps {
   task: Task;
   isNew?: boolean;
@@ -413,7 +554,7 @@ interface TaskItemProps {
   onStatusChange: (taskId: string, newStatus: Task["display_status"]) => void;
   onDeadlineChange: (taskId: string, deadline: string | undefined) => void;
   onTitleChange: (taskId: string, newTitle: string) => void;
-  onTitleBlur: (taskId: string) => void;
+  onTitleBlur: (taskId: string, e: React.FocusEvent<HTMLInputElement>) => void;
   onTitleKeyDown: (e: React.KeyboardEvent, taskId: string) => void;
   onTaskUpdate: (updatedTask: Task) => void;
   onDelete: (taskId: string) => void;
@@ -469,8 +610,9 @@ function TaskItem({
   };
 
   return (
-    <div className="px-3 py-1.5 group">
-      <div className="flex items-center gap-3">
+    <div className="px-3 py-2 sm:py-1.5 group">
+      {/* Desktop Layout */}
+      <div className="hidden sm:flex items-center gap-3">
         <button
           onClick={() => onStatusChange(task.id, task.display_status === "completed" ? "upcoming" : "completed")}
           className="flex-shrink-0 hover:opacity-80 transition-opacity"
@@ -497,16 +639,16 @@ function TaskItem({
               type="text"
               value={task.title}
               onChange={(e) => onTitleChange(task.id, e.target.value)}
-              onBlur={() => onTitleBlur(task.id)}
+              onBlur={(e) => onTitleBlur(task.id, e)}
               onKeyDown={(e) => onTitleKeyDown(e, task.id)}
-              className="w-full bg-transparent border-none focus:outline-none text-foreground"
+              className="w-full bg-transparent border-none focus:outline-none text-foreground text-sm"
               placeholder="Enter task title"
             />
           ) : (
             <h3
               onDoubleClick={() => setIsEditPopupOpen(true)}
               className={cn(
-                "font-medium cursor-pointer select-none truncate",
+                "font-medium cursor-pointer select-none truncate text-sm",
                 task.display_status === "completed" ? "line-through text-muted-foreground" : "text-foreground"
               )}
             >
@@ -514,9 +656,9 @@ function TaskItem({
             </h3>
           )}
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
           {task.type && (
-            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs capitalize">
+            <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded text-xs capitalize">
               {task.type === "follow-up" ? "Follow Up" : task.type.replace(/-/g, ' ')}
             </span>
           )}
@@ -539,6 +681,82 @@ function TaskItem({
           </DeadlinePopup>
         </div>
       </div>
+
+      {/* Mobile Layout */}
+      <div className="sm:hidden">
+        {/* Top Row: Check button + Title */}
+        <div className="flex items-center gap-3 mb-1">
+          <button
+            onClick={() => onStatusChange(task.id, task.display_status === "completed" ? "upcoming" : "completed")}
+            className="flex-shrink-0 hover:opacity-80 transition-opacity p-1 -m-1"
+            aria-label={task.display_status === "completed" ? "Mark as incomplete" : "Mark as complete"}
+          >
+            <div className={cn(
+              "h-5 w-5 rounded-full flex items-center justify-center transition-colors",
+              task.display_status === "completed"
+                ? "bg-emerald-500 border-emerald-500"
+                : "border-2 border-muted-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10"
+            )}>
+              <Check className={cn(
+                "h-3 w-3",
+                task.display_status === "completed"
+                  ? "text-white"
+                  : "text-muted-foreground hover:text-emerald-500/50"
+              )} />
+            </div>
+          </button>
+          <div className="flex-1 min-w-0">
+            {isNew ? (
+              <input
+                ref={inputRef}
+                type="text"
+                value={task.title}
+                onChange={(e) => onTitleChange(task.id, e.target.value)}
+                onBlur={(e) => onTitleBlur(task.id, e)}
+                onKeyDown={(e) => onTitleKeyDown(e, task.id)}
+                className="w-full bg-transparent border-none focus:outline-none text-foreground text-sm"
+                placeholder="Enter task title"
+              />
+            ) : (
+              <h3
+                onDoubleClick={() => setIsEditPopupOpen(true)}
+                className={cn(
+                  "font-medium cursor-pointer select-none truncate text-sm",
+                  task.display_status === "completed" ? "line-through text-muted-foreground" : "text-foreground"
+                )}
+              >
+                {task.title}
+              </h3>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom Row: Date + Tag (indented to align with title) */}
+        <div className="ml-8 flex items-center gap-2">
+          <DeadlinePopup
+            date={deadline}
+            onSelect={(date) => onDeadlineChange(task.id, date?.toISOString())}
+          >
+            <button
+              className={cn(
+                "flex items-center gap-1 hover:opacity-80 transition-opacity text-xs p-1 -m-1",
+                getDueDateColor()
+              )}
+            >
+              <Calendar className="h-3 w-3" />
+              {deadline && (
+                <span className="text-xs">{getDueDateDisplay()}</span>
+              )}
+            </button>
+          </DeadlinePopup>
+          {task.type && (
+            <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded text-xs capitalize">
+              {task.type === "follow-up" ? "Follow Up" : task.type.replace(/-/g, ' ')}
+            </span>
+          )}
+        </div>
+      </div>
+
       <div className="mt-2 mx-5 border-b border-border/50 group-last:border-0"></div>
       <TaskEditPopup
         task={task}

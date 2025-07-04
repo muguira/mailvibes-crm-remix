@@ -8,7 +8,7 @@ import StreamViewLayout from '@/components/stream/StreamViewLayout';
 import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/components/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { logger } from '@/utils/logger';
 

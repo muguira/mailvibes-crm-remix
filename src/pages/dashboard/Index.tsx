@@ -3,7 +3,7 @@ import { TopNavbar } from "@/components/layout/top-navbar";
 import { TasksPanel } from "@/components/home/tasks-panel";
 import { FeedPanel } from "@/components/home/feed-panel";
 import { WelcomeHeader } from "@/components/home/welcome-header";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { Navigate } from 'react-router-dom';
 
 const Index = () => {
@@ -33,7 +33,7 @@ const Index = () => {
           <WelcomeHeader />
           
           {/* Content Section - Positioned very close to My Week bar */}
-          <div className="px-6 -mt-14">
+          <div className="md:px-6 px-2 -mt-14">
             <div className="flex flex-col md:flex-row gap-6 h-full">
               {/* Left Column - Tasks - Fixed width */}
               <div className="w-full md:w-[570px] flex-shrink-0">

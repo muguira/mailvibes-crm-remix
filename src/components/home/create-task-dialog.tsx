@@ -14,7 +14,7 @@ import { Plus } from "lucide-react";
 import { DeadlinePopup } from "./deadline-popup";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 import { Combobox } from "@/components/ui/combobox";
 import { useContactSearch } from "@/hooks/use-contact-search";
 

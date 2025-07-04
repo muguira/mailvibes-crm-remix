@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Avatar } from "@/components/shared/avatar";
 import { CustomButton } from "@/components/ui/custom-button";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/components/auth";
 
 interface CommentFormProps {
   onAddComment: (content: string) => void;

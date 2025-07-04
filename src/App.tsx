@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "sonner";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider } from "@/components/auth";
 import { ActivityProvider } from "@/contexts/ActivityContext";
 import { PrivateRoute } from "@/components/PrivateRoute";
 import { AuthenticatedRedirect } from "@/components/AuthenticatedRedirect";
@@ -58,7 +58,7 @@ function App() {
                 </Routes>
                 <Toaster />
                 <SonnerToaster 
-                  position="top-right"
+                  position="top-center"
                   toastOptions={{
                     style: {
                       background: '#fff',
@@ -66,6 +66,7 @@ function App() {
                       border: '1px solid #e5e7eb',
                     },
                   }}
+                  className="sm:!top-4 !top-16"
                 />
               </div>
             </Router>

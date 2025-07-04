@@ -15,7 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { mockContactsById } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
 import { PAGE_SIZE, LEADS_STORAGE_KEY } from '@/constants/grid';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/components/auth';
 import { logger } from '@/utils/logger';
 import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
 import { useInstantContacts } from '@/hooks/use-instant-contacts';

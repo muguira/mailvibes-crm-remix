@@ -7,16 +7,13 @@ import {
   ICategorizedTasks,
   TTaskStore,
 } from "./task";
+import { TAuthStore } from "./auth";
 
 // =============================================
 // STORE PRINCIPAL DE LA APLICACIÓN
 // =============================================
 
-export type TStore = TTaskStore;
-
-// =============================================
-// TIPOS LEGACY (MANTENER PARA COMPATIBILIDAD)
-// =============================================
+export type TStore = TTaskStore & TAuthStore;
 
 export interface ITask {
   id: string;

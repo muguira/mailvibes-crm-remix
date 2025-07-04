@@ -100,4 +100,46 @@ body:has(.task-edit-dialog) {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Force contact popover to always appear below trigger */
+.task-edit-dialog [data-radix-popover-content][data-side="bottom"] {
+  position: fixed !important;
+  top: auto !important;
+  bottom: auto !important;
+  transform-origin: top !important;
+  max-height: 280px !important;
+  overflow: hidden !important;
+}
+
+/* Ensure contact popover doesn't flip to top */
+.task-edit-dialog [data-radix-popover-content] {
+  max-height: 280px !important;
+  overflow: hidden !important;
+}
+
+/* Fix contact search container height */
+.task-edit-dialog [data-radix-popover-content] .max-h-\[200px\] {
+  max-height: 200px !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent !important;
+}
+
+/* Webkit scrollbar styling for contact list */
+.task-edit-dialog [data-radix-popover-content] .max-h-\[200px\]::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.task-edit-dialog [data-radix-popover-content] .max-h-\[200px\]::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.task-edit-dialog [data-radix-popover-content] .max-h-\[200px\]::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-radius: 3px !important;
+}
+
+.task-edit-dialog [data-radix-popover-content] .max-h-\[200px\]::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3) !important;
 } 

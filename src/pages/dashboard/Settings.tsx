@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@/components/auth';
 import { Card } from '../../components/ui/card';
 import { TopNavbar } from '../../components/layout/top-navbar';
 import { useNavigate } from 'react-router-dom';
