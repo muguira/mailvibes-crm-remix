@@ -446,19 +446,19 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
         </button>
       </div>
 
-      <Tabs defaultValue="upcoming">
+      <Tabs defaultValue="overdue">
         <TabsList className="w-full flex p-0 bg-transparent h-auto mb-2">
-          <TabsTrigger
-            value="upcoming"
-            className="flex-1 py-1 px-2 text-xs rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
-          >
-            Upcoming {upcomingTasks.length > 0 && `(${upcomingTasks.length})`}
-          </TabsTrigger>
           <TabsTrigger
             value="overdue"
             className="flex-1 py-1 px-2 text-xs rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
           >
             Overdue {overdueTasks.length > 0 && `(${overdueTasks.length})`}
+          </TabsTrigger>
+          <TabsTrigger
+            value="upcoming"
+            className="flex-1 py-1 px-2 text-xs rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
+          >
+            Upcoming {upcomingTasks.length > 0 && `(${upcomingTasks.length})`}
           </TabsTrigger>
           <TabsTrigger
             value="completed"
@@ -467,6 +467,33 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
             Done {completedTasks.length > 0 && `(${completedTasks.length})`}
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overdue" className="m-0">
+          <div className="h-[280px] overflow-y-auto pr-2 rounded">
+            {overdueTasks.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-4 px-2">No overdue tasks</p>
+            ) : (
+              overdueTasks.map((task) => (
+                <TaskListItem
+                  key={task.id}
+                  task={task}
+                  isNew={false}
+                  isInlineEditing={editingTaskId === task.id}
+                  inlineEditRef={editingTaskId === task.id ? editingInputRef : undefined}
+                  onSingleClick={handleTaskSingleClick}
+                  onDoubleClick={handleTaskDoubleClick}
+                  onTitleChange={handleTaskTitleChange}
+                  onTitleBlur={handleTaskTitleBlur}
+                  onTitleKeyDown={handleTaskTitleKeyDown}
+                  onInlineEditComplete={handleInlineEditComplete}
+                  onInlineEditCancel={handleInlineEditCancel}
+                  onDeadlineChange={handleDeadlineChange}
+                  onStatusChange={handleTaskStatusChange}
+                />
+              ))
+            )}
+          </div>
+        </TabsContent>
 
         <TabsContent value="upcoming" className="m-0">
           <div className="h-[280px] overflow-y-auto pr-2 rounded">
@@ -496,35 +523,8 @@ export function ContactTasksPanel({ contactId, contactName }: ContactTasksPanelP
           </div>
         </TabsContent>
 
-        <TabsContent value="overdue" className="m-0">
-          <div className="h-[280px] overflow-y-auto pr-2 border border-gray-200 rounded">
-            {overdueTasks.length === 0 ? (
-              <p className="text-muted-foreground text-sm py-4 px-2">No overdue tasks</p>
-            ) : (
-              overdueTasks.map((task) => (
-                <TaskListItem
-                  key={task.id}
-                  task={task}
-                  isNew={false}
-                  isInlineEditing={editingTaskId === task.id}
-                  inlineEditRef={editingTaskId === task.id ? editingInputRef : undefined}
-                  onSingleClick={handleTaskSingleClick}
-                  onDoubleClick={handleTaskDoubleClick}
-                  onTitleChange={handleTaskTitleChange}
-                  onTitleBlur={handleTaskTitleBlur}
-                  onTitleKeyDown={handleTaskTitleKeyDown}
-                  onInlineEditComplete={handleInlineEditComplete}
-                  onInlineEditCancel={handleInlineEditCancel}
-                  onDeadlineChange={handleDeadlineChange}
-                  onStatusChange={handleTaskStatusChange}
-                />
-              ))
-            )}
-          </div>
-        </TabsContent>
-
         <TabsContent value="completed" className="m-0">
-          <div className="h-[280px] overflow-y-auto pr-2 border border-gray-200 rounded">
+          <div className="h-[280px] overflow-y-auto pr-2 rounded">
             {completedTasks.length === 0 ? (
               <p className="text-muted-foreground text-sm py-4 px-2">No completed tasks</p>
             ) : (
