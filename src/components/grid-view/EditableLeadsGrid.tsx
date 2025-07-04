@@ -368,8 +368,8 @@ const createDynamicColumns = (fields: Set<string>): Column[] => {
     id: field,
     title: field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1').trim(),
     type: 'text' as const,
-    width: DEFAULT_COLUMN_WIDTH,
-    editable: true,
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true,
   }));
 };
 
@@ -433,6 +433,7 @@ export function EditableLeadsGrid() {
   const { 
     updateCell,
     addContact,
+    deleteContacts,
     refreshData
   } = useLeadsRows();
 
@@ -459,6 +460,21 @@ export function EditableLeadsGrid() {
     setPageSize(size);
     // Reset to first page when changing page size
     setCurrentPage(1);
+  };
+
+  // Handle contact deletion
+  const [isContactDeletionLoading, setIsContactDeletionLoading] = useState(false);
+  
+  const handleDeleteContacts = async (contactIds: string[]): Promise<void> => {
+    setIsContactDeletionLoading(true);
+    try {
+      await deleteContacts(contactIds);
+      return Promise.resolve();
+    } catch (error) {
+      return Promise.reject(error);
+    } finally {
+      setIsContactDeletionLoading(false);
+    }
   };
   
   // Function to persist columns to both localStorage and Supabase
@@ -722,7 +738,7 @@ export function EditableLeadsGrid() {
       });
     }
   };
-  
+
   // Handle columns reordering
   const handleColumnsReorder = (columnIds: string[]) => {
     const newColumns = columns.map(col => ({
@@ -820,14 +836,14 @@ export function EditableLeadsGrid() {
       const columnId = `column-${uuidv4().substring(0, 8)}`;
       
       // Create the new column - defaulting to text type
-      const newColumn: Column = {
+    const newColumn: Column = {
         id: columnId,
         title: `New Column`,
-        type: 'text',
-        width: DEFAULT_COLUMN_WIDTH,
-        editable: true,
-      };
-      
+      type: 'text',
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true,
+    };
+    
       // Find the index where we need to insert
       const afterIndex = columns.findIndex(col => col.id === afterColumnId);
       
@@ -904,7 +920,7 @@ export function EditableLeadsGrid() {
       // Insert the column at the calculated position
       const newColumns = [
         ...columns.slice(0, insertAt),
-        newColumn,
+      newColumn,
         ...columns.slice(insertAt)
       ];
       
@@ -1150,6 +1166,8 @@ export function EditableLeadsGrid() {
           onSearchChange={setSearchTerm}
           activeFilters={activeFilters}
           onApplyFilters={setActiveFilters}
+          onDeleteContacts={handleDeleteContacts}
+          isContactDeletionLoading={isContactDeletionLoading}
         />
       </div>
     );
@@ -1159,17 +1177,17 @@ export function EditableLeadsGrid() {
     <div className="h-full w-full flex flex-col">
       <div className="flex-1 overflow-hidden relative">
         <GridViewContainer 
-          columns={columns} 
+        columns={columns} 
           data={rows}  // Use all rows instead of paginated data
-          listName="All Leads"
-          listType="Lead"
-          listId="leads-grid"
+        listName="All Leads"
+        listType="Lead"
+        listId="leads-grid"
           firstRowIndex={(currentPage - 1) * pageSize}  // Calculate the correct start index for row numbering
-          onCellChange={handleCellChange}
-          onColumnsReorder={handleColumnsReorder}
+        onCellChange={handleCellChange}
+        onColumnsReorder={handleColumnsReorder}
           onAddColumn={handleAddColumn}
           onInsertColumn={handleInsertColumn}
-          onDeleteColumn={handleDeleteColumn}
+        onDeleteColumn={handleDeleteColumn}
           onHideColumn={handleHideColumn}
           onUnhideColumn={handleUnhideColumn}
           hiddenColumns={hiddenColumns}
@@ -1180,6 +1198,8 @@ export function EditableLeadsGrid() {
           className="h-full"
           columnOperationLoading={columnOperationLoading}
           cellUpdateLoading={cellUpdateLoading}
+          onDeleteContacts={handleDeleteContacts}
+          isContactDeletionLoading={isContactDeletionLoading}
         />
       </div>
       <GridPagination

@@ -28,6 +28,7 @@ import { format } from 'date-fns';
 import { GridCell } from './GridCell';
 import { NewColumnModal } from './NewColumnModal';
 import { logger } from '@/utils/logger';
+import { cn } from '@/lib/utils';
 
 interface MainGridViewProps {
   columns: Column[];
@@ -53,6 +54,7 @@ interface MainGridViewProps {
   setEditingCell: (cell: EditingCell | null) => void;
   allColumns?: Column[];
   cellUpdateLoading?: Set<string>;
+  selectedRowIds?: Set<string>;
 }
 
 export const MainGridView = forwardRef(function MainGridView({
@@ -76,7 +78,8 @@ export const MainGridView = forwardRef(function MainGridView({
   editingCell,
   setEditingCell,
   allColumns,
-  cellUpdateLoading
+  cellUpdateLoading,
+  selectedRowIds
 }: MainGridViewProps, ref) {
   const gridRef = useRef<any>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -1090,34 +1093,72 @@ export const MainGridView = forwardRef(function MainGridView({
 
   // Cell renderer
   const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
+    if (rowIndex >= data.length || columnIndex >= columns.length) return null;
+    
     const row = data[rowIndex];
-    if (!row) return null;
     const column = columns[columnIndex];
-    if (!column) return null;
-    const cellId = `${row.id}-${column.id}`;
+    const cellValue = row[column.id];
     const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
     const isSelected = selectedCell?.rowId === row.id && selectedCell?.columnId === column.id;
-    const value = row[column.id];
+    const isRowSelected = selectedRowIds && selectedRowIds.has(row.id);
+    const isColumnHighlighted = contextMenuColumn === column.id;
+    const isLoading = cellUpdateLoading?.has(`${row.id}-${column.id}`);
+    
+    // Check for optimistic update
+    const optimisticValue = optimisticUpdates[`${row.id}-${column.id}`];
+    const displayValue = optimisticValue !== undefined ? optimisticValue : cellValue;
+    
+    // Build class names
+    const cellClassName = cn(
+      'grid-cell',
+      isSelected && 'selected-cell',
+      isRowSelected && 'selected-row',
+      isColumnHighlighted && 'highlight-column'
+    );
+    
+    // For status cells with colors
+    const statusColors = column.type === 'status' && column.colors ? column.colors : {};
+    
     return (
-      <GridCell
-        row={row}
-        column={column}
-        value={value}
-        isEditing={isEditing}
-        isSelected={isSelected}
-        cellId={cellId}
-        contextMenuColumn={contextMenuColumn}
-        onCellClick={handleCellClick}
-        onCellDoubleClick={undefined}
-        onContextMenu={onContextMenu}
-        onCellChange={onCellChange}
-        onStartEdit={undefined}
-        onFinishEdit={undefined}
-        editingCell={editingCell}
-        setEditingCell={setEditingCell}
-        optimisticValue={optimisticUpdates[cellId]}
-        style={style}
-      />
+      <div
+        className={cellClassName}
+        style={{
+          ...style,
+          backgroundColor: isRowSelected ? '#f0f9ff' : undefined,
+        }}
+        onClick={(e) => handleCellClick(row.id, column.id, e)}
+        onContextMenu={(e) => handleCellContextMenu(e, column.id)}
+        data-editable={column.editable}
+        data-type={column.type}
+        tabIndex={-1}
+      >
+        {isEditing ? (
+          <EditCell
+            rowId={row.id}
+            columnId={column.id}
+            value={displayValue}
+            column={column}
+            onFinishEdit={finishCellEdit}
+            onBlur={(e) => handleInputBlur(e, row.id, column.id, (e.target as HTMLInputElement | HTMLSelectElement).value)}
+            onKeyDown={(e) => handleEditingKeyDown(e, row.id, column.id, (e.target as HTMLInputElement | HTMLSelectElement).value)}
+            onTabNavigation={(e) => handleTabNavigation(e, row.id, column.id, (e.target as HTMLInputElement | HTMLSelectElement).value)}
+            directTyping={editingCell?.directTyping}
+            clearDateSelection={editingCell?.clearDateSelection}
+          />
+        ) : isLoading ? (
+          <div className="flex items-center justify-center w-full h-full">
+            <div className="h-4 w-4 border-2 border-t-transparent border-blue-500 rounded-full animate-spin"></div>
+          </div>
+        ) : column.type === 'status' && statusColors ? (
+          renderStatusPill(displayValue, statusColors)
+        ) : column.renderCell ? (
+          column.renderCell(displayValue, row)
+        ) : (
+          <div className="cell-content">
+            {formatCellValue(displayValue, column, row) || ''}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -1407,4 +1448,127 @@ export const MainGridView = forwardRef(function MainGridView({
       />
     </div>
   );
-}); 
+});
+
+// Add EditCell component
+const EditCell = ({
+  rowId,
+  columnId,
+  value,
+  column,
+  onFinishEdit,
+  onBlur,
+  onKeyDown,
+  onTabNavigation,
+  directTyping,
+  clearDateSelection
+}: {
+  rowId: string;
+  columnId: string;
+  value: any;
+  column: Column;
+  onFinishEdit: (rowId: string, columnId: string, value: any, targetRowId?: string, targetColumnId?: string) => void;
+  onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  onTabNavigation: (e: React.KeyboardEvent) => void;
+  directTyping?: boolean;
+  clearDateSelection?: boolean;
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const selectRef = useRef<HTMLSelectElement>(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    value ? new Date(value) : undefined
+  );
+
+  // Focus input on mount
+  useEffect(() => {
+    if (directTyping) return; // Skip auto-focus if direct typing mode
+
+    if (inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    } else if (selectRef.current) {
+      selectRef.current.focus();
+    }
+  }, [directTyping]);
+
+  // Handle date selection
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date);
+      onFinishEdit(rowId, columnId, date.toISOString());
+      setDatePickerOpen(false);
+    }
+  };
+
+  // Handle select change
+  const handleSelectChange = (value: string) => {
+    onFinishEdit(rowId, columnId, value);
+  };
+
+  // Render based on column type
+  switch (column.type) {
+    case 'status':
+      return (
+        <Select
+          defaultValue={value || ''}
+          onValueChange={handleSelectChange}
+        >
+          <SelectTrigger 
+            className="h-full w-full border-none shadow-none focus:ring-0"
+            ref={selectRef as any}
+          >
+            <SelectValue placeholder="Select status" />
+          </SelectTrigger>
+          <SelectContent>
+            {column.options?.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    
+    case 'date':
+      return (
+        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+          <PopoverTrigger asChild>
+            <button
+              className="w-full h-full text-left px-2 focus:outline-none"
+              onClick={() => setDatePickerOpen(true)}
+            >
+              {selectedDate ? format(selectedDate, 'PP') : 'Select date'}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleDateSelect}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+      );
+    
+    default:
+      return (
+        <input
+          ref={inputRef}
+          type={column.type === 'number' || column.type === 'currency' ? 'number' : 'text'}
+          defaultValue={value || ''}
+          className="w-full h-full px-2 bg-transparent border-none focus:outline-none focus:ring-0"
+          onBlur={onBlur}
+          onKeyDown={(e) => {
+            if (e.key === 'Tab') {
+              onTabNavigation(e);
+            } else {
+              onKeyDown(e);
+            }
+          }}
+        />
+      );
+  }
+}; 

@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { GridCell } from './GridCell';
 import { Pin, PinOff } from 'lucide-react';
 import { logger } from '@/utils/logger';
-
+import { Checkbox } from '@/components/ui/checkbox';
 interface StaticColumnsProps {
   data: GridRow[];
   frozenColumns: Column[];
@@ -17,6 +17,9 @@ interface StaticColumnsProps {
   frozenColumnIds: string[];
   editingCell: { rowId: string; columnId: string; directTyping?: boolean; clearDateSelection?: boolean } | null;
   setEditingCell: (cell: { rowId: string; columnId: string; directTyping?: boolean; clearDateSelection?: boolean } | null) => void;
+  selectedRowIds?: Set<string>;
+  onToggleRowSelection?: (rowId: string) => void;
+  onSelectAllRows?: (select: boolean) => void;
 }
 
 export function StaticColumns({
@@ -29,8 +32,15 @@ export function StaticColumns({
   onTogglePin,
   frozenColumnIds,
   editingCell,
-  setEditingCell
+  setEditingCell,
+  selectedRowIds = new Set(),
+  onToggleRowSelection,
+  onSelectAllRows
 }: StaticColumnsProps) {
+  // State for hover states
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  const [isHeaderHovered, setIsHeaderHovered] = useState(false);
+
   // Handle context menu event
   const handleContextMenu = (e: React.MouseEvent, rowId: string, columnId: string) => {
     e.preventDefault();
@@ -44,6 +54,9 @@ export function StaticColumns({
     logger.log('Double clicked contact/opportunity cell:', rowId);
     // Here you could implement an inline edit functionality
   };
+
+  // Check if all visible rows are selected
+  const areAllRowsSelected = data.length > 0 && data.every(row => selectedRowIds.has(row.id));
 
   // Exit early if no opportunity/contact column
   if (frozenColumns.length === 0) return null;
@@ -81,9 +94,22 @@ export function StaticColumns({
             color: '#6b7280',
             boxSizing: 'border-box',
             justifyContent: 'center',
+            cursor: 'pointer',
           }}
+          onMouseEnter={() => setIsHeaderHovered(true)}
+          onMouseLeave={() => setIsHeaderHovered(false)}
+          onClick={() => onSelectAllRows?.(data.length > 0 && !areAllRowsSelected)}
         >
-          #
+          {isHeaderHovered ? (
+            <Checkbox 
+              checked={areAllRowsSelected}
+              onCheckedChange={(checked) => onSelectAllRows?.(checked === true)}
+              className="h-4 w-4"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            '#'
+          )}
         </div>
         {/* El resto de columnas fijas */}
         {frozenColumns.map((col, idx) => (
@@ -151,7 +177,8 @@ export function StaticColumns({
               height: ROW_HEIGHT,
               width: '100%',
               display: 'flex',
-              zIndex: 44
+              zIndex: 44,
+              backgroundColor: selectedRowIds.has(row.id) ? '#f0f9ff' : '#fff',
             }}
           >
             {/* Index cell */}
@@ -170,11 +197,24 @@ export function StaticColumns({
                 justifyContent: 'center',
                 fontSize: '0.75rem',
                 color: '#6b7280',
-                backgroundColor: '#fff',
+                backgroundColor: selectedRowIds.has(row.id) ? '#f0f9ff' : '#fff',
                 boxSizing: 'border-box',
+                cursor: 'pointer',
               }}
+              onMouseEnter={() => setHoveredRowId(row.id)}
+              onMouseLeave={() => setHoveredRowId(null)}
+              onClick={() => onToggleRowSelection?.(row.id)}
             >
-              {firstRowIndex + index + 1}
+              {hoveredRowId === row.id || selectedRowIds.has(row.id) ? (
+                <Checkbox 
+                  checked={selectedRowIds.has(row.id)}
+                  onCheckedChange={() => onToggleRowSelection?.(row.id)}
+                  className="h-4 w-4"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                firstRowIndex + index + 1
+              )}
             </div>
             {/* Celdas de columnas fijas */}
             {frozenColumns.map((col, idx) => (
@@ -203,7 +243,7 @@ export function StaticColumns({
                   borderBottom: '1px solid #e5e7eb',
                   display: 'flex',
                   alignItems: 'center',
-                  backgroundColor: '#fff',
+                  backgroundColor: selectedRowIds.has(row.id) ? '#f0f9ff' : '#fff',
                   boxSizing: 'border-box',
                   overflow: 'hidden',
                   whiteSpace: 'nowrap',
