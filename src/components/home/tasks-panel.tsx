@@ -366,11 +366,11 @@ export function TasksPanel() {
   return (
     <div className="bg-background text-foreground rounded-lg overflow-hidden flex flex-col shadow-lg h-[500px]">
       <div className="p-3 pb-2 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
           {/* Add your profile image here */}
           <div className="w-full h-full bg-muted-foreground/20" />
         </div>
-        <h2 className="text-xl font-semibold">My tasks</h2>
+        <h2 className="text-lg sm:text-xl font-semibold">My tasks</h2>
       </div>
 
       <Tabs defaultValue="upcoming" className="flex-1">
@@ -378,30 +378,42 @@ export function TasksPanel() {
           <TabsList className="w-full flex p-0 bg-transparent">
             <TabsTrigger
               value="upcoming"
-              className="flex-1 py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
+              className="flex-1 py-2 px-1 sm:px-2 sm:py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors text-xs sm:text-sm min-w-0"
             >
-              Upcoming {upcomingTasks.length > 0 && `(${upcomingTasks.length})`}
+              <span className="hidden md:inline">Upcoming</span>
+              <span className="md:hidden truncate">Up</span>
+              {upcomingTasks.length > 0 && (
+                <span className="ml-0.5 sm:ml-1">({upcomingTasks.length})</span>
+              )}
             </TabsTrigger>
             <TabsTrigger
               value="overdue"
-              className="flex-1 py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
+              className="flex-1 py-2 px-1 sm:px-2 sm:py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors text-xs sm:text-sm min-w-0"
             >
-              Overdue {overdueTasks.length > 0 && `(${overdueTasks.length})`}
+              <span className="hidden md:inline">Overdue</span>
+              <span className="md:hidden truncate">Over</span>
+              {overdueTasks.length > 0 && (
+                <span className="ml-0.5 sm:ml-1">({overdueTasks.length})</span>
+              )}
             </TabsTrigger>
             <TabsTrigger
               value="completed"
-              className="flex-1 py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors"
+              className="flex-1 py-2 px-1 sm:px-2 sm:py-1.5 rounded-none bg-transparent text-muted-foreground data-[state=active]:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-foreground transition-colors text-xs sm:text-sm min-w-0"
             >
-              Completed {completedTasks.length > 0 && `(${completedTasks.length})`}
+              <span className="hidden md:inline">Completed</span>
+              <span className="md:hidden truncate">Done</span>
+              {completedTasks.length > 0 && (
+                <span className="ml-0.5 sm:ml-1">({completedTasks.length})</span>
+              )}
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <div className="p-2 pt-3">
+        <div className="p-2 pt-3 px-3 sm:px-2">
           {user ? (
             <>
           <button
-                className="w-full text-left text-muted-foreground flex items-center gap-2 py-1 hover:text-foreground transition-colors"
+                className="w-full text-left text-muted-foreground flex items-center gap-2 py-2 sm:py-1 hover:text-foreground transition-colors"
             onClick={handleCreateNewTask}
             disabled={isTaskBeingCreated}
           >
@@ -598,8 +610,9 @@ function TaskItem({
   };
 
   return (
-    <div className="px-3 py-1.5 group">
-      <div className="flex items-center gap-3">
+    <div className="px-3 py-2 sm:py-1.5 group">
+      {/* Desktop Layout */}
+      <div className="hidden sm:flex items-center gap-3">
         <button
           onClick={() => onStatusChange(task.id, task.display_status === "completed" ? "upcoming" : "completed")}
           className="flex-shrink-0 hover:opacity-80 transition-opacity"
@@ -628,14 +641,14 @@ function TaskItem({
               onChange={(e) => onTitleChange(task.id, e.target.value)}
               onBlur={(e) => onTitleBlur(task.id, e)}
               onKeyDown={(e) => onTitleKeyDown(e, task.id)}
-              className="w-full bg-transparent border-none focus:outline-none text-foreground"
+              className="w-full bg-transparent border-none focus:outline-none text-foreground text-sm"
               placeholder="Enter task title"
             />
           ) : (
             <h3
               onDoubleClick={() => setIsEditPopupOpen(true)}
               className={cn(
-                "font-medium cursor-pointer select-none truncate",
+                "font-medium cursor-pointer select-none truncate text-sm",
                 task.display_status === "completed" ? "line-through text-muted-foreground" : "text-foreground"
               )}
             >
@@ -643,9 +656,9 @@ function TaskItem({
             </h3>
           )}
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
           {task.type && (
-            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs capitalize">
+            <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded text-xs capitalize">
               {task.type === "follow-up" ? "Follow Up" : task.type.replace(/-/g, ' ')}
             </span>
           )}
@@ -668,6 +681,82 @@ function TaskItem({
           </DeadlinePopup>
         </div>
       </div>
+
+      {/* Mobile Layout */}
+      <div className="sm:hidden">
+        {/* Top Row: Check button + Title */}
+        <div className="flex items-center gap-3 mb-1">
+          <button
+            onClick={() => onStatusChange(task.id, task.display_status === "completed" ? "upcoming" : "completed")}
+            className="flex-shrink-0 hover:opacity-80 transition-opacity p-1 -m-1"
+            aria-label={task.display_status === "completed" ? "Mark as incomplete" : "Mark as complete"}
+          >
+            <div className={cn(
+              "h-5 w-5 rounded-full flex items-center justify-center transition-colors",
+              task.display_status === "completed"
+                ? "bg-emerald-500 border-emerald-500"
+                : "border-2 border-muted-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10"
+            )}>
+              <Check className={cn(
+                "h-3 w-3",
+                task.display_status === "completed"
+                  ? "text-white"
+                  : "text-muted-foreground hover:text-emerald-500/50"
+              )} />
+            </div>
+          </button>
+          <div className="flex-1 min-w-0">
+            {isNew ? (
+              <input
+                ref={inputRef}
+                type="text"
+                value={task.title}
+                onChange={(e) => onTitleChange(task.id, e.target.value)}
+                onBlur={(e) => onTitleBlur(task.id, e)}
+                onKeyDown={(e) => onTitleKeyDown(e, task.id)}
+                className="w-full bg-transparent border-none focus:outline-none text-foreground text-sm"
+                placeholder="Enter task title"
+              />
+            ) : (
+              <h3
+                onDoubleClick={() => setIsEditPopupOpen(true)}
+                className={cn(
+                  "font-medium cursor-pointer select-none truncate text-sm",
+                  task.display_status === "completed" ? "line-through text-muted-foreground" : "text-foreground"
+                )}
+              >
+                {task.title}
+              </h3>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom Row: Date + Tag (indented to align with title) */}
+        <div className="ml-8 flex items-center gap-2">
+          <DeadlinePopup
+            date={deadline}
+            onSelect={(date) => onDeadlineChange(task.id, date?.toISOString())}
+          >
+            <button
+              className={cn(
+                "flex items-center gap-1 hover:opacity-80 transition-opacity text-xs p-1 -m-1",
+                getDueDateColor()
+              )}
+            >
+              <Calendar className="h-3 w-3" />
+              {deadline && (
+                <span className="text-xs">{getDueDateDisplay()}</span>
+              )}
+            </button>
+          </DeadlinePopup>
+          {task.type && (
+            <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded text-xs capitalize">
+              {task.type === "follow-up" ? "Follow Up" : task.type.replace(/-/g, ' ')}
+            </span>
+          )}
+        </div>
+      </div>
+
       <div className="mt-2 mx-5 border-b border-border/50 group-last:border-0"></div>
       <TaskEditPopup
         task={task}
