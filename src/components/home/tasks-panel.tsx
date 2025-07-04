@@ -190,11 +190,12 @@ export function TasksPanel() {
   const handleDeadlineChange = (taskId: string, deadline: string | undefined) => {
     // Si es la tarea en borrador, actualizar estado local
     if (draftTask && taskId === draftTask.id) {
-      setDraftTask(prev => prev ? { ...prev, deadline } : null);
+      const updatedDraftTask = { ...draftTask, deadline };
+      setDraftTask(updatedDraftTask);
       
       // Si tiene título, crear en Supabase
-      if (draftTask.title.trim()) {
-        createTaskInSupabase();
+      if (updatedDraftTask.title.trim()) {
+        createTaskInSupabase(updatedDraftTask);
       }
       return;
     }
@@ -282,19 +283,19 @@ export function TasksPanel() {
   /**
    * Crea la tarea en Supabase y limpia el estado local
    */
-  const createTaskInSupabase = async () => {
-    if (!draftTask || !draftTask.title.trim()) return;
+  const createTaskInSupabase = async (taskToCreate?: typeof draftTask) => {
+    const taskData = taskToCreate || draftTask;
+    if (!taskData || !taskData.title.trim()) return;
 
     try {
       // Limpiar estado local antes de crear en Supabase
-      const taskToCreate = { ...draftTask };
+      const finalTaskToCreate = { ...taskData };
       setDraftTask(null);
       setIsTaskBeingCreated(false);
 
       await createTask({
-        id: taskToCreate.id,
-        title: taskToCreate.title,
-        deadline: taskToCreate.deadline || '',
+        title: finalTaskToCreate.title,
+        deadline: finalTaskToCreate.deadline || '',
         type: 'task',
         display_status: 'upcoming',
         status: 'on-track',
