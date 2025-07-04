@@ -1,6 +1,6 @@
 import React, { useEffect, ReactNode } from "react";
 import { useAuthStore } from "@/hooks/useAuthStore";
-import { useStore } from "@/stores";
+// import { useStore } from "@/stores";
 import { logger } from "@/utils/logger";
 
 interface AuthProviderProps {
@@ -25,7 +25,7 @@ interface AuthProviderProps {
  */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const { isInitialized, initialize, loading, errors } = useAuthStore();
-  const store = useStore();
+  // const store = useStore();
 
   // Initialize auth state
   useEffect(() => {
@@ -54,15 +54,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [isInitialized, initialize, loading.initializing]);
 
   // Initialize tasks when user is authenticated
-  useEffect(() => {
-    const user = store.authUser;
-    const tasksInitialized = store.isInitialized;
+  // useEffect(() => {
+  //   const user = store.authUser;
+  //   const tasksInitialized = store.isInitialized;
 
-    if (user && !tasksInitialized && !store.loading.fetching) {
-      logger.log('AuthProvider: Initializing tasks for user:', user.id);
-      store.initialize();
-    }
-  }, [store.authUser, store.isInitialized, store.loading.fetching]);
+  //   if (user && !tasksInitialized && !store.loading.fetching) {
+  //     logger.log('AuthProvider: Initializing tasks for user:', user.id);
+  //     store.initialize();
+  //   }
+  // }, [store.authUser, store.isInitialized, store.loading.fetching]);
 
   // Solo mostramos el loading si estamos en el proceso inicial de carga
   if (loading.initializing && !isInitialized) {

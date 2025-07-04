@@ -19,6 +19,7 @@ import ContactProfile from "@/pages/dashboard/ContactProfile";
 import StreamView from "@/pages/dashboard/StreamView"; // Import the new StreamView page
 import Landing from "@/pages/Landing";
 import Import from "@/pages/Import";
+import DeletedContacts from "@/pages/dashboard/DeletedContacts";
 import { useRadixPointerEventsFix } from "@/hooks/use-radix-pointer-events-fix";
 // Create a client
 const queryClient = new QueryClient({
@@ -54,6 +55,7 @@ function App() {
                   <Route path="/stream" element={<PrivateRoute><StreamView /></PrivateRoute>} />
                   <Route path="/stream-view/:id" element={<PrivateRoute><StreamView /></PrivateRoute>} />
                   <Route path="/import" element={<PrivateRoute><Import /></PrivateRoute>} />
+                  <Route path="/deleted-contacts" element={<PrivateRoute><DeletedContacts /></PrivateRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 <Toaster />

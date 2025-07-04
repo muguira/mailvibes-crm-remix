@@ -54,6 +54,57 @@ export type Database = {
         }
         Relationships: []
       }
+      deleted_contacts: {
+        Row: {
+          company: string | null
+          created_at: string
+          data: Json | null
+          deleted_at: string
+          email: string | null
+          expiry_date: string
+          id: string
+          last_activity: string | null
+          list_id: string | null
+          name: string
+          phone: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          created_at: string
+          data?: Json | null
+          deleted_at?: string
+          email?: string | null
+          expiry_date: string
+          id: string
+          last_activity?: string | null
+          list_id?: string | null
+          name: string
+          phone?: string | null
+          status?: string | null
+          updated_at: string
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          data?: Json | null
+          deleted_at?: string
+          email?: string | null
+          expiry_date?: string
+          id?: string
+          last_activity?: string | null
+          list_id?: string | null
+          name?: string
+          phone?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       leads_rows: {
         Row: {
           created_at: string

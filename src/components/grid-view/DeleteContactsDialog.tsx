@@ -51,7 +51,13 @@ export function DeleteContactsDialog({
             Delete {contactCount} contact{contactCount !== 1 ? 's' : ''}?
           </DialogTitle>
           <DialogDescription className="pt-2 space-y-2">
-            <div>This action cannot be undone. This will permanently delete the selected contact{contactCount !== 1 ? 's' : ''} and all associated data.</div>
+            <div>
+              You're about to delete {contactCount} contact{contactCount !== 1 ? 's' : ''}. 
+              Deleted contacts can't be restored after 90 days.
+            </div>
+            <div>
+              Records created after this submission will not be deleted.
+            </div>
             <div className="font-medium">Type <span className="text-red-600 font-mono">DELETE</span> to confirm:</div>
           </DialogDescription>
         </DialogHeader>

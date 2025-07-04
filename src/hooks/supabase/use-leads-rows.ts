@@ -628,7 +628,7 @@ export function useLeadsRows() {
     }
   };
 
-  // Add function to delete multiple contacts
+  // Add function to delete multiple contacts (soft delete)
   const deleteContacts = async (contactIds: string[]): Promise<void> => {
     if (!contactIds.length) return;
     
@@ -637,16 +637,23 @@ export function useLeadsRows() {
       const dbIds = contactIds.map(transformRowId);
       
       if (user) {
-        // Delete from Supabase
-        const { error } = await withRetrySupabase(() => 
-          supabase
-            .from('contacts')
-            .delete()
-            .eq('user_id', user.id)
-            .in('id', dbIds)
+        // Use the soft delete function instead of hard delete
+        const { data, error } = await withRetrySupabase(() => 
+          supabase.rpc('soft_delete_contacts', {
+            contact_ids: dbIds,
+            user_id_param: user.id
+          })
         );
         
         if (error) throw error;
+        
+        // Check if any contacts were moved
+        const movedCount = data?.[0]?.moved_count || 0;
+        if (movedCount === 0) {
+          throw new Error('No contacts were deleted');
+        }
+        
+        logger.log(`Soft deleted ${movedCount} contacts`);
       }
       
       // Update local state by removing deleted contacts
@@ -654,8 +661,14 @@ export function useLeadsRows() {
       setRows(newRows);
       saveRowsToLocal(newRows);
       
+      // Remove from mockContactsById
+      contactIds.forEach(id => {
+        delete mockContactsById[id];
+      });
+      
       // Invalidate queries to refresh data
       queryClient.invalidateQueries(['leadsRows', user?.id]);
+      queryClient.invalidateQueries(['contacts', user?.id]);
       
       // Dispatch event to notify other components
       document.dispatchEvent(new CustomEvent('contacts-deleted', { 
