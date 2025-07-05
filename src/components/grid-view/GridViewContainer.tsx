@@ -8,6 +8,7 @@ import { toast } from '@/hooks/use-toast';
 import './styles.css';
 import { logger } from '@/utils/logger';
 import { LoadingOverlay } from '@/components/ui/loading-spinner';
+import { DeleteContactsDialog } from './DeleteContactsDialog';
 
 export function GridViewContainer({
   columns,
@@ -28,6 +29,8 @@ export function GridViewContainer({
   onInsertColumn,
   onHideColumn,
   onUnhideColumn,
+  onDeleteContacts,
+  isContactDeletionLoading,
   hiddenColumns = [],
   className,
   columnOperationLoading,
@@ -57,6 +60,61 @@ export function GridViewContainer({
 
   // Estado para edición de celdas (global)
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+
+  // Row selection state
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+
+  // Delete dialog state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  // Toggle row selection
+  const handleToggleRowSelection = useCallback((rowId: string) => {
+    setSelectedRowIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(rowId)) {
+        newSet.delete(rowId);
+      } else {
+        newSet.add(rowId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // Select all rows on current page
+  const handleSelectAllRows = useCallback((select: boolean) => {
+    if (select) {
+      // Select all rows (max 100 for performance)
+      const rowsToSelect = data.slice(0, 100).map(row => row.id);
+      setSelectedRowIds(new Set(rowsToSelect));
+    } else {
+      // Clear selection
+      setSelectedRowIds(new Set());
+    }
+  }, [data]);
+
+  // Handle contact deletion
+  const handleConfirmDelete = useCallback(() => {
+    if (onDeleteContacts && selectedRowIds.size > 0) {
+      onDeleteContacts(Array.from(selectedRowIds))
+        .then(() => {
+          toast({
+            title: `${selectedRowIds.size} contact${selectedRowIds.size !== 1 ? 's' : ''} deleted`,
+            description: "The contacts have been successfully deleted.",
+          });
+          setSelectedRowIds(new Set());
+        })
+        .catch((error) => {
+          toast({
+            title: "Failed to delete contacts",
+            description: error.message || "An error occurred while deleting contacts.",
+            variant: "destructive",
+          });
+        })
+        .finally(() => {
+          setShowDeleteDialog(false);
+        });
+    }
+  }, [onDeleteContacts, selectedRowIds]);
 
   // Estado para columnas fijas (frozen)
   const [frozenColumnIds, setFrozenColumnIds] = useState<string[]>(() => {
@@ -213,6 +271,24 @@ export function GridViewContainer({
         onUnhideColumn={onUnhideColumn}
         frozenColumnIds={frozenColumnIds}
         onTogglePin={toggleFrozenColumn}
+        selectedRowIds={selectedRowIds}
+        data={data}
+        onDeleteSelectedContacts={() => {
+          if (selectedRowIds.size > 0 && onDeleteContacts) {
+            // Open delete confirmation dialog
+            setShowDeleteDialog(true);
+          }
+        }}
+        isContactDeletionLoading={isContactDeletionLoading}
+      />
+
+      {/* Delete Contacts Dialog */}
+      <DeleteContactsDialog
+        isOpen={showDeleteDialog}
+        contactCount={selectedRowIds.size}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={handleConfirmDelete}
+        isLoading={isContactDeletionLoading}
       />
 
       <div className="grid-components-container relative">
@@ -240,28 +316,14 @@ export function GridViewContainer({
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
               </svg>
             </div>
-            <h2 className="text-2xl font-semibold mb-2">No contacts yet</h2>
-            <p className="text-gray-500 text-center max-w-md mb-6">Let's add a contact as our first step to more customers.</p>
-            <button
-              className="bg-[#32BAB0] hover:bg-[#28a79d] text-white rounded-md px-6 py-2 flex items-center gap-2"
-              onClick={() => {
-                // Find the main Add Contact button in the header and click it
-                const addContactButton = document.querySelector('.grid-toolbar button.bg-\\[\\#32BAB0\\]') as HTMLButtonElement;
-                if (addContactButton) {
-                  addContactButton.click();
-                }
-              }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              Add Contact
-            </button>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No contacts yet</h3>
+            <p className="text-sm text-gray-500 text-center max-w-sm">
+              Add your first contact to get started. You can add contacts manually or import them from a CSV file.
+            </p>
           </div>
         ) : (
           <>
-            {/* Left static columns (index + contact/opportunity) */}
+            {/* Static columns (index + frozen columns) */}
             <StaticColumns
               data={data}
               frozenColumns={frozenColumns}
@@ -273,6 +335,9 @@ export function GridViewContainer({
               frozenColumnIds={frozenColumnIds}
               editingCell={editingCell}
               setEditingCell={setEditingCell}
+              selectedRowIds={selectedRowIds}
+              onToggleRowSelection={handleToggleRowSelection}
+              onSelectAllRows={handleSelectAllRows}
             />
 
             {/* Main data grid - adjust width to account for static columns */}
@@ -301,6 +366,7 @@ export function GridViewContainer({
               allColumns={columns}
               onHideColumn={onHideColumn}
               cellUpdateLoading={cellUpdateLoading}
+              selectedRowIds={selectedRowIds}
             />
           </>
         )}

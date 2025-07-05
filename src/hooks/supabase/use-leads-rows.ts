@@ -628,18 +628,58 @@ export function useLeadsRows() {
     }
   };
 
+  // Add function to delete multiple contacts
+  const deleteContacts = async (contactIds: string[]): Promise<void> => {
+    if (!contactIds.length) return;
+    
+    try {
+      // Convert IDs to database format if needed
+      const dbIds = contactIds.map(transformRowId);
+      
+      if (user) {
+        // Delete from Supabase
+        const { error } = await withRetrySupabase(() => 
+          supabase
+            .from('contacts')
+            .delete()
+            .eq('user_id', user.id)
+            .in('id', dbIds)
+        );
+        
+        if (error) throw error;
+      }
+      
+      // Update local state by removing deleted contacts
+      const newRows = rows.filter(row => !contactIds.includes(row.id));
+      setRows(newRows);
+      saveRowsToLocal(newRows);
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries(['leadsRows', user?.id]);
+      
+      // Dispatch event to notify other components
+      document.dispatchEvent(new CustomEvent('contacts-deleted', { 
+        detail: { count: contactIds.length } 
+      }));
+      
+    } catch (error) {
+      logger.error('Error deleting contacts:', error);
+      throw new Error('Failed to delete contacts');
+    }
+  };
+
   return {
-    rows,
+    rows: getFilteredRows(),
     loading,
     saveRow,
     filter,
     setFilter,
-    getFilteredRows,
     PAGE_SIZE,
-    updateCell, // Export the updateCell function
-    addContact, // Export the addContact function
-    refreshData, // Export the refresh function
-    fetchLeadsRows, // Export the fetch function for pagination
-    totalCount, // Export the total count
+    updateCell,
+    addContact,
+    deleteContacts,
+    refreshData,
+    fetchLeadsRows,
+    totalCount,
   };
 }

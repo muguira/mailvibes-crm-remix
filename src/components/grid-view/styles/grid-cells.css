@@ -31,6 +31,16 @@
   z-index: 15;
 }
 
+/* Selected row */
+.grid-cell.selected-row {
+  background-color: #f0f9ff;
+}
+
+/* Selected row hover */
+.grid-cell.selected-row:hover {
+  background-color: #e1f5fe;
+}
+
 /* Highlight column on context menu */
 .grid-cell.highlight-column {
   background-color: #f0f9ff;

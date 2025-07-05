@@ -1,0 +1,6 @@
+  frozenColumnIds = [],
+  onTogglePin,
+  selectedRowIds = new Set(),
+  onDeleteSelectedContacts,
+  isContactDeletionLoading = false,
+  data

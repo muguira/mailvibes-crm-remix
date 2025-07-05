@@ -127,9 +127,9 @@ export function GridToolbar({
   return (
     <div className="grid-toolbar">
       <div className="flex items-center justify-between w-full">
-        <div className="flex items-center">
+        <div className="flex items-center flex-grow">
           {/* Search input */}
-          <div className="relative">
+          <div className="relative flex-grow">
             <SearchInput 
               value={searchTerm}
               onChange={onSearchChange}
@@ -138,9 +138,9 @@ export function GridToolbar({
             />
           </div>
           
-          {/* Show delete button when rows are selected - immediately to the right of search */}
+          {/* Show delete button when rows are selected - moved to right of search */}
           {selectedRowIds.size > 0 && (
-            <div className="flex items-center ml-6">
+            <div className="flex items-center ml-4">
               <Button 
                 variant="outline" 
                 size="sm"
