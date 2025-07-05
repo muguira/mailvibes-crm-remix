@@ -8,12 +8,13 @@ import {
   TTaskStore,
 } from "./task";
 import { TAuthStore } from "./auth";
+import { TGmailAuthStore } from "./gmail";
 
 // =============================================
 // STORE PRINCIPAL DE LA APLICACIÓN
 // =============================================
 
-export type TStore = TTaskStore & TAuthStore;
+export type TStore = TTaskStore & TAuthStore & TGmailAuthStore;
 
 export interface ITask {
   id: string;

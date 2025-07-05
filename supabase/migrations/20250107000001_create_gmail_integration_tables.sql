@@ -41,7 +41,9 @@ CREATE TABLE IF NOT EXISTS public.emails (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   email_account_id UUID REFERENCES public.email_accounts(id) ON DELETE CASCADE NOT NULL,
-  contact_id UUID REFERENCES public.contacts(id) ON DELETE SET NULL,
+  -- Commented out until contacts table exists
+  -- contact_id UUID REFERENCES public.contacts(id) ON DELETE SET NULL,
+  contact_id UUID, -- Will add foreign key later when contacts table exists
   
   -- Gmail specific fields
   gmail_id VARCHAR(255) UNIQUE NOT NULL,

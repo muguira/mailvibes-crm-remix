@@ -2,14 +2,19 @@ import { useState } from 'react';
 import { useAuth } from '@/components/auth';
 import { Card } from '../../components/ui/card';
 import { TopNavbar } from '../../components/layout/top-navbar';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Mail, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 // Import integration images
 import HubSpotLogo from '../../components/svgs/integrations-images/hubspot-logo.svg';
 import MailChimpLogo from '../../components/svgs/integrations-images/mailchimp-logo.svg';
 import GoogleSheetsLogo from '../../components/svgs/integrations-images/googlesheet-logo.png';
 import CopperLogo from '../../components/svgs/integrations-images/copper-logo.webp';
+import GmailLogo from '../../components/svgs/integrations-images/gmail-logo.svg';
+
+// Import Gmail components
+import { GmailConnectDialog, GmailAccountsList } from '@/components/integrations/gmail';
 
 interface Integration {
     name: string;
@@ -34,8 +39,23 @@ const Integrations = () => {
             icon: '🔸' // We'll keep this as is since we don't have a Zapier logo
         }
     ]);
+    const handleGmailAccountConnected = (email: string) => {
+        // The store will automatically update the accounts list
+        console.log('Gmail account connected:', email);
+    };
+
+    const handleGmailAccountDisconnected = (email: string) => {
+        // The store will automatically update the accounts list
+        console.log('Gmail account disconnected:', email);
+    };
 
     const integrationOptions: IntegrationOption[] = [
+        {
+            name: 'Gmail',
+            description: 'Connect your Gmail account to import contacts and sync email history. View email timelines in contact profiles and automatically sync new emails. Requires a Google account.',
+            icon: '📧',
+            logoComponent: GmailLogo
+        },
         {
             name: 'HubSpot',
             description: 'Add new leads from HubSpot and update HubSpot contacts with information from RelateIQ to create more targeted marketing campaigns. Requires a HubSpot login.',
@@ -165,6 +185,25 @@ const Integrations = () => {
                             ))}
                         </Card>
 
+                        {/* Gmail Integration Section */}
+                        <Card className="p-6 mb-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-semibold flex items-center gap-2">
+                                    <Mail className="h-5 w-5" />
+                                    Gmail Integration
+                                </h2>
+                                <GmailConnectDialog onSuccess={handleGmailAccountConnected}>
+                                    <Button size="sm">
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Connect Gmail
+                                    </Button>
+                                </GmailConnectDialog>
+                            </div>
+                            <GmailAccountsList 
+                                onAccountDisconnected={handleGmailAccountDisconnected}
+                            />
+                        </Card>
+
                         {/* Create Direct Integration */}
                         <Card className="p-6">
                             <h2 className="text-xl font-semibold mb-6">Create Direct Integration</h2>
@@ -183,10 +222,17 @@ const Integrations = () => {
                                         ) : (
                                             <span className="text-2xl mt-1">{option.icon}</span>
                                         )}
-                                        <div>
+                                        <div className="flex-1">
                                             <h3 className="font-medium">{option.name}</h3>
                                             <p className="text-sm text-gray-600">{option.description}</p>
                                         </div>
+                                        {option.name === 'Gmail' && (
+                                            <GmailConnectDialog onSuccess={handleGmailAccountConnected}>
+                                                <Button variant="outline" size="sm">
+                                                    Connect
+                                                </Button>
+                                            </GmailConnectDialog>
+                                        )}
                                     </div>
                                 ))}
                             </div>
