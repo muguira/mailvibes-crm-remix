@@ -27,6 +27,7 @@ interface ContactsState {
   _userId: string | null;                 // current user ID
   _chunkSize: number;                     // size of each chunk
   _backgroundLoadingActive: boolean;      // track if background loading is running
+  _deletedContactIds: Set<string>;        // track deleted contacts to prevent re-adding
 }
 
 const CHUNK_SIZE = 1000; // Fetch 1000 contacts at a time
@@ -49,6 +50,7 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   _userId: null,
   _chunkSize: CHUNK_SIZE,
   _backgroundLoadingActive: false,
+  _deletedContactIds: new Set<string>(),
   
   // Clear the cache
   clear: () => {
@@ -65,6 +67,7 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
       isBackgroundLoading: false,
       _offset: 0,
       _backgroundLoadingActive: false,
+      _deletedContactIds: new Set<string>(),
     });
   },
   
@@ -87,11 +90,16 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
     const newLoadedCount = Math.max(0, state.loadedCount - deletedCount);
     const newTotalCount = Math.max(0, state.totalCount - deletedCount);
     
+    // Add deleted IDs to the tracking set
+    const newDeletedIds = new Set(state._deletedContactIds);
+    contactIds.forEach(id => newDeletedIds.add(id));
+    
     set({
       cache: newCache,
       orderedIds: newOrderedIds,
       loadedCount: newLoadedCount,
-      totalCount: newTotalCount
+      totalCount: newTotalCount,
+      _deletedContactIds: newDeletedIds
     });
     
     logger.log(`Removed ${deletedCount} contacts from store`);
@@ -142,6 +150,11 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
         
         // Process contacts
         data.forEach(contact => {
+          // Skip if this contact has been deleted
+          if (state._deletedContactIds.has(contact.id)) {
+            return;
+          }
+          
           const leadContact: LeadContact = {
             id: contact.id,
             name: contact.name || '',
@@ -250,6 +263,11 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
         
         // Process new contacts
         data.forEach(contact => {
+          // Skip if this contact has been deleted
+          if (state._deletedContactIds.has(contact.id)) {
+            return;
+          }
+          
           const leadContact: LeadContact = {
             id: contact.id,
             name: contact.name || '',
