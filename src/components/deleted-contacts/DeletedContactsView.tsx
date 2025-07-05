@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useDeletedContacts } from '@/hooks/supabase/use-deleted-contacts';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, RefreshCw, Trash2, ArrowLeft } from 'lucide-react';
 import {
   Table,
@@ -23,9 +24,40 @@ import { useNavigate } from 'react-router-dom';
 
 export function DeletedContactsView() {
   const navigate = useNavigate();
-  const { deletedContacts, isLoading, restoreContact, permanentlyDeleteContact, isRestoring, isPermanentlyDeleting } = useDeletedContacts();
+  const { 
+    deletedContacts, 
+    isLoading, 
+    restoreContact, 
+    permanentlyDeleteContact, 
+    restoreMultipleContacts,
+    permanentlyDeleteMultipleContacts,
+    isRestoring, 
+    isPermanentlyDeleting 
+  } = useDeletedContacts();
+  
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
-  const [actionType, setActionType] = useState<'restore' | 'delete' | null>(null);
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+  const [actionType, setActionType] = useState<'restore' | 'delete' | 'batch-restore' | 'batch-delete' | null>(null);
+
+  const handleSelectContact = (contactId: string) => {
+    setSelectedContactIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(contactId)) {
+        newSet.delete(contactId);
+      } else {
+        newSet.add(contactId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedContactIds(new Set(deletedContacts.map(c => c.id)));
+    } else {
+      setSelectedContactIds(new Set());
+    }
+  };
 
   const handleRestore = async () => {
     if (!selectedContact) return;
@@ -36,6 +68,18 @@ export function DeletedContactsView() {
       setActionType(null);
     } catch (error) {
       console.error('Failed to restore contact:', error);
+    }
+  };
+
+  const handleBatchRestore = async () => {
+    if (selectedContactIds.size === 0) return;
+    
+    try {
+      await restoreMultipleContacts(Array.from(selectedContactIds));
+      setSelectedContactIds(new Set());
+      setActionType(null);
+    } catch (error) {
+      console.error('Failed to restore contacts:', error);
     }
   };
 
@@ -51,10 +95,22 @@ export function DeletedContactsView() {
     }
   };
 
+  const handleBatchPermanentDelete = async () => {
+    if (selectedContactIds.size === 0) return;
+    
+    try {
+      await permanentlyDeleteMultipleContacts(Array.from(selectedContactIds));
+      setSelectedContactIds(new Set());
+      setActionType(null);
+    } catch (error) {
+      console.error('Failed to permanently delete contacts:', error);
+    }
+  };
+
   const isProcessing = isRestoring || isPermanentlyDeleting;
 
   return (
-    <div className="container mx-auto py-8 max-w-6xl">
+    <div className="container mx-auto py-8 px-4 max-w-full">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <Button 
@@ -72,6 +128,32 @@ export function DeletedContactsView() {
             </p>
           </div>
         </div>
+        
+        {selectedContactIds.size > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">
+              {selectedContactIds.size} selected
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setActionType('batch-restore')}
+              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+            >
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Restore Selected
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setActionType('batch-delete')}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Delete Forever
+            </Button>
+          </div>
+        )}
       </div>
 
       {isLoading ? (
@@ -89,28 +171,40 @@ export function DeletedContactsView() {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border">
+        <div className="bg-white rounded-lg border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Deleted On</TableHead>
-                <TableHead>Expires On</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedContactIds.size === deletedContacts.length && deletedContacts.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
+                <TableHead className="min-w-[200px]">Name</TableHead>
+                <TableHead className="min-w-[250px]">Email</TableHead>
+                <TableHead className="min-w-[200px]">Company</TableHead>
+                <TableHead className="min-w-[120px]">Deleted On</TableHead>
+                <TableHead className="min-w-[120px]">Expires On</TableHead>
+                <TableHead className="min-w-[200px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {deletedContacts.map((contact) => (
                 <TableRow key={contact.id}>
-                  <TableCell className="font-medium">{contact.name}</TableCell>
-                  <TableCell>{contact.email || '-'}</TableCell>
-                  <TableCell>{contact.company || '-'}</TableCell>
                   <TableCell>
+                    <Checkbox
+                      checked={selectedContactIds.has(contact.id)}
+                      onCheckedChange={() => handleSelectContact(contact.id)}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium whitespace-nowrap">{contact.name}</TableCell>
+                  <TableCell className="whitespace-nowrap">{contact.email || '-'}</TableCell>
+                  <TableCell className="whitespace-nowrap">{contact.company || '-'}</TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {format(new Date(contact.deleted_at), 'MMM d, yyyy')}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {format(new Date(contact.expiry_date), 'MMM d, yyyy')}
                   </TableCell>
                   <TableCell className="text-right">
@@ -148,7 +242,7 @@ export function DeletedContactsView() {
         </div>
       )}
 
-      {/* Restore Confirmation Dialog */}
+      {/* Single Restore Confirmation Dialog */}
       <Dialog
         open={actionType === 'restore' && !!selectedContact}
         onOpenChange={(open) => {
@@ -192,7 +286,49 @@ export function DeletedContactsView() {
         </DialogContent>
       </Dialog>
 
-      {/* Permanent Delete Confirmation Dialog */}
+      {/* Batch Restore Confirmation Dialog */}
+      <Dialog
+        open={actionType === 'batch-restore'}
+        onOpenChange={(open) => {
+          if (!open && !isProcessing) {
+            setActionType(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Restore {selectedContactIds.size} Contacts</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to restore {selectedContactIds.size} contact{selectedContactIds.size !== 1 ? 's' : ''}? They will be added back to your contacts list.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!isProcessing) {
+                  setActionType(null);
+                }
+              }}
+              disabled={isProcessing}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleBatchRestore} disabled={isProcessing}>
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Restoring...
+                </>
+              ) : (
+                `Restore ${selectedContactIds.size} Contact${selectedContactIds.size !== 1 ? 's' : ''}`
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Single Permanent Delete Confirmation Dialog */}
       <Dialog
         open={actionType === 'delete' && !!selectedContact}
         onOpenChange={(open) => {
@@ -230,6 +366,48 @@ export function DeletedContactsView() {
                 </>
               ) : (
                 'Delete Forever'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Permanent Delete Confirmation Dialog */}
+      <Dialog
+        open={actionType === 'batch-delete'}
+        onOpenChange={(open) => {
+          if (!open && !isProcessing) {
+            setActionType(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Permanently Delete {selectedContactIds.size} Contacts</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete {selectedContactIds.size} contact{selectedContactIds.size !== 1 ? 's' : ''}? This action cannot be undone and the contacts will be completely removed from the system.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!isProcessing) {
+                  setActionType(null);
+                }
+              }}
+              disabled={isProcessing}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleBatchPermanentDelete} disabled={isProcessing}>
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                `Delete ${selectedContactIds.size} Contact${selectedContactIds.size !== 1 ? 's' : ''} Forever`
               )}
             </Button>
           </DialogFooter>

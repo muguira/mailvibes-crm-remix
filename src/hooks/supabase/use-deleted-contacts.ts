@@ -74,6 +74,47 @@ export function useDeletedContacts() {
     },
   });
 
+  // Restore multiple contacts
+  const restoreMultipleContactsMutation = useMutation({
+    mutationFn: async (contactIds: string[]): Promise<void> => {
+      if (!user) throw new Error("User not authenticated");
+
+      // Restore contacts one by one (we could create a batch RPC function later)
+      const results = await Promise.allSettled(
+        contactIds.map(contactId => 
+          supabase.rpc('restore_deleted_contact', {
+            contact_id_param: contactId,
+            user_id_param: user.id
+          })
+        )
+      );
+
+      const failures = results.filter(r => r.status === 'rejected');
+      if (failures.length > 0) {
+        throw new Error(`Failed to restore ${failures.length} contact(s)`);
+      }
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries(["deleted_contacts", user?.id]);
+      queryClient.invalidateQueries(["leadsRows", user?.id]);
+      queryClient.invalidateQueries(["contacts", user?.id]);
+
+      toast({
+        title: "Contacts Restored",
+        description: `${variables.length} contact${variables.length !== 1 ? 's' : ''} have been successfully restored.`,
+      });
+    },
+    onError: (error) => {
+      logger.error("Error restoring contacts:", error);
+      toast({
+        title: "Error",
+        description: "Failed to restore some contacts. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Permanently delete a contact
   const permanentlyDeleteContactMutation = useMutation({
     mutationFn: async (contactId: string): Promise<void> => {
@@ -106,13 +147,47 @@ export function useDeletedContacts() {
     },
   });
 
+  // Permanently delete multiple contacts
+  const permanentlyDeleteMultipleContactsMutation = useMutation({
+    mutationFn: async (contactIds: string[]): Promise<void> => {
+      if (!user) throw new Error("User not authenticated");
+
+      const { error } = await supabase
+        .from("deleted_contacts")
+        .delete()
+        .in("id", contactIds)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries(["deleted_contacts", user?.id]);
+
+      toast({
+        title: "Contacts Permanently Deleted",
+        description: `${variables.length} contact${variables.length !== 1 ? 's' : ''} have been permanently deleted.`,
+      });
+    },
+    onError: (error) => {
+      logger.error("Error permanently deleting contacts:", error);
+      toast({
+        title: "Error",
+        description: "Failed to permanently delete contacts. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     deletedContacts: deletedContactsQuery.data || [],
     isLoading: deletedContactsQuery.isLoading,
     isError: deletedContactsQuery.isError,
     restoreContact: restoreContactMutation.mutate,
     permanentlyDeleteContact: permanentlyDeleteContactMutation.mutate,
-    isRestoring: restoreContactMutation.isPending,
-    isPermanentlyDeleting: permanentlyDeleteContactMutation.isPending,
+    restoreMultipleContacts: restoreMultipleContactsMutation.mutate,
+    permanentlyDeleteMultipleContacts: permanentlyDeleteMultipleContactsMutation.mutate,
+    isRestoring: restoreContactMutation.isPending || restoreMultipleContactsMutation.isPending,
+    isPermanentlyDeleting: permanentlyDeleteContactMutation.isPending || permanentlyDeleteMultipleContactsMutation.isPending,
   };
 }
