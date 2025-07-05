@@ -172,7 +172,7 @@ export function DeletedContactsView() {
         </div>
       ) : (
         <div className="bg-white rounded-lg border overflow-x-auto">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">
@@ -181,34 +181,46 @@ export function DeletedContactsView() {
                     onCheckedChange={handleSelectAll}
                   />
                 </TableHead>
-                <TableHead className="min-w-[200px]">Name</TableHead>
-                <TableHead className="min-w-[250px]">Email</TableHead>
-                <TableHead className="min-w-[200px]">Company</TableHead>
-                <TableHead className="min-w-[120px]">Deleted On</TableHead>
-                <TableHead className="min-w-[120px]">Expires On</TableHead>
-                <TableHead className="min-w-[200px] text-right">Actions</TableHead>
+                <TableHead className="w-[20%]">Name</TableHead>
+                <TableHead className="w-[25%]">Email</TableHead>
+                <TableHead className="w-[20%]">Company</TableHead>
+                <TableHead className="w-[12%] text-center">Deleted</TableHead>
+                <TableHead className="w-[12%] text-center">Expires</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {deletedContacts.map((contact) => (
                 <TableRow key={contact.id}>
-                  <TableCell>
+                  <TableCell className="w-12">
                     <Checkbox
                       checked={selectedContactIds.has(contact.id)}
                       onCheckedChange={() => handleSelectContact(contact.id)}
                     />
                   </TableCell>
-                  <TableCell className="font-medium whitespace-nowrap">{contact.name}</TableCell>
-                  <TableCell className="whitespace-nowrap">{contact.email || '-'}</TableCell>
-                  <TableCell className="whitespace-nowrap">{contact.company || '-'}</TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="font-medium pr-2">
+                    <div className="truncate" title={contact.name}>
+                      {contact.name}
+                    </div>
+                  </TableCell>
+                  <TableCell className="pr-2">
+                    <div className="truncate" title={contact.email || '-'}>
+                      {contact.email || '-'}
+                    </div>
+                  </TableCell>
+                  <TableCell className="pr-2">
+                    <div className="truncate" title={contact.company || '-'}>
+                      {contact.company || '-'}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center text-sm">
                     {format(new Date(contact.deleted_at), 'MMM d, yyyy')}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="text-center text-sm">
                     {format(new Date(contact.expiry_date), 'MMM d, yyyy')}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
+                  <TableCell>
+                    <div className="flex justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -216,22 +228,24 @@ export function DeletedContactsView() {
                           setSelectedContact(contact.id);
                           setActionType('restore');
                         }}
-                        className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                        className="text-green-600 hover:text-green-700 hover:bg-green-50 h-8 px-2"
+                        title="Restore contact"
                       >
-                        <RefreshCw className="h-4 w-4 mr-1" />
-                        Restore
+                        <RefreshCw className="h-4 w-4" />
+                        <span className="ml-1 hidden 2xl:inline">Restore</span>
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-2"
                         onClick={() => {
                           setSelectedContact(contact.id);
                           setActionType('delete');
                         }}
+                        title="Delete forever"
                       >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete Forever
+                        <Trash2 className="h-4 w-4" />
+                        <span className="ml-1 hidden 2xl:inline">Delete</span>
                       </Button>
                     </div>
                   </TableCell>
