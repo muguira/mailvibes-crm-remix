@@ -33,6 +33,7 @@ export function useInstantContacts({
     loadedCount,
     isBackgroundLoading,
     initialize,
+    removeContacts,
   } = useContactsStore();
 
   // Initialize store when user is available
@@ -49,6 +50,23 @@ export function useInstantContacts({
       mockContactsById[id] = contact;
     });
   }, [cache]);
+
+  // Listen for contacts-deleted events to keep store in sync
+  useEffect(() => {
+    const handleContactsDeleted = (event: CustomEvent) => {
+      // The event detail might contain the deleted contact IDs
+      const deletedIds = event.detail?.contactIds;
+      if (deletedIds && Array.isArray(deletedIds)) {
+        removeContacts(deletedIds);
+      }
+    };
+
+    document.addEventListener('contacts-deleted', handleContactsDeleted as EventListener);
+
+    return () => {
+      document.removeEventListener('contacts-deleted', handleContactsDeleted as EventListener);
+    };
+  }, [removeContacts]);
 
   // Filter contacts based on search term
   const filteredIds = useMemo(() => {

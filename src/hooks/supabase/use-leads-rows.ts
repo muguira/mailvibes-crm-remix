@@ -677,7 +677,10 @@ export function useLeadsRows() {
       
       // Dispatch event to notify other components
       document.dispatchEvent(new CustomEvent('contacts-deleted', { 
-        detail: { count: contactIds.length } 
+        detail: { 
+          count: contactIds.length,
+          contactIds: contactIds 
+        } 
       }));
       
     } catch (error) {
