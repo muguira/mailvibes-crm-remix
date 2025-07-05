@@ -2,14 +2,20 @@ import { useState } from 'react';
 import { useAuth } from '@/components/auth';
 import { Card } from '../../components/ui/card';
 import { TopNavbar } from '../../components/layout/top-navbar';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Mail, Plus, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { useStore } from '@/stores';
 
 // Import integration images
 import HubSpotLogo from '../../components/svgs/integrations-images/hubspot-logo.svg';
 import MailChimpLogo from '../../components/svgs/integrations-images/mailchimp-logo.svg';
 import GoogleSheetsLogo from '../../components/svgs/integrations-images/googlesheet-logo.png';
 import CopperLogo from '../../components/svgs/integrations-images/copper-logo.webp';
+import GmailLogo from '../../components/svgs/integrations-images/gmail-logo.svg';
+
+// Import Gmail components
+import { GmailConnectDialog, GmailAccountsList } from '@/components/integrations/gmail';
 
 interface Integration {
     name: string;
@@ -27,15 +33,28 @@ interface IntegrationOption {
 const Integrations = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [existingIntegrations] = useState<Integration[]>([
-        {
-            name: 'Zapier',
-            apiKey: '55c917a3e4b04dc74dd8c94d',
-            icon: '🔸' // We'll keep this as is since we don't have a Zapier logo
-        }
-    ]);
+    const { connectedAccounts } = useStore();
+    const [existingIntegrations] = useState<Integration[]>([]);
+    
+    const hasGmailConnected = connectedAccounts.length > 0;
+
+    const handleGmailAccountConnected = (email: string) => {
+        // The store will automatically update the accounts list
+        console.log('Gmail account connected:', email);
+    };
+
+    const handleGmailAccountDisconnected = (email: string) => {
+        // The store will automatically update the accounts list
+        console.log('Gmail account disconnected:', email);
+    };
 
     const integrationOptions: IntegrationOption[] = [
+        {
+            name: 'Gmail',
+            description: 'Connect your Gmail account to import contacts and sync email history. View email timelines in contact profiles and automatically sync new emails. Requires a Google account.',
+            icon: '📧',
+            logoComponent: GmailLogo
+        },
         {
             name: 'HubSpot',
             description: 'Add new leads from HubSpot and update HubSpot contacts with information from RelateIQ to create more targeted marketing campaigns. Requires a HubSpot login.',
@@ -137,32 +156,42 @@ const Integrations = () => {
                         </Card>
 
                         {/* Existing Integrations */}
-                        <Card className="p-6 mb-6">
-                            <h2 className="text-xl font-semibold mb-4">Existing Integrations</h2>
-                            {existingIntegrations.map((integration, index) => (
-                                <div
-                                    key={index}
-                                    className="flex items-center justify-between p-4 bg-accent/10 rounded-lg"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <span className="text-2xl">{integration.icon}</span>
-                                        <div>
-                                            <h3 className="font-medium">{integration.name}</h3>
-                                            <p className="text-sm text-gray-600">API Key: {integration.apiKey}</p>
+                        {existingIntegrations.length > 0 && (
+                            <Card className="p-6 mb-6">
+                                <h2 className="text-xl font-semibold mb-4">Existing Integrations</h2>
+                                {existingIntegrations.map((integration, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex items-center justify-between p-4 bg-accent/10 rounded-lg"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <span className="text-2xl">{integration.icon}</span>
+                                            <div>
+                                                <h3 className="font-medium">{integration.name}</h3>
+                                                <p className="text-sm text-gray-600">API Key: {integration.apiKey}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button className="px-3 py-1 text-sm bg-white border rounded-md hover:bg-gray-50">
+                                                <Pencil size={16} className="inline-block mr-1" />
+                                                Edit
+                                            </button>
+                                            <button className="px-3 py-1 text-sm text-white bg-red-500 rounded-md hover:bg-red-600">
+                                                <Trash2 size={16} className="inline-block mr-1" />
+                                                Delete
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button className="px-3 py-1 text-sm bg-white border rounded-md hover:bg-gray-50">
-                                            <Pencil size={16} className="inline-block mr-1" />
-                                            Edit
-                                        </button>
-                                        <button className="px-3 py-1 text-sm text-white bg-red-500 rounded-md hover:bg-red-600">
-                                            <Trash2 size={16} className="inline-block mr-1" />
-                                            Delete
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
+                            </Card>
+                        )}
+
+                        {/* Gmail Integration Section */}
+                        <Card className="p-6 mb-6">
+                            <h2 className="text-xl font-semibold mb-4">Integrations</h2>
+                            <GmailAccountsList 
+                                onAccountDisconnected={handleGmailAccountDisconnected}
+                            />
                         </Card>
 
                         {/* Create Direct Integration */}
@@ -183,10 +212,24 @@ const Integrations = () => {
                                         ) : (
                                             <span className="text-2xl mt-1">{option.icon}</span>
                                         )}
-                                        <div>
+                                        <div className="flex-1">
                                             <h3 className="font-medium">{option.name}</h3>
                                             <p className="text-sm text-gray-600">{option.description}</p>
                                         </div>
+                                        {option.name === 'Gmail' && (
+                                            hasGmailConnected ? (
+                                                <div className="flex items-center gap-2 text-green-600">
+                                                    <Check className="h-5 w-5" />
+                                                    <span className="text-sm font-medium">Connected</span>
+                                                </div>
+                                            ) : (
+                                                <GmailConnectDialog onSuccess={handleGmailAccountConnected}>
+                                                    <Button variant="outline" size="sm">
+                                                        Connect
+                                                    </Button>
+                                                </GmailConnectDialog>
+                                            )
+                                        )}
                                     </div>
                                 ))}
                             </div>
