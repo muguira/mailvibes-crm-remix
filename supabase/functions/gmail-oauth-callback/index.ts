@@ -110,16 +110,21 @@ Deno.serve(async (req) => {
     // Create or update email account
     const { data: emailAccount, error: accountError } = await supabaseAdmin
       .from("email_accounts")
-      .upsert({
-        user_id,
-        email: userInfo.email,
-        provider: "gmail",
-        sync_enabled: true,
-        settings: {
-          name: userInfo.name,
-          picture: userInfo.picture,
+      .upsert(
+        {
+          user_id,
+          email: userInfo.email,
+          provider: "gmail",
+          sync_enabled: true,
+          settings: {
+            name: userInfo.name,
+            picture: userInfo.picture,
+          },
         },
-      })
+        {
+          onConflict: "user_id,email",
+        }
+      )
       .select()
       .single();
 
@@ -133,13 +138,18 @@ Deno.serve(async (req) => {
 
     const { error: tokenError } = await supabaseAdmin
       .from("oauth_tokens")
-      .upsert({
-        user_id,
-        email_account_id: emailAccount.id,
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token || null,
-        expires_at: expiresAt.toISOString(),
-      });
+      .upsert(
+        {
+          user_id,
+          email_account_id: emailAccount.id,
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token || null,
+          expires_at: expiresAt.toISOString(),
+        },
+        {
+          onConflict: "email_account_id",
+        }
+      );
 
     if (tokenError) {
       console.error("Error storing tokens:", tokenError);

@@ -217,8 +217,6 @@ export async function deleteTokens(
   email?: string
 ): Promise<void> {
   try {
-    let query = supabase.from("oauth_tokens").delete().eq("user_id", userId);
-
     if (email) {
       // First get the email account ID
       const { data: emailAccount } = await supabase
@@ -229,28 +227,53 @@ export async function deleteTokens(
         .single();
 
       if (emailAccount) {
-        query = query.eq("email_account_id", emailAccount.id);
+        // Delete tokens
+        const { error: tokenError } = await supabase
+          .from("oauth_tokens")
+          .delete()
+          .eq("user_id", userId)
+          .eq("email_account_id", emailAccount.id);
+
+        if (tokenError) {
+          throw new Error(`Failed to delete tokens: ${tokenError.message}`);
+        }
+
+        // Delete the email account
+        const { error: accountError } = await supabase
+          .from("email_accounts")
+          .delete()
+          .eq("user_id", userId)
+          .eq("email", email);
+
+        if (accountError) {
+          throw new Error(
+            `Failed to delete email account: ${accountError.message}`
+          );
+        }
       }
-    }
-
-    const { error } = await query;
-
-    if (error) {
-      throw new Error(`Failed to delete tokens: ${error.message}`);
-    }
-
-    // Also disable sync for the email account
-    if (email) {
-      await supabase
-        .from("email_accounts")
-        .update({ sync_enabled: false })
-        .eq("user_id", userId)
-        .eq("email", email);
     } else {
-      await supabase
-        .from("email_accounts")
-        .update({ sync_enabled: false })
+      // Delete all tokens for the user
+      const { error: tokenError } = await supabase
+        .from("oauth_tokens")
+        .delete()
         .eq("user_id", userId);
+
+      if (tokenError) {
+        throw new Error(`Failed to delete tokens: ${tokenError.message}`);
+      }
+
+      // Delete all email accounts for the user
+      const { error: accountError } = await supabase
+        .from("email_accounts")
+        .delete()
+        .eq("user_id", userId)
+        .eq("provider", "gmail");
+
+      if (accountError) {
+        throw new Error(
+          `Failed to delete email accounts: ${accountError.message}`
+        );
+      }
     }
   } catch (error) {
     console.error("Error deleting tokens:", error);

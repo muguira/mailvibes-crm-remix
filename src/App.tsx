@@ -18,6 +18,7 @@ import Auth from "@/pages/Auth";
 import ContactProfile from "@/pages/dashboard/ContactProfile";
 import StreamView from "@/pages/dashboard/StreamView"; // Import the new StreamView page
 import Integrations from "@/pages/dashboard/Integrations";
+import Settings from "@/pages/dashboard/Settings";
 import Landing from "@/pages/Landing";
 import Import from "@/pages/Import";
 import { useRadixPointerEventsFix } from "@/hooks/use-radix-pointer-events-fix";
@@ -55,6 +56,7 @@ function App() {
                   <Route path="/stream" element={<PrivateRoute><StreamView /></PrivateRoute>} />
                   <Route path="/stream-view/:id" element={<PrivateRoute><StreamView /></PrivateRoute>} />
                   <Route path="/import" element={<PrivateRoute><Import /></PrivateRoute>} />
+                  <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
                   <Route path="/settings/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
                   <Route path="/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
                   <Route path="*" element={<NotFound />} />

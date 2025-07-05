@@ -33,19 +33,32 @@ export function GmailConnectDialog({ children, onSuccess }: GmailConnectDialogPr
     
     if (isOAuthCallback() && user) {
       console.log("[GmailConnectDialog] OAuth callback detected!");
-      // Only handle callback once
-      const handled = sessionStorage.getItem('gmail_oauth_callback_handled');
-      if (!handled) {
+      
+      // Check if we already handled this specific callback
+      const currentUrl = window.location.href;
+      const handledUrl = sessionStorage.getItem('gmail_oauth_callback_url');
+      
+      if (handledUrl !== currentUrl) {
         console.log("[GmailConnectDialog] Handling OAuth callback...");
-        sessionStorage.setItem('gmail_oauth_callback_handled', 'true');
+        sessionStorage.setItem('gmail_oauth_callback_url', currentUrl);
+        
         handleOAuthCallback(user.id).finally(() => {
           // Clean up after handling
           setTimeout(() => {
-            sessionStorage.removeItem('gmail_oauth_callback_handled');
+            sessionStorage.removeItem('gmail_oauth_callback_url');
+            // Also clean the URL parameters
+            const url = new URL(window.location.href);
+            url.searchParams.delete('code');
+            url.searchParams.delete('state');
+            url.searchParams.delete('scope');
+            url.searchParams.delete('authuser');
+            url.searchParams.delete('hd');
+            url.searchParams.delete('prompt');
+            window.history.replaceState({}, document.title, url.toString());
           }, 1000);
         });
       } else {
-        console.log("[GmailConnectDialog] OAuth callback already handled");
+        console.log("[GmailConnectDialog] OAuth callback already handled for this URL");
       }
     }
   }, [user, handleOAuthCallback]);

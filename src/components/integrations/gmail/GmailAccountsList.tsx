@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Mail, Trash2, RefreshCw, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { Mail, Trash2, RefreshCw, Clock, CheckCircle, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { useAuth } from "@/components/auth";
 import { useStore } from "@/stores";
 import { format } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import GmailLogo from "@/components/svgs/integrations-images/gmail-logo.svg";
 
 interface GmailAccount {
   id: string;
@@ -38,6 +39,7 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
     disconnectAccount
   } = useStore();
   const [accountsState, setAccountsState] = useState<GmailAccount[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -119,145 +121,167 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Connected Gmail Accounts
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {[1, 2].map((i) => (
-              <div key={i} className="flex items-center gap-3 p-3 border rounded-lg animate-pulse">
-                <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-                <div className="flex-1">
-                  <div className="w-32 h-4 bg-gray-200 rounded mb-2"></div>
-                  <div className="w-24 h-3 bg-gray-200 rounded"></div>
-                </div>
-                <div className="w-16 h-6 bg-gray-200 rounded"></div>
-              </div>
-            ))}
+      <div className="space-y-3">
+        {[1, 2].map((i) => (
+          <div key={i} className="flex items-center gap-3 p-3 border rounded-lg animate-pulse">
+            <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+            <div className="flex-1">
+              <div className="w-32 h-4 bg-gray-200 rounded mb-2"></div>
+              <div className="w-24 h-3 bg-gray-200 rounded"></div>
+            </div>
+            <div className="w-16 h-6 bg-gray-200 rounded"></div>
           </div>
-        </CardContent>
-      </Card>
+        ))}
+      </div>
     );
   }
 
   if (accounts.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Connected Gmail Accounts
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-6">
-            <Mail className="h-12 w-12 mx-auto text-gray-400 mb-3" />
-            <p className="text-sm text-muted-foreground">
-              No Gmail accounts connected yet.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="text-center py-6">
+        <Mail className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+        <p className="text-sm text-muted-foreground">
+          No Gmail accounts connected yet.
+        </p>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Mail className="h-5 w-5" />
-          Connected Gmail Accounts ({accounts.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium">Connected Gmail Accounts</h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={checkConnectionStatus}
-            >
-              Check Status
-            </Button>
-          </div>
-          <div className="space-y-3">
-            {accounts.map((account) => (
-              <div key={account.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage 
-                    src={account.user_info?.picture} 
-                    alt={account.user_info?.name || account.email}
-                  />
-                  <AvatarFallback>
-                    {account.email.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="font-medium truncate">
-                      {account.user_info?.name || account.email}
-                    </p>
-                    {getSyncStatusBadge(account)}
-                  </div>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {account.email}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {getLastSyncText(account)}
-                  </p>
-                  {account.last_sync_error && (
-                    <p className="text-xs text-red-500 mt-1">
-                      Error: {account.last_sync_error}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        disabled={loading}
-                      >
-                        {loading ? (
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Disconnect Gmail Account</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to disconnect <strong>{account.email}</strong>? 
-                          This will stop syncing emails and remove access to this account.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction 
-                          onClick={() => handleDisconnect(account.email)}
-                          className="bg-red-500 hover:bg-red-600"
-                        >
-                          Disconnect
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
-            ))}
-          </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-0 h-auto hover:bg-transparent"
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </Button>
+          <img src={GmailLogo} alt="Gmail" className="h-5 w-5" />
+          <h3 className="text-lg font-medium">Gmail Accounts ({accounts.length})</h3>
         </div>
-      </CardContent>
-    </Card>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={checkConnectionStatus}
+        >
+          Check Status
+        </Button>
+      </div>
+      
+      {isExpanded && (
+        <div className="space-y-3 ml-6">
+          {accounts.map((account) => {
+            console.log('Account data:', account);
+            console.log('User info:', account.user_info);
+            console.log('Picture URL:', account.user_info?.picture);
+            
+            return (
+            <div key={account.id} className="flex items-center gap-3 p-3 border rounded-lg">
+              <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full">
+                {account.user_info?.picture ? (
+                  <>
+                    <img
+                      src={account.user_info.picture}
+                      alt={account.user_info?.name || account.email}
+                      className="absolute inset-0 w-full object-cover"
+                      crossOrigin="anonymous"
+                      onLoad={(e) => {
+                        console.log('Image loaded successfully!');
+                        console.log('Image dimensions:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight);
+                      }}
+                      onError={(e) => {
+                        console.error('Failed to load avatar image:', account.user_info?.picture);
+                        console.error('Error details:', e);
+                        // Hide the image and show fallback
+                        e.currentTarget.style.display = 'none';
+                        const fallback = e.currentTarget.parentElement?.querySelector('.avatar-fallback');
+                        if (fallback) {
+                          (fallback as HTMLElement).style.display = 'flex';
+                        }
+                      }}
+                    />
+                    <div 
+                      className="avatar-fallback absolute inset-0 hidden items-center justify-center rounded-full bg-blue-500 text-white font-semibold text-sm"
+                    >
+                      {account.email.charAt(0).toUpperCase()}
+                    </div>
+                  </>
+                ) : (
+                  <div 
+                    className="absolute inset-0 flex items-center justify-center rounded-full bg-blue-500 text-white font-semibold text-sm"
+                  >
+                    {account.email.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="font-medium truncate">
+                    {account.user_info?.name || account.email}
+                  </p>
+                  {getSyncStatusBadge(account)}
+                </div>
+                <p className="text-sm text-muted-foreground truncate">
+                  {account.email}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {getLastSyncText(account)}
+                </p>
+                {account.last_sync_error && (
+                  <p className="text-xs text-red-500 mt-1">
+                    Error: {account.last_sync_error}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Disconnect Gmail Account</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to disconnect <strong>{account.email}</strong>? 
+                        This will stop syncing emails and remove access to this account.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={() => handleDisconnect(account.email)}
+                        className="bg-red-500 hover:bg-red-600"
+                      >
+                        Disconnect
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+          );
+        })}
+        </div>
+      )}
+    </div>
   );
 } 

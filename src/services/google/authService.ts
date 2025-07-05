@@ -94,7 +94,7 @@ export const exchangeCodeForTokens = async (
   code: string,
   codeVerifier: string,
   redirectUri: string
-): Promise<TokenResponse> => {
+): Promise<TokenResponse & { email?: string; user_info?: GoogleUserInfo }> => {
   try {
     console.log("[Gmail Auth] Starting token exchange...");
 
@@ -139,7 +139,8 @@ export const exchangeCodeForTokens = async (
     }
 
     console.log("[Gmail Auth] Token exchange successful");
-    return data.data as TokenResponse;
+    // The Edge Function returns { success: true, data: { access_token, refresh_token, etc } }
+    return data.data;
   } catch (error) {
     console.error("[Gmail Auth] Token exchange error:", error);
     throw error;
@@ -280,28 +281,27 @@ export async function handleOAuthCallback(
       throw new Error("Invalid state parameter - possible CSRF attack");
     }
 
-    // Exchange code for tokens
+    // Exchange code for tokens (Edge Function handles saving)
     const tokenResponse = await exchangeCodeForTokens(
       code,
       pkceParams.code_verifier,
       redirectUri
     );
 
-    // Get user info
-    const userInfo = await getUserInfo(tokenResponse.access_token);
+    // Clear PKCE params after successful exchange
+    clearPKCEParams();
 
-    // Create token data
+    // Create token data from response
     const tokenData: TokenData = {
       access_token: tokenResponse.access_token,
       refresh_token: tokenResponse.refresh_token || "",
       expires_at: new Date(Date.now() + tokenResponse.expires_in * 1000),
       scope: tokenResponse.scope,
-      email: userInfo.email,
-      user_info: userInfo,
+      email: tokenResponse.email || "",
+      user_info: tokenResponse.user_info,
     };
 
-    // Save tokens to database
-    await saveTokens(userId, userInfo.email, tokenData);
+    // Note: We don't save tokens here because the Edge Function already did it
 
     return tokenData;
   } catch (error) {

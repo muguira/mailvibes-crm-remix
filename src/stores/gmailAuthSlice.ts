@@ -215,7 +215,8 @@ export const useGmailAuthSlice: StateCreator<
           last_sync_at,
           last_sync_status,
           last_sync_error,
-          created_at
+          created_at,
+          settings
         `
         )
         .eq("user_id", userId)
@@ -223,11 +224,24 @@ export const useGmailAuthSlice: StateCreator<
 
       if (error) throw error;
 
+      console.log("[GmailAuthSlice] Raw accounts data from DB:", data);
+
       const formattedAccounts =
-        data?.map((account) => ({
-          ...account,
-          user_info: {},
-        })) || [];
+        data?.map((account) => {
+          console.log("[GmailAuthSlice] Processing account:", account);
+          console.log("[GmailAuthSlice] Account settings:", account.settings);
+
+          const formatted = {
+            ...account,
+            user_info:
+              typeof account.settings === "object" && account.settings !== null
+                ? (account.settings as { name?: string; picture?: string })
+                : {},
+          };
+
+          console.log("[GmailAuthSlice] Formatted account:", formatted);
+          return formatted;
+        }) || [];
 
       set((state) => {
         state.connectedAccounts = formattedAccounts;
