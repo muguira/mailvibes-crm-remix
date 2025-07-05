@@ -20,6 +20,7 @@ interface ContactsState {
   initialize: (userId: string) => Promise<void>; // initial load
   startBackgroundLoading: () => Promise<void>; // start background loading
   clear: () => void;                      // clear cache
+  removeContacts: (contactIds: string[]) => void; // remove contacts from cache
   
   // Internal state
   _offset: number;                        // current offset for pagination
@@ -65,6 +66,35 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
       _offset: 0,
       _backgroundLoadingActive: false,
     });
+  },
+  
+  // Remove contacts from cache
+  removeContacts: (contactIds: string[]) => {
+    const state = get();
+    const contactIdSet = new Set(contactIds);
+    
+    // Create new cache without deleted contacts
+    const newCache = { ...state.cache };
+    contactIds.forEach(id => {
+      delete newCache[id];
+    });
+    
+    // Filter out deleted contacts from orderedIds
+    const newOrderedIds = state.orderedIds.filter(id => !contactIdSet.has(id));
+    
+    // Update counts
+    const deletedCount = state.orderedIds.length - newOrderedIds.length;
+    const newLoadedCount = Math.max(0, state.loadedCount - deletedCount);
+    const newTotalCount = Math.max(0, state.totalCount - deletedCount);
+    
+    set({
+      cache: newCache,
+      orderedIds: newOrderedIds,
+      loadedCount: newLoadedCount,
+      totalCount: newTotalCount
+    });
+    
+    logger.log(`Removed ${deletedCount} contacts from store`);
   },
   
   // Initialize with first batch of data

@@ -12,6 +12,7 @@ import { mockContactsById } from "@/components/stream/sample-data";
 import { updateContact } from "@/helpers/updateContact";
 import { withRetrySupabase } from "@/utils/supabaseRetry";
 import { logger } from "@/utils/logger";
+import { useContactsStore } from "@/stores/contactsStore";
 
 /**
  * Helper function to transform row IDs to database-compatible format
@@ -665,6 +666,10 @@ export function useLeadsRows() {
       contactIds.forEach(id => {
         delete mockContactsById[id];
       });
+      
+      // IMPORTANT: Also remove from the contacts store for immediate UI update
+      const { removeContacts } = useContactsStore.getState();
+      removeContacts(contactIds);
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries(['leadsRows', user?.id]);
