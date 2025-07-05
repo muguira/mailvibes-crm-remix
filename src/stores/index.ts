@@ -4,6 +4,7 @@ import { subscribeWithSelector } from "zustand/middleware";
 import { TStore } from "@/types/store/store";
 import { useTasksSlice } from "./useTasksSlice";
 import { useAuthSlice } from "./useAuthSlice";
+import { useGmailAuthSlice } from "./gmailAuthSlice";
 
 /**
  * Main store for the application
@@ -21,6 +22,7 @@ export const useStore = create<TStore>()(
     immer((...a) => ({
       ...useTasksSlice(...a),
       ...useAuthSlice(...a),
+      ...useGmailAuthSlice(...a),
     }))
   )
 );

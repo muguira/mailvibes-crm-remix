@@ -107,9 +107,9 @@ export function TopNavbar({ className }: TopNavbarProps) {
           <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
             <HelpCircle size={18} />
           </button>
-          <button className="p-2 rounded-full hover:bg-[#2D7289]/50">
+          <Link to="/settings" className="p-2 rounded-full hover:bg-[#2D7289]/50 inline-block">
             <Settings size={18} />
-          </button>
+          </Link>
             </>
           )}
 
