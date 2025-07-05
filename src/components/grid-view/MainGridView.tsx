@@ -1369,7 +1369,12 @@ export const MainGridView = forwardRef(function MainGridView({
             >
               <span
                 className={`pin-icon mr-2 md:ml-2 md:mr-0 md:order-last ${frozenColumnIds.includes(column.id) ? 'text-brand-teal' : 'text-gray-400'} md:group-hover:opacity-100 md:opacity-0 hidden md:block`}
-                style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                style={{ 
+                  cursor: 'pointer', 
+                  transition: 'opacity 0.2s',
+                  // Hide pin icon for name column since it's always pinned
+                  display: column.id === 'name' ? 'none' : 'flex'
+                }}
                 onClick={e => { e.stopPropagation(); onTogglePin(column.id); }}
               >
                 {frozenColumnIds.includes(column.id) ? (

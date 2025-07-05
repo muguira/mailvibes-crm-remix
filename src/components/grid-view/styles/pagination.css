@@ -4,7 +4,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
+  padding: 8px 24px;
   background-color: #fff;
   border-top: 1px solid #e5e7eb;
   position: sticky;
@@ -12,7 +12,7 @@
   left: 0;
   right: 0;
   z-index: 40;
-  min-height: 56px;
+  min-height: 48px;
 }
 
 .pagination-info {

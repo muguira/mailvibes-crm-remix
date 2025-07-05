@@ -67,6 +67,22 @@ export function GridViewContainer({
   // Delete dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
+  // Listen for immediate delete feedback to close dialog quickly
+  useEffect(() => {
+    const handleImmediateDelete = (event: CustomEvent) => {
+      console.log(`⚡ [DELETE UI] Closing dialog immediately after ${event.detail.timing?.toFixed(2) || 'unknown'}ms`);
+      setShowDeleteDialog(false);
+      // Clear selection immediately for better UX
+      setSelectedRowIds(new Set());
+    };
+
+    document.addEventListener('contacts-deleted-immediate', handleImmediateDelete as EventListener);
+    
+    return () => {
+      document.removeEventListener('contacts-deleted-immediate', handleImmediateDelete as EventListener);
+    };
+  }, []);
+
   // Toggle row selection
   const handleToggleRowSelection = useCallback((rowId: string) => {
     setSelectedRowIds(prev => {
@@ -121,12 +137,18 @@ export function GridViewContainer({
     const key = `frozenColumnIds-${listId || 'default'}`;
     try {
       const stored = localStorage.getItem(key);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        // Get stored columns but ensure index and name are always included
+        const storedColumns = JSON.parse(stored);
+        if (!storedColumns.includes('index')) storedColumns.unshift('index');
+        if (!storedColumns.includes('name')) storedColumns.push('name');
+        return storedColumns;
+      }
     } catch (error) {
       logger.error('Error parsing frozen column IDs:', error);
     }
-    // Por defecto, solo el índice está fijo
-    return ['index'];
+    // Default: index and name columns are always pinned
+    return ['index', 'name'];
   });
 
   // Guardar en localStorage cuando cambian
@@ -137,23 +159,29 @@ export function GridViewContainer({
 
   // Callback para fijar/desfijar columnas
   const toggleFrozenColumn = (columnId: string) => {
+    // Don't allow unpinning index or name columns
+    if (columnId === 'index' || columnId === 'name') {
+      return;
+    }
+    
     setFrozenColumnIds(prev => {
       const isMobile = window.innerWidth < 768;
-      const maxFrozenColumns = isMobile ? 2 : Infinity; // Limit to 2 on mobile (excluding index)
+      // Always keep index and name columns, plus allow 2 more on mobile or unlimited on desktop
+      const maxFrozenColumns = isMobile ? 4 : Infinity; // Increased to 4 to account for index and name always being pinned
 
       if (prev.includes(columnId)) {
         // Unfreezing a column
         return prev.filter(id => id !== columnId);
       } else {
         // Freezing a column
-        // On mobile, exclude the 'index' column from the count - index doesn't count toward limit
-        const nonIndexFrozenColumns = prev.filter(id => id !== 'index');
+        // Count non-required columns (not index or name)
+        const nonRequiredFrozenColumns = prev.filter(id => id !== 'index' && id !== 'name');
 
-        if (isMobile && nonIndexFrozenColumns.length >= maxFrozenColumns) {
+        if (isMobile && nonRequiredFrozenColumns.length >= (maxFrozenColumns - 2)) {
           // Show toast with shorter duration and better styling
           toast({
             title: "Column limit reached",
-            description: "You can pin up to 2 columns on mobile.",
+            description: "You can pin up to 2 additional columns on mobile.",
             variant: "destructive",
             duration: 2000, // 2 seconds instead of default 5
           });
@@ -169,7 +197,7 @@ export function GridViewContainer({
   const scrollableColumns = columns.filter(col => !frozenColumnIds.includes(col.id));
 
   // Find the frozen column - first look for 'name', then fall back to 'opportunity' for backward compatibility
-  const contactColumn = columns.find(col => col.id === 'name' && col.frozen) ||
+  const contactColumn = columns.find(col => col.id === 'name') ||
     columns.find(col => col.id === 'opportunity');
 
   // Width calculation for the static columns area
