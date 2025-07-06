@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Stepper, Step } from "@/components/ui/stepper";
@@ -9,6 +9,8 @@ import { useStore } from "@/stores";
 import { toast } from "sonner";
 import { logger } from '@/utils/logger';
 import { LoadingOverlay } from "@/components/ui/loading-spinner";
+import { Breadcrumb, BreadcrumbItem } from "@/components/ui/breadcrumb";
+import { useNavigate } from "react-router-dom";
 
 // Import existing components from CSV import
 import { ContactPropertiesStep } from "@/components/csv-import/ContactPropertiesStep";
@@ -60,6 +62,7 @@ export interface ImportData {
 export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
   const { user } = useAuth();
   const { getAccessToken } = useStore();
+  const navigate = useNavigate();
   
   // Wizard state
   const [currentStep, setCurrentStep] = useState(0);
@@ -367,16 +370,40 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
     return currentStep === 1 || currentStep === 2;
   };
 
+  // Breadcrumb items
+  const breadcrumbItems: BreadcrumbItem[] = [
+    {
+      label: "Settings",
+      onClick: () => navigate("/settings")
+    },
+    {
+      label: "Imports",
+      onClick: () => navigate("/settings/imports")
+    },
+    {
+      label: "Gmail",
+      isActive: true
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="mb-6">
+      <div className="mb-6 bg-white p-4 rounded-lg">
           <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-3">
             <Mail className="w-6 h-6 text-[#62BFAA]" />
             Gmail Import
           </h1>
+
+          <div className="mt-4">
+            <Breadcrumb items={breadcrumbItems} />
+          </div>
         </div>
 
+        {/* Breadcrumb */}
+     
+        
+       
         <div className="grid grid-cols-12 gap-6">
           {/* Left sidebar with stepper */}
           <div className="col-span-2">
