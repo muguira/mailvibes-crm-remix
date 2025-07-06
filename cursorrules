@@ -1,0 +1,315 @@
+# Mailvibes CRM Remix - Cursor AI Rules
+
+## CSS Protection Rules
+
+### Grid View Styles - DO NOT MODIFY
+The following CSS files are production-ready and must not be altered without explicit approval:
+
+1. **Grid Layout Constants** (`src/components/grid-view/grid-constants.ts`)
+   - `ROW_HEIGHT = 36` - Fixed row height for header and body
+   - `INDEX_COLUMN_WIDTH = 48` - Fixed width for index column
+   - `DEFAULT_COLUMN_WIDTH = 180` - Default width for data columns
+   - These values must remain unchanged to maintain grid alignment
+
+2. **Core CSS Files** - These files implement the production grid layout:
+   - `src/components/grid-view/styles/grid-layout.css` - Core grid structure
+   - `src/components/grid-view/styles/grid-cells.css` - Cell styling and alignment
+   - `src/components/grid-view/styles/grid-headers.css` - Header styling
+   - `src/components/grid-view/styles/static-columns.css` - Frozen column behavior
+   - `src/components/grid-view/styles/pin-columns.css` - Column pinning logic
+   - `src/components/grid-view/styles/scroll-buttons.css` - Scroll controls
+   - `src/components/grid-view/styles/z-index.css` - Layer management
+   - `src/components/grid-view/styles/pagination.css` - Pagination controls
+
+### CSS Modification Rules
+
+1. **Never change these properties without approval:**
+   - Row heights (must stay at 36px)
+   - Column widths (index: 48px, contacts: 180px, default: 180px)
+   - Scrollbar visibility (must remain hidden with `scrollbar-width: none`)
+   - Box-sizing values
+   - Position sticky/fixed values for frozen columns
+   - Z-index values (they create a specific layering system)
+   - Pagination bar height (must stay at 48px)
+
+2. **Protected selectors - DO NOT MODIFY:**
+   ```css
+   .grid-container
+   .grid-headers
+   .grid-body
+   .grid-row
+   .grid-cell
+   .index-column
+   .static-column
+   .pinned-column
+   .grid-pagination
+   ```
+
+3. **When adding new styles:**
+   - Create new CSS files in `src/components/grid-view/styles/`
+   - Import them through `src/components/grid-view/styles/index.css`
+   - Never override existing grid measurements
+   - Use CSS custom properties for new values that might change
+
+### Grid Behavior Rules
+
+1. **Column Operations:**
+   - Index column (#) must always be sticky-left and 48px wide
+   - Contacts column must always be the first data column at 180px wide
+   - Index and Contacts columns must always remain pinned without option to unpin
+   - New columns default to 180px width unless specified
+   - Column resize handles are intentionally disabled
+
+2. **Scroll Behavior:**
+   - Horizontal scroll must keep index column visible
+   - Scrollbars must remain hidden but functional
+   - Virtual scrolling is not yet implemented - don't add it without planning
+
+3. **Mobile Responsiveness:**
+   - Mobile breakpoint is at 768px
+   - Column pinning is limited to 2 additional columns on mobile (beyond index and contacts)
+   - Mobile-specific styles are in `responsive.css`
+
+### Code Quality Rules
+
+1. **Before modifying any grid files:**
+   - Understand the current grid invariants (see user_rules section)
+   - Test on both desktop and mobile viewports
+   - Verify alignment between headers and body cells
+   - Check that frozen columns still work correctly
+
+2. **Testing requirements for grid changes:**
+   - Must work in Chrome, Firefox, Safari, and Edge
+   - Must maintain 36px row height across all browsers
+   - Must keep headers and body cells aligned
+   - Must not introduce visible scrollbars
+
+3. **Performance considerations:**
+   - The grid currently renders all rows (no virtualization)
+   - Avoid adding expensive calculations in render loops
+   - Use React.memo and useMemo for expensive computations
+
+## Contact Deletion System - DO NOT MODIFY
+
+The contact deletion system has been carefully optimized to handle large datasets (100K+ contacts) with specific performance requirements. The following files implement critical delete functionality and **must not be modified** without explicit approval:
+
+### Protected Files
+
+1. **Delete Operation Core**
+   - `src/hooks/supabase/use-leads-rows.ts` - Contains optimized `deleteContacts` function
+   - `src/stores/contactsStore.ts` - Implements background loading pause/resume during delete
+
+2. **Delete UI Components**
+   - `src/components/grid-view/DeleteContactsDialog.tsx` - Optimized delete confirmation dialog
+   - `src/components/grid-view/GridViewContainer.tsx` - Contains immediate dialog close logic
+
+### Protected Functionality
+
+1. **Immediate UI Updates**
+   - The `deleteContacts` function updates UI state BEFORE database operations
+   - The `contacts-deleted-immediate` event provides instant feedback
+   - Dialog closes immediately after UI updates (< 50ms)
+
+2. **Background Loading Coordination**
+   - Background loading pauses during delete operations
+   - Chunk size reduction logic when database timeouts occur
+   - 2-second timeout pause with intelligent resumption
+
+3. **Performance Timing**
+   - Comprehensive timing logs track UI and database operations
+   - Console logs with emoji indicators for easy tracking
+
+### Modification Rules
+
+1. **Before modifying any delete-related code:**
+   - Understand the optimized delete flow (UI-first, then database)
+   - Test with large datasets (100K+ contacts)
+   - Verify dialog closes within 50ms of clicking delete
+   - Ensure background loading properly pauses/resumes
+
+2. **Required testing for changes:**
+   - Must work with 100K+ contacts without flickering
+   - Must close dialog immediately after clicking delete
+   - Must maintain all performance timing logs
+   - Must preserve optimistic UI updates
+
+3. **Performance requirements:**
+   - Dialog must close in < 50ms after clicking delete
+   - Full operation must complete in < 400ms
+   - No UI flickering during delete operations
+   - No DOM nesting warnings in console
+
+## Grid Data Loading System - DO NOT MODIFY
+
+The grid data loading system has been optimized for handling large datasets with background loading and instant search capabilities. The following components are considered production-ready and **must not be modified** without explicit approval:
+
+### Protected Files
+
+1. **Data Loading Core**
+   - `src/stores/contactsStore.ts` - Implements optimized background loading with chunking
+   - `src/hooks/supabase/use-leads-rows.ts` - Contains data fetching logic
+   - `src/hooks/use-instant-contacts.ts` - Implements instant search capabilities
+
+2. **Grid Components**
+   - `src/components/grid-view/GridViewContainer.tsx` - Main container with loading states
+   - `src/components/grid-view/EditableLeadsGrid.tsx` - Grid rendering with optimizations
+   - `src/components/grid-view/GridPagination.tsx` - Pagination with background loading indicator
+
+### Protected Functionality
+
+1. **Background Loading**
+   - Chunked loading with progress tracking
+   - Intelligent pause/resume during user interactions
+   - localStorage caching for improved performance
+   - Persistent tracking of deleted contact IDs
+
+2. **Instant Search**
+   - Client-side filtering for immediate results
+   - Debounced server-side search for complete results
+   - Optimistic UI updates during search operations
+   - Maintains grid stability during filtering
+
+3. **Pagination System**
+   - Client-side pagination with configurable page sizes
+   - Background loading progress indicator
+   - Optimized for large datasets (100K+ contacts)
+   - Maintains scroll position during page changes
+
+### Modification Rules
+
+1. **Before modifying any loading-related code:**
+   - Understand the background loading architecture
+   - Test with large datasets (100K+ contacts)
+   - Verify search responsiveness remains under 100ms
+   - Ensure pagination transitions are smooth
+
+2. **Required testing for changes:**
+   - Must work with 100K+ contacts without performance degradation
+   - Must maintain sub-100ms response time for searches
+   - Must preserve background loading indicators
+   - Must not introduce UI flickering during data operations
+
+3. **Performance requirements:**
+   - Initial render must complete in < 300ms
+   - Search filtering must update in < 100ms
+   - Pagination changes must complete in < 50ms
+   - Background loading must not block UI interactions
+
+## Column Management System - DO NOT MODIFY
+
+The column management system handles pinning, visibility, and ordering of grid columns. The following components are production-ready and **must not be modified** without explicit approval:
+
+### Protected Files
+
+1. **Column Management Core**
+   - `src/components/grid-view/GridViewContainer.tsx` - Contains column pinning logic
+   - `src/components/grid-view/StaticColumns.tsx` - Implements frozen columns behavior
+   - `src/components/grid-view/MainGridView.tsx` - Handles column interactions
+
+2. **Column UI Components**
+   - `src/components/grid-view/NewColumnModal.tsx` - Column creation interface
+   - `src/components/grid-view/DeleteColumnDialog.tsx` - Column deletion confirmation
+   - `src/components/grid-view/ContextMenu.tsx` - Column actions menu
+
+### Protected Functionality
+
+1. **Column Pinning**
+   - Index (#) and Contacts columns are always pinned
+   - Pin state persistence in localStorage
+   - Mobile-specific pinning limitations
+   - Visual indicators for pinned columns
+
+2. **Column Ordering**
+   - Drag-and-drop reordering
+   - Order persistence in localStorage
+   - Respects pinned column positions
+   - Maintains order during filtering and sorting
+
+### Modification Rules
+
+1. **Before modifying any column-related code:**
+   - Understand the column pinning architecture
+   - Test on both desktop and mobile viewports
+   - Verify index and contacts columns remain pinned
+   - Ensure column order persistence works correctly
+
+2. **Required testing for changes:**
+   - Must maintain index and contacts columns as always pinned
+   - Must preserve column ordering across page refreshes
+   - Must respect mobile pinning limitations
+   - Must not break column drag-and-drop functionality
+   
+### Import/Migration Rules
+
+1. **CSV Import System:**
+   - Core logic is in `src/services/csvImportService.ts`
+   - Do not modify the field mapping logic without understanding the full flow
+   - Property definitions are stored in Supabase and cached locally
+
+2. **Database Schema:**
+   - Contact and account schemas are defined in Supabase
+   - Custom fields use JSONB columns
+   - Changes must include proper migrations
+
+### General Development Rules
+
+1. **Component Structure:**
+   - Keep components under 300 lines
+   - Extract reusable logic into custom hooks
+   - Use TypeScript strict mode where possible
+
+2. **State Management:**
+   - Grid state is managed locally with Supabase sync
+   - Avoid unnecessary re-renders by proper memoization
+   - Use the save indicator context for tracking changes
+
+3. **Error Handling:**
+   - All Supabase operations should have error handling
+   - Show user-friendly error messages via toast
+   - Log errors for debugging but don't expose internals
+
+### File Organization Rules
+
+1. **Don't create these files unless requested:**
+   - README.md files
+   - Documentation files
+   - Test files (unless setting up testing framework)
+
+2. **When creating new features:**
+   - Follow existing patterns in the codebase
+   - Place files in appropriate directories
+   - Update imports in index files
+
+3. **Style files organization:**
+   - Component-specific styles go in component folder
+   - Shared styles go in styles directory
+   - Use CSS modules or scoped styles for new components
+
+## Commit Message Rules
+
+Use conventional commits:
+- `feat:` for new features
+- `fix:` for bug fixes
+- `refactor:` for code improvements
+- `style:` for CSS/formatting changes
+- `chore:` for maintenance tasks
+
+## AI Assistant Behavior
+
+1. **Always verify before changing:**
+   - Check if changes affect grid layout constants
+   - Ensure mobile responsiveness is maintained
+   - Verify no scrollbars become visible
+   - Confirm index and contacts columns remain pinned
+
+2. **When asked to modify grid behavior:**
+   - First explain what the current behavior is
+   - Identify which files would need changes
+   - Warn about any invariant violations
+   - Highlight risks to performance with large datasets
+
+3. **Code generation preferences:**
+   - Use existing UI components from `src/components/ui/`
+   - Follow established patterns in the codebase
+   - Prefer composition over inheritance
+   - Prioritize performance optimizations for large datasets
