@@ -35,7 +35,11 @@ export function Stepper({
         const isLast = index === steps.length - 1;
 
         return (
-          <React.Fragment key={step.id}>
+          <div key={step.id} className={cn(
+            "flex",
+            orientation === "vertical" ? "flex-col" : "items-center",
+            orientation === "horizontal" && !isLast && "flex-1"
+          )}>
             <div
               className={cn(
                 "flex",
@@ -95,7 +99,7 @@ export function Stepper({
                 )}
               />
             )}
-          </React.Fragment>
+          </div>
         );
       })}
     </div>

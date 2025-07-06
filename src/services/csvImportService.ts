@@ -1,9 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ParsedCsvResult } from "@/utils/parseCsv";
 import { FieldMapping, mapColumnsToContact } from "@/utils/mapColumnsToContact";
-import { AccountFieldMapping, mapColumnsToAccount } from "@/utils/mapColumnsToAccount";
+import {
+  AccountFieldMapping,
+  mapColumnsToAccount,
+} from "@/utils/mapColumnsToAccount";
 import { ListFieldDefinition } from "@/utils/buildFieldDefinitions";
-import { logger } from '@/utils/logger';
+import { logger } from "@/utils/logger";
 
 interface ImportResult {
   contactsCreated: number;
@@ -79,87 +82,91 @@ export async function importCsvData(
 
       // Separate contacts by whether they have emails
       const contactsWithEmail = processedRows
-        .filter(row => row.contact && row.contact.email)
+        .filter((row) => row.contact && row.contact.email)
         .map((row, index) => {
           const contact = row.contact;
-          
+
           // Build the data object with all imported fields
           const dataObject: Record<string, any> = {
             // Add the list name so we can filter by it
             importListName: listName,
             importedAt: new Date().toISOString(),
             importOrder: row.importOrder, // Add import order to preserve CSV row order
-            
+
             // Store contact properties that don't have direct columns
             address: contact.address || null,
             linkedin: contact.linkedin || null,
             facebook: contact.facebook || null,
-            
+
             // Store all list fields
             ...row.listFields,
-            
+
             // Store account information if available
             account: row.account || null,
           };
-          
+
           // Map the contact fields properly
           return {
             id: crypto.randomUUID(),
             user_id: userId,
             list_id: listId,
-            name: contact.name || contact.firstName && contact.lastName 
-              ? `${contact.firstName} ${contact.lastName}`.trim() 
-              : contact.firstName || contact.lastName || 'Untitled Contact',
+            name:
+              contact.name ||
+              (contact.firstName && contact.lastName
+                ? `${contact.firstName} ${contact.lastName}`.trim()
+                : contact.firstName || contact.lastName || "Untitled Contact"),
             email: contact.email,
             phone: contact.phone || null,
             company: row.account?.name || null,
-            status: 'New',
+            status: "New",
             data: dataObject,
             // Set created_at based on import order to maintain CSV row order
-            created_at: new Date(Date.now() + row.importOrder).toISOString()
+            created_at: new Date(Date.now() + row.importOrder).toISOString(),
           };
         });
 
       // Contacts without email (can be inserted directly)
       const contactsWithoutEmail = processedRows
-        .filter(row => row.contact && !row.contact.email && row.contact.name)
+        .filter((row) => row.contact && !row.contact.email && row.contact.name)
         .map((row, index) => {
           const contact = row.contact;
-          
+
           // Build the data object with all imported fields
           const dataObject: Record<string, any> = {
             // Add the list name so we can filter by it
             importListName: listName,
             importedAt: new Date().toISOString(),
             importOrder: row.importOrder, // Add import order to preserve CSV row order
-            
+
             // Store contact properties that don't have direct columns
             address: contact.address || null,
             linkedin: contact.linkedin || null,
             facebook: contact.facebook || null,
-            
+
             // Store all list fields
             ...row.listFields,
-            
+
             // Store account information if available
             account: row.account || null,
           };
-          
+
           // Map the contact fields properly
           return {
             id: crypto.randomUUID(),
             user_id: userId,
             list_id: listId,
-            name: contact.name || contact.firstName && contact.lastName 
-              ? `${contact.firstName} ${contact.lastName}`.trim() 
-              : contact.firstName || contact.lastName || 'Untitled Contact',
+            name:
+              contact.name ||
+              (contact.firstName && contact.lastName
+                ? `${contact.firstName} ${contact.lastName}`.trim()
+                : contact.firstName || contact.lastName || "Untitled Contact"),
             email: null,
             phone: contact.phone || null,
             company: row.account?.name || null,
-            status: 'New',
+            status: "New",
             data: dataObject,
             // Set created_at based on import order to maintain CSV row order
-            created_at: new Date(Date.now() + row.importOrder).toISOString()
+            created_at: new Date(Date.now() + row.importOrder).toISOString(),
           };
         });
 
@@ -167,25 +174,29 @@ export async function importCsvData(
       if (contactsWithEmail.length > 0) {
         try {
           // First check which emails already exist
-          const emails = contactsWithEmail.map(c => c.email);
+          const emails = contactsWithEmail.map((c) => c.email);
           const { data: existingContacts } = await supabase
-            .from('contacts')
-            .select('email')
-            .eq('user_id', userId)
-            .in('email', emails);
+            .from("contacts")
+            .select("email")
+            .eq("user_id", userId)
+            .in("email", emails);
 
-          const existingEmails = new Set(existingContacts?.map(c => c.email) || []);
+          const existingEmails = new Set(
+            existingContacts?.map((c) => c.email) || []
+          );
 
           // Separate new vs existing contacts
-          const newContacts = contactsWithEmail.filter(c => !existingEmails.has(c.email));
-          const existingContactsToUpdate = contactsWithEmail.filter(c => existingEmails.has(c.email));
+          const newContacts = contactsWithEmail.filter(
+            (c) => !existingEmails.has(c.email)
+          );
+          const existingContactsToUpdate = contactsWithEmail.filter((c) =>
+            existingEmails.has(c.email)
+          );
 
           // Insert new contacts
           if (newContacts.length > 0) {
-            const { data: insertedContacts, error: insertError } = await supabase
-              .from("contacts")
-              .insert(newContacts)
-              .select();
+            const { data: insertedContacts, error: insertError } =
+              await supabase.from("contacts").insert(newContacts).select();
 
             if (insertError) {
               logger.error("Insert error:", insertError);
@@ -207,14 +218,21 @@ export async function importCsvData(
                 company: contact.company,
                 status: contact.status,
                 data: contact.data,
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
               })
-              .eq('user_id', userId)
-              .eq('email', contact.email);
+              .eq("user_id", userId)
+              .eq("email", contact.email);
 
             if (updateError) {
-              logger.error("Update error for email", contact.email, ":", updateError);
-              result.errors.push(`Failed to update contact with email ${contact.email}`);
+              logger.error(
+                "Update error for email",
+                contact.email,
+                ":",
+                updateError
+              );
+              result.errors.push(
+                `Failed to update contact with email ${contact.email}`
+              );
             } else {
               result.contactsUpdated += 1;
               result.listRowsCreated += 1;
@@ -254,8 +272,8 @@ export async function importCsvData(
     }
 
     // Calculate skipped records
-    result.contactsSkipped = totalRows - result.contactsCreated - result.contactsUpdated;
-
+    result.contactsSkipped =
+      totalRows - result.contactsCreated - result.contactsUpdated;
   } catch (error: any) {
     logger.error("Import error:", error);
     result.errors.push(error.message);
@@ -279,9 +297,12 @@ function processRow(
 
   // Map list fields
   const listFields: Record<string, any> = {};
-  listFieldDefinitions.forEach(field => {
+  listFieldDefinitions.forEach((field) => {
     if (field.csvField && row[field.csvField] !== undefined) {
-      listFields[field.fieldName] = convertFieldValue(row[field.csvField], field.type);
+      listFields[field.fieldName] = convertFieldValue(
+        row[field.csvField],
+        field.type
+      );
     }
   });
 
@@ -301,7 +322,10 @@ function convertFieldValue(value: string, type: string): any {
       return isNaN(date.getTime()) ? null : date.toISOString();
     case "list":
       // Handle comma-separated lists
-      return value.split(",").map(v => v.trim()).filter(Boolean);
+      return value
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
     default:
       return value;
   }
@@ -316,15 +340,19 @@ export function validateImportData(
   const errors: string[] = [];
 
   // Check if required fields are mapped
-  const hasNameMapping = contactFieldMappings.some(m => m.contactProperty === "name");
-  const hasEmailMapping = contactFieldMappings.some(m => m.contactProperty === "email");
-  
+  const hasNameMapping = contactFieldMappings.some(
+    (m) => m.contactProperty === "name"
+  );
+  const hasEmailMapping = contactFieldMappings.some(
+    (m) => m.contactProperty === "email"
+  );
+
   if (!hasNameMapping && !hasEmailMapping) {
     errors.push("Either Name or Email must be mapped for contacts");
   }
 
   // Check if relationship name is mapped
-  const relationshipField = listFieldDefinitions.find(f => f.isRequired);
+  const relationshipField = listFieldDefinitions.find((f) => f.isRequired);
   if (!relationshipField || !relationshipField.csvField) {
     errors.push("Relationship Name must be mapped");
   }
@@ -338,4 +366,4 @@ export function validateImportData(
     isValid: errors.length === 0,
     errors,
   };
-} 
+}

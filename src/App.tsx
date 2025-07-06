@@ -21,6 +21,7 @@ import Integrations from "@/pages/dashboard/Integrations";
 import Settings from "@/pages/dashboard/Settings";
 import Landing from "@/pages/Landing";
 import Import from "@/pages/Import";
+import GmailImport from "@/pages/dashboard/GmailImport";
 import DeletedContacts from "@/pages/dashboard/DeletedContacts";
 import { useRadixPointerEventsFix } from "@/hooks/use-radix-pointer-events-fix";
 // Create a client
@@ -57,6 +58,7 @@ function App() {
                   <Route path="/stream" element={<PrivateRoute><StreamView /></PrivateRoute>} />
                   <Route path="/stream-view/:id" element={<PrivateRoute><StreamView /></PrivateRoute>} />
                   <Route path="/import" element={<PrivateRoute><Import /></PrivateRoute>} />
+                  <Route path="/gmail-import" element={<PrivateRoute><GmailImport /></PrivateRoute>} />
                   <Route path="/deleted-contacts" element={<PrivateRoute><DeletedContacts /></PrivateRoute>} />
                   <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
                   <Route path="/settings/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
