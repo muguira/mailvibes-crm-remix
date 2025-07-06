@@ -15,7 +15,7 @@ interface ContactsState {
   loadedCount: number;                    // contacts loaded so far
   isBackgroundLoading: boolean;           // background loading active
   isInitialized: boolean;                 // whether the store has been initialized
-  firstBatchLoaded: boolean;              // whether first 10 contacts are loaded
+  firstBatchLoaded: boolean;              // whether first 15 contacts are loaded
   allContactsLoaded: boolean;             // whether all contacts have been loaded
   
   // Methods
@@ -37,7 +37,7 @@ interface ContactsState {
   _deletedContactIds: Set<string>;        // track deleted contacts to prevent re-adding
 }
 
-const FIRST_BATCH_SIZE = 10; // First batch - load immediately (reduced to 10 for instant load < 400ms)
+const FIRST_BATCH_SIZE = 15; // First batch - load immediately (optimized for instant load <400ms)
 const CHUNK_SIZE = 1000; // Background chunks
 
 // Store the background loading promise outside of the store
@@ -218,32 +218,31 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
       logger.log(`[PERF] Starting initial load of first ${FIRST_BATCH_SIZE} contacts...`);
       
       try {
-        // Run both queries in parallel for faster initial load
-        const [countResult, dataResult] = await Promise.all([
-          // Get total count
-          supabase
-            .from('contacts')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId),
-          // Fetch first batch (10 contacts for instant load)
-          supabase
-            .from('contacts')
-            .select('id, name, email, phone, company, status, data')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .range(0, FIRST_BATCH_SIZE - 1) // First 10 rows
-        ]);
+        // Get total count first
+        const countStartTime = performance.now();
+        const { count } = await supabase
+          .from('contacts')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId);
         
-        const queryEndTime = performance.now();
-        logger.log(`[PERF] Both queries completed in ${(queryEndTime - initStartTime).toFixed(2)}ms`);
-        
-        const { count } = countResult;
-        const { data, error } = dataResult;
-        
-        if (error) throw error;
-        
+        const countEndTime = performance.now();
+        logger.log(`[PERF] Count query completed in ${(countEndTime - countStartTime).toFixed(2)}ms`);
         logger.log(`Total contacts in database: ${count || 0}`);
         set({ totalCount: count || 0 });
+        
+        // Fetch first batch (15 contacts for instant initial load)
+        const fetchStartTime = performance.now();
+        const { data, error } = await supabase
+          .from('contacts')
+          .select('id, name, email, phone, company, status, data')  // Removed user_id, created_at, updated_at for faster query
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .range(0, FIRST_BATCH_SIZE - 1); // First 15 rows
+        
+        const fetchEndTime = performance.now();
+        logger.log(`[PERF] First batch query completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
+        
+        if (error) throw error;
         
         if (data && data.length > 0) {
           const processStartTime = performance.now();
@@ -312,7 +311,7 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
           
           // Start background loading for remaining contacts if there are more
           if (hasMoreContacts) {
-            logger.log('Starting background loading for remaining contacts (11 onwards)...');
+            logger.log('Starting background loading for remaining contacts (16 onwards)...');
             // Small delay to let UI render first batch
             setTimeout(() => {
               get().startBackgroundLoading();

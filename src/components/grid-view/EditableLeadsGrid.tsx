@@ -411,7 +411,7 @@ export function EditableLeadsGrid() {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10); // Default to 10 rows per page
+  const [pageSize, setPageSize] = useState(15); // Default to 15 rows per page for faster initial display
   
   // Debounce search term for better performance
   const debouncedSearchTerm = useDebounce(searchTerm, 200);
