@@ -92,6 +92,17 @@ const Settings = () => {
                                             >
                                                 Integrations
                                             </button>
+                                            <button
+                                                className={cn(
+                                                    "w-full px-3 py-2 text-left text-sm rounded-md transition-colors",
+                                                    isActive('/settings/imports') 
+                                                        ? "bg-[#E8F5F3] text-[#00A991] font-medium" 
+                                                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                                )}
+                                                onClick={() => navigate('/settings/imports')}
+                                            >
+                                                Imports
+                                            </button>
                                         </nav>
                                     </div>
                                 </div>
