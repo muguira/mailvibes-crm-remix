@@ -158,7 +158,7 @@ export function ContactPropertiesStep({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-[calc(100vh-300px)] overflow-y-hidden">
       {/* Instructions */}
       <div>
         <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -186,7 +186,7 @@ export function ContactPropertiesStep({
             <div className="bg-[#62BFAA] text-white rounded-t-lg px-4 py-3">
               <h3 className="font-medium">CSV Fields</h3>
             </div>
-            <div className="space-y-2 max-h-96 overflow-y-auto px-1">
+            <div className="space-y-2 max-h-[550px] overflow-y-auto px-1">
               {unmappedFields.map((field) => (
                 <CsvFieldChip
                   key={field}
@@ -204,7 +204,7 @@ export function ContactPropertiesStep({
               <h3 className="font-medium">Contact Properties</h3>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[545px] overflow-y-auto">
               {/* Name field with special handling */}
               {getMappedFieldForProperty('name') ? (
                 <ContactPropertySlot
