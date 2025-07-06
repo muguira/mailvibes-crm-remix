@@ -1,4 +1,4 @@
-import React, { useEffect, ReactNode } from "react";
+import React, { useEffect, ReactNode, useRef } from "react";
 import { useAuthStore } from "@/hooks/useAuthStore";
 // import { useStore } from "@/stores";
 import { logger } from "@/utils/logger";
@@ -25,33 +25,27 @@ interface AuthProviderProps {
  */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const { isInitialized, initialize, loading, errors } = useAuthStore();
+  const hasInitializedRef = useRef(false);
   // const store = useStore();
 
-  // Initialize auth state
+  // Initialize auth state only once
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
     const initAuth = async () => {
-      if (!isInitialized && !loading.initializing) {
+      if (!hasInitializedRef.current && !isInitialized) {
+        hasInitializedRef.current = true;
         logger.log('AuthProvider: Initializing auth state...');
         try {
           await initialize();
         } catch (error) {
           logger.error('AuthProvider: Failed to initialize auth state:', error);
-          // Si hay un error, intentamos reinicializar después de 2 segundos
-          timeoutId = setTimeout(initAuth, 2000);
+          // Don't retry on errors - let the user refresh the page if needed
+          // This prevents infinite loops when there are persistent errors
         }
       }
     };
 
     initAuth();
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [isInitialized, initialize, loading.initializing]);
+  }, []); // Empty dependencies - only run once on mount
 
   // Initialize tasks when user is authenticated
   // useEffect(() => {

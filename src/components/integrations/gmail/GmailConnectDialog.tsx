@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -7,11 +7,15 @@ import { Mail, AlertCircle } from "lucide-react";
 import { useAuth } from "@/components/auth";
 import { useStore } from "@/stores";
 import { isOAuthCallback } from "@/services/google/authService";
+import { logger } from "@/utils/logger";
 
 interface GmailConnectDialogProps {
   children: React.ReactNode;
   onSuccess?: (email: string) => void;
 }
+
+// Global flag to ensure OAuth callback is only handled once
+let globalOAuthHandling = false;
 
 export function GmailConnectDialog({ children, onSuccess }: GmailConnectDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,29 +27,32 @@ export function GmailConnectDialog({ children, onSuccess }: GmailConnectDialogPr
     handleOAuthCallback,
     connectedAccounts
   } = useStore();
+  const hasCheckedCallbackRef = useRef(false);
+  const componentId = useRef(Math.random().toString(36).substring(7));
+  const previousAccountsCountRef = useRef(connectedAccounts.length);
 
-  // Handle OAuth callback if we're returning from Google
+  // Handle OAuth callback if we're returning from Google - only check once globally
   useEffect(() => {
-    console.log("[GmailConnectDialog] Checking for OAuth callback...");
-    console.log("[GmailConnectDialog] Current URL:", window.location.href);
-    console.log("[GmailConnectDialog] Is OAuth callback?", isOAuthCallback());
-    console.log("[GmailConnectDialog] User:", user);
+    if (hasCheckedCallbackRef.current || globalOAuthHandling) return;
     
     if (isOAuthCallback() && user) {
-      console.log("[GmailConnectDialog] OAuth callback detected!");
+      hasCheckedCallbackRef.current = true;
+      globalOAuthHandling = true;
+      
+      logger.debug(`[GmailConnectDialog-${componentId.current}] Handling OAuth callback...`);
       
       // Check if we already handled this specific callback
       const currentUrl = window.location.href;
       const handledUrl = sessionStorage.getItem('gmail_oauth_callback_url');
       
       if (handledUrl !== currentUrl) {
-        console.log("[GmailConnectDialog] Handling OAuth callback...");
         sessionStorage.setItem('gmail_oauth_callback_url', currentUrl);
         
         handleOAuthCallback(user.id).finally(() => {
           // Clean up after handling
           setTimeout(() => {
             sessionStorage.removeItem('gmail_oauth_callback_url');
+            globalOAuthHandling = false;
             // Also clean the URL parameters
             const url = new URL(window.location.href);
             url.searchParams.delete('code');
@@ -58,19 +65,31 @@ export function GmailConnectDialog({ children, onSuccess }: GmailConnectDialogPr
           }, 1000);
         });
       } else {
-        console.log("[GmailConnectDialog] OAuth callback already handled for this URL");
+        globalOAuthHandling = false;
       }
     }
-  }, [user, handleOAuthCallback]);
+    
+    // Cleanup on unmount
+    return () => {
+      if (globalOAuthHandling && componentId.current) {
+        globalOAuthHandling = false;
+      }
+    };
+  }, [user]); // Remove handleOAuthCallback from dependencies to prevent loops
 
-  // Watch for new accounts and trigger success callback
+  // Watch for NEW accounts being added (not just existing accounts)
   useEffect(() => {
-    if (connectedAccounts.length > 0) {
+    // Only trigger if dialog is open and we have more accounts than before
+    if (isOpen && connectedAccounts.length > previousAccountsCountRef.current) {
       const latestAccount = connectedAccounts[0];
+      logger.debug(`[GmailConnectDialog] New account connected: ${latestAccount.email}`);
       onSuccess?.(latestAccount.email);
       setIsOpen(false);
     }
-  }, [connectedAccounts, onSuccess]);
+    
+    // Update the count for next comparison
+    previousAccountsCountRef.current = connectedAccounts.length;
+  }, [connectedAccounts, onSuccess, isOpen]);
 
   const handleConnect = async () => {
     if (!user) return;

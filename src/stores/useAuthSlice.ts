@@ -116,13 +116,15 @@ export const useAuthSlice: StateCreator<
   },
 
   /**
-   * Initialize the auth state by checking current session
-   * Sets up auth state change listener and loads initial session
+   * Initialize authentication state by checking current session
+   * Sets up auth state change listener for automatic updates
    * @returns Promise that resolves when initialization is complete
    */
   authInitialize: async () => {
-    // Si ya está inicializado o está en proceso, no hacemos nada
-    if (get().authIsInitialized || get().authLoading.initializing) {
+    // Prevent multiple initializations
+    const currentState = get();
+    if (currentState.authIsInitialized) {
+      logger.debug("Auth already initialized, skipping...");
       return;
     }
 
@@ -132,7 +134,6 @@ export const useAuthSlice: StateCreator<
     });
 
     try {
-      // Check current session
       const {
         data: { session },
         error,
@@ -153,11 +154,14 @@ export const useAuthSlice: StateCreator<
         useContactsStore.getState().initialize(session.user.id);
       }
 
-      // Set up auth state change listener
+      // Set up auth state change listener - only once
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange(async (event, session) => {
         logger.log("Auth state changed:", event, session?.user?.id);
+
+        // Skip if it's the initial session event (we already handled it above)
+        if (event === "INITIAL_SESSION") return;
 
         if (session?.user) {
           set((state) => {
@@ -168,10 +172,12 @@ export const useAuthSlice: StateCreator<
             state.authLastSyncAt = new Date().toISOString();
           });
 
-          // Initialize contacts store for authenticated user
-          logger.log("User authenticated, starting contact preloading...");
-          useContactsStore.getState().initialize(session.user.id);
-        } else {
+          // Only initialize contacts on sign in, not on every state change
+          if (event === "SIGNED_IN") {
+            logger.log("User signed in, starting contact preloading...");
+            useContactsStore.getState().initialize(session.user.id);
+          }
+        } else if (event === "SIGNED_OUT") {
           set((state) => {
             state.authSession = null;
             state.authUser = null;
@@ -183,6 +189,9 @@ export const useAuthSlice: StateCreator<
           useContactsStore.getState().clear();
         }
       });
+
+      // Store subscription for cleanup if needed
+      // You might want to store this in a ref or state for cleanup later
 
       // Marcamos como inicializado después de configurar todo
       set((state) => {
