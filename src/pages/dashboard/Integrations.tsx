@@ -136,6 +136,12 @@ const Integrations = () => {
                                 <button className="px-4 py-2 text-left rounded-lg bg-accent text-accent-foreground">
                                     Integrations
                                 </button>
+                                <button 
+                                    className="px-4 py-2 text-left rounded-lg hover:bg-muted"
+                                    onClick={() => navigate('/settings/imports')}
+                                >
+                                    Imports
+                                </button>
                             </nav>
                         </div>
                     </div>
