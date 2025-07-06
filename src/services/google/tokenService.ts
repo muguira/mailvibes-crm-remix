@@ -185,62 +185,47 @@ export async function refreshTokenIfNeeded(
       return tokenRecord.access_token; // Still valid
     }
 
-    // Refresh the token
-    const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
+    // Use Edge Function to refresh the token securely
+    const edgeFunctionUrl = `${
+      import.meta.env.VITE_SUPABASE_URL
+    }/functions/v1/gmail-refresh-token`;
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error("No active session");
+    }
+
+    const refreshResponse = await fetch(edgeFunctionUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
       },
-      body: new URLSearchParams({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        refresh_token: tokenRecord.refresh_token,
-        grant_type: "refresh_token",
+      body: JSON.stringify({
+        user_id: userId,
+        email: email || tokenRecord.email_accounts.email,
       }),
     });
 
-    if (!refreshResponse.ok) {
+    const refreshData = await refreshResponse.json();
+
+    if (!refreshResponse.ok || !refreshData.success) {
       // Track failed attempts
       failedRefreshAttempts.set(key, (failedRefreshAttempts.get(key) || 0) + 1);
 
-      // If it's a 400 error, the refresh token is likely invalid
-      if (refreshResponse.status === 400) {
+      // If it's a token error, the refresh token is likely invalid
+      if (
+        refreshData.error?.includes("Invalid refresh token") ||
+        refreshData.error?.includes("Token not found")
+      ) {
         console.error(
           "Refresh token is invalid. User needs to reconnect their Gmail account."
         );
-        // Mark the account as needing reconnection
-        await supabase
-          .from("email_accounts")
-          .update({
-            last_sync_status: "failed",
-            last_sync_error:
-              "Invalid refresh token. Please reconnect your Gmail account.",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("user_id", userId)
-          .eq("email", email || "");
       }
 
-      throw new Error(`Token refresh failed: ${refreshResponse.statusText}`);
-    }
-
-    const refreshData = await refreshResponse.json();
-
-    // Update the token in database
-    const newExpiresAt = new Date(Date.now() + refreshData.expires_in * 1000);
-
-    const { error: updateError } = await supabase
-      .from("oauth_tokens")
-      .update({
-        access_token: refreshData.access_token,
-        expires_at: newExpiresAt.toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", tokenRecord.id);
-
-    if (updateError) {
-      throw new Error(
-        `Failed to update refreshed token: ${updateError.message}`
-      );
+      throw new Error(refreshData.error || "Token refresh failed");
     }
 
     // Clear failed attempts on successful refresh
