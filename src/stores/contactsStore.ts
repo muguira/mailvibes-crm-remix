@@ -15,7 +15,7 @@ interface ContactsState {
   loadedCount: number;                    // contacts loaded so far
   isBackgroundLoading: boolean;           // background loading active
   isInitialized: boolean;                 // whether the store has been initialized
-  firstBatchLoaded: boolean;              // whether first 17 contacts are loaded
+  firstBatchLoaded: boolean;              // whether first 20 contacts are loaded
   allContactsLoaded: boolean;             // whether all contacts have been loaded
   
   // Methods
@@ -37,7 +37,7 @@ interface ContactsState {
   _deletedContactIds: Set<string>;        // track deleted contacts to prevent re-adding
 }
 
-const FIRST_BATCH_SIZE = 17; // First batch - load immediately (optimized for one page view)
+const FIRST_BATCH_SIZE = 20; // First batch - load immediately (optimized for one page view)
 const CHUNK_SIZE = 1000; // Background chunks
 
 // Store the background loading promise outside of the store
@@ -311,7 +311,7 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
           
           // Start background loading for remaining contacts if there are more
           if (hasMoreContacts) {
-            logger.log('Starting background loading for remaining contacts (18 onwards)...');
+            logger.log('Starting background loading for remaining contacts (21 onwards)...');
             // Small delay to let UI render first batch
             setTimeout(() => {
               get().startBackgroundLoading();
