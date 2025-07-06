@@ -74,7 +74,7 @@ export interface AuthUrlParams {
   code_challenge_method: "S256";
   state: string;
   access_type: "offline";
-  prompt: "consent";
+  prompt: "consent" | "select_account" | "select_account consent";
   include_granted_scopes?: string;
 }
 
