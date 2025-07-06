@@ -368,25 +368,25 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-gray-900 flex items-center gap-3">
-            <Mail className="w-8 h-8 text-[#62BFAA]" />
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-3">
+            <Mail className="w-6 h-6 text-[#62BFAA]" />
             Gmail Import
           </h1>
         </div>
 
-        <div className="grid grid-cols-12 gap-8">
+        <div className="grid grid-cols-12 gap-6">
           {/* Left sidebar with stepper */}
           <div className="col-span-2">
             <Card>
-              <div className="bg-[#62BFAA] text-white px-6 py-4 rounded-t-lg">
-                <h2 className="text-lg font-medium">
+              <div className="bg-[#62BFAA] text-white px-4 py-3 rounded-t-lg">
+                <h2 className="text-base font-medium">
                   {currentStep === 5 ? "Import Complete" : WIZARD_STEPS[currentStep]?.title || ""}
                 </h2>
               </div>
-              <CardContent className="p-6">
+              <CardContent className="p-4">
                 <Stepper
                   steps={WIZARD_STEPS}
                   currentStep={currentStep}
@@ -405,12 +405,12 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
                 message={`Importing data... ${importProgress}%`}
               />
               
-              <CardContent className="p-8">
+              <CardContent className="p-6">
                 {renderStepContent()}
 
                 {/* Navigation buttons */}
                 {currentStep < 5 && (
-                  <div className="mt-8 flex justify-between">
+                  <div className="mt-6 flex justify-between">
                     <Button
                       variant="outline"
                       onClick={handleBack}
@@ -422,7 +422,7 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
                     </Button>
                     
                     <div className="flex gap-2">
-                      {shouldShowSkipButton() && (
+                      {shouldShowSkipButton() && (  
                         <Button
                           variant="outline"
                           onClick={handleNext}
