@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,12 +41,14 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
   const [accountsState, setAccountsState] = useState<GmailAccount[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const { toast } = useToast();
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
-    if (user) {
+    if (user && !hasLoadedRef.current) {
+      hasLoadedRef.current = true;
       loadAccounts(user.id);
     }
-  }, [user, loadAccounts]);
+  }, [user]);
 
   const handleDisconnect = async (email: string) => {
     if (!user) return;

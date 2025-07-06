@@ -9,6 +9,9 @@ import './styles.css';
 import { logger } from '@/utils/logger';
 import { LoadingOverlay } from '@/components/ui/loading-spinner';
 import { DeleteContactsDialog } from './DeleteContactsDialog';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Upload, Mail } from 'lucide-react';
 
 export function GridViewContainer({
   columns,
@@ -66,6 +69,9 @@ export function GridViewContainer({
 
   // Delete dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  // Add navigate hook
+  const navigate = useNavigate();
 
   // Listen for immediate delete feedback to close dialog quickly
   useEffect(() => {
@@ -345,9 +351,26 @@ export function GridViewContainer({
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No contacts yet</h3>
-            <p className="text-sm text-gray-500 text-center max-w-sm">
-              Add your first contact to get started. You can add contacts manually or import them from a CSV file.
+            <p className="text-sm text-gray-500 text-center max-w-sm mb-6">
+              Add your first contact to get started. You can add contacts manually or import them from a CSV file or Gmail.
             </p>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/import')}
+                className="flex items-center gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                Import from CSV
+              </Button>
+              <Button
+                onClick={() => navigate('/gmail-import')}
+                className="flex items-center gap-2 bg-[#62BFAA] hover:bg-[#52AF9A] text-white"
+              >
+                <Mail className="w-4 h-4" />
+                Import from Gmail
+              </Button>
+            </div>
           </div>
         ) : (
           <>
