@@ -19,6 +19,9 @@ import { getValidToken } from "@/services/google/tokenService";
 import { toast } from "sonner";
 import { logger } from "@/utils/logger";
 
+// Track loading state to prevent concurrent calls
+let isLoadingAccounts = false;
+
 /**
  * Gmail Authentication slice for Zustand store
  *
@@ -199,6 +202,40 @@ export const useGmailAuthSlice: StateCreator<
   loadAccounts: async (userId: string) => {
     if (!userId) return;
 
+    // Get current state to check if already loading
+    const currentState = get();
+
+    // Prevent concurrent calls
+    if (isLoadingAccounts) {
+      logger.debug(
+        "[GmailAuthSlice] loadAccounts already in progress, skipping..."
+      );
+      return;
+    }
+
+    // Also check if we're already loading in the state
+    if (currentState.isLoading) {
+      logger.debug(
+        "[GmailAuthSlice] State already loading, skipping loadAccounts..."
+      );
+      return;
+    }
+
+    // Check if we recently loaded accounts (within last 5 seconds)
+    if (currentState.lastSync) {
+      const timeSinceLastSync =
+        Date.now() - new Date(currentState.lastSync).getTime();
+      if (timeSinceLastSync < 5000) {
+        logger.debug(
+          `[GmailAuthSlice] Recently synced ${timeSinceLastSync}ms ago, skipping...`
+        );
+        return;
+      }
+    }
+
+    logger.debug(`[GmailAuthSlice] Starting loadAccounts for user: ${userId}`);
+    isLoadingAccounts = true;
+
     try {
       set((state) => {
         state.isLoading = true;
@@ -224,13 +261,8 @@ export const useGmailAuthSlice: StateCreator<
 
       if (error) throw error;
 
-      console.log("[GmailAuthSlice] Raw accounts data from DB:", data);
-
       const formattedAccounts =
         data?.map((account) => {
-          console.log("[GmailAuthSlice] Processing account:", account);
-          console.log("[GmailAuthSlice] Account settings:", account.settings);
-
           const formatted = {
             ...account,
             user_info:
@@ -239,16 +271,19 @@ export const useGmailAuthSlice: StateCreator<
                 : {},
           };
 
-          console.log("[GmailAuthSlice] Formatted account:", formatted);
           return formatted;
         }) || [];
+
+      logger.debug(
+        `[GmailAuthSlice] Loaded ${formattedAccounts.length} accounts`
+      );
 
       set((state) => {
         state.connectedAccounts = formattedAccounts;
         state.lastSync = new Date();
       });
     } catch (error) {
-      logger.error("Error loading Gmail accounts:", error);
+      logger.error("[GmailAuthSlice] Error loading Gmail accounts:", error);
       const errorMessage =
         error instanceof Error
           ? error.message
@@ -261,6 +296,7 @@ export const useGmailAuthSlice: StateCreator<
       set((state) => {
         state.isLoading = false;
       });
+      isLoadingAccounts = false;
     }
   },
 
@@ -278,28 +314,21 @@ export const useGmailAuthSlice: StateCreator<
       });
 
       const params = extractCallbackParams();
-      console.log("[GmailAuthSlice] OAuth callback params:", params);
 
       if (params.error) {
         throw new Error(params.error_description || params.error);
       }
 
       if (!params.code || !params.state) {
-        console.error("[GmailAuthSlice] Missing params:", {
-          code: params.code,
-          state: params.state,
-        });
         throw new Error("Missing authorization code or state parameter");
       }
 
-      console.log("[GmailAuthSlice] Calling handleOAuthCallback service...");
       const tokenData = await handleOAuthCallback(
         params.code,
         params.state,
         getRedirectUri(),
         userId
       );
-      console.log("[GmailAuthSlice] Token data received:", tokenData);
 
       // Clean up URL
       cleanupCallbackUrl();

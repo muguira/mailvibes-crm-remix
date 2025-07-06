@@ -11,6 +11,10 @@ import {
  * Handles secure storage and retrieval of OAuth tokens in Supabase
  */
 
+// Track failed refresh attempts to prevent infinite loops
+const failedRefreshAttempts = new Map<string, number>();
+const MAX_REFRESH_ATTEMPTS = 1;
+
 /**
  * Saves OAuth tokens to Supabase database
  * @param userId - The authenticated user's ID
@@ -67,6 +71,10 @@ export async function saveTokens(
     if (tokenError) {
       throw new Error(`Failed to save tokens: ${tokenError.message}`);
     }
+
+    // Clear any failed refresh attempts for this account
+    const key = `${userId}-${email}`;
+    failedRefreshAttempts.delete(key);
   } catch (error) {
     console.error("Error saving tokens:", error);
     throw error;
@@ -113,6 +121,19 @@ export async function getValidToken(
       return tokens.access_token;
     }
 
+    // Check if we've already tried to refresh this token recently
+    const key = `${userId}-${email || "default"}`;
+    const attempts = failedRefreshAttempts.get(key) || 0;
+
+    if (attempts >= MAX_REFRESH_ATTEMPTS) {
+      console.warn(
+        `Max refresh attempts reached for ${
+          email || "user"
+        }. User needs to reconnect.`
+      );
+      return null;
+    }
+
     // Try to refresh the token
     const refreshedToken = await refreshTokenIfNeeded(userId, email);
     return refreshedToken;
@@ -132,6 +153,8 @@ export async function refreshTokenIfNeeded(
   userId: string,
   email?: string
 ): Promise<string | null> {
+  const key = `${userId}-${email || "default"}`;
+
   try {
     let query = supabase
       .from("oauth_tokens")
@@ -176,6 +199,27 @@ export async function refreshTokenIfNeeded(
     });
 
     if (!refreshResponse.ok) {
+      // Track failed attempts
+      failedRefreshAttempts.set(key, (failedRefreshAttempts.get(key) || 0) + 1);
+
+      // If it's a 400 error, the refresh token is likely invalid
+      if (refreshResponse.status === 400) {
+        console.error(
+          "Refresh token is invalid. User needs to reconnect their Gmail account."
+        );
+        // Mark the account as needing reconnection
+        await supabase
+          .from("email_accounts")
+          .update({
+            last_sync_status: "failed",
+            last_sync_error:
+              "Invalid refresh token. Please reconnect your Gmail account.",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", userId)
+          .eq("email", email || "");
+      }
+
       throw new Error(`Token refresh failed: ${refreshResponse.statusText}`);
     }
 
@@ -198,6 +242,9 @@ export async function refreshTokenIfNeeded(
         `Failed to update refreshed token: ${updateError.message}`
       );
     }
+
+    // Clear failed attempts on successful refresh
+    failedRefreshAttempts.delete(key);
 
     return refreshData.access_token;
   } catch (error) {
