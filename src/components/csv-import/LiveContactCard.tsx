@@ -9,11 +9,11 @@ interface LiveContactCardProps {
 
 export function LiveContactCard({ contact, additionalEmails = [] }: LiveContactCardProps) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 h-full">
+    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 h-[607px]">
       <h3 className="text-lg font-medium text-gray-900">Example Contact Data</h3>
       
       <div className="flex items-start gap-4">
-        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 overflow-y-auto">
           <User className="w-8 h-8 text-gray-400" />
         </div>
         
