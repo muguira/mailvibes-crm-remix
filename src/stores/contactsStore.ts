@@ -125,6 +125,9 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
     const state = get();
     const contactIdSet = new Set(contactIds);
     
+    logger.log(`[removeContacts] Removing ${contactIds.length} contacts from store`);
+    logger.log(`[removeContacts] Contact IDs to remove:`, contactIds);
+    
     // Create new cache without deleted contacts
     const newCache = { ...state.cache };
     contactIds.forEach(id => {
@@ -143,6 +146,8 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
     const newDeletedIds = new Set(state._deletedContactIds);
     contactIds.forEach(id => newDeletedIds.add(id));
     
+    logger.log(`[removeContacts] Total deleted IDs tracked: ${newDeletedIds.size}`);
+    
     // Persist deleted IDs to localStorage
     saveDeletedIds(newDeletedIds);
     
@@ -154,7 +159,8 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
       _deletedContactIds: newDeletedIds
     });
     
-    logger.log(`Removed ${deletedCount} contacts from store`);
+    logger.log(`[removeContacts] Successfully removed ${deletedCount} contacts from store`);
+    logger.log(`[removeContacts] New counts - loaded: ${newLoadedCount}, total: ${newTotalCount}`);
   },
   
   // Initialize with first batch of data
@@ -244,11 +250,16 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
           const orderedIds: string[] = [];
           const currentDeletedIds = get()._deletedContactIds;
           
+          logger.log(`[Initialize] Processing ${data.length} contacts with ${currentDeletedIds.size} deleted IDs to filter`);
+          
+          let skippedCount = 0;
+          
           // Process contacts
           data.forEach(contact => {
             // Skip if this contact has been deleted
             if (currentDeletedIds.has(contact.id)) {
-              logger.log(`Skipping deleted contact: ${contact.id}`);
+              logger.log(`[Initialize] Skipping deleted contact: ${contact.id}`);
+              skippedCount++;
               return;
             }
             
@@ -270,6 +281,7 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
           
           const processEndTime = performance.now();
           logger.log(`[PERF] Contact processing completed in ${(processEndTime - processStartTime).toFixed(2)}ms`);
+          logger.log(`[Initialize] Loaded ${orderedIds.length} contacts, skipped ${skippedCount} deleted contacts`);
           
           const hasMoreContacts = (count || 0) > FIRST_BATCH_SIZE;
           const allLoaded = !hasMoreContacts;
@@ -403,7 +415,7 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, name, email, phone, company, status, user_id, data, created_at, updated_at')
+        .select('id, name, email, phone, company, status, data')  // Match the fields from initial load
         .eq('user_id', state._userId)
         .order('created_at', { ascending: false })
         .range(state._offset, state._offset + state._chunkSize - 1);
@@ -411,20 +423,23 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
       if (error) throw error;
       
       if (data && data.length > 0) {
-        const newCache = { ...state.cache };
-        const newOrderedIds = [...state.orderedIds];
+        // IMPORTANT: Get the latest state to ensure we have the most recent deleted IDs
+        const latestState = get();
+        const newCache = { ...latestState.cache };
+        const newOrderedIds = [...latestState.orderedIds];
+        const currentDeletedIds = latestState._deletedContactIds;
         
-        // Get the latest deleted IDs from current state
-        const currentState = get();
-        const currentDeletedIds = currentState._deletedContactIds;
+        logger.log(`[Background Load] Processing ${data.length} contacts, ${currentDeletedIds.size} deleted IDs tracked`);
         
         let addedCount = 0;
+        let skippedCount = 0;
         
         // Process new contacts
         data.forEach(contact => {
           // Skip if this contact has been deleted
           if (currentDeletedIds.has(contact.id)) {
-            logger.log(`Skipping deleted contact during fetch: ${contact.id}`);
+            logger.log(`[Background Load] Skipping deleted contact: ${contact.id}`);
+            skippedCount++;
             return;
           }
           
@@ -448,8 +463,8 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
           }
         });
         
-        const newLoadedCount = state.loadedCount + addedCount;
-        const hasMore = data.length === state._chunkSize && newLoadedCount < state.totalCount;
+        const newLoadedCount = latestState.loadedCount + addedCount;
+        const hasMore = data.length === state._chunkSize && newLoadedCount < latestState.totalCount;
         
         set({
           cache: newCache,
@@ -461,7 +476,7 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
           allContactsLoaded: !hasMore
         });
         
-        logger.log(`Loaded chunk: ${addedCount} new contacts (total: ${newLoadedCount}/${state.totalCount})`);
+        logger.log(`[Background Load] Loaded chunk: ${addedCount} new contacts, ${skippedCount} skipped (total: ${newLoadedCount}/${latestState.totalCount})`);
       } else {
         set({ 
           hasMore: false, 
