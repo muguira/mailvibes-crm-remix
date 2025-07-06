@@ -102,7 +102,7 @@ export function GridPagination({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="15">15</SelectItem>
+              <SelectItem value="16">16</SelectItem>
               <SelectItem value="25">25</SelectItem>
               <SelectItem value="50">50</SelectItem>
               <SelectItem value="100">100</SelectItem>
