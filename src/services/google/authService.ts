@@ -64,7 +64,7 @@ export async function buildAuthUrl(
       code_challenge_method: "S256",
       state: state,
       access_type: "offline",
-      prompt: "consent",
+      prompt: "select_account consent",
       include_granted_scopes: "true",
     };
 

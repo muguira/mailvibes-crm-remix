@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/components/auth";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -46,16 +46,20 @@ export function useGmailAuth(): UseGmailAuthReturn {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
   const store = useStore();
+  const hasHandledCallbackRef = useRef(false);
+  const hasLoadedAccountsRef = useRef(false);
 
   useEffect(() => {
-    if (user) {
+    if (user && !hasLoadedAccountsRef.current) {
+      hasLoadedAccountsRef.current = true;
       loadAccounts();
     }
   }, [user]);
 
   useEffect(() => {
     // Handle OAuth callback if we're returning from Google
-    if (isOAuthCallback()) {
+    if (isOAuthCallback() && !hasHandledCallbackRef.current) {
+      hasHandledCallbackRef.current = true;
       handleCallback();
     }
   }, []);
@@ -140,7 +144,8 @@ export function useGmailAuth(): UseGmailAuthReturn {
       );
 
       console.log("[useGmailAuth] OAuth callback handled successfully");
-      toast.success(`Gmail account connected successfully: ${tokenData.email}`);
+      // Remove the duplicate toast - it's already shown in the store
+      // toast.success(`Gmail account connected successfully: ${tokenData.email}`);
 
       cleanupCallbackUrl();
 
@@ -148,11 +153,14 @@ export function useGmailAuth(): UseGmailAuthReturn {
       await loadAccounts();
     } catch (error: any) {
       console.error("[useGmailAuth] OAuth callback error:", error);
-      toast.error(error.message || "Failed to connect Gmail account");
+      // Only show error toast if the store hasn't already shown it
+      if (!error.message?.includes("Failed to connect Gmail account")) {
+        toast.error(error.message || "Failed to connect Gmail account");
+      }
     } finally {
       setIsConnecting(false);
     }
-  }, [store, user]);
+  }, [user]); // Only depend on user, not store
 
   const connectAccount = async () => {
     if (!user) {
@@ -188,7 +196,8 @@ export function useGmailAuth(): UseGmailAuthReturn {
       // Remove from local state
       setAccounts((prev) => prev.filter((acc) => acc.email !== email));
 
-      toast.success(`Gmail account ${email} disconnected successfully`);
+      // Toast is already shown in the store, don't duplicate
+      // toast.success(`Gmail account ${email} disconnected successfully`);
     } catch (err) {
       console.error("Error disconnecting Gmail account:", err);
       setError(
@@ -196,11 +205,13 @@ export function useGmailAuth(): UseGmailAuthReturn {
           ? err.message
           : "Failed to disconnect Gmail account"
       );
-      toast.error("Failed to disconnect Gmail account");
+      // Toast is already shown in the store
+      // toast.error("Failed to disconnect Gmail account");
     }
   };
 
   const refreshAccounts = async () => {
+    hasLoadedAccountsRef.current = false;
     await loadAccounts();
   };
 
