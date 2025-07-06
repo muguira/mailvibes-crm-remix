@@ -87,7 +87,7 @@ const getProperOrderedData = (rawRows: GridRow[]): GridRow[] => {
 };
 
 // Constants
-export const PAGE_SIZE = 50;
+export const PAGE_SIZE = 25;
 
 // Cache for storing pages of data
 const pageCache = new Map<string, { data: LeadContact[]; timestamp: number }>();
