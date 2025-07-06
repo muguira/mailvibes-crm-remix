@@ -15,7 +15,7 @@ interface ContactsState {
   loadedCount: number;                    // contacts loaded so far
   isBackgroundLoading: boolean;           // background loading active
   isInitialized: boolean;                 // whether the store has been initialized
-  firstBatchLoaded: boolean;              // whether first 1K contacts are loaded
+  firstBatchLoaded: boolean;              // whether first 100 contacts are loaded
   allContactsLoaded: boolean;             // whether all contacts have been loaded
   
   // Methods
@@ -37,7 +37,7 @@ interface ContactsState {
   _deletedContactIds: Set<string>;        // track deleted contacts to prevent re-adding
 }
 
-const FIRST_BATCH_SIZE = 1000; // First batch - load immediately
+const FIRST_BATCH_SIZE = 100; // First batch - load immediately (reduced from 1000 for faster initial load)
 const CHUNK_SIZE = 1000; // Background chunks
 
 // Store the background loading promise outside of the store
@@ -217,13 +217,13 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
         logger.log(`Total contacts in database: ${count || 0}`);
         set({ totalCount: count || 0 });
         
-        // Fetch first batch (1000 contacts)
+        // Fetch first batch (100 contacts for faster initial load)
         const { data, error } = await supabase
           .from('contacts')
           .select('id, name, email, phone, company, status, user_id, data, created_at, updated_at')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
-          .range(0, FIRST_BATCH_SIZE - 1); // First 1000 rows
+          .range(0, FIRST_BATCH_SIZE - 1); // First 100 rows
         
         if (error) throw error;
         
@@ -276,7 +276,7 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
           
           // Start background loading for remaining contacts if there are more
           if (hasMoreContacts) {
-            logger.log('Starting background loading for remaining contacts...');
+            logger.log('Starting background loading for remaining contacts (101 onwards)...');
             // Small delay to let UI render first batch
             setTimeout(() => {
               get().startBackgroundLoading();
