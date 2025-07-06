@@ -207,27 +207,39 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
     initializationPromise = (async () => {
       set({ _userId: userId, loading: true });
       
+      // Start timing the initial load
+      const initStartTime = performance.now();
+      logger.log(`[PERF] Starting initial load of first ${FIRST_BATCH_SIZE} contacts...`);
+      
       try {
         // Get total count first
+        const countStartTime = performance.now();
         const { count } = await supabase
           .from('contacts')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId);
         
+        const countEndTime = performance.now();
+        logger.log(`[PERF] Count query completed in ${(countEndTime - countStartTime).toFixed(2)}ms`);
         logger.log(`Total contacts in database: ${count || 0}`);
         set({ totalCount: count || 0 });
         
         // Fetch first batch (100 contacts for faster initial load)
+        const fetchStartTime = performance.now();
         const { data, error } = await supabase
           .from('contacts')
-          .select('id, name, email, phone, company, status, user_id, data, created_at, updated_at')
+          .select('id, name, email, phone, company, status, data')  // Removed user_id, created_at, updated_at for faster query
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .range(0, FIRST_BATCH_SIZE - 1); // First 100 rows
         
+        const fetchEndTime = performance.now();
+        logger.log(`[PERF] First batch query completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
+        
         if (error) throw error;
         
         if (data && data.length > 0) {
+          const processStartTime = performance.now();
           const cache: Record<string, LeadContact> = {};
           const orderedIds: string[] = [];
           const currentDeletedIds = get()._deletedContactIds;
@@ -256,6 +268,9 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
             orderedIds.push(contact.id);
           });
           
+          const processEndTime = performance.now();
+          logger.log(`[PERF] Contact processing completed in ${(processEndTime - processStartTime).toFixed(2)}ms`);
+          
           const hasMoreContacts = (count || 0) > FIRST_BATCH_SIZE;
           const allLoaded = !hasMoreContacts;
           
@@ -271,6 +286,14 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
             allContactsLoaded: allLoaded
           });
           
+          const totalInitTime = performance.now() - initStartTime;
+          logger.log(`[PERF] ✅ Initial load completed in ${totalInitTime.toFixed(2)}ms`);
+          if (totalInitTime > 400) {
+            logger.warn(`[PERF] ⚠️ Initial load took ${totalInitTime.toFixed(2)}ms - exceeds 400ms target!`);
+          } else {
+            logger.log(`[PERF] 🚀 Initial load met performance target (<400ms)`);
+          }
+          
           logger.log(`Loaded first batch: ${orderedIds.length} contacts (after filtering deleted)`);
           logger.log(`Has more contacts: ${hasMoreContacts}, All loaded: ${allLoaded}`);
           
@@ -283,7 +306,8 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
             }, 500);
           }
         } else {
-          logger.log('No contacts found for user');
+          const totalInitTime = performance.now() - initStartTime;
+          logger.log(`[PERF] No contacts found. Total time: ${totalInitTime.toFixed(2)}ms`);
           set({ 
             loading: false, 
             hasMore: false, 
@@ -293,6 +317,8 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
           });
         }
       } catch (error) {
+        const totalInitTime = performance.now() - initStartTime;
+        logger.error(`[PERF] Failed to initialize (${totalInitTime.toFixed(2)}ms):`, error);
         logger.error('Failed to initialize contacts store:', error);
         set({ 
           loading: false, 
