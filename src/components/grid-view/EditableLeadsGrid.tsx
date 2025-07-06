@@ -1147,7 +1147,7 @@ export function EditableLeadsGrid() {
   
   // Show empty state when there are no rows - GridViewContainer now has its own empty state UI
   // Only show this if we're truly empty (not loading and no total contacts)
-  if (rows.length === 0 && !searchTerm && activeFilters.columns.length === 0 && totalCount === 0) {
+  if (rows.length === 0 && !searchTerm && activeFilters.columns.length === 0 && totalCount === 0 && !loading && !isBackgroundLoading) {
     return (
       <div className="flex flex-col h-full">
         {/* Empty state is now handled by GridViewContainer */}

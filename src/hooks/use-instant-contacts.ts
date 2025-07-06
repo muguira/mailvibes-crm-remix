@@ -32,17 +32,19 @@ export function useInstantContacts({
     totalCount,
     loadedCount,
     isBackgroundLoading,
+    isInitialized,
     initialize,
-    removeContacts,
   } = useContactsStore();
 
-  // Initialize store when user is available
-  // The store will handle background loading automatically
+  // Initialize store when user is available - but only if not already initialized
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && !isInitialized) {
+      console.log('[useInstantContacts] Initializing contacts store for user:', user.id);
       initialize(user.id);
+    } else if (user?.id && isInitialized) {
+      console.log('[useInstantContacts] Store already initialized, skipping initialization');
     }
-  }, [user?.id, initialize]);
+  }, [user?.id, isInitialized, initialize]);
 
   // Update mockContactsById whenever cache changes
   useEffect(() => {
@@ -50,23 +52,6 @@ export function useInstantContacts({
       mockContactsById[id] = contact;
     });
   }, [cache]);
-
-  // Listen for contacts-deleted events to keep store in sync
-  useEffect(() => {
-    const handleContactsDeleted = (event: CustomEvent) => {
-      // The event detail might contain the deleted contact IDs
-      const deletedIds = event.detail?.contactIds;
-      if (deletedIds && Array.isArray(deletedIds)) {
-        removeContacts(deletedIds);
-      }
-    };
-
-    document.addEventListener('contacts-deleted', handleContactsDeleted as EventListener);
-
-    return () => {
-      document.removeEventListener('contacts-deleted', handleContactsDeleted as EventListener);
-    };
-  }, [removeContacts]);
 
   // Filter contacts based on search term
   const filteredIds = useMemo(() => {

@@ -51,14 +51,14 @@ export function DeleteContactsDialog({
             Delete {contactCount} contact{contactCount !== 1 ? 's' : ''}?
           </DialogTitle>
           <DialogDescription className="pt-2 space-y-2">
-            <div>
+            <span className="block">
               You're about to delete {contactCount} contact{contactCount !== 1 ? 's' : ''}. 
               Deleted contacts can't be restored after 90 days.
-            </div>
-            <div>
+            </span>
+            <span className="block">
               Records created after this submission will not be deleted.
-            </div>
-            <div className="font-medium">Type <span className="text-red-600 font-mono">DELETE</span> to confirm:</div>
+            </span>
+            <span className="block font-medium">Type <span className="text-red-600 font-mono">DELETE</span> to confirm:</span>
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
