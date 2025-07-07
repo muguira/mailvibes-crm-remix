@@ -18,6 +18,31 @@
     align-items: center;
     justify-content: center;
   }
+  
+  /* Make the Add Contact button more compact on mobile */
+  .mobile-add-btn {
+    padding: 0 !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 6px !important;
+  }
+  
+  /* Tighten up the icons inside the add contact button */
+  .mobile-add-btn svg {
+    margin: 0 !important;
+  }
+  
+  .mobile-add-btn svg:first-child {
+    margin-right: -1px !important;
+  }
+  
+  .mobile-add-btn svg:last-child {
+    margin-left: -1px !important;
+  }
 
   /* Filter button next to search icon when collapsed */
   .grid-toolbar .flex.items-center .ml-1 {
@@ -156,6 +181,25 @@
   .grid-header-cell-first-scrollable,
   .grid-cell:first-child {
     border-left-width: 1px !important;
+  }
+
+  /* Make the Filter button more compact on mobile */
+  .grid-toolbar button[class*="h-9"] {
+    height: 36px !important;
+    width: 36px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 6px !important;
+  }
+  
+  /* Ensure the filter badge is properly positioned on mobile */
+  .grid-toolbar button[class*="h-9"] .badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    margin: 0 !important;
   }
 }
 

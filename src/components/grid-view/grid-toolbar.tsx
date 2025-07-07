@@ -184,25 +184,18 @@ export function GridToolbar({
               onApplyFilters({ columns: [], values: {} });
             }}
             align="end"
-            triggerClassName="h-9 px-3 border border-gray-300 rounded-md text-sm flex items-center"
-          >
-            <Filter className="h-4 w-4 mr-1" />
-            {!isMobile && <span>Filter</span>}
-            {filterCount > 0 && (
-              <Badge variant="secondary" className="ml-1 bg-gray-100 text-gray-700 h-5 min-w-5 flex items-center justify-center">
-                {filterCount}
-              </Badge>
-            )}
-          </FilterPopupBase>
+            triggerClassName={`h-9 px-3 border border-gray-300 rounded-md text-sm flex items-center ${filterCount > 0 ? "has-filters" : ""}`}
+            iconOnly={isMobile}
+          />
           
           {/* Add Contact button */}
           <Button 
             size="sm"
             onClick={() => setIsAddContactOpen(true)}
-            className="bg-[#32BAB0] hover:bg-[#28a79d] text-white"
+            className={`bg-[#32BAB0] hover:bg-[#28a79d] text-white ${isMobile ? 'mobile-add-btn' : ''}`}
           >
             <Plus className="h-4 w-4" />
-            {isMobile ? <User className="h-4 w-4 ml-1" /> : <span className="ml-1">Add Contact</span>}
+            {isMobile ? <User className="h-4 w-4" /> : <span className="ml-1">Add Contact</span>}
           </Button>
         </div>
       </div>

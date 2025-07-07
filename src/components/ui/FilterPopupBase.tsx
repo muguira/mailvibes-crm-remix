@@ -104,6 +104,11 @@ export function FilterPopupBase({
         >
           <Filter size={16} className={iconOnly ? "" : "mr-1"} />
           {!iconOnly && "Filter"}
+          {selectedColumns.length > 0 && (
+            <Badge variant="secondary" className="ml-1 bg-gray-100 text-gray-700 h-5 min-w-5 flex items-center justify-center badge">
+              {selectedColumns.length}
+            </Badge>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[340px] p-0 shadow-lg rounded-lg z-[10004]" align={align}>
