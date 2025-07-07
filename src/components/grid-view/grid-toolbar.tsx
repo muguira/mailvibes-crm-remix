@@ -87,6 +87,21 @@ export function GridToolbar({
     revenue: ''
   });
   
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!isAddContactOpen) {
+      setContactForm({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        company: '',
+        status: 'New',
+        revenue: ''
+      });
+    }
+  }, [isAddContactOpen]);
+  
   // Detect mobile devices based on screen width
   useEffect(() => {
     const checkMobile = () => {
@@ -123,6 +138,66 @@ export function GridToolbar({
       values: filterValues
     });
   }
+  
+  // Handle form input changes
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setContactForm(prev => ({ ...prev, [name]: value }));
+  };
+  
+  // Handle form submission
+  const handleAddContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!contactForm.email.trim()) {
+      toast({
+        title: "Error",
+        description: "Email address is required",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      // Determine the display name for the contact
+      const name = contactForm.firstName && contactForm.lastName
+        ? `${contactForm.firstName} ${contactForm.lastName}`
+        : contactForm.firstName || contactForm.lastName
+        ? contactForm.firstName || contactForm.lastName
+        : contactForm.email;
+      
+      // Create the contact object
+      const newContact = {
+        id: uuidv4(), // This will be replaced by the addContact function
+        name,
+        email: contactForm.email,
+        phone: contactForm.phone,
+        company: contactForm.company,
+        status: contactForm.status,
+        revenue: contactForm.revenue ? parseFloat(contactForm.revenue) : undefined
+      };
+      
+      // Add the contact
+      await addContact(newContact);
+      
+      // Close the dialog
+      setIsAddContactOpen(false);
+      
+      // Show success message
+      toast({
+        title: "Success",
+        description: "Contact added successfully",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error("Error adding contact:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add contact. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
   
   return (
     <div className="grid-toolbar">
@@ -212,6 +287,145 @@ export function GridToolbar({
           </div>
         </div>
       </div>
+      
+      {/* Add Contact Dialog */}
+      <Dialog open={isAddContactOpen} onOpenChange={setIsAddContactOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New Contact</DialogTitle>
+            <DialogDescription>
+              Enter the contact information below. Fields marked with * are required.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleAddContact}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    name="firstName"
+                    value={contactForm.firstName}
+                    onChange={handleFormChange}
+                    placeholder="John"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    name="lastName"
+                    value={contactForm.lastName}
+                    onChange={handleFormChange}
+                    placeholder="Doe"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email Address *</Label>
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-gray-500" />
+                  <Input
+                    id="email"
+                    name="email"
+                    value={contactForm.email}
+                    onChange={handleFormChange}
+                    placeholder="example@email.com"
+                    required
+                    type="email"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-gray-500" />
+                  <Input
+                    id="phone"
+                    name="phone"
+                    value={contactForm.phone}
+                    onChange={handleFormChange}
+                    placeholder="+1 (555) 123-4567"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="company">Company</Label>
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-gray-500" />
+                  <Input
+                    id="company"
+                    name="company"
+                    value={contactForm.company}
+                    onChange={handleFormChange}
+                    placeholder="Acme Inc."
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="status">Status</Label>
+                  <select
+                    id="status"
+                    name="status"
+                    value={contactForm.status}
+                    onChange={(e) => setContactForm(prev => ({ ...prev, status: e.target.value }))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="New">New</option>
+                    <option value="Contacted">Contacted</option>
+                    <option value="Qualified">Qualified</option>
+                    <option value="Proposal">Proposal</option>
+                    <option value="Negotiation">Negotiation</option>
+                    <option value="Won">Won</option>
+                    <option value="Lost">Lost</option>
+                  </select>
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="revenue">Revenue ($)</Label>
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-gray-500" />
+                    <Input
+                      id="revenue"
+                      name="revenue"
+                      value={contactForm.revenue}
+                      onChange={handleFormChange}
+                      placeholder="0"
+                      type="number"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsAddContactOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                className="bg-[#32BAB0] hover:bg-[#28a79d] text-white"
+              >
+                Add Contact
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
