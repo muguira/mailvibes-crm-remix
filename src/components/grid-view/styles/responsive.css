@@ -214,19 +214,25 @@
     margin: 0 !important;
   }
 
+  /* Container for the icons to control spacing */
+  .mobile-add-btn .icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+  }
+  
   /* Position the icons inside the add contact button */
   .mobile-add-btn .plus-icon {
     position: relative;
-    left: 0;
-    margin-right: -4px !important;
+    margin-right: -7px !important;
     height: 16px !important;
     width: 16px !important;
   }
   
   .mobile-add-btn .user-icon {
     position: relative;
-    left: 0;
-    margin-left: -4px !important;
+    margin-left: -7px !important;
     height: 16px !important;
     width: 16px !important;
   }
