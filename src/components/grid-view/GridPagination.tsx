@@ -2,6 +2,7 @@ import React from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useMobile } from "@/hooks/use-mobile";
 
 interface GridPaginationProps {
   currentPage: number;
@@ -26,6 +27,8 @@ export function GridPagination({
   isBackgroundLoading = false,
   loadedCount = 0
 }: GridPaginationProps) {
+  const isMobile = useMobile();
+  
   // Calculate the range of items being displayed
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalItems);
@@ -68,49 +71,28 @@ export function GridPagination({
   };
 
   return (
-    <div className="grid-pagination">
-      <div className="pagination-info">
-        {totalItems === 0 ? (
-          <span>No contacts to display</span>
-        ) : (
-          <>
-            <span>
-              Showing <strong>{startItem}</strong> to <strong>{endItem}</strong> of{" "}
-              <strong>{totalItems}</strong> contacts
-            </span>
-            {isBackgroundLoading && loadedCount < totalItems && (
-              <span className="ml-3 text-sm text-gray-500">
-                (Loading more... {Math.round((loadedCount / totalItems) * 100)}%)
+    <div className={`grid-pagination ${isMobile ? 'mobile' : ''}`}>
+      {!isMobile && (
+        <div className="pagination-info">
+          {totalItems === 0 ? (
+            <span>No contacts to display</span>
+          ) : (
+            <>
+              <span>
+                Showing <strong>{startItem}</strong> to <strong>{endItem}</strong> of{" "}
+                <strong>{totalItems}</strong> contacts
               </span>
-            )}
-          </>
-        )}
-      </div>
+              {isBackgroundLoading && loadedCount < totalItems && (
+                <span className="ml-3 text-sm text-gray-500">
+                  (Loading more... {Math.round((loadedCount / totalItems) * 100)}%)
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       <div className="pagination-controls">
-        {/* Page size selector */}
-        <div className="page-size-selector">
-          <label htmlFor="page-size" className="page-size-label">
-            Rows per page:
-          </label>
-          <Select
-            value={pageSize.toString()}
-            onValueChange={(value) => onPageSizeChange(parseInt(value))}
-            disabled={loading}
-          >
-            <SelectTrigger id="page-size" className="page-size-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="20">20</SelectItem>
-              <SelectItem value="50">50</SelectItem>
-              <SelectItem value="100">100</SelectItem>
-              <SelectItem value="500">500</SelectItem>
-              <SelectItem value="1000">1000</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         {/* Navigation buttons */}
         <div className="pagination-nav">
           {/* First page */}
@@ -137,26 +119,28 @@ export function GridPagination({
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          {/* Page numbers */}
-          <div className="page-numbers">
-            {getPageNumbers().map((page, index) => (
-              <React.Fragment key={index}>
-                {page === "..." ? (
-                  <span className="pagination-ellipsis">...</span>
-                ) : (
-                  <Button
-                    variant={currentPage === page ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => onPageChange(page as number)}
-                    disabled={loading}
-                    className={`pagination-number ${currentPage === page ? "active" : ""}`}
-                  >
-                    {page}
-                  </Button>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
+          {/* Page numbers - hide on mobile */}
+          {!isMobile && (
+            <div className="page-numbers">
+              {getPageNumbers().map((page, index) => (
+                <React.Fragment key={index}>
+                  {page === "..." ? (
+                    <span className="pagination-ellipsis">...</span>
+                  ) : (
+                    <Button
+                      variant={currentPage === page ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => onPageChange(page as number)}
+                      disabled={loading}
+                      className={`pagination-number ${currentPage === page ? "active" : ""}`}
+                    >
+                      {page}
+                    </Button>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+          )}
 
           {/* Next page */}
           <Button
@@ -181,6 +165,31 @@ export function GridPagination({
           >
             <ChevronsRight className="h-4 w-4" />
           </Button>
+        </div>
+
+        {/* Page size selector */}
+        <div className="page-size-selector">
+          {!isMobile && (
+            <label htmlFor="page-size" className="page-size-label">
+              Rows per page:
+            </label>
+          )}
+          <Select
+            value={pageSize.toString()}
+            onValueChange={(value) => onPageSizeChange(parseInt(value))}
+            disabled={loading}
+          >
+            <SelectTrigger id="page-size" className="page-size-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="20">20</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+              <SelectItem value="500">500</SelectItem>
+              <SelectItem value="1000">1000</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
     </div>

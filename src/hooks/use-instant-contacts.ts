@@ -88,7 +88,7 @@ export function useInstantContacts({
   return {
     rows: paginatedRows,
     loading: loading && orderedIds.length === 0, // Only show loading on initial load
-    totalCount: searchTerm ? filteredIds.length : totalCount,
+    totalCount: filteredIds.length, // Use actual loaded and filtered count for pagination
     isBackgroundLoading,
     loadedCount,
   };
