@@ -15,10 +15,10 @@ interface LiveAccountCardProps {
 
 export function LiveAccountCard({ account, customProperties = [] }: LiveAccountCardProps) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 h-full">
+    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 max-h-[calc(100vh-300px)] overflow-y-hidden">
       <h3 className="text-lg font-medium text-gray-900">Example Account Data</h3>
       
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-4 max-h-[calc(100vh-300px)] overflow-y-auto">
         <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
           <Building2 className="w-8 h-8 text-gray-400" />
         </div>

@@ -169,9 +169,9 @@ export function GmailAccountSelectStep({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">
           Select a Gmail account to import contacts from
         </h2>
         <p className="text-gray-600 text-sm">
@@ -180,22 +180,22 @@ export function GmailAccountSelectStep({
       </div>
 
       {/* Gmail Accounts List */}
-      <div className="space-y-4">
-        <Label>Select Gmail Account</Label>
+      <div className="space-y-3">
+        <Label className="text-sm">Select Gmail Account</Label>
         
         {connectedAccounts.length === 0 ? (
-          <Card className="p-6 text-center">
-            <Mail className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-            <p className="text-gray-600 mb-4">No Gmail accounts connected yet.</p>
+          <Card className="p-4 text-center">
+            <Mail className="w-10 h-10 mx-auto text-gray-400 mb-2" />
+            <p className="text-gray-600 mb-3 text-sm">No Gmail accounts connected yet.</p>
             <GmailConnectDialog onSuccess={handleAccountConnected}>
-              <Button>
+              <Button size="sm">
                 <Mail className="w-4 h-4 mr-2" />
                 Connect Gmail Account
               </Button>
             </GmailConnectDialog>
           </Card>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <RadioGroup 
               value={selectedAccountId || ""} 
               onValueChange={(id) => {
@@ -209,7 +209,7 @@ export function GmailAccountSelectStep({
                 <Card 
                   key={account.id} 
                   className={cn(
-                    "p-4 cursor-pointer transition-colors",
+                    "p-3 cursor-pointer transition-colors",
                     selectedAccountId === account.id && "border-[#62BFAA] bg-[#62BFAA]/5"
                   )}
                   onClick={() => onAccountSelect(account.id, account.email)}
@@ -217,14 +217,14 @@ export function GmailAccountSelectStep({
                   <div className="flex items-center space-x-3">
                     <RadioGroupItem value={account.id} id={account.id} />
                     
-                    <Avatar className="h-10 w-10">
+                    <Avatar className="h-8 w-8">
                       {account.user_info?.picture ? (
                         <AvatarImage 
                           src={account.user_info.picture} 
                           alt={account.email} 
                         />
                       ) : null}
-                      <AvatarFallback>
+                      <AvatarFallback className="text-xs">
                         {account.email.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -233,20 +233,20 @@ export function GmailAccountSelectStep({
                       <div className="flex items-center gap-2">
                         <Label 
                           htmlFor={account.id} 
-                          className="font-medium cursor-pointer"
+                          className="font-medium cursor-pointer text-sm"
                         >
                           {account.user_info?.name || account.email}
                         </Label>
                         {account.sync_enabled ? (
-                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          <CheckCircle className="w-3.5 h-3.5 text-green-500" />
                         ) : (
-                          <AlertCircle className="w-4 h-4 text-yellow-500" />
+                          <AlertCircle className="w-3.5 h-3.5 text-yellow-500" />
                         )}
                       </div>
-                      <p className="text-sm text-gray-500">{account.email}</p>
+                      <p className="text-xs text-gray-500">{account.email}</p>
                       
                       {/* Contact count */}
-                      <div className="flex items-center gap-1 mt-1 text-xs text-gray-600">
+                      <div className="flex items-center gap-1 mt-0.5 text-xs text-gray-600">
                         <Users className="w-3 h-3" />
                         {loadingCounts[account.id] ? (
                           <>
@@ -266,11 +266,11 @@ export function GmailAccountSelectStep({
                       
                       {/* Show reconnect button if token is invalid */}
                       {(contactsCounts[account.id] === -1 || account.last_sync_error?.includes('Invalid refresh token')) && (
-                        <div className="mt-2">
+                        <div className="mt-1">
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="text-xs"
+                            className="text-xs h-7"
                             onClick={() => handleReconnectAccount(account)}
                             disabled={reconnectingAccount === account.id}
                           >
@@ -294,7 +294,7 @@ export function GmailAccountSelectStep({
               ))}
             </RadioGroup>
 
-            <div className="text-center pt-2">
+            <div className="text-center pt-1">
               <GmailConnectDialog onSuccess={handleAccountConnected}>
                 <Button variant="outline" size="sm">
                   <Mail className="w-4 h-4 mr-2" />
@@ -307,38 +307,38 @@ export function GmailAccountSelectStep({
       </div>
 
       {/* List Name Input */}
-      <div className="space-y-2">
-        <Label htmlFor="list-name">Name a new list where contacts will be imported</Label>
+      <div className="space-y-1.5">
+        <Label htmlFor="list-name" className="text-sm">Name a new list where contacts will be imported</Label>
         <input
           id="list-name"
           type="text"
           placeholder="My Gmail Contacts"
           value={listName}
           onChange={(e) => onListNameChange(e.target.value)}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 max-w-md"
+          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 max-w-md"
         />
       </div>
 
       {/* Relation Type Selection */}
-      <div className="space-y-3">
-        <Label>Do the relationships on this list associate with accounts or contacts?</Label>
+      <div className="space-y-2">
+        <Label className="text-sm">Do the relationships on this list associate with accounts or contacts?</Label>
         <RadioGroup 
           value={relationType} 
           onValueChange={(value) => onRelationTypeChange(value as "contacts" | "accounts")}
         >
           <div className="flex items-start space-x-2">
-            <RadioGroupItem value="accounts" id="accounts" className="mt-1" />
+            <RadioGroupItem value="accounts" id="accounts" className="mt-0.5" />
             <div>
-              <Label htmlFor="accounts" className="font-normal cursor-pointer">
-                <span className="font-medium">Accounts</span> (e.g. Opportunities, deals, etc.) - Companies or departments within a company
+              <Label htmlFor="accounts" className="font-normal cursor-pointer text-sm">
+                <span className="font-medium">Accounts</span> - Companies or departments within a company
               </Label>
             </div>
           </div>
           <div className="flex items-start space-x-2">
-            <RadioGroupItem value="contacts" id="contacts" className="mt-1" />
+            <RadioGroupItem value="contacts" id="contacts" className="mt-0.5" />
             <div>
-              <Label htmlFor="contacts" className="font-normal cursor-pointer">
-                <span className="font-medium">Contacts</span> (e.g. Leads, recruits, etc.) - The people with whom you interact on a day-to-day basis
+              <Label htmlFor="contacts" className="font-normal cursor-pointer text-sm">
+                <span className="font-medium">Contacts</span> - The people with whom you interact daily
               </Label>
             </div>
           </div>

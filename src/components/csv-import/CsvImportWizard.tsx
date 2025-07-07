@@ -21,6 +21,8 @@ import { useAuth } from "@/components/auth";
 import { toast } from "sonner";
 import { logger } from '@/utils/logger';
 import { LoadingOverlay } from "@/components/ui/loading-spinner";
+import { Breadcrumb, BreadcrumbItem } from "@/components/ui/breadcrumb";
+import { useNavigate } from "react-router-dom";
 
 const WIZARD_STEPS: Step[] = [
   { id: "file-select", title: "Select a File" },
@@ -46,6 +48,7 @@ export interface ImportData {
 
 export function CsvImportWizard({ onComplete }: CsvImportWizardProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedCsvResult | null>(null);
@@ -414,12 +417,36 @@ export function CsvImportWizard({ onComplete }: CsvImportWizardProps) {
     return currentStep === 1 || currentStep === 2;
   };
 
+  // Breadcrumb items
+  const breadcrumbItems: BreadcrumbItem[] = [
+    {
+      label: "Settings",
+      onClick: () => navigate("/settings")
+    },
+    {
+      label: "Imports",
+      onClick: () => navigate("/settings/imports")
+    },
+    {
+      label: "CSV",
+      isActive: true
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-gray-900">Import</h1>
+      <div className="mb-8 bg-white p-4 rounded-lg">
+          <h1 className="text-3xl font-semibold text-gray-900">CSV Import</h1>
+          
+          <div className="mt-6">
+            <Breadcrumb items={breadcrumbItems} />
+          </div>
         </div>
+        {/* Breadcrumb */}
+       
+        
+       
 
         <div className="grid grid-cols-12 gap-8">
           {/* Left sidebar with stepper */}
