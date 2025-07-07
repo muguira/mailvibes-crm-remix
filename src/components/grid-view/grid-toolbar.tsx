@@ -190,12 +190,12 @@ export function GridToolbar({
           
           {/* Add Contact button */}
           <Button 
-            size="sm"
+            size={isMobile ? "icon" : "sm"}
             onClick={() => setIsAddContactOpen(true)}
             className={`bg-[#32BAB0] hover:bg-[#28a79d] text-white ${isMobile ? 'mobile-add-btn' : ''}`}
           >
-            <Plus className="h-4 w-4" />
-            {isMobile ? <User className="h-4 w-4" /> : <span className="ml-1">Add Contact</span>}
+            <Plus className={isMobile ? "h-4 w-4 plus-icon" : "h-4 w-4"} />
+            {isMobile ? <User className="h-4 w-4 user-icon" /> : <span className="ml-1">Add Contact</span>}
           </Button>
         </div>
       </div>

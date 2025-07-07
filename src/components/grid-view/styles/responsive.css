@@ -25,23 +25,28 @@
     width: 36px !important;
     height: 36px !important;
     min-width: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     border-radius: 6px !important;
+    box-sizing: border-box !important;
   }
   
   /* Tighten up the icons inside the add contact button */
   .mobile-add-btn svg {
     margin: 0 !important;
+    height: 16px !important;
+    width: 16px !important;
   }
   
   .mobile-add-btn svg:first-child {
-    margin-right: -1px !important;
+    margin-right: -3px !important;
   }
   
   .mobile-add-btn svg:last-child {
-    margin-left: -1px !important;
+    margin-left: -3px !important;
   }
 
   /* Filter button next to search icon when collapsed */
@@ -200,6 +205,23 @@
     top: -4px;
     right: -4px;
     margin: 0 !important;
+  }
+
+  /* Position the icons inside the add contact button */
+  .mobile-add-btn .plus-icon {
+    position: relative;
+    left: 0;
+    margin-right: -4px !important;
+    height: 16px !important;
+    width: 16px !important;
+  }
+  
+  .mobile-add-btn .user-icon {
+    position: relative;
+    left: 0;
+    margin-left: -4px !important;
+    height: 16px !important;
+    width: 16px !important;
   }
 }
 
