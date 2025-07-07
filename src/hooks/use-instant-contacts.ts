@@ -61,12 +61,21 @@ export function useInstantContacts({
       }
     };
 
-    document.addEventListener('contacts-deleted', handleContactsDeleted as EventListener);
+    document.addEventListener(
+      "contacts-deleted",
+      handleContactsDeleted as EventListener
+    );
 
     return () => {
-      document.removeEventListener('contacts-deleted', handleContactsDeleted as EventListener);
+      document.removeEventListener(
+        "contacts-deleted",
+        handleContactsDeleted as EventListener
+      );
     };
   }, [removeContacts]);
+
+  // Contact-added events are now handled globally by the store itself
+  // No need for component-level listeners that could miss events due to timing
 
   // Filter contacts based on search term
   const filteredIds = useMemo(() => {
