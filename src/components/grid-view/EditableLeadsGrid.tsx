@@ -514,20 +514,8 @@ export function EditableLeadsGrid() {
   }, [loading]);
   
   // Listen for contact-added events to refresh the grid
-  useEffect(() => {
-    const handleContactAdded = (event: Event) => {
-      // Force refresh of the data
-      refreshData();
-    };
-
-    // Add event listener
-    document.addEventListener('contact-added', handleContactAdded);
-
-    // Clean up
-    return () => {
-      document.removeEventListener('contact-added', handleContactAdded);
-    };
-  }, [refreshData]);
+  // Note: This is now handled by useInstantContacts hook which listens to the same event
+  // and refreshes the store automatically. No need for duplicate listeners.
 
   // Add dynamic columns based on imported data
   useEffect(() => {

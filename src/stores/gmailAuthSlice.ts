@@ -335,8 +335,20 @@ export const useGmailAuthSlice: StateCreator<
 
       toast.success(`Gmail account connected successfully: ${tokenData.email}`);
 
+      // Wait a bit for the database to be fully updated
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Force reload accounts without checking cache
+      isLoadingAccounts = false; // Reset the loading flag
+      set((state) => {
+        state.lastSync = null; // Clear last sync to force reload
+      });
+
       // Refresh accounts list
       await get().loadAccounts(userId);
+
+      // Dispatch custom event to notify other components
+      window.dispatchEvent(new Event("gmail-account-connected"));
     } catch (error) {
       logger.error("OAuth callback error:", error);
       const errorMessage =

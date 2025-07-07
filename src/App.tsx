@@ -18,6 +18,7 @@ import Auth from "@/pages/Auth";
 import ContactProfile from "@/pages/dashboard/ContactProfile";
 import StreamView from "@/pages/dashboard/StreamView"; // Import the new StreamView page
 import Integrations from "@/pages/dashboard/Integrations";
+import Imports from "@/pages/dashboard/Imports";
 import Settings from "@/pages/dashboard/Settings";
 import Landing from "@/pages/Landing";
 import Import from "@/pages/Import";
@@ -62,6 +63,7 @@ function App() {
                   <Route path="/deleted-contacts" element={<PrivateRoute><DeletedContacts /></PrivateRoute>} />
                   <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
                   <Route path="/settings/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
+                  <Route path="/settings/imports" element={<PrivateRoute><Imports /></PrivateRoute>} />
                   <Route path="/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

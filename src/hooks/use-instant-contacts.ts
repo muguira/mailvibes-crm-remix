@@ -34,15 +34,21 @@ export function useInstantContacts({
     isBackgroundLoading,
     isInitialized,
     initialize,
+    removeContacts,
   } = useContactsStore();
 
   // Initialize store when user is available - but only if not already initialized
   useEffect(() => {
     if (user?.id && !isInitialized) {
-      console.log('[useInstantContacts] Initializing contacts store for user:', user.id);
+      console.log(
+        "[useInstantContacts] Initializing contacts store for user:",
+        user.id
+      );
       initialize(user.id);
     } else if (user?.id && isInitialized) {
-      console.log('[useInstantContacts] Store already initialized, skipping initialization');
+      console.log(
+        "[useInstantContacts] Store already initialized, skipping initialization"
+      );
     }
   }, [user?.id, isInitialized, initialize]);
 
@@ -52,6 +58,32 @@ export function useInstantContacts({
       mockContactsById[id] = contact;
     });
   }, [cache]);
+
+  // Listen for contacts-deleted events to keep store in sync
+  useEffect(() => {
+    const handleContactsDeleted = (event: CustomEvent) => {
+      // The event detail might contain the deleted contact IDs
+      const deletedIds = event.detail?.contactIds;
+      if (deletedIds && Array.isArray(deletedIds)) {
+        removeContacts(deletedIds);
+      }
+    };
+
+    document.addEventListener(
+      "contacts-deleted",
+      handleContactsDeleted as EventListener
+    );
+
+    return () => {
+      document.removeEventListener(
+        "contacts-deleted",
+        handleContactsDeleted as EventListener
+      );
+    };
+  }, [removeContacts]);
+
+  // Contact-added events are now handled globally by the store itself
+  // No need for component-level listeners that could miss events due to timing
 
   // Filter contacts based on search term
   const filteredIds = useMemo(() => {

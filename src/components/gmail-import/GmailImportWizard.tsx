@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Stepper, Step } from "@/components/ui/stepper";
@@ -9,6 +9,8 @@ import { useStore } from "@/stores";
 import { toast } from "sonner";
 import { logger } from '@/utils/logger';
 import { LoadingOverlay } from "@/components/ui/loading-spinner";
+import { Breadcrumb, BreadcrumbItem } from "@/components/ui/breadcrumb";
+import { useNavigate } from "react-router-dom";
 
 // Import existing components from CSV import
 import { ContactPropertiesStep } from "@/components/csv-import/ContactPropertiesStep";
@@ -60,6 +62,7 @@ export interface ImportData {
 export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
   const { user } = useAuth();
   const { getAccessToken } = useStore();
+  const navigate = useNavigate();
   
   // Wizard state
   const [currentStep, setCurrentStep] = useState(0);
@@ -367,26 +370,50 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
     return currentStep === 1 || currentStep === 2;
   };
 
+  // Breadcrumb items
+  const breadcrumbItems: BreadcrumbItem[] = [
+    {
+      label: "Settings",
+      onClick: () => navigate("/settings")
+    },
+    {
+      label: "Imports",
+      onClick: () => navigate("/settings/imports")
+    },
+    {
+      label: "Gmail",
+      isActive: true
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-gray-900 flex items-center gap-3">
-            <Mail className="w-8 h-8 text-[#62BFAA]" />
+      <div className="mb-6 bg-white p-4 rounded-lg">
+          <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-3">
+            <Mail className="w-6 h-6 text-[#62BFAA]" />
             Gmail Import
           </h1>
+
+          <div className="mt-4">
+            <Breadcrumb items={breadcrumbItems} />
+          </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-8">
+        {/* Breadcrumb */}
+     
+        
+       
+        <div className="grid grid-cols-12 gap-6">
           {/* Left sidebar with stepper */}
           <div className="col-span-2">
             <Card>
-              <div className="bg-[#62BFAA] text-white px-6 py-4 rounded-t-lg">
-                <h2 className="text-lg font-medium">
+              <div className="bg-[#62BFAA] text-white px-4 py-3 rounded-t-lg">
+                <h2 className="text-base font-medium">
                   {currentStep === 5 ? "Import Complete" : WIZARD_STEPS[currentStep]?.title || ""}
                 </h2>
               </div>
-              <CardContent className="p-6">
+              <CardContent className="p-4">
                 <Stepper
                   steps={WIZARD_STEPS}
                   currentStep={currentStep}
@@ -405,12 +432,12 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
                 message={`Importing data... ${importProgress}%`}
               />
               
-              <CardContent className="p-8">
+              <CardContent className="p-6">
                 {renderStepContent()}
 
                 {/* Navigation buttons */}
                 {currentStep < 5 && (
-                  <div className="mt-8 flex justify-between">
+                  <div className="mt-6 flex justify-between">
                     <Button
                       variant="outline"
                       onClick={handleBack}
@@ -422,7 +449,7 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
                     </Button>
                     
                     <div className="flex gap-2">
-                      {shouldShowSkipButton() && (
+                      {shouldShowSkipButton() && (  
                         <Button
                           variant="outline"
                           onClick={handleNext}

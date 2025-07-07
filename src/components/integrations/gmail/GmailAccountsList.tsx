@@ -42,13 +42,45 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
   const [isExpanded, setIsExpanded] = useState(false);
   const { toast } = useToast();
   const hasLoadedRef = useRef(false);
+  const previousAccountsCountRef = useRef(0);
 
+  // Load accounts on mount
   useEffect(() => {
     if (user && !hasLoadedRef.current) {
       hasLoadedRef.current = true;
       loadAccounts(user.id);
     }
   }, [user]);
+
+  // Listen for gmail account connected events
+  useEffect(() => {
+    const handleGmailConnected = () => {
+      if (user) {
+        console.log('[GmailAccountsList] Gmail account connected event received, reloading accounts...');
+        loadAccounts(user.id);
+      }
+    };
+
+    window.addEventListener('gmail-account-connected', handleGmailConnected);
+    
+    return () => {
+      window.removeEventListener('gmail-account-connected', handleGmailConnected);
+    };
+  }, [user, loadAccounts]);
+
+  // Auto-expand when new accounts are added
+  useEffect(() => {
+    if (accounts.length > previousAccountsCountRef.current) {
+      console.log('[GmailAccountsList] New account detected, expanding list...');
+      setIsExpanded(true);
+    }
+    previousAccountsCountRef.current = accounts.length;
+  }, [accounts]);
+
+  // Force re-render when accounts change
+  useEffect(() => {
+    console.log('[GmailAccountsList] Accounts updated:', accounts.length, 'accounts');
+  }, [accounts]);
 
   const handleDisconnect = async (email: string) => {
     if (!user) return;
