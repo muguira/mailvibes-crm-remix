@@ -633,57 +633,166 @@ export function useLeadsRows() {
   const deleteContacts = async (contactIds: string[]): Promise<void> => {
     if (!contactIds.length) return;
     
+    // Start timing the delete operation
+    const deleteStartTime = performance.now();
+    console.log(`🚀 [DELETE TIMING] Starting delete operation for ${contactIds.length} contacts at ${deleteStartTime.toFixed(2)}ms`);
+    
+    // Store original state in case we need to restore
+    const originalRows = [...rows];
+    const originalMockContacts: Record<string, LeadContact> = {};
+    contactIds.forEach(id => {
+      if (mockContactsById[id]) {
+        originalMockContacts[id] = { ...mockContactsById[id] };
+      }
+    });
+    
     try {
       // Convert IDs to database format if needed
       const dbIds = contactIds.map(transformRowId);
       
-      if (user) {
-        // Use the soft delete function instead of hard delete
-        const { data, error } = await withRetrySupabase(() => 
-          supabase.rpc('soft_delete_contacts', {
-            contact_ids: dbIds,
-            user_id_param: user.id
-          })
-        );
-        
-        if (error) throw error;
-        
-        // Check if any contacts were moved
-        const movedCount = data?.[0]?.moved_count || 0;
-        if (movedCount === 0) {
-          throw new Error('No contacts were deleted');
-        }
-        
-        logger.log(`Soft deleted ${movedCount} contacts`);
-      }
+      // IMPORTANT: Pause background loading during delete operation
+      const { pauseBackgroundLoading, resumeBackgroundLoading } = useContactsStore.getState();
+      pauseBackgroundLoading();
       
-      // Update local state by removing deleted contacts
+      const uiUpdateStartTime = performance.now();
+      console.log(`⚡ [DELETE TIMING] Starting UI updates at ${uiUpdateStartTime.toFixed(2)}ms`);
+      
+      // IMPORTANT: Immediately mark contacts as deleted in the store to prevent flickering
+      const { removeContacts } = useContactsStore.getState();
+      removeContacts(contactIds);
+      
+      // Update local state by removing deleted contacts immediately
       const newRows = rows.filter(row => !contactIds.includes(row.id));
       setRows(newRows);
       saveRowsToLocal(newRows);
       
-      // Remove from mockContactsById
+      // Remove from mockContactsById immediately
       contactIds.forEach(id => {
         delete mockContactsById[id];
       });
       
-      // IMPORTANT: Also remove from the contacts store for immediate UI update
-      const { removeContacts } = useContactsStore.getState();
-      removeContacts(contactIds);
+      const uiUpdateEndTime = performance.now();
+      console.log(`✅ [DELETE TIMING] UI updates completed in ${(uiUpdateEndTime - uiUpdateStartTime).toFixed(2)}ms`);
+      
+      // Dispatch immediate UI feedback event (this will close the dialog)
+      document.dispatchEvent(new CustomEvent('contacts-deleted-immediate', { 
+        detail: { 
+          count: contactIds.length,
+          contactIds: contactIds,
+          timing: uiUpdateEndTime - deleteStartTime
+        } 
+      }));
+      
+      if (user) {
+        const dbStartTime = performance.now();
+        console.log(`🗄️ [DELETE TIMING] Starting database operation at ${dbStartTime.toFixed(2)}ms`);
+        
+        // Use the soft delete function with aggressive timeout settings for fast UI response
+        const { data, error } = await withRetrySupabase(() => 
+          supabase.rpc('soft_delete_contacts', {
+            contact_ids: dbIds,
+            user_id_param: user.id
+          }),
+          {
+            maxAttempts: 2, // Only retry once
+            initialDelay: 300, // Very short initial delay
+            maxDelay: 1000, // Maximum 1 second delay
+            backoffMultiplier: 1.5, // Gentle backoff
+            shouldRetry: (error: any) => {
+              // Don't retry on timeout errors for faster response
+              if (error?.code === '57014' || error?.message?.includes('timeout')) {
+                return false;
+              }
+              // Only retry on network errors, not database errors
+              return error?.status >= 500 || !error?.status;
+            }
+          }
+        );
+        
+        const dbEndTime = performance.now();
+        console.log(`🗄️ [DELETE TIMING] Database operation completed in ${(dbEndTime - dbStartTime).toFixed(2)}ms`);
+        
+        if (error) {
+          // If database operation fails, we need to restore the contacts
+          console.error(`❌ [DELETE TIMING] Database operation failed after ${(dbEndTime - deleteStartTime).toFixed(2)}ms:`, error);
+          logger.error('Soft delete failed, restoring contacts to UI:', error);
+          
+          // Restore contacts to local state
+          setRows(originalRows);
+          saveRowsToLocal(originalRows);
+          
+          // Restore to mockContactsById
+          Object.entries(originalMockContacts).forEach(([id, contact]) => {
+            mockContactsById[id] = contact;
+          });
+          
+          // Restore to contacts store
+          const { restoreContacts } = useContactsStore.getState();
+          const contactsToRestore = contactIds.map(id => originalMockContacts[id]).filter(Boolean);
+          restoreContacts(contactsToRestore);
+          
+          throw error;
+        }
+        
+        // Check if any contacts were moved
+        const movedCount = data?.[0]?.moved_count || 0;
+        if (movedCount === 0) {
+          // If no contacts were moved, restore them
+          console.warn(`⚠️ [DELETE TIMING] No contacts were moved, restoring after ${(dbEndTime - deleteStartTime).toFixed(2)}ms`);
+          logger.warn('No contacts were moved, restoring to UI');
+          
+          // Restore contacts to local state
+          setRows(originalRows);
+          saveRowsToLocal(originalRows);
+          
+          // Restore to mockContactsById
+          Object.entries(originalMockContacts).forEach(([id, contact]) => {
+            mockContactsById[id] = contact;
+          });
+          
+          // Restore to contacts store
+          const { restoreContacts } = useContactsStore.getState();
+          const contactsToRestore = contactIds.map(id => originalMockContacts[id]).filter(Boolean);
+          restoreContacts(contactsToRestore);
+          
+          throw new Error('No contacts were deleted');
+        }
+        
+        const totalTime = dbEndTime - deleteStartTime;
+        console.log(`🎉 [DELETE TIMING] Successfully deleted ${movedCount} contacts in ${totalTime.toFixed(2)}ms`);
+        logger.log(`Soft deleted ${movedCount} contacts`);
+      }
+      
+      // Resume background loading after successful delete
+      setTimeout(() => {
+        resumeBackgroundLoading();
+      }, 2000); // Wait 2 seconds before resuming to let database settle
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries(['leadsRows', user?.id]);
       queryClient.invalidateQueries(['contacts', user?.id]);
       
-      // Dispatch event to notify other components
+      // Dispatch final success event
+      const finalTime = performance.now();
       document.dispatchEvent(new CustomEvent('contacts-deleted', { 
         detail: { 
           count: contactIds.length,
-          contactIds: contactIds 
+          contactIds: contactIds,
+          totalTime: finalTime - deleteStartTime
         } 
       }));
       
+      console.log(`🏁 [DELETE TIMING] Total operation completed in ${(finalTime - deleteStartTime).toFixed(2)}ms`);
+      
     } catch (error) {
+      // Resume background loading even if delete failed
+      const { resumeBackgroundLoading } = useContactsStore.getState();
+      setTimeout(() => {
+        resumeBackgroundLoading();
+      }, 1000);
+      
+      const errorTime = performance.now();
+      console.error(`💥 [DELETE TIMING] Delete operation failed after ${(errorTime - deleteStartTime).toFixed(2)}ms:`, error);
       logger.error('Error deleting contacts:', error);
       throw new Error('Failed to delete contacts');
     }

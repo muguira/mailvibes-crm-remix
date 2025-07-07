@@ -411,7 +411,7 @@ export function EditableLeadsGrid() {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50); // Default to 50 rows per page
+  const [pageSize, setPageSize] = useState(16); // Default to 16 rows per page (optimized for desktop view)
   
   // Debounce search term for better performance
   const debouncedSearchTerm = useDebounce(searchTerm, 200);
@@ -1135,7 +1135,7 @@ export function EditableLeadsGrid() {
   
   // Show empty state when there are no rows - GridViewContainer now has its own empty state UI
   // Only show this if we're truly empty (not loading and no total contacts)
-  if (rows.length === 0 && !searchTerm && activeFilters.columns.length === 0 && totalCount === 0) {
+  if (rows.length === 0 && !searchTerm && activeFilters.columns.length === 0 && totalCount === 0 && !loading && !isBackgroundLoading) {
     return (
       <div className="flex flex-col h-full">
         {/* Empty state is now handled by GridViewContainer */}

@@ -32,17 +32,25 @@ export function useInstantContacts({
     totalCount,
     loadedCount,
     isBackgroundLoading,
+    isInitialized,
     initialize,
     removeContacts,
   } = useContactsStore();
 
-  // Initialize store when user is available
-  // The store will handle background loading automatically
+  // Initialize store when user is available - but only if not already initialized
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && !isInitialized) {
+      console.log(
+        "[useInstantContacts] Initializing contacts store for user:",
+        user.id
+      );
       initialize(user.id);
+    } else if (user?.id && isInitialized) {
+      console.log(
+        "[useInstantContacts] Store already initialized, skipping initialization"
+      );
     }
-  }, [user?.id, initialize]);
+  }, [user?.id, isInitialized, initialize]);
 
   // Update mockContactsById whenever cache changes
   useEffect(() => {
