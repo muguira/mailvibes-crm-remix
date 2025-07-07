@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth';
 import { Card } from '../../components/ui/card';
 import { TopNavbar } from '../../components/layout/top-navbar';
@@ -6,6 +6,7 @@ import { Pencil, Trash2, Mail, Plus, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useStore } from '@/stores';
+import { isOAuthCallback } from '@/services/google/authService';
 
 // Import integration images
 import HubSpotLogo from '../../components/svgs/integrations-images/hubspot-logo.svg';
@@ -33,20 +34,54 @@ interface IntegrationOption {
 const Integrations = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const { connectedAccounts } = useStore();
+    const { connectedAccounts, loadAccounts } = useStore();
     const [existingIntegrations] = useState<Integration[]>([]);
     
     const hasGmailConnected = connectedAccounts.length > 0;
 
-    const handleGmailAccountConnected = (email: string) => {
-        // The store will automatically update the accounts list
+    const handleGmailAccountConnected = async (email: string) => {
         console.log('Gmail account connected:', email);
+        // Reload accounts to ensure the UI is updated
+        if (user) {
+            await loadAccounts(user.id);
+        }
     };
 
     const handleGmailAccountDisconnected = (email: string) => {
         // The store will automatically update the accounts list
         console.log('Gmail account disconnected:', email);
     };
+
+    // Load accounts on mount and check for OAuth callback
+    useEffect(() => {
+        if (user) {
+            // Always load accounts on mount
+            loadAccounts(user.id);
+            
+            // If we're returning from OAuth callback, reload after a delay
+            if (isOAuthCallback()) {
+                // Wait a bit for the OAuth process to complete
+                setTimeout(() => {
+                    loadAccounts(user.id);
+                }, 2000);
+            }
+        }
+    }, [user]);
+
+    // Listen for gmail account connected events
+    useEffect(() => {
+        const handleGmailConnected = () => {
+            if (user) {
+                loadAccounts(user.id);
+            }
+        };
+
+        window.addEventListener('gmail-account-connected', handleGmailConnected);
+        
+        return () => {
+            window.removeEventListener('gmail-account-connected', handleGmailConnected);
+        };
+    }, [user, loadAccounts]);
 
     const integrationOptions: IntegrationOption[] = [
         {
