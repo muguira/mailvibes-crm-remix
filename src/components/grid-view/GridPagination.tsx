@@ -2,7 +2,7 @@ import React from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface GridPaginationProps {
   currentPage: number;
@@ -27,7 +27,7 @@ export function GridPagination({
   isBackgroundLoading = false,
   loadedCount = 0
 }: GridPaginationProps) {
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   
   // Calculate the range of items being displayed
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
