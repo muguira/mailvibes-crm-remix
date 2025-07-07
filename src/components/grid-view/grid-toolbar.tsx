@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { v4 as uuidv4 } from 'uuid';
 import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
+import { useContactsStore } from '@/stores/contactsStore';
 import { toast } from '@/hooks/use-toast';
 
 interface GridToolbarProps {
@@ -177,24 +178,48 @@ export function GridToolbar({
         revenue: contactForm.revenue ? parseFloat(contactForm.revenue) : undefined
       };
       
-      // Add the contact
-      await addContact(newContact);
-      
-      // Close the dialog
+      // Close the dialog first for better UX (especially on mobile)
       setIsAddContactOpen(false);
       
-      // Show success message
-      toast({
-        title: "Success",
-        description: "Contact added successfully",
-        variant: "default"
+      // Reset the form
+      setContactForm({
+        email: '',
+        firstName: '',
+        lastName: '',
+        phone: '',
+        company: '',
+        status: 'New',
+        revenue: ''
       });
+      
+      // Add to contacts store immediately for instant visibility
+      const { addContact: addToStore } = useContactsStore.getState();
+      addToStore(newContact);
+      
+      // Also add via the useLeadsRows hook for database persistence
+      await addContact(newContact);
+      
+      // Show a brief success message that auto-dismisses quickly
+      const { dismiss } = toast({
+        title: "Contact Added",
+        description: `${name} has been added successfully`,
+        variant: "default",
+        duration: 3000, // 3 seconds instead of default
+        className: "mobile-friendly-toast", // Add custom class for mobile styling
+      });
+      
+      // Auto-dismiss after 3 seconds
+      setTimeout(() => {
+        dismiss();
+      }, 3000);
+      
     } catch (error) {
       console.error("Error adding contact:", error);
       toast({
         title: "Error",
         description: "Failed to add contact. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000,
       });
     }
   };

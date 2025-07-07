@@ -14,7 +14,11 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      "fixed top-16 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
+      "fixed z-[100] flex max-h-screen w-full flex-col-reverse p-4",
+      // Both mobile and desktop: position at bottom-right
+      "bottom-4 right-4 top-auto flex-col max-w-[calc(100vw-2rem)]",
+      // Desktop: limit max width but keep at bottom-right
+      "sm:max-w-[420px]",
       className
     )}
     {...props}

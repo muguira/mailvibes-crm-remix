@@ -340,4 +340,55 @@
   .grid-cell:hover {
     background-color: transparent;
   }
+  
+  /* Mobile-friendly toast styles */
+  .mobile-friendly-toast {
+    max-width: calc(100vw - 32px) !important;
+    padding: 16px !important;
+    padding-right: 40px !important; /* Space for the close button */
+    margin: 0 16px 16px 16px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    position: relative !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    z-index: 10000 !important;
+  }
+  
+  /* Make close button always visible and larger on mobile */
+  .mobile-friendly-toast [toast-close] {
+    opacity: 1 !important;
+    background-color: rgba(0, 0, 0, 0.1) !important;
+    border-radius: 50% !important;
+    padding: 6px !important;
+    right: 8px !important;
+    top: 8px !important;
+    width: 28px !important;
+    height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Ensure toast is visible on all backgrounds */
+  .mobile-friendly-toast.bg-background {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+  
+  /* Make text more visible and readable */
+  .mobile-friendly-toast .text-sm {
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    color: #1f2937 !important;
+  }
+  
+  /* Ensure title is bold and visible */
+  .mobile-friendly-toast [data-title] {
+    font-weight: 600 !important;
+    color: #111827 !important;
+    margin-bottom: 4px !important;
+  }
 }

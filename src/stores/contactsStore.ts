@@ -27,6 +27,7 @@ interface ContactsState {
   clear: () => void;                      // clear cache
   removeContacts: (contactIds: string[]) => void; // remove contacts from cache
   restoreContacts: (contacts: LeadContact[]) => void; // restore contacts to cache
+  addContact: (contact: LeadContact) => void; // add a new contact to the cache
   
   // Internal state
   _offset: number;                        // current offset for pagination
@@ -547,6 +548,38 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
     });
     
     logger.log(`Restored ${contacts.length} contacts to store`);
+  },
+  
+  // Add a new contact to the cache
+  addContact: (contact: LeadContact) => {
+    const state = get();
+    
+    // Skip if this contact ID is in the deleted set
+    if (state._deletedContactIds.has(contact.id)) {
+      logger.warn(`[addContact] Contact ${contact.id} is in deleted set, not adding`);
+      return;
+    }
+    
+    // Skip if this contact is already in the cache
+    if (state.cache[contact.id]) {
+      logger.warn(`[addContact] Contact ${contact.id} already exists in cache, not adding duplicate`);
+      return;
+    }
+    
+    logger.log(`[addContact] Adding new contact: ${contact.name} (${contact.id})`);
+    
+    // Create new cache and ordered IDs with the new contact at the beginning
+    const newCache = { ...state.cache, [contact.id]: contact };
+    const newOrderedIds = [contact.id, ...state.orderedIds];
+    
+    set({
+      cache: newCache,
+      orderedIds: newOrderedIds,
+      loadedCount: state.loadedCount + 1,
+      totalCount: state.totalCount + 1
+    });
+    
+    logger.log(`[addContact] Successfully added contact to store. New count: ${state.loadedCount + 1}`);
   },
   
   // Pause background loading

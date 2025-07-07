@@ -3,8 +3,22 @@
  * Original styles.css has been split into logical modules for better maintainability
  */
 
-/* Core Layout & Structure */
+/* Import all grid styles */
 @import './grid-layout.css';
+@import './grid-cells.css';
+@import './grid-headers.css';
+@import './static-columns.css';
+@import './pin-columns.css';
+@import './scroll-buttons.css';
+@import './z-index.css';
+@import './animations.css';
+@import './date-picker.css';
+@import './pagination.css';
+@import './popovers-dialogs.css';
+@import './responsive.css';
+@import './scrollbar.css';
+@import './status-styles.css';
+@import './toolbar.css';
 
 /* Toolbar & Search Components */
 @import './toolbar.css';

@@ -566,10 +566,33 @@ export function useLeadsRows() {
         logger.log("Adding new contact with name:", contactToSave.name);
 
         // Add to local state first for immediate UI feedback - always at the beginning
-        setRows((prevRows) => [contactToSave, ...prevRows]);
+        setRows((prevRows) => {
+          const newRows = [contactToSave, ...prevRows];
+          logger.log(`Updated rows state with new contact. Total rows: ${newRows.length}`);
+          return newRows;
+        });
 
         // Update mockContactsById for Stream View
         mockContactsById[dbId] = contactToSave;
+        
+        // Also update the contacts store for consistent UI across components
+        try {
+          const { addContact } = require('@/stores/contactsStore').useContactsStore.getState();
+          if (typeof addContact === 'function') {
+            addContact(contactToSave);
+            logger.log("Contact also added to contactsStore for immediate visibility");
+          }
+        } catch (err) {
+          // If the store doesn't have this function, just continue
+          logger.warn("Could not update contactsStore:", err);
+        }
+
+        // Force a re-render by dispatching a custom event
+        setTimeout(() => {
+          document.dispatchEvent(new CustomEvent('contact-added-immediate', { 
+            detail: { contact: contactToSave } 
+          }));
+        }, 100); // Small delay to ensure state has updated
 
         // Extract fields for Supabase
         const { name, email, phone, company, status } = contactToSave;
@@ -600,10 +623,14 @@ export function useLeadsRows() {
         if (error) {
           logger.error("Error adding contact to Supabase:", error);
           // Still keep the contact in local state
+        } else {
+          logger.log("Contact successfully added to Supabase");
+          // Clear the page cache to ensure fresh data on next load
+          pageCache.clear();
         }
 
-        // After successful insert, refresh to get the proper page
-        await fetchLeadsRows(1, 50); // Refresh first page
+        // Don't refresh the page - the contact is already in the UI
+        // await fetchLeadsRows(1, 50); // REMOVED - this was overriding the immediate UI update
       } else {
         // Not logged in, just add to local state
         const uiId =

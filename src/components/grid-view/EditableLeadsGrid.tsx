@@ -409,6 +409,9 @@ export function EditableLeadsGrid() {
     columnName: ''
   });
   
+  // Add a force re-render state for when contacts are added
+  const [forceRenderKey, setForceRenderKey] = useState(0);
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20); // Default to 20 rows per page (optimized for desktop view)
@@ -513,19 +516,36 @@ export function EditableLeadsGrid() {
     }
   }, [loading]);
   
-  // Listen for contact-added events to refresh the grid
+  // Listen for contact-added events to refresh the data
   useEffect(() => {
     const handleContactAdded = (event: Event) => {
-      // Force refresh of the data
+      logger.log("Contact added event received, clearing cache and refreshing data...");
+      // Clear cache and refresh data using the hook
       refreshData();
     };
 
-    // Add event listener
-    document.addEventListener('contact-added', handleContactAdded);
+    const handleContactAddedImmediate = (event: CustomEvent) => {
+      logger.log("Contact added immediate event received, forcing re-render...");
+      const newContact = event.detail?.contact;
+      
+      if (newContact) {
+        // Force a re-render by updating the render key
+        setForceRenderKey(prev => prev + 1);
+        
+        // Also force a column re-render
+        setColumns(prevColumns => [...prevColumns]);
+        
+        // Refresh the data to ensure the new contact is visible
+        refreshData();
+      }
+    };
 
-    // Clean up
+    document.addEventListener("contact-added", handleContactAdded);
+    document.addEventListener("contact-added-immediate", handleContactAddedImmediate as EventListener);
+
     return () => {
-      document.removeEventListener('contact-added', handleContactAdded);
+      document.removeEventListener("contact-added", handleContactAdded);
+      document.removeEventListener("contact-added-immediate", handleContactAddedImmediate as EventListener);
     };
   }, [refreshData]);
 
@@ -1151,17 +1171,18 @@ export function EditableLeadsGrid() {
     <div className="h-full w-full flex flex-col">
       <div className="flex-1 overflow-hidden relative">
         <GridViewContainer 
-        columns={columns} 
+          key={`grid-${rows.length}-${rows[0]?.id || 'empty'}-${forceRenderKey}`} // Force re-render when rows change
+          columns={columns} 
           data={rows}  // Use all rows instead of paginated data
-        listName="All Leads"
-        listType="Lead"
-        listId="leads-grid"
+          listName="All Leads"
+          listType="Lead"
+          listId="leads-grid"
           firstRowIndex={(currentPage - 1) * pageSize}  // Calculate the correct start index for row numbering
-        onCellChange={handleCellChange}
-        onColumnsReorder={handleColumnsReorder}
+          onCellChange={handleCellChange}
+          onColumnsReorder={handleColumnsReorder}
           onAddColumn={handleAddColumn}
           onInsertColumn={handleInsertColumn}
-        onDeleteColumn={handleDeleteColumn}
+          onDeleteColumn={handleDeleteColumn}
           onHideColumn={handleHideColumn}
           onUnhideColumn={handleUnhideColumn}
           hiddenColumns={hiddenColumns}
@@ -1198,3 +1219,4 @@ export function EditableLeadsGrid() {
     </div>
   );
 }
+

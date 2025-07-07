@@ -25,6 +25,7 @@ export function useInstantContacts({
 }: UseInstantContactsOptions): UseInstantContactsReturn {
   const { user } = useAuth();
 
+  // Subscribe to all contacts store state changes
   const {
     cache,
     orderedIds,
@@ -53,7 +54,7 @@ export function useInstantContacts({
     });
   }, [cache]);
 
-  // Filter contacts based on search term
+  // Filter contacts based on search term - this will re-run when cache or orderedIds change
   const filteredIds = useMemo(() => {
     if (!searchTerm || searchTerm.trim() === "") {
       return orderedIds;
@@ -74,15 +75,18 @@ export function useInstantContacts({
     });
   }, [searchTerm, orderedIds, cache]);
 
-  // Paginate filtered results
+  // Paginate filtered results - this will re-run when filteredIds or cache change
   const paginatedRows = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
 
-    return filteredIds
+    const rows = filteredIds
       .slice(startIndex, endIndex)
       .map((id) => cache[id])
       .filter(Boolean); // Remove any undefined entries
+    
+    console.log(`[useInstantContacts] Returning ${rows.length} paginated rows from ${filteredIds.length} filtered contacts`);
+    return rows;
   }, [filteredIds, currentPage, pageSize, cache]);
 
   return {
