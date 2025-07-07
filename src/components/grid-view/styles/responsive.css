@@ -192,11 +192,18 @@
   .grid-toolbar button[class*="h-9"] {
     height: 36px !important;
     width: 36px !important;
+    min-height: 36px !important;
+    min-width: 36px !important;
+    max-height: 36px !important;
+    max-width: 36px !important;
     padding: 0 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     border-radius: 6px !important;
+    box-sizing: border-box !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
   }
   
   /* Ensure the filter badge is properly positioned on mobile */
@@ -222,6 +229,36 @@
     margin-left: -4px !important;
     height: 16px !important;
     width: 16px !important;
+  }
+
+  /* Make the Add Contact button match the Filter button exactly */
+  .mobile-add-btn {
+    height: 36px !important;
+    width: 36px !important;
+    min-height: 36px !important;
+    min-width: 36px !important;
+    max-height: 36px !important;
+    max-width: 36px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  
+  /* Ensure toolbar buttons are aligned properly */
+  .toolbar-button-container {
+    height: 36px;
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Make sure both buttons have the same height */
+  .toolbar-button-container > button {
+    margin: 0 !important;
   }
 }
 

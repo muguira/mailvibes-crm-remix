@@ -169,34 +169,38 @@ export function GridToolbar({
         
         <div className="flex items-center space-x-2">
           {/* Filter button */}
-          <FilterPopupBase
-            columns={filterColumns}
-            isOpen={isFilterOpen}
-            onOpenChange={setIsFilterOpen}
-            selectedColumns={selectedColumns}
-            onSelectedColumnsChange={setSelectedColumns}
-            filterValues={filterValues}
-            onFilterValuesChange={setFilterValues}
-            onApplyFilters={handleApplyFilters}
-            onClearFilters={() => {
-              setSelectedColumns([]);
-              setFilterValues({});
-              onApplyFilters({ columns: [], values: {} });
-            }}
-            align="end"
-            triggerClassName={`h-9 px-3 border border-gray-300 rounded-md text-sm flex items-center ${filterCount > 0 ? "has-filters" : ""}`}
-            iconOnly={isMobile}
-          />
+          <div className="flex items-center toolbar-button-container">
+            <FilterPopupBase
+              columns={filterColumns}
+              isOpen={isFilterOpen}
+              onOpenChange={setIsFilterOpen}
+              selectedColumns={selectedColumns}
+              onSelectedColumnsChange={setSelectedColumns}
+              filterValues={filterValues}
+              onFilterValuesChange={setFilterValues}
+              onApplyFilters={handleApplyFilters}
+              onClearFilters={() => {
+                setSelectedColumns([]);
+                setFilterValues({});
+                onApplyFilters({ columns: [], values: {} });
+              }}
+              align="end"
+              triggerClassName={`h-9 px-3 border border-gray-300 rounded-md text-sm flex items-center ${filterCount > 0 ? "has-filters" : ""}`}
+              iconOnly={isMobile}
+            />
+          </div>
           
           {/* Add Contact button */}
-          <Button 
-            size={isMobile ? "icon" : "sm"}
-            onClick={() => setIsAddContactOpen(true)}
-            className={`bg-[#32BAB0] hover:bg-[#28a79d] text-white ${isMobile ? 'mobile-add-btn' : ''}`}
-          >
-            <Plus className={isMobile ? "h-4 w-4 plus-icon" : "h-4 w-4"} />
-            {isMobile ? <User className="h-4 w-4 user-icon" /> : <span className="ml-1">Add Contact</span>}
-          </Button>
+          <div className="flex items-center toolbar-button-container">
+            <Button 
+              size={isMobile ? "icon" : "sm"}
+              onClick={() => setIsAddContactOpen(true)}
+              className={`bg-[#32BAB0] hover:bg-[#28a79d] text-white ${isMobile ? 'mobile-add-btn' : ''}`}
+            >
+              <Plus className={isMobile ? "h-4 w-4 plus-icon" : "h-4 w-4"} />
+              {isMobile ? <User className="h-4 w-4 user-icon" /> : <span className="ml-1">Add Contact</span>}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
