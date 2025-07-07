@@ -164,11 +164,11 @@ export function ListFieldsStep({
       >
         <div className="grid grid-cols-12 gap-6">
           {/* Left column - CSV Fields */}
-          <div className="col-span-3 space-y-4">
+          <div className="col-span-3 space-y-4 border border-gray-200 rounded-lg">
             <div className="bg-[#62BFAA] text-white rounded-t-lg px-4 py-3">
               <h3 className="font-medium">CSV Fields</h3>
             </div>
-            <div className="space-y-2 max-h-96 overflow-y-auto px-1">
+            <div className="space-y-2 p-2 max-h-[calc(100vh-500px)] overflow-y-auto">
               {unmappedFields.map((field) => (
                 <CsvFieldChip
                   key={field}
@@ -181,12 +181,12 @@ export function ListFieldsStep({
           </div>
 
           {/* Middle column - List Fields */}
-          <div className="col-span-5 space-y-4">
+          <div className="col-span-5 space-y-4 border border-gray-200 rounded-lg">
             <div className="bg-[#62BFAA] text-white rounded-t-lg px-4 py-3">
               <h3 className="font-medium">List Fields</h3>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-4 p-2 max-h-[calc(100vh-500px)] overflow-y-auto">
               {/* Relationship Name - Required Field */}
               <ListFieldSlot
                 id="relationship-name"
