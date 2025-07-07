@@ -93,7 +93,32 @@ export function GridPagination({
       )}
 
       <div className="pagination-controls">
-        {/* Navigation buttons */}
+        {/* Page size selector - moved to the left */}
+        <div className="page-size-selector">
+          {!isMobile && (
+            <label htmlFor="page-size" className="page-size-label">
+              Rows per page:
+            </label>
+          )}
+          <Select
+            value={pageSize.toString()}
+            onValueChange={(value) => onPageSizeChange(parseInt(value))}
+            disabled={loading}
+          >
+            <SelectTrigger id="page-size" className="page-size-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="20">20</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+              <SelectItem value="500">500</SelectItem>
+              <SelectItem value="1000">1000</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Navigation buttons - moved to the right */}
         <div className="pagination-nav">
           {/* First page */}
           <Button
@@ -165,31 +190,6 @@ export function GridPagination({
           >
             <ChevronsRight className="h-4 w-4" />
           </Button>
-        </div>
-
-        {/* Page size selector */}
-        <div className="page-size-selector">
-          {!isMobile && (
-            <label htmlFor="page-size" className="page-size-label">
-              Rows per page:
-            </label>
-          )}
-          <Select
-            value={pageSize.toString()}
-            onValueChange={(value) => onPageSizeChange(parseInt(value))}
-            disabled={loading}
-          >
-            <SelectTrigger id="page-size" className="page-size-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="20">20</SelectItem>
-              <SelectItem value="50">50</SelectItem>
-              <SelectItem value="100">100</SelectItem>
-              <SelectItem value="500">500</SelectItem>
-              <SelectItem value="1000">1000</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>
     </div>
