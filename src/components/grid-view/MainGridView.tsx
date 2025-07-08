@@ -1148,6 +1148,7 @@ export const MainGridView = forwardRef(function MainGridView({
             onTabNavigation={(e) => handleTabNavigation(e, row.id, column.id, (e.target as HTMLInputElement | HTMLSelectElement).value)}
             directTyping={editingCell?.directTyping}
             clearDateSelection={editingCell?.clearDateSelection}
+            initialValue={(editingCell as any)?.initialValue}
           />
         ) : column.type === 'status' && statusColors ? (
           renderStatusPill(displayValue, statusColors)
@@ -1466,7 +1467,8 @@ const EditCell = ({
   onKeyDown,
   onTabNavigation,
   directTyping,
-  clearDateSelection
+  clearDateSelection,
+  initialValue
 }: {
   rowId: string;
   columnId: string;
@@ -1478,6 +1480,7 @@ const EditCell = ({
   onTabNavigation: (e: React.KeyboardEvent) => void;
   directTyping?: boolean;
   clearDateSelection?: boolean;
+  initialValue?: string;
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const selectRef = useRef<HTMLSelectElement>(null);
@@ -1494,7 +1497,6 @@ const EditCell = ({
       // For direct typing, don't select text and set the initial character
       if (directTyping) {
         // Don't select text for direct typing
-        const initialValue = (editingCell as any)?.initialValue;
         if (initialValue) {
           inputRef.current.value = initialValue;
           // Set cursor position after the typed character
@@ -1508,7 +1510,7 @@ const EditCell = ({
     } else if (selectRef.current) {
       selectRef.current.focus();
     }
-  }, [directTyping]);
+  }, [directTyping, initialValue]);
 
   // Handle date selection
   const handleDateSelect = (date: Date | undefined) => {
