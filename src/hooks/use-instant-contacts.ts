@@ -60,7 +60,7 @@ export function useInstantContacts({
       return orderedIds;
     }
 
-    const query = searchTerm.toLowerCase();
+    const query = searchTerm.trim().toLowerCase();
     return orderedIds.filter((id) => {
       const contact = cache[id];
       if (!contact) return false;

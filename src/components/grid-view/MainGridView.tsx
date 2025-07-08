@@ -304,17 +304,6 @@ export const MainGridView = forwardRef(function MainGridView({
         ) {
           return;
         }
-        
-        // Also check if search input is focused by checking for search-related classes or placeholders
-        if (activeElement && (
-          activeElement.closest('.search-input') ||
-          activeElement.closest('.search-field-container') ||
-          (activeElement instanceof HTMLInputElement && 
-           (activeElement.placeholder?.includes('Search') || 
-            activeElement.placeholder?.includes('search')))
-        )) {
-          return;
-        }
       } catch (e) {
         logger.debug('Error checking active element:', e);
         return;
@@ -325,10 +314,10 @@ export const MainGridView = forwardRef(function MainGridView({
         e.preventDefault();
         // Try multiple selectors to find the search input
         const searchInput =
-          document.querySelector('input[placeholder="Search contacts..."]') ||
-          document.querySelector('input[placeholder*="Search"]') ||
+          document.querySelector('input[placeholder="Search in grid..."]') ||
           document.querySelector('.search-input') ||
-          document.querySelector('input[type="search"]');
+          document.querySelector('input[type="search"]') ||
+          document.querySelector('input[placeholder*="Search"]');
 
         if (searchInput instanceof HTMLInputElement) {
           searchInput.focus();
@@ -537,10 +526,10 @@ export const MainGridView = forwardRef(function MainGridView({
     const setupSearchInputListeners = () => {
       try {
         const searchInputs = [
-          document.querySelector('input[placeholder="Search contacts..."]'),
-          document.querySelector('input[placeholder*="Search"]'),
+          document.querySelector('input[placeholder="Search in grid..."]'),
           document.querySelector('.search-input'),
-          document.querySelector('input[type="search"]')
+          document.querySelector('input[type="search"]'),
+          document.querySelector('input[placeholder*="Search"]')
         ].filter(Boolean);
 
         searchInputs.forEach(input => {
@@ -591,6 +580,47 @@ export const MainGridView = forwardRef(function MainGridView({
       document.body.classList.remove('grid-scroll-active');
     };
   }, [selectedCell, editingCell, columns, data, contextMenuColumn]);
+
+  // Add a separate handler for the forward slash key that works globally
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Only handle forward slash when not editing or in an input
+      if (e.key === '/' && !editingCell) {
+        const activeElement = document.activeElement;
+        
+        // Don't trigger if already in an input field
+        if (
+          activeElement instanceof HTMLInputElement ||
+          activeElement instanceof HTMLTextAreaElement ||
+          activeElement instanceof HTMLSelectElement
+        ) {
+          return;
+        }
+        
+        e.preventDefault();
+        
+        // Try multiple selectors to find the search input
+        const searchInput =
+          document.querySelector('input[placeholder="Search in grid..."]') ||
+          document.querySelector('.search-input') ||
+          document.querySelector('input[type="search"]') ||
+          document.querySelector('input[placeholder*="Search"]');
+
+        if (searchInput instanceof HTMLInputElement) {
+          searchInput.focus();
+          // Clear selection to prevent keyboard nav interference
+          setSelectedCell(null);
+        }
+      }
+    };
+
+    // Add global handler for forward slash
+    document.addEventListener('keydown', handleGlobalKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [editingCell]);
 
   // Add global click handler to handle clicking away properly
   useEffect(() => {
