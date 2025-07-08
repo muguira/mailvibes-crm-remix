@@ -78,18 +78,6 @@
   font-style: italic;
 }
 
-/* Editable cell indicator */
-.grid-cell[data-editable="true"]:hover::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 4px;
-  height: 4px;
-  background-color: #10b981;
-  border-radius: 50%;
-}
-
 /* Cell type specific styles */
 .grid-cell[data-type="currency"] {
   text-align: right;

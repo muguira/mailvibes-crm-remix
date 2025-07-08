@@ -20,12 +20,7 @@ export function GridViewContainer({
   listId = '',
   listType = '',
   firstRowIndex = 0,
-  searchTerm: externalSearchTerm,
-  onSearchChange: externalSearchChange,
-  activeFilters: externalActiveFilters,
-  onApplyFilters: externalOnApplyFilters,
   onCellChange,
-  onColumnChange,
   onColumnsReorder,
   onDeleteColumn,
   onAddColumn,
@@ -34,10 +29,7 @@ export function GridViewContainer({
   onUnhideColumn,
   onDeleteContacts,
   isContactDeletionLoading,
-  hiddenColumns = [],
-  className,
-  columnOperationLoading,
-  cellUpdateLoading
+  hiddenColumns = []
 }: GridContainerProps) {
   // Container references for sizing
   const containerRef = useRef<HTMLDivElement>(null);
@@ -47,7 +39,7 @@ export function GridViewContainer({
 
   // Search state - local or external
   const [localSearchTerm, setLocalSearchTerm] = useState('');
-  const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : localSearchTerm;
+  const searchTerm = localSearchTerm;
 
   // Sync scroll positions between components
   const [scrollTop, setScrollTop] = useState(0);
@@ -55,7 +47,7 @@ export function GridViewContainer({
 
   // Filter state - use external if provided, otherwise local
   const [localActiveFilters, setLocalActiveFilters] = useState<{ columns: string[], values: Record<string, unknown> }>({ columns: [], values: {} });
-  const activeFilters = externalActiveFilters !== undefined ? externalActiveFilters : localActiveFilters;
+  const activeFilters = localActiveFilters;
 
   // Context menu state
   const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
@@ -228,21 +220,13 @@ export function GridViewContainer({
 
   // Handle search change
   const handleSearchChange = (term: string) => {
-    if (externalSearchChange) {
-      externalSearchChange(term);
-    } else {
-      setLocalSearchTerm(term);
-    }
+    setLocalSearchTerm(term);
   };
 
   // Handle filter changes
   const handleApplyFilters = (filters: { columns: string[], values: Record<string, unknown> }) => {
     logger.log("Applying filters:", filters);
-    if (externalOnApplyFilters) {
-      externalOnApplyFilters(filters);
-    } else {
-      setLocalActiveFilters(filters);
-    }
+    setLocalActiveFilters(filters);
   };
 
   // Open context menu for columns
@@ -328,15 +312,8 @@ export function GridViewContainer({
       <div className="grid-components-container relative">
         {/* Loading overlay for column operations */}
         <LoadingOverlay
-          show={columnOperationLoading?.type !== null && columnOperationLoading?.type !== undefined}
-          message={
-            columnOperationLoading?.type === 'add' ? 'Adding column...' :
-            columnOperationLoading?.type === 'delete' ? 'Deleting column...' :
-            columnOperationLoading?.type === 'rename' ? 'Renaming column...' :
-            columnOperationLoading?.type === 'hide' ? 'Hiding column...' :
-            columnOperationLoading?.type === 'unhide' ? 'Showing column...' :
-            'Processing...'
-          }
+          show={false}
+          message="Processing..."
         />
         
         {data.length === 0 ? (
@@ -396,16 +373,15 @@ export function GridViewContainer({
               ref={mainGridRef}
               columns={scrollableColumns}
               data={data}
-              scrollTop={scrollTop}
               scrollLeft={scrollLeft}
               containerWidth={(containerWidth - frozenColumns.reduce((w, c) => w + (c.width || 180), 0)) || 300}
               containerHeight={containerHeight}
               onScroll={handleScroll}
               onCellChange={onCellChange}
-              onColumnChange={onColumnChange}
-              onColumnsReorder={handleMainGridColumnsReorder}
+              onColumnsReorder={handleColumnsReorder}
               onAddColumn={handleMainGridAddColumn}
               onDeleteColumn={onDeleteColumn}
+              onHideColumn={onHideColumn}
               onContextMenu={handleOpenContextMenu}
               contextMenuColumn={contextMenuColumn}
               contextMenuPosition={contextMenuPosition}
@@ -415,8 +391,6 @@ export function GridViewContainer({
               setEditingCell={setEditingCell}
               onInsertColumn={onInsertColumn}
               allColumns={columns}
-              onHideColumn={onHideColumn}
-              cellUpdateLoading={cellUpdateLoading}
               selectedRowIds={selectedRowIds}
             />
           </>

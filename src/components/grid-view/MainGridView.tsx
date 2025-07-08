@@ -30,30 +30,27 @@ import { NewColumnModal } from './NewColumnModal';
 import { logger } from '@/utils/logger';
 import { cn } from '@/lib/utils';
 
-interface MainGridViewProps {
+export interface MainGridViewProps {
   columns: Column[];
   data: GridRow[];
-  scrollTop: number;
   scrollLeft: number;
-  containerWidth: number;
-  containerHeight: number;
-  onScroll: (scroll: { scrollTop: number; scrollLeft: number }) => void;
+  containerWidth?: number;
+  containerHeight?: number;
+  onScroll: (scrollInfo: { scrollLeft: number; scrollTop: number }) => void;
   onCellChange: (rowId: string, columnId: string, value: any) => void;
-  onColumnChange: (columnId: string, changes: Partial<Column>) => void;
-  onColumnsReorder: (columns: Column[]) => void;
-  onAddColumn: () => void;
-  onInsertColumn?: (direction: 'left' | 'right', targetIndex: number, headerName: string, columnType: string, config?: any) => void;
+  onColumnsReorder: (columnIds: string[]) => void;
+  onAddColumn: (afterColumnId: string) => void;
+  onInsertColumn: (direction: 'left' | 'right', targetIndex: number, headerName: string, columnType: string, config?: any) => void;
   onDeleteColumn: (columnId: string) => void;
-  onHideColumn?: (columnId: string) => void;
-  onContextMenu: (columnId: string | null, position?: { x: number; y: number }) => void;
-  contextMenuColumn: string | null;
-  contextMenuPosition: { x: number; y: number } | null;
+  onHideColumn: (columnId: string) => void;
+  onContextMenu: (columnId: string | null, position?: { x: number, y: number }) => void;
+  contextMenuColumn?: string | null;
+  contextMenuPosition?: { x: number, y: number } | null;
   onTogglePin: (columnId: string) => void;
   frozenColumnIds: string[];
-  editingCell: EditingCell | null;
+  editingCell?: EditingCell | null;
   setEditingCell: (cell: EditingCell | null) => void;
-  allColumns?: Column[];
-  cellUpdateLoading?: Set<string>;
+  allColumns: Column[];
   selectedRowIds?: Set<string>;
 }
 
@@ -78,7 +75,6 @@ export const MainGridView = forwardRef(function MainGridView({
   editingCell,
   setEditingCell,
   allColumns,
-  cellUpdateLoading,
   selectedRowIds
 }: MainGridViewProps, ref) {
   const gridRef = useRef<any>(null);
@@ -943,7 +939,7 @@ export const MainGridView = forwardRef(function MainGridView({
       const [movedColumn] = newColumns.splice(sourceIndex, 1);
       newColumns.splice(targetIndex, 0, movedColumn);
 
-      onColumnsReorder(newColumns);
+      onColumnsReorder(newColumns.map(col => col.id));
     }
   };
 
@@ -1102,7 +1098,6 @@ export const MainGridView = forwardRef(function MainGridView({
     const isSelected = selectedCell?.rowId === row.id && selectedCell?.columnId === column.id;
     const isRowSelected = selectedRowIds && selectedRowIds.has(row.id);
     const isColumnHighlighted = contextMenuColumn === column.id;
-    const isLoading = cellUpdateLoading?.has(`${row.id}-${column.id}`);
     
     // Check for optimistic update
     const optimisticValue = optimisticUpdates[`${row.id}-${column.id}`];
@@ -1145,10 +1140,6 @@ export const MainGridView = forwardRef(function MainGridView({
             directTyping={editingCell?.directTyping}
             clearDateSelection={editingCell?.clearDateSelection}
           />
-        ) : isLoading ? (
-          <div className="flex items-center justify-center w-full h-full">
-            <div className="h-4 w-4 border-2 border-t-transparent border-blue-500 rounded-full animate-spin"></div>
-          </div>
         ) : column.type === 'status' && statusColors ? (
           renderStatusPill(displayValue, statusColors)
         ) : column.renderCell ? (

@@ -389,9 +389,6 @@ export function EditableLeadsGrid() {
     columnId?: string;
   }>({ type: null });
   
-  // Add loading state for cell updates
-  const [cellUpdateLoading, setCellUpdateLoading] = useState<Set<string>>(new Set());
-  
   // Define columns for the grid - start with default columns, then load from storage
   const [columns, setColumns] = useState<Column[]>(getDefaultColumns);
   
@@ -720,9 +717,6 @@ export function EditableLeadsGrid() {
   const handleCellChange = async (rowId: string, columnId: string, value: any) => {
     const cellKey = `${rowId}-${columnId}`;
     
-    // Add to loading set
-    setCellUpdateLoading(prev => new Set(prev).add(cellKey));
-    
     try {
       // Find the old value for activity logging
       const row = rows.find(r => r.id === rowId);
@@ -748,13 +742,6 @@ export function EditableLeadsGrid() {
         title: "Error updating cell",
         description: "Failed to save changes. Please try again.",
         variant: "destructive"
-      });
-    } finally {
-      // Remove from loading set
-      setCellUpdateLoading(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(cellKey);
-        return newSet;
       });
     }
   };
@@ -1192,7 +1179,6 @@ export function EditableLeadsGrid() {
           onApplyFilters={setActiveFilters}
           className="h-full"
           columnOperationLoading={columnOperationLoading}
-          cellUpdateLoading={cellUpdateLoading}
           onDeleteContacts={handleDeleteContacts}
           isContactDeletionLoading={isContactDeletionLoading}
         />
