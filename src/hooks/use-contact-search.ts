@@ -55,11 +55,12 @@ export function useContactSearch() {
         setIsLoading(true);
         setError(null);
 
+        const trimmedSearchTerm = searchTerm.trim();
         const { data, error } = await supabase
           .from("contacts")
           .select("id, name, company, email")
           .or(
-            `name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,company.ilike.%${searchTerm}%`
+            `name.ilike.%${trimmedSearchTerm}%,email.ilike.%${trimmedSearchTerm}%,company.ilike.%${trimmedSearchTerm}%`
           )
           .order("name", { ascending: true })
           .limit(100);

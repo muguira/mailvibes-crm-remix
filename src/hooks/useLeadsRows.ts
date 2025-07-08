@@ -117,7 +117,7 @@ export function useLeadsRows() {
 
           // Apply search filter if provided
           if (filters?.searchTerm) {
-            const searchTerm = filters.searchTerm;
+            const searchTerm = filters.searchTerm.trim();
             // Search across multiple fields using OR
             query = query.or(
               `name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,company.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,status.ilike.%${searchTerm}%`
@@ -251,7 +251,7 @@ export function useLeadsRows() {
 
           // Apply search filter
           if (filters?.searchTerm) {
-            const searchTerm = filters.searchTerm.toLowerCase();
+            const searchTerm = filters.searchTerm.trim().toLowerCase();
             filteredRows = filteredRows.filter((row) =>
               Object.values(row).some((value) =>
                 String(value).toLowerCase().includes(searchTerm)
