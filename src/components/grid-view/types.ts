@@ -26,6 +26,7 @@ export interface EditingCell {
   columnId: string;
   directTyping?: boolean;
   clearDateSelection?: boolean;
+  initialValue?: string;
 }
 
 // Props for the grid container

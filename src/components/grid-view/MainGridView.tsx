@@ -451,8 +451,17 @@ export const MainGridView = forwardRef(function MainGridView({
           // For any other key press (letters, numbers), start editing if cell is editable
           if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
             const column = columns[columnIndex];
-            if (column?.editable) {
-              setEditingCell({ rowId: selectedCell.rowId, columnId: selectedCell.columnId });
+            if (column?.editable && column.type !== 'date') {
+              e.preventDefault();
+              e.stopPropagation();
+              
+              // Start editing with direct typing flag to prevent text selection
+              setEditingCell({ 
+                rowId: selectedCell.rowId, 
+                columnId: selectedCell.columnId,
+                directTyping: true,
+                initialValue: e.key // Pass the first character
+              });
               return; // Exit early to avoid changing selection
             }
           }
@@ -1479,11 +1488,23 @@ const EditCell = ({
 
   // Focus input on mount
   useEffect(() => {
-    if (directTyping) return; // Skip auto-focus if direct typing mode
-
     if (inputRef.current) {
       inputRef.current.focus();
-      inputRef.current.select();
+      
+      // For direct typing, don't select text and set the initial character
+      if (directTyping) {
+        // Don't select text for direct typing
+        const initialValue = (editingCell as any)?.initialValue;
+        if (initialValue) {
+          inputRef.current.value = initialValue;
+          // Set cursor position after the typed character
+          inputRef.current.selectionStart = 1;
+          inputRef.current.selectionEnd = 1;
+        }
+      } else {
+        // For double-click or Enter, select all text
+        inputRef.current.select();
+      }
     } else if (selectRef.current) {
       selectRef.current.focus();
     }
@@ -1554,7 +1575,7 @@ const EditCell = ({
         <input
           ref={inputRef}
           type={column.type === 'number' || column.type === 'currency' ? 'number' : 'text'}
-          defaultValue={value || ''}
+          defaultValue={directTyping ? '' : (value || '')}
           className="w-full h-full px-2 bg-transparent border-none focus:outline-none focus:ring-0"
           onBlur={onBlur}
           onKeyDown={(e) => {
