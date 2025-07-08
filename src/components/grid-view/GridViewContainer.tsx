@@ -20,6 +20,10 @@ export function GridViewContainer({
   listId = '',
   listType = '',
   firstRowIndex = 0,
+  searchTerm: externalSearchTerm,
+  onSearchChange: externalOnSearchChange,
+  activeFilters: externalActiveFilters,
+  onApplyFilters: externalOnApplyFilters,
   onCellChange,
   onColumnsReorder,
   onDeleteColumn,
@@ -39,7 +43,7 @@ export function GridViewContainer({
 
   // Search state - local or external
   const [localSearchTerm, setLocalSearchTerm] = useState('');
-  const searchTerm = localSearchTerm;
+  const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : localSearchTerm;
 
   // Sync scroll positions between components
   const [scrollTop, setScrollTop] = useState(0);
@@ -47,7 +51,7 @@ export function GridViewContainer({
 
   // Filter state - use external if provided, otherwise local
   const [localActiveFilters, setLocalActiveFilters] = useState<{ columns: string[], values: Record<string, unknown> }>({ columns: [], values: {} });
-  const activeFilters = localActiveFilters;
+  const activeFilters = externalActiveFilters !== undefined ? externalActiveFilters : localActiveFilters;
 
   // Context menu state
   const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
@@ -220,13 +224,21 @@ export function GridViewContainer({
 
   // Handle search change
   const handleSearchChange = (term: string) => {
-    setLocalSearchTerm(term);
+    if (externalOnSearchChange) {
+      externalOnSearchChange(term);
+    } else {
+      setLocalSearchTerm(term);
+    }
   };
 
   // Handle filter changes
   const handleApplyFilters = (filters: { columns: string[], values: Record<string, unknown> }) => {
     logger.log("Applying filters:", filters);
-    setLocalActiveFilters(filters);
+    if (externalOnApplyFilters) {
+      externalOnApplyFilters(filters);
+    } else {
+      setLocalActiveFilters(filters);
+    }
   };
 
   // Open context menu for columns
