@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { LayoutGrid } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { FilterPopupBase, FilterColumn } from '@/components/ui/FilterPopupBase';
@@ -32,7 +31,7 @@ export default function StreamToolbar() {
   };
 
   return (
-    <div className="h-12 border-b border-slate-light/30 flex items-center justify-between px-4 bg-white">
+    <div className="h-12 border-b border-slate-light/30 flex items-center justify-between px-4 bg-white mt-2">
       {/* Left section */}
       <div className="flex items-center gap-3">
         {/* Grid view icon - navigates to /leads */}

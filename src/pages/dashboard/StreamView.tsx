@@ -1,6 +1,5 @@
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import StreamHeader from '@/components/stream/StreamHeader';
 import { useParams } from 'react-router-dom';
 import { mockContactsById } from "@/components/stream/sample-data";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -100,7 +99,6 @@ export default function StreamView() {
           <div className="overflow-auto flex-1">
             {/* Content with proper padding to account for fixed navbar */}
             <div className={`px-6 pt-12 ${isMobile ? "pb-6" : "pb-6"}`}>
-              <StreamHeader />
               <ErrorBoundary sectionName="Stream Content">
                 <StreamViewLayout contact={contact || {
                   id: id || 'not-found',
