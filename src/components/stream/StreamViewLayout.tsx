@@ -273,7 +273,10 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
         
         {/* Main content area - desktop only */}
         <div className="hidden lg:block flex-1 bg-slate-light/5 rounded-md overflow-y-auto self-start h-full">
-          <StreamTimeline activities={formattedActivities} contactId={contact.id} />
+          <StreamTimeline 
+            contactId={contact.id} 
+            contactEmail={email}
+          />
         </div>
         
         {/* Right rail - desktop only */}
