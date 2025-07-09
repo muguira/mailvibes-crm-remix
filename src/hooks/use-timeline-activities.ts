@@ -62,8 +62,21 @@ export function useTimelineActivities(
     maxEmails = 20,
   } = options;
 
-  const { connectedAccounts } = useStore();
+  const {
+    connectedAccounts,
+    isLoading: gmailLoading,
+    authError: gmailError,
+  } = useStore();
   const hasGmailAccounts = connectedAccounts.length > 0;
+
+  // Debug logging for Gmail store state
+  console.log("useTimelineActivities - Gmail store state:", {
+    connectedAccounts,
+    hasGmailAccounts,
+    gmailLoading,
+    gmailError,
+    accountsCount: connectedAccounts.length,
+  });
 
   // Get internal activities
   const {
@@ -96,6 +109,17 @@ export function useTimelineActivities(
     autoFetch: includeEmails && hasGmailAccounts,
   });
 
+  // Debug logging for emails
+  console.log("useTimelineActivities - Emails:", {
+    contactEmail,
+    emails,
+    emailsLoading,
+    emailsError,
+    hasGmailAccounts,
+    includeEmails,
+    connectedAccounts,
+  });
+
   // Convert internal activities to timeline format
   const timelineInternalActivities: TimelineActivity[] = useMemo(() => {
     return (internalActivities || []).map((activity: Activity) => ({
@@ -110,10 +134,29 @@ export function useTimelineActivities(
   // Convert emails to timeline format
   const timelineEmailActivities: TimelineActivity[] = useMemo(() => {
     if (!includeEmails || !hasGmailAccounts) {
+      console.log("useTimelineActivities - Skipping emails:", {
+        includeEmails,
+        hasGmailAccounts,
+        reason: !includeEmails ? "emails not included" : "no gmail accounts",
+      });
       return [];
     }
 
-    return emails.map((email: GmailEmail) => ({
+    console.log(
+      "useTimelineActivities - Converting emails to timeline format:",
+      {
+        emailsCount: emails.length,
+        emails: emails.map((email) => ({
+          id: email.id,
+          subject: email.subject,
+          from: email.from,
+          date: email.date,
+          dateType: typeof email.date,
+        })),
+      }
+    );
+
+    const converted = emails.map((email: GmailEmail) => ({
       id: `email-${email.id}`,
       type: "email" as const,
       content: email.snippet,
@@ -130,20 +173,47 @@ export function useTimelineActivities(
       labels: email.labels,
       attachments: email.attachments,
     }));
+
+    console.log(
+      "useTimelineActivities - Converted email activities:",
+      converted
+    );
+    return converted;
   }, [emails, includeEmails, hasGmailAccounts]);
 
   // Combine and sort activities chronologically
   const allActivities: TimelineActivity[] = useMemo(() => {
+    console.log("useTimelineActivities - Combining activities:", {
+      internalCount: timelineInternalActivities.length,
+      emailCount: timelineEmailActivities.length,
+      internalActivities: timelineInternalActivities,
+      emailActivities: timelineEmailActivities,
+    });
+
     const combined = [
       ...timelineInternalActivities,
       ...timelineEmailActivities,
     ];
 
-    return combined.sort((a, b) => {
+    const sorted = combined.sort((a, b) => {
       const dateA = new Date(a.timestamp);
       const dateB = new Date(b.timestamp);
       return dateB.getTime() - dateA.getTime(); // Most recent first
     });
+
+    console.log("useTimelineActivities - Final sorted activities:", {
+      totalCount: sorted.length,
+      activities: sorted.map((activity) => ({
+        id: activity.id,
+        type: activity.type,
+        source: activity.source,
+        timestamp: activity.timestamp,
+        subject: activity.subject,
+        content: activity.content?.substring(0, 50) + "...",
+      })),
+    });
+
+    return sorted;
   }, [timelineInternalActivities, timelineEmailActivities]);
 
   // Calculate loading state
