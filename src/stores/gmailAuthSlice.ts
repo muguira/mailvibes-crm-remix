@@ -60,21 +60,39 @@ export const useGmailAuthSlice: StateCreator<
    * @returns Promise that resolves when initialization is complete
    */
   initializeGmailAuth: async (userId: string) => {
+    logger.log(
+      `[GmailAuthSlice] initializeGmailAuth called with userId: ${userId}`
+    );
+
     if (!userId) {
       logger.error("Cannot initialize Gmail auth: No user ID provided");
       return;
     }
 
+    // Reset any stuck loading state
+    logger.log("[GmailAuthSlice] Resetting any stuck loading state...");
+    isLoadingAccounts = false;
+
     set((state) => {
-      state.isLoading = true;
+      state.isLoading = false; // Reset to false first
       state.authError = null;
     });
 
+    // Give a small delay to ensure state is updated
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    logger.log(
+      "[GmailAuthSlice] Reset completed, proceeding with loadAccounts..."
+    );
+
     try {
+      logger.log(
+        `[GmailAuthSlice] Starting loadAccounts for userId: ${userId}`
+      );
       await get().loadAccounts(userId);
 
       // Handle OAuth callback if we're returning from Google
       if (isOAuthCallback()) {
+        logger.debug(`[GmailAuthSlice] OAuth callback detected, handling...`);
         await get().handleOAuthCallback(userId);
       }
 
@@ -82,6 +100,8 @@ export const useGmailAuthSlice: StateCreator<
         state.isInitialized = true;
         state.lastSync = new Date();
       });
+
+      logger.debug(`[GmailAuthSlice] Initialization completed successfully`);
     } catch (error) {
       logger.error("Error initializing Gmail auth:", error);
       set((state) => {
@@ -207,7 +227,7 @@ export const useGmailAuthSlice: StateCreator<
 
     // Prevent concurrent calls
     if (isLoadingAccounts) {
-      logger.debug(
+      logger.log(
         "[GmailAuthSlice] loadAccounts already in progress, skipping..."
       );
       return;
@@ -215,8 +235,10 @@ export const useGmailAuthSlice: StateCreator<
 
     // Also check if we're already loading in the state
     if (currentState.isLoading) {
-      logger.debug(
-        "[GmailAuthSlice] State already loading, skipping loadAccounts..."
+      logger.log(
+        "[GmailAuthSlice] State already loading, skipping loadAccounts...",
+        "Current state:",
+        currentState
       );
       return;
     }
@@ -226,15 +248,18 @@ export const useGmailAuthSlice: StateCreator<
       const timeSinceLastSync =
         Date.now() - new Date(currentState.lastSync).getTime();
       if (timeSinceLastSync < 5000) {
-        logger.debug(
+        logger.log(
           `[GmailAuthSlice] Recently synced ${timeSinceLastSync}ms ago, skipping...`
         );
         return;
       }
     }
 
-    logger.debug(`[GmailAuthSlice] Starting loadAccounts for user: ${userId}`);
+    logger.log(`[GmailAuthSlice] Starting loadAccounts for user: ${userId}`);
     isLoadingAccounts = true;
+    logger.log(
+      "[GmailAuthSlice] Set isLoadingAccounts = true, entering try block..."
+    );
 
     try {
       set((state) => {
@@ -242,7 +267,16 @@ export const useGmailAuthSlice: StateCreator<
         state.authError = null;
       });
 
-      const { data, error } = await supabase
+      logger.log(
+        "[GmailAuthSlice] Set isLoading = true, proceeding with query..."
+      );
+
+      logger.log(
+        `[GmailAuthSlice] Executing Supabase query for userId: ${userId}`
+      );
+
+      // Add timeout to prevent hanging
+      const queryPromise = supabase
         .from("email_accounts")
         .select(
           `
@@ -259,6 +293,25 @@ export const useGmailAuthSlice: StateCreator<
         .eq("user_id", userId)
         .eq("provider", "gmail");
 
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error("Query timeout after 10 seconds")),
+          10000
+        );
+      });
+
+      const { data, error } = await Promise.race([
+        queryPromise,
+        timeoutPromise,
+      ]);
+
+      logger.log(
+        `[GmailAuthSlice] Supabase query completed. Data:`,
+        data,
+        `Error:`,
+        error
+      );
+
       if (error) throw error;
 
       const formattedAccounts =
@@ -274,7 +327,7 @@ export const useGmailAuthSlice: StateCreator<
           return formatted;
         }) || [];
 
-      logger.debug(
+      logger.log(
         `[GmailAuthSlice] Loaded ${formattedAccounts.length} accounts`
       );
 
@@ -282,7 +335,12 @@ export const useGmailAuthSlice: StateCreator<
         state.connectedAccounts = formattedAccounts;
         state.lastSync = new Date();
       });
+
+      logger.log(
+        `[GmailAuthSlice] Successfully set ${formattedAccounts.length} accounts in state`
+      );
     } catch (error) {
+      logger.log("[GmailAuthSlice] Catch block - handling error");
       logger.error("[GmailAuthSlice] Error loading Gmail accounts:", error);
       const errorMessage =
         error instanceof Error
@@ -293,6 +351,7 @@ export const useGmailAuthSlice: StateCreator<
         state.authError = errorMessage;
       });
     } finally {
+      logger.log("[GmailAuthSlice] Finally block - resetting loading state");
       set((state) => {
         state.isLoading = false;
       });
