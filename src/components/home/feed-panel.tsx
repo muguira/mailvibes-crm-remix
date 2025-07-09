@@ -224,12 +224,12 @@ export function FeedPanel() {
                 return (
                   <div key={date}>
                     {renderDateHeader(date)}
-                    <div className="divide-y divide-slate-light/30">
+            <div className="divide-y divide-slate-light/30">
                       {dateActivities.map(activity => (
                         <ActivityFeedItem key={activity.id} activity={activity} />
-                      ))}
-                    </div>
-                  </div>
+              ))}
+            </div>
+            </div>
                 );
               })}
             </>
@@ -325,9 +325,9 @@ function ActivityFeedItem({ activity }: { activity: ActivityItem }) {
       return (
         <div className="bg-slate-light/10 p-3 rounded-md text-sm mt-2">
           {activity.newValue}
-        </div>
-      );
-    }
+    </div>
+  );
+}
 
     // Format old and new values
     const oldVal = activity.oldValue === undefined || activity.oldValue === null 

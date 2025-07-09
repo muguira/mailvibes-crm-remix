@@ -5,6 +5,7 @@ import { toast } from "../use-toast";
 import { withRetrySupabase } from "@/utils/supabaseRetry";
 import { logger } from "@/utils/logger";
 import { DeletedContact } from "@/types/deleted-contacts";
+import { useContactsStore } from "@/stores/contactsStore";
 
 export function useDeletedContacts() {
   const { user } = useAuth();
@@ -52,8 +53,28 @@ export function useDeletedContacts() {
       if (!data || data.length === 0 || !data[0].restored) {
         throw new Error("Failed to restore contact");
       }
+      
+      // Remove the contact ID from the deleted set in contacts store
+      const state = useContactsStore.getState();
+      const newDeletedIds = new Set(state._deletedContactIds);
+      newDeletedIds.delete(contactId);
+      
+      // Update localStorage
+      try {
+        const deletedArray = Array.from(newDeletedIds);
+        localStorage.setItem('deleted-contact-ids', JSON.stringify(deletedArray));
+        logger.log(`[RestoreContact] Removed ${contactId} from deleted IDs. Remaining: ${newDeletedIds.size}`);
+      } catch (error) {
+        logger.error('Failed to update deleted contact IDs:', error);
+      }
+      
+      // Update the store's deleted IDs
+      useContactsStore.setState({ _deletedContactIds: newDeletedIds });
+      
+      // Force refresh the contacts store to reload all contacts
+      await useContactsStore.getState().forceRefresh();
     },
-    onSuccess: () => {
+    onSuccess: (_, contactId) => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries(["deleted_contacts", user?.id]);
       queryClient.invalidateQueries(["leadsRows", user?.id]);
@@ -93,8 +114,28 @@ export function useDeletedContacts() {
       if (failures.length > 0) {
         throw new Error(`Failed to restore ${failures.length} contact(s)`);
       }
+      
+      // Remove the contact IDs from the deleted set in contacts store
+      const state = useContactsStore.getState();
+      const newDeletedIds = new Set(state._deletedContactIds);
+      contactIds.forEach(id => newDeletedIds.delete(id));
+      
+      // Update localStorage
+      try {
+        const deletedArray = Array.from(newDeletedIds);
+        localStorage.setItem('deleted-contact-ids', JSON.stringify(deletedArray));
+        logger.log(`[RestoreContacts] Removed ${contactIds.length} IDs from deleted set. Remaining: ${newDeletedIds.size}`);
+      } catch (error) {
+        logger.error('Failed to update deleted contact IDs:', error);
+      }
+      
+      // Update the store's deleted IDs
+      useContactsStore.setState({ _deletedContactIds: newDeletedIds });
+      
+      // Force refresh the contacts store to reload all contacts
+      await useContactsStore.getState().forceRefresh();
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (_, contactIds) => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries(["deleted_contacts", user?.id]);
       queryClient.invalidateQueries(["leadsRows", user?.id]);
@@ -102,7 +143,7 @@ export function useDeletedContacts() {
 
       toast({
         title: "Contacts Restored",
-        description: `${variables.length} contact${variables.length !== 1 ? 's' : ''} have been successfully restored.`,
+        description: `${contactIds.length} contact${contactIds.length !== 1 ? 's' : ''} have been successfully restored.`,
       });
     },
     onError: (error) => {

@@ -3,7 +3,7 @@ import { VariableSizeGrid as Grid } from 'react-window';
 import { Column, GridRow, EditingCell } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './grid-constants';
 import { ContextMenu } from './ContextMenu';
-import { Check, X, Pin, PinOff } from 'lucide-react';
+import { Check, X, Pin, PinOff, Database, Calendar as CalendarIcon } from 'lucide-react';
 import './styles.css';
 import {
   Select,
@@ -29,6 +29,8 @@ import { GridCell } from './GridCell';
 import { NewColumnModal } from './NewColumnModal';
 import { logger } from '@/utils/logger';
 import { cn } from '@/lib/utils';
+import { useContactsStore } from '@/stores/contactsStore';
+import { toast } from '@/hooks/use-toast';
 
 export interface MainGridViewProps {
   columns: Column[];
@@ -99,6 +101,9 @@ export const MainGridView = forwardRef(function MainGridView({
     direction: 'left',
     targetIndex: 0,
   });
+
+  // Add click coordinates state
+  const [clickCoordinates, setClickCoordinates] = useState<{ x: number; y: number } | null>(null);
 
   // Expose scroll methods via ref
   useImperativeHandle(ref, () => ({
@@ -250,7 +255,7 @@ export const MainGridView = forwardRef(function MainGridView({
     // Remove the scroll handlers that were clearing selection
     // The selection should persist during scrolling for better UX
 
-    // Only track scroll state for programmatic vs user scrolling distinction
+    // Only track scroll state for programmatic vs user distinction
     const handleScrollStart = () => {
       // Mark as user-initiated scrolling
       isUserScrollingRef.current = true;
@@ -351,6 +356,9 @@ export const MainGridView = forwardRef(function MainGridView({
           (e.key >= '0' && e.key <= '9') || // Numbers
           e.key === '/' || e.key === '-'    // Common date separators
         ) {
+          // Check if contacts are still loading
+          if (showLoadingToast()) return;
+          
           e.preventDefault();
           e.stopPropagation();
 
@@ -359,7 +367,8 @@ export const MainGridView = forwardRef(function MainGridView({
           setEditingCell({
             rowId: selectedCell.rowId,
             columnId: selectedCell.columnId,
-            directTyping: true // Add this flag
+            directTyping: true, // Add this flag
+            initialValue: e.key // Pass the typed character
           });
 
           // Use a small timeout to let the input render, then set its value
@@ -436,6 +445,10 @@ export const MainGridView = forwardRef(function MainGridView({
         case 'Enter':
           e.preventDefault();
           e.stopPropagation();
+          
+          // Check if contacts are still loading
+          if (showLoadingToast()) return;
+          
           const column = columns[columnIndex];
 
           // When Enter is pressed on a selected cell, enter edit mode if possible
@@ -452,6 +465,18 @@ export const MainGridView = forwardRef(function MainGridView({
           if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
             const column = columns[columnIndex];
             if (column?.editable && column.type !== 'date') {
+              // Check if contacts are still loading
+              if (showLoadingToast()) return;
+              
+              // For number and currency columns, only allow numeric input
+              if (column.type === 'number' || column.type === 'currency') {
+                // Only allow numbers, decimal point, and minus sign
+                if (!/^[0-9.-]$/.test(e.key)) {
+                  e.preventDefault();
+                  return;
+                }
+              }
+              
               e.preventDefault();
               e.stopPropagation();
               
@@ -665,12 +690,36 @@ export const MainGridView = forwardRef(function MainGridView({
     };
   }, [editingCell, onCellChange]);
 
+  // Get contacts loading state
+  const { loading, isBackgroundLoading, firstBatchLoaded } = useContactsStore();
+
+  // Check if contacts are still loading
+  const isContactsLoading = loading || !firstBatchLoaded;
+
+  // Show loading toast when user tries to interact while loading
+  const showLoadingToast = () => {
+    if (isContactsLoading) {
+      toast({
+        title: "Loading contacts...",
+        description: "Please wait while we load all your contacts. You'll be able to edit data once loading is complete.",
+        duration: 3000,
+      });
+      return true;
+    }
+    return false;
+  };
+
   // Update the handleCellClick function to properly handle status selection
   const handleCellClick = (rowId: string, columnId: string, e?: React.MouseEvent) => {
     // Stop propagation if provided
     if (e) {
       e.stopPropagation();
+      // Store click coordinates for dropdown positioning
+      setClickCoordinates({ x: e.clientX, y: e.clientY });
     }
+
+    // Check if contacts are still loading
+    if (showLoadingToast()) return;
 
     // Get the column for behavior checks
     const column = columns.find(col => col.id === columnId);
@@ -711,13 +760,6 @@ export const MainGridView = forwardRef(function MainGridView({
 
       // Exit edit mode
       setEditingCell(null);
-    }
-
-    // Special handling for status column - open dropdown on first click
-    if (column?.id === 'status' && column.editable) {
-      setSelectedCell({ rowId, columnId });
-      setEditingCell({ rowId, columnId });
-      return;
     }
 
     // Check if clicking on a cell that's already selected
@@ -1149,6 +1191,7 @@ export const MainGridView = forwardRef(function MainGridView({
             directTyping={editingCell?.directTyping}
             clearDateSelection={editingCell?.clearDateSelection}
             initialValue={(editingCell as any)?.initialValue}
+            clickCoordinates={clickCoordinates}
           />
         ) : column.type === 'status' && statusColors ? (
           renderStatusPill(displayValue, statusColors)
@@ -1468,7 +1511,8 @@ const EditCell = ({
   onTabNavigation,
   directTyping,
   clearDateSelection,
-  initialValue
+  initialValue,
+  clickCoordinates
 }: {
   rowId: string;
   columnId: string;
@@ -1481,41 +1525,185 @@ const EditCell = ({
   directTyping?: boolean;
   clearDateSelection?: boolean;
   initialValue?: string;
+  clickCoordinates?: { x: number; y: number } | null;
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const selectRef = useRef<HTMLSelectElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     value ? new Date(value) : undefined
   );
 
-  // Focus input on mount
+  // For date columns, allow typing date directly
+  const [dateInputValue, setDateInputValue] = useState(
+    value && column.type === 'date' ? format(new Date(value), 'MM/dd/yyyy') : ''
+  );
+
+  // Calculate dropdown position based on exact click location
+  const calculateDropdownPosition = useCallback((clickEvent?: React.MouseEvent) => {
+    let top = 0;
+    let left = 0;
+    
+    // Use stored click coordinates first (from cell click), then clickEvent, then fallback to cell position
+    if (clickCoordinates) {
+      top = clickCoordinates.y - 160; // 160px above click
+      left = clickCoordinates.x - 250; // 250px to the left
+    } else if (clickEvent) {
+      // Use exact click position
+      top = clickEvent.clientY - 160; // 160px above click
+      left = clickEvent.clientX - 250; // 250px to the left
+    } else if (selectRef.current) {
+      // Fallback to cell position
+      const cellElement = selectRef.current.closest('.grid-cell');
+      if (cellElement) {
+        const cellRect = cellElement.getBoundingClientRect();
+        top = cellRect.bottom - 160; // 160px above cell
+        left = cellRect.left - 250; // 250px to the left
+      }
+    }
+    
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    const dropdownHeight = Math.min(300, (column.options?.length || 5) * 40 + 60); // Estimate height with header
+    const dropdownWidth = 200;
+    
+    // Reserve space for pagination bar (approximately 60px from bottom)
+    const paginationBarHeight = 60;
+    const maxAllowedBottom = viewportHeight - paginationBarHeight;
+    
+    // Check if dropdown would go below the pagination bar area
+    if (top + dropdownHeight > maxAllowedBottom) {
+      // Place dropdown above the click point instead
+      if (clickCoordinates) {
+        top = clickCoordinates.y - dropdownHeight - 10; // 10px gap above click
+      } else if (clickEvent) {
+        top = clickEvent.clientY - dropdownHeight - 10;
+      } else {
+        top = Math.max(10, maxAllowedBottom - dropdownHeight - 10);
+      }
+    }
+    
+    // Ensure dropdown doesn't go above viewport
+    if (top < 10) {
+      top = 10;
+    }
+    
+    // Adjust if dropdown would go off screen to the left
+    if (left < 10) {
+      left = 10;
+    }
+    
+    // Adjust if dropdown would go off screen horizontally to the right
+    if (left + dropdownWidth > viewportWidth - 10) {
+      left = Math.max(10, viewportWidth - dropdownWidth - 10);
+    }
+    
+    setDropdownPosition({ top, left });
+  }, [column.options?.length, clickCoordinates]);
+
+  // Focus input on mount and handle initial state
   useEffect(() => {
-    if (inputRef.current) {
+    if (column.type === 'status') {
+      // For status columns, focus the trigger and open dropdown
+      if (selectRef.current) {
+        selectRef.current.focus();
+        // Calculate position and open dropdown
+        setTimeout(() => {
+          calculateDropdownPosition(); // No click event on initial mount
+          setStatusDropdownOpen(true);
+        }, 10);
+      }
+    } else if (column.type === 'date') {
+      // For date columns, focus the input and open calendar if double-clicked
+      if (inputRef.current) {
+        inputRef.current.focus();
+        if (!directTyping) {
+          // If double-clicked (not direct typing), open the calendar
+          setDatePickerOpen(true);
+        } else if (initialValue) {
+          // If direct typing, set the initial character
+          setDateInputValue(initialValue);
+          inputRef.current.value = initialValue;
+          inputRef.current.selectionStart = 1;
+          inputRef.current.selectionEnd = 1;
+        }
+      }
+    } else if (inputRef.current) {
+      // For text, number, and currency columns
       inputRef.current.focus();
       
       // For direct typing, don't select text and set the initial character
       if (directTyping) {
-        // Don't select text for direct typing
         if (initialValue) {
           inputRef.current.value = initialValue;
-          // Set cursor position after the typed character
-          inputRef.current.selectionStart = 1;
-          inputRef.current.selectionEnd = 1;
+          // For number inputs, we can't set selectionStart/End
+          if (column.type !== 'number' && column.type !== 'currency') {
+            inputRef.current.selectionStart = 1;
+            inputRef.current.selectionEnd = 1;
+          }
         }
       } else {
         // For double-click or Enter, select all text
         inputRef.current.select();
       }
-    } else if (selectRef.current) {
-      selectRef.current.focus();
     }
-  }, [directTyping, initialValue]);
+  }, [directTyping, initialValue, column.type, calculateDropdownPosition]);
 
-  // Handle date selection
+  // Handle clicks outside dropdown
+  useEffect(() => {
+    if (!statusDropdownOpen && !datePickerOpen) return;
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      // Handle status dropdown
+      if (statusDropdownOpen && dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+          selectRef.current && !selectRef.current.contains(event.target as Node)) {
+        setStatusDropdownOpen(false);
+      }
+      
+      // Handle date picker
+      if (datePickerOpen) {
+        const target = event.target as HTMLElement;
+        // Don't close if clicking on calendar or input
+        if (!target.closest('.react-day-picker') && 
+            !target.closest('button[type="button"]') && 
+            inputRef.current && !inputRef.current.contains(target)) {
+          setDatePickerOpen(false);
+        }
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [statusDropdownOpen, datePickerOpen]);
+
+  // Handle date input change
+  const handleDateInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDateInputValue(value);
+    
+    // Try to parse the date as user types
+    const dateFormats = ['MM/dd/yyyy', 'M/d/yyyy', 'MM-dd-yyyy', 'M-d-yyyy'];
+    for (const format of dateFormats) {
+      try {
+        const parsed = new Date(value);
+        if (!isNaN(parsed.getTime()) && value.length >= 8) {
+          setSelectedDate(parsed);
+          // Don't auto-submit, let user press Enter
+        }
+      } catch (e) {
+        // Invalid date, continue
+      }
+    }
+  };
+
+  // Handle date selection from calendar
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
       setSelectedDate(date);
+      setDateInputValue(format(date, 'MM/dd/yyyy')); // Format the date for display
       onFinishEdit(rowId, columnId, date.toISOString());
       setDatePickerOpen(false);
     }
@@ -1523,60 +1711,242 @@ const EditCell = ({
 
   // Handle select change
   const handleSelectChange = (value: string) => {
+    setStatusDropdownOpen(false);
     onFinishEdit(rowId, columnId, value);
+  };
+
+  // Handle date input key down
+  const handleDateKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      // Save the current date value if valid
+      if (selectedDate) {
+        onFinishEdit(rowId, columnId, selectedDate.toISOString());
+      }
+      onTabNavigation(e);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      // Save the current date value if valid
+      if (selectedDate) {
+        onFinishEdit(rowId, columnId, selectedDate.toISOString());
+      }
+      onKeyDown(e);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setDatePickerOpen(false);
+      onKeyDown(e);
+    }
   };
 
   // Render based on column type
   switch (column.type) {
     case 'status':
       return (
-        <Select
-          defaultValue={value || ''}
-          onValueChange={handleSelectChange}
-        >
-          <SelectTrigger 
-            className="h-full w-full border-none shadow-none focus:ring-0"
+        <>
+          <button
             ref={selectRef as any}
+            className="h-full w-full px-2 bg-transparent border-none focus:outline-none focus:ring-0 text-left flex items-center justify-between"
+            onClick={(e) => {
+              calculateDropdownPosition(e);
+              setStatusDropdownOpen(true);
+            }}
           >
-            <SelectValue placeholder="Select status" />
-          </SelectTrigger>
-          <SelectContent>
-            {column.options?.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <span>{value || 'Select status'}</span>
+            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          
+          {/* Custom dropdown with Shadcn UI styling */}
+          {statusDropdownOpen && (
+            <div
+              ref={dropdownRef}
+              className="fixed bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden z-[10000]"
+              style={{
+                top: dropdownPosition.top,
+                left: dropdownPosition.left,
+                minWidth: '200px',
+                maxHeight: (() => {
+                  // Calculate available height from dropdown position to pagination bar
+                  const paginationBarHeight = 60;
+                  const maxAllowedBottom = window.innerHeight - paginationBarHeight;
+                  const availableHeight = maxAllowedBottom - dropdownPosition.top - 10;
+                  return Math.min(250, Math.max(100, availableHeight)) + 'px';
+                })(),
+              }}
+            >
+              {/* Header */}
+              <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
+                <span className="text-sm font-medium text-gray-900">Select Status</span>
+              </div>
+              
+              {/* Options */}
+              <div className="py-1 max-h-48 overflow-y-auto">
+                {(column.options || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost']).map((option) => (
+                  <button
+                    key={option}
+                    className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none transition-colors flex items-center gap-2 ${
+                      value === option ? 'bg-blue-50 text-blue-900' : 'text-gray-700'
+                    }`}
+                    onClick={() => handleSelectChange(option)}
+                  >
+                    {/* Status color indicator */}
+                    <span
+                      className="inline-block w-3 h-3 rounded-full"
+                      style={{
+                        backgroundColor: column.colors?.[option] || '#e5e7eb'
+                      }}
+                    />
+                    <span className="flex-1">{option}</span>
+                    {/* Check mark for selected option */}
+                    {value === option && (
+                      <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       );
     
     case 'date':
       return (
-        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-          <PopoverTrigger asChild>
-            <button
-              className="w-full h-full text-left px-2 focus:outline-none"
-              onClick={() => setDatePickerOpen(true)}
+        <div className="relative w-full h-full">
+          <input
+            ref={inputRef}
+            type="text"
+            value={dateInputValue}
+            onChange={handleDateInputChange}
+            placeholder="MM/DD/YYYY"
+            className="w-full h-full px-2 bg-transparent border-none focus:outline-none focus:ring-0"
+            onBlur={(e) => {
+              // Only save and close if not clicking on calendar
+              if (!datePickerOpen) {
+                if (selectedDate) {
+                  onFinishEdit(rowId, columnId, selectedDate.toISOString());
+                }
+                onBlur(e);
+              }
+            }}
+            onKeyDown={handleDateKeyDown}
+          />
+          
+          {/* Calendar icon button */}
+          <button
+            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDatePickerOpen(!datePickerOpen);
+            }}
+            type="button"
+          >
+            <CalendarIcon className="h-4 w-4 text-gray-500" />
+          </button>
+          
+          {/* Calendar popup */}
+          {datePickerOpen && (
+            <div
+              className="fixed bg-white border border-gray-200 rounded-md shadow-lg z-[10000] p-3"
+              style={{
+                top: (() => {
+                  const baseTop = clickCoordinates ? clickCoordinates.y - 160 : 0;
+                  const calendarHeight = 350; // Approximate height of calendar
+                  const paginationBarHeight = 60;
+                  const maxAllowedBottom = window.innerHeight - paginationBarHeight;
+                  
+                  // Check if calendar would go below pagination bar
+                  if (baseTop + calendarHeight > maxAllowedBottom) {
+                    // Place calendar above the click point instead
+                    const aboveTop = clickCoordinates ? clickCoordinates.y - calendarHeight - 10 : 10;
+                    return Math.max(10, aboveTop);
+                  }
+                  
+                  // Ensure calendar doesn't go above viewport
+                  return Math.max(10, baseTop);
+                })(),
+                left: (() => {
+                  const baseLeft = clickCoordinates ? clickCoordinates.x - 250 : 0;
+                  const calendarWidth = 300;
+                  
+                  // Ensure calendar doesn't go off screen
+                  if (baseLeft < 10) {
+                    return 10;
+                  }
+                  if (baseLeft + calendarWidth > window.innerWidth - 10) {
+                    return Math.max(10, window.innerWidth - calendarWidth - 10);
+                  }
+                  return baseLeft;
+                })(),
+                minWidth: '300px',
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
             >
-              {selectedDate ? format(selectedDate, 'PP') : 'Select date'}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={handleDateSelect}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+              <div className="mb-2">
+                <span className="text-sm font-medium text-gray-900">Select Date</span>
+              </div>
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateSelect}
+                initialFocus
+                className="rounded-md border-0"
+              />
+            </div>
+          )}
+        </div>
+      );
+    
+    case 'number':
+    case 'currency':
+      return (
+        <input
+          ref={inputRef}
+          type="text" // Use text type to avoid selectionStart/End issues
+          defaultValue={directTyping ? (initialValue && /^[0-9.-]$/.test(initialValue) ? initialValue : '') : (value || '')}
+          className="w-full h-full px-2 bg-transparent border-none focus:outline-none focus:ring-0"
+          onBlur={onBlur}
+          onKeyDown={(e) => {
+            // Only allow numbers, decimal point, and control keys
+            const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Enter', 'Escape', 'ArrowLeft', 'ArrowRight', '.', '-'];
+            if (!allowedKeys.includes(e.key) && !/^\d$/.test(e.key) && !e.ctrlKey && !e.metaKey) {
+              e.preventDefault();
+              return;
+            }
+            
+            if (e.key === 'Tab') {
+              onTabNavigation(e);
+            } else {
+              onKeyDown(e);
+            }
+          }}
+          onInput={(e) => {
+            // Validate number input
+            const input = e.target as HTMLInputElement;
+            const value = input.value;
+            
+            // Remove any non-numeric characters except decimal and minus
+            const cleaned = value.replace(/[^0-9.-]/g, '');
+            
+            // Ensure only one decimal point
+            const parts = cleaned.split('.');
+            if (parts.length > 2) {
+              input.value = parts[0] + '.' + parts.slice(1).join('');
+            } else {
+              input.value = cleaned;
+            }
+          }}
+        />
       );
     
     default:
       return (
         <input
           ref={inputRef}
-          type={column.type === 'number' || column.type === 'currency' ? 'number' : 'text'}
+          type="text"
           defaultValue={directTyping ? '' : (value || '')}
           className="w-full h-full px-2 bg-transparent border-none focus:outline-none focus:ring-0"
           onBlur={onBlur}

@@ -1159,17 +1159,17 @@ export function EditableLeadsGrid() {
       <div className="flex-1 overflow-hidden relative">
         <GridViewContainer 
           key={`grid-${rows.length}-${rows[0]?.id || 'empty'}-${forceRenderKey}`} // Force re-render when rows change
-          columns={columns} 
+        columns={columns} 
           data={rows}  // Use all rows instead of paginated data
-          listName="All Leads"
-          listType="Lead"
-          listId="leads-grid"
+        listName="All Leads"
+        listType="Lead"
+        listId="leads-grid"
           firstRowIndex={(currentPage - 1) * pageSize}  // Calculate the correct start index for row numbering
-          onCellChange={handleCellChange}
-          onColumnsReorder={handleColumnsReorder}
+        onCellChange={handleCellChange}
+        onColumnsReorder={handleColumnsReorder}
           onAddColumn={handleAddColumn}
           onInsertColumn={handleInsertColumn}
-          onDeleteColumn={handleDeleteColumn}
+        onDeleteColumn={handleDeleteColumn}
           onHideColumn={handleHideColumn}
           onUnhideColumn={handleUnhideColumn}
           hiddenColumns={hiddenColumns}

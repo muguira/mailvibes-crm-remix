@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, Database } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useContactsStore } from '@/stores/contactsStore';
+import { toast } from '@/hooks/use-toast';
 
 interface SearchInputProps {
   placeholder?: string;
@@ -25,12 +27,72 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
+  // Get contacts loading state
+  const { loading, isBackgroundLoading, firstBatchLoaded } = useContactsStore();
+
+  // Check if contacts are still loading
+  const isContactsLoading = loading || !firstBatchLoaded;
+  
+  // Track previous loading state to detect when loading completes
+  const [wasLoading, setWasLoading] = useState(isContactsLoading);
+
   // Update internal state when external value changes
   useEffect(() => {
     if (value !== undefined) {
       setSearchValue(value);
     }
   }, [value]);
+
+  // Auto-focus and position cursor when contacts finish loading
+  useEffect(() => {
+    // Detect when loading transitions from true to false
+    if (wasLoading && !isContactsLoading && inputRef.current) {
+      // Small delay to ensure UI has updated
+      setTimeout(() => {
+        if (inputRef.current) {
+          // Focus the input
+          inputRef.current.focus();
+          
+          // Position cursor at the end of the current text
+          const length = inputRef.current.value.length;
+          inputRef.current.setSelectionRange(length, length);
+          
+          console.log(`[SearchInput] Auto-focused after load complete. Cursor positioned after: "${searchValue}"`);
+        }
+      }, 50);
+    }
+    
+    // Update the previous loading state
+    setWasLoading(isContactsLoading);
+  }, [isContactsLoading, wasLoading, searchValue]);
+
+  // Initial focus on mount if contacts are already loaded
+  useEffect(() => {
+    if (!isContactsLoading && inputRef.current && autoFocus) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          // Position cursor at the end of the text
+          const length = inputRef.current.value.length;
+          inputRef.current.setSelectionRange(length, length);
+        }
+      }, 100);
+    }
+  }, []); // Run only on mount
+
+  // Show loading toast when user tries to interact while loading
+  const showLoadingToast = () => {
+    if (isContactsLoading) {
+      toast({
+        title: "Loading contacts...",
+        description: "Please wait while we load all your contacts. You'll be able to edit data once loading is complete.",
+        duration: 3000,
+      });
+      return true;
+    }
+    return false;
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
@@ -41,6 +103,8 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   };
 
   const handleClear = () => {
+    if (showLoadingToast()) return;
+    
     setSearchValue('');
     if (onChange) {
       onChange('');
@@ -52,9 +116,23 @@ export const SearchInput: React.FC<SearchInputProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (showLoadingToast()) return;
+    
     if (onSubmit) {
       onSubmit(searchValue);
     }
+  };
+
+  const handleFocus = () => {
+    if (showLoadingToast()) {
+      inputRef.current?.blur();
+      return;
+    }
+    setIsFocused(true);
+  };
+
+  const handleClick = () => {
+    if (showLoadingToast()) return;
   };
 
   return (
@@ -86,8 +164,9 @@ export const SearchInput: React.FC<SearchInputProps> = ({
           )}
           value={searchValue}
           onChange={handleChange}
-          onFocus={() => setIsFocused(true)}
+          onFocus={handleFocus}
           onBlur={() => setIsFocused(false)}
+          onClick={handleClick}
           autoFocus={autoFocus}
         />
         

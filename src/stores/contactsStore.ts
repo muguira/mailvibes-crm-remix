@@ -25,9 +25,11 @@ interface ContactsState {
   pauseBackgroundLoading: () => void;     // pause background loading
   resumeBackgroundLoading: () => void;    // resume background loading
   clear: () => void;                      // clear cache
+  forceRefresh: () => Promise<void>;      // force refresh the cache
   removeContacts: (contactIds: string[]) => void; // remove contacts from cache
   restoreContacts: (contacts: LeadContact[]) => void; // restore contacts to cache
   addContact: (contact: LeadContact) => void; // add a new contact to the cache
+  forceRefresh: () => Promise<void>; // force refresh - clear cache but keep user and deleted IDs, then reinitialize
   
   // Internal state
   _offset: number;                        // current offset for pagination
@@ -119,6 +121,43 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
       // Keep deleted IDs even after logout
       _deletedContactIds: get()._deletedContactIds,
     });
+  },
+  
+  // Force refresh - clear cache but keep user and deleted IDs, then reinitialize
+  forceRefresh: async () => {
+    const state = get();
+    const userId = state._userId;
+    const deletedIds = state._deletedContactIds;
+    
+    if (!userId) return;
+    
+    logger.log('[ContactsStore] Force refresh - clearing cache and reinitializing');
+    
+    // Cancel any ongoing background loading
+    backgroundLoadingPromise = null;
+    initializationPromise = null;
+    
+    // Clear cache but keep user and deleted IDs
+    set({
+      cache: {},
+      orderedIds: [],
+      loading: false,
+      hasMore: true,
+      totalCount: 0,
+      loadedCount: 0,
+      isBackgroundLoading: false,
+      isInitialized: false,
+      firstBatchLoaded: false,
+      allContactsLoaded: false,
+      _offset: 0,
+      _userId: userId,
+      _backgroundLoadingActive: false,
+      _backgroundLoadingPaused: false,
+      _deletedContactIds: deletedIds,
+    });
+    
+    // Reinitialize with the same user
+    await get().initialize(userId);
   },
   
   // Remove contacts from cache
@@ -598,5 +637,42 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
     if (state.hasMore && !state._backgroundLoadingActive && state._userId && !state.allContactsLoaded) {
       get().startBackgroundLoading();
     }
+  },
+  
+  // Force refresh - clear cache but keep user and deleted IDs, then reinitialize
+  forceRefresh: async () => {
+    const state = get();
+    const userId = state._userId;
+    const deletedIds = state._deletedContactIds;
+    
+    if (!userId) return;
+    
+    logger.log('[ContactsStore] Force refresh - clearing cache and reinitializing');
+    
+    // Cancel any ongoing background loading
+    backgroundLoadingPromise = null;
+    initializationPromise = null;
+    
+    // Clear cache but keep user and deleted IDs
+    set({
+      cache: {},
+      orderedIds: [],
+      loading: false,
+      hasMore: true,
+      totalCount: 0,
+      loadedCount: 0,
+      isBackgroundLoading: false,
+      isInitialized: false,
+      firstBatchLoaded: false,
+      allContactsLoaded: false,
+      _offset: 0,
+      _userId: userId,
+      _backgroundLoadingActive: false,
+      _backgroundLoadingPaused: false,
+      _deletedContactIds: deletedIds,
+    });
+    
+    // Reinitialize with the same user
+    await get().initialize(userId);
   }
 })); 
