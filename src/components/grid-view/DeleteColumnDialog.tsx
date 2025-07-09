@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -38,6 +38,34 @@ export function DeleteColumnDialog({
       setConfirmText('');
     }
   };
+  
+  // Handle keyboard events when the dialog is open
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If Enter is pressed and the confirmation text is valid, confirm the deletion
+      if (e.key === 'Enter' && isConfirmValid) {
+        e.preventDefault();
+        handleConfirm();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, isConfirmValid]);
+
+  // Handle key press in the input field
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (isConfirmValid) {
+        handleConfirm();
+      }
+    }
+  };
 
   return (
     <AlertDialog open={isOpen} onOpenChange={handleClose}>
@@ -64,10 +92,14 @@ export function DeleteColumnDialog({
               <Input
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
+                onKeyDown={handleInputKeyDown}
                 placeholder="Type DELETE to confirm"
                 className="font-mono"
                 autoFocus
               />
+              <div className="text-xs text-gray-500 mt-1">
+                Press <kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs border">Enter</kbd> to confirm deletion when ready
+              </div>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>

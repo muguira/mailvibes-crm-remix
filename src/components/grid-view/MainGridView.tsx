@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { VariableSizeGrid as Grid } from 'react-window';
 import { Column, GridRow, EditingCell } from './types';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './grid-constants';
@@ -10,27 +10,30 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from '@/components/ui/select';
+import { format } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
 import {
   Popover,
   PopoverContent,
-  PopoverTrigger
+  PopoverTrigger,
 } from '@/components/ui/popover';
 import {
   Command,
-  CommandList,
+  CommandEmpty,
   CommandGroup,
-  CommandItem
+  CommandInput,
+  CommandItem,
+  CommandList,
 } from '@/components/ui/command';
-import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
 import { GridCell } from './GridCell';
 import { NewColumnModal } from './NewColumnModal';
 import { logger } from '@/utils/logger';
 import { cn } from '@/lib/utils';
 import { useContactsStore } from '@/stores/contactsStore';
 import { toast } from '@/hooks/use-toast';
+import { DatePicker } from './DatePicker';
 
 export interface MainGridViewProps {
   columns: Column[];
@@ -714,6 +717,7 @@ export const MainGridView = forwardRef(function MainGridView({
     // Stop propagation if provided
     if (e) {
       e.stopPropagation();
+      e.preventDefault(); // Add preventDefault to stop any default behavior
       // Store click coordinates for dropdown positioning
       setClickCoordinates({ x: e.clientX, y: e.clientY });
     }
@@ -768,6 +772,21 @@ export const MainGridView = forwardRef(function MainGridView({
     // For regular cell selection
     if (!isClickingSameSelectedCell) {
       setSelectedCell({ rowId, columnId });
+      
+      // IMPORTANT: Never scroll for date columns to prevent the jumping issue
+      if (column?.type !== 'date') {
+        // Only scroll into view for non-date columns
+        const rowIndex = data.findIndex(row => row.id === rowId);
+        const columnIndex = columns.findIndex(col => col.id === columnId);
+        if (rowIndex >= 0 && columnIndex >= 0) {
+          scrollToItemIfNeeded(rowIndex, columnIndex);
+        }
+      }
+      
+      // For date columns, enter edit mode immediately
+      if (column?.type === 'date' && column.editable) {
+        setEditingCell({ rowId, columnId });
+      }
     } else if (column?.editable) {
       // Double click behavior - entering edit mode on second click
       setEditingCell({ rowId, columnId });
@@ -1176,6 +1195,7 @@ export const MainGridView = forwardRef(function MainGridView({
         onContextMenu={(e) => handleCellContextMenu(e, column.id)}
         data-editable={column.editable}
         data-type={column.type}
+        data-cell={`${row.id}-${column.id}`}
         tabIndex={-1}
       >
         {isEditing ? (
@@ -1530,24 +1550,15 @@ const EditCell = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const selectRef = useRef<HTMLSelectElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    value ? new Date(value) : undefined
-  );
-
-  // For date columns, allow typing date directly
-  const [dateInputValue, setDateInputValue] = useState(
-    value && column.type === 'date' ? format(new Date(value), 'MM/dd/yyyy') : ''
-  );
 
   // Calculate dropdown position based on exact click location
   const calculateDropdownPosition = useCallback((clickEvent?: React.MouseEvent) => {
     let top = 0;
     let left = 0;
     
-    // Use stored click coordinates first (from cell click), then clickEvent, then fallback to cell position
+    // For status columns, use click coordinates or cell position
     if (clickCoordinates) {
       top = clickCoordinates.y - 160; // 160px above click
       left = clickCoordinates.x - 250; // 250px to the left
@@ -1567,7 +1578,7 @@ const EditCell = ({
     
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
-    const dropdownHeight = Math.min(300, (column.options?.length || 5) * 40 + 60); // Estimate height with header
+    const dropdownHeight = Math.min(300, (column.options?.length || 5) * 40 + 60);
     const dropdownWidth = 200;
     
     // Reserve space for pagination bar (approximately 60px from bottom)
@@ -1576,7 +1587,7 @@ const EditCell = ({
     
     // Check if dropdown would go below the pagination bar area
     if (top + dropdownHeight > maxAllowedBottom) {
-      // Place dropdown above the click point instead
+      // For status dropdown, place above the click point
       if (clickCoordinates) {
         top = clickCoordinates.y - dropdownHeight - 10; // 10px gap above click
       } else if (clickEvent) {
@@ -1617,19 +1628,10 @@ const EditCell = ({
         }, 10);
       }
     } else if (column.type === 'date') {
-      // For date columns, focus the input and open calendar if double-clicked
+      // For date columns, just focus the input for now
       if (inputRef.current) {
         inputRef.current.focus();
-        if (!directTyping) {
-          // If double-clicked (not direct typing), open the calendar
-          setDatePickerOpen(true);
-        } else if (initialValue) {
-          // If direct typing, set the initial character
-          setDateInputValue(initialValue);
-          inputRef.current.value = initialValue;
-          inputRef.current.selectionStart = 1;
-          inputRef.current.selectionEnd = 1;
-        }
+        inputRef.current.select();
       }
     } else if (inputRef.current) {
       // For text, number, and currency columns
@@ -1654,7 +1656,7 @@ const EditCell = ({
 
   // Handle clicks outside dropdown
   useEffect(() => {
-    if (!statusDropdownOpen && !datePickerOpen) return;
+    if (!statusDropdownOpen) return;
     
     const handleClickOutside = (event: MouseEvent) => {
       // Handle status dropdown
@@ -1662,80 +1664,16 @@ const EditCell = ({
           selectRef.current && !selectRef.current.contains(event.target as Node)) {
         setStatusDropdownOpen(false);
       }
-      
-      // Handle date picker
-      if (datePickerOpen) {
-        const target = event.target as HTMLElement;
-        // Don't close if clicking on calendar or input
-        if (!target.closest('.react-day-picker') && 
-            !target.closest('button[type="button"]') && 
-            inputRef.current && !inputRef.current.contains(target)) {
-          setDatePickerOpen(false);
-        }
-      }
     };
     
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [statusDropdownOpen, datePickerOpen]);
-
-  // Handle date input change
-  const handleDateInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setDateInputValue(value);
-    
-    // Try to parse the date as user types
-    const dateFormats = ['MM/dd/yyyy', 'M/d/yyyy', 'MM-dd-yyyy', 'M-d-yyyy'];
-    for (const format of dateFormats) {
-      try {
-        const parsed = new Date(value);
-        if (!isNaN(parsed.getTime()) && value.length >= 8) {
-          setSelectedDate(parsed);
-          // Don't auto-submit, let user press Enter
-        }
-      } catch (e) {
-        // Invalid date, continue
-      }
-    }
-  };
-
-  // Handle date selection from calendar
-  const handleDateSelect = (date: Date | undefined) => {
-    if (date) {
-      setSelectedDate(date);
-      setDateInputValue(format(date, 'MM/dd/yyyy')); // Format the date for display
-      onFinishEdit(rowId, columnId, date.toISOString());
-      setDatePickerOpen(false);
-    }
-  };
+  }, [statusDropdownOpen]);
 
   // Handle select change
   const handleSelectChange = (value: string) => {
     setStatusDropdownOpen(false);
     onFinishEdit(rowId, columnId, value);
-  };
-
-  // Handle date input key down
-  const handleDateKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      // Save the current date value if valid
-      if (selectedDate) {
-        onFinishEdit(rowId, columnId, selectedDate.toISOString());
-      }
-      onTabNavigation(e);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      // Save the current date value if valid
-      if (selectedDate) {
-        onFinishEdit(rowId, columnId, selectedDate.toISOString());
-      }
-      onKeyDown(e);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      setDatePickerOpen(false);
-      onKeyDown(e);
-    }
   };
 
   // Render based on column type
@@ -1813,91 +1751,18 @@ const EditCell = ({
       );
     
     case 'date':
+      // Get the current cell element for positioning
+      const cellElement = document.querySelector(`[data-cell="${rowId}-${columnId}"]`) as HTMLElement;
+      
       return (
-        <div className="relative w-full h-full">
-          <input
-            ref={inputRef}
-            type="text"
-            value={dateInputValue}
-            onChange={handleDateInputChange}
-            placeholder="MM/DD/YYYY"
-            className="w-full h-full px-2 bg-transparent border-none focus:outline-none focus:ring-0"
-            onBlur={(e) => {
-              // Only save and close if not clicking on calendar
-              if (!datePickerOpen) {
-                if (selectedDate) {
-                  onFinishEdit(rowId, columnId, selectedDate.toISOString());
-                }
-                onBlur(e);
-              }
-            }}
-            onKeyDown={handleDateKeyDown}
-          />
-          
-          {/* Calendar icon button */}
-          <button
-            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setDatePickerOpen(!datePickerOpen);
-            }}
-            type="button"
-          >
-            <CalendarIcon className="h-4 w-4 text-gray-500" />
-          </button>
-          
-          {/* Calendar popup */}
-          {datePickerOpen && (
-            <div
-              className="fixed bg-white border border-gray-200 rounded-md shadow-lg z-[10000] p-3"
-              style={{
-                top: (() => {
-                  const baseTop = clickCoordinates ? clickCoordinates.y - 160 : 0;
-                  const calendarHeight = 350; // Approximate height of calendar
-                  const paginationBarHeight = 60;
-                  const maxAllowedBottom = window.innerHeight - paginationBarHeight;
-                  
-                  // Check if calendar would go below pagination bar
-                  if (baseTop + calendarHeight > maxAllowedBottom) {
-                    // Place calendar above the click point instead
-                    const aboveTop = clickCoordinates ? clickCoordinates.y - calendarHeight - 10 : 10;
-                    return Math.max(10, aboveTop);
-                  }
-                  
-                  // Ensure calendar doesn't go above viewport
-                  return Math.max(10, baseTop);
-                })(),
-                left: (() => {
-                  const baseLeft = clickCoordinates ? clickCoordinates.x - 250 : 0;
-                  const calendarWidth = 300;
-                  
-                  // Ensure calendar doesn't go off screen
-                  if (baseLeft < 10) {
-                    return 10;
-                  }
-                  if (baseLeft + calendarWidth > window.innerWidth - 10) {
-                    return Math.max(10, window.innerWidth - calendarWidth - 10);
-                  }
-                  return baseLeft;
-                })(),
-                minWidth: '300px',
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <div className="mb-2">
-                <span className="text-sm font-medium text-gray-900">Select Date</span>
-              </div>
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateSelect}
-                initialFocus
-                className="rounded-md border-0"
-              />
-            </div>
-          )}
-        </div>
+        <DatePicker
+          value={value}
+          onSelect={(date) => onFinishEdit(rowId, columnId, date)}
+          clickCoordinates={clickCoordinates}
+          cellRef={cellElement}
+          onKeyDown={onKeyDown}
+          onTabNavigation={onTabNavigation}
+        />
       );
     
     case 'number':
