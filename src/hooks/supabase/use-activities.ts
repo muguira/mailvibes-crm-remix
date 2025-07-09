@@ -22,9 +22,11 @@ export function useActivities(contactId?: string) {
     if (!user || !contactId) return [];
 
     const { data, error } = await supabase
-      .from("activities")
+      .from("user_activities")
       .select("*")
-      .eq("contact_id", contactId)
+      .eq("entity_id", contactId)
+      .eq("entity_type", "contact")
+      .in("activity_type", ["note_add", "email", "call", "meeting"])
       .order("timestamp", { ascending: false });
 
     if (error) {
@@ -37,7 +39,39 @@ export function useActivities(contactId?: string) {
       return [];
     }
 
-    return data || [];
+    // Transform user_activities to match Activity interface
+    const activities = (data || []).map((item: any) => {
+      let content = null;
+      try {
+        if (item.new_value) {
+          // For note_add activities, new_value should be stored as plain string
+          if (item.activity_type === 'note_add') {
+            content = item.new_value;
+          } else {
+            // For other activities, try to parse JSON if it's a string
+            content = typeof item.new_value === 'string' ? 
+              (item.new_value.startsWith('{') || item.new_value.startsWith('[') ? JSON.parse(item.new_value) : item.new_value) : 
+              item.new_value;
+          }
+        } else if (item.details) {
+          const details = typeof item.details === 'string' ? JSON.parse(item.details) : item.details;
+          content = details.content || null;
+        }
+      } catch (e) {
+        logger.error('Error parsing activity content:', e);
+        content = item.new_value || null;
+      }
+      
+      return {
+        id: item.id,
+        contact_id: item.entity_id,
+        type: item.activity_type === 'note_add' ? 'note' : item.activity_type,
+        content,
+        timestamp: item.timestamp
+      };
+    });
+
+    return activities;
   };
 
   // Query to fetch activities
@@ -53,13 +87,20 @@ export function useActivities(contactId?: string) {
       if (!user) throw new Error("User not authenticated");
       if (!contactId) throw new Error("Contact ID is required");
 
+      const activityType = newActivity.type === 'note' ? 'note_add' : newActivity.type;
+      
       const { data, error } = await supabase
-        .from("activities")
+        .from("user_activities")
         .insert({
           user_id: user.id,
-          contact_id: contactId,
-          type: newActivity.type,
-          content: newActivity.content,
+          user_name: user.email?.split('@')[0] || 'User',
+          user_email: user.email,
+          activity_type: activityType,
+          entity_id: contactId,
+          entity_type: 'contact',
+          entity_name: '',
+          new_value: newActivity.content || null, // Store as string directly
+          timestamp: new Date().toISOString()
         })
         .select();
 
@@ -69,6 +110,10 @@ export function useActivities(contactId?: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["activities", user?.id, contactId],
+      });
+      // Also invalidate user activities
+      queryClient.invalidateQueries({
+        queryKey: ["user_activities", user?.id],
       });
       toast({
         title: "Success",

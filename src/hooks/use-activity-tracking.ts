@@ -17,7 +17,13 @@ export interface ActivityItem {
     | "column_add"
     | "column_delete"
     | "note_add"
-    | "login";
+    | "login"
+    | "email"
+    | "call"
+    | "meeting"
+    | "task"
+    | "status_update"
+    | "system";
   entityId?: string;
   entityType?: "contact" | "lead" | "column" | "filter";
   entityName?: string;

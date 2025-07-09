@@ -29,6 +29,7 @@ interface ContactsState {
   removeContacts: (contactIds: string[]) => void; // remove contacts from cache
   restoreContacts: (contacts: LeadContact[]) => void; // restore contacts to cache
   addContact: (contact: LeadContact) => void; // add a new contact to the cache
+  updateContact: (contactId: string, updates: Partial<LeadContact>) => void; // update a single contact in the cache
   forceRefresh: () => Promise<void>; // force refresh - clear cache but keep user and deleted IDs, then reinitialize
   
   // Internal state
@@ -619,6 +620,40 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
     });
     
     logger.log(`[addContact] Successfully added contact to store. New count: ${state.loadedCount + 1}`);
+  },
+
+  // Update a single contact in the cache
+  updateContact: (contactId: string, updates: Partial<LeadContact>) => {
+    const state = get();
+    
+    // Skip if this contact ID is in the deleted set
+    if (state._deletedContactIds.has(contactId)) {
+      logger.warn(`[updateContact] Contact ${contactId} is in deleted set, not updating`);
+      return;
+    }
+    
+    // Skip if this contact is not in the cache
+    if (!state.cache[contactId]) {
+      logger.warn(`[updateContact] Contact ${contactId} not found in cache, cannot update`);
+      return;
+    }
+    
+    logger.log(`[updateContact] Updating contact: ${contactId}`, updates);
+    
+    // Create new cache with the updated contact
+    const newCache = { 
+      ...state.cache, 
+      [contactId]: { 
+        ...state.cache[contactId], 
+        ...updates 
+      } 
+    };
+    
+    set({
+      cache: newCache
+    });
+    
+    logger.log(`[updateContact] Successfully updated contact in store`);
   },
   
   // Pause background loading

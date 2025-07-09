@@ -306,6 +306,13 @@ const getDefaultColumns = (): Column[] => [
     currencyType: 'USD',
     },
     {
+      id: 'closeDate',
+      title: 'Close Date',
+      type: 'date',
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true,
+    },
+    {
       id: 'owner',
       title: 'Owner',
       type: 'text',
@@ -319,6 +326,13 @@ const getDefaultColumns = (): Column[] => [
       width: DEFAULT_COLUMN_WIDTH,
       editable: true,
     },
+    {
+      id: 'lastContacted',
+      title: 'Last Contacted',
+      type: 'date',
+      width: DEFAULT_COLUMN_WIDTH,
+    editable: true
+  },
 ];
 
 // Helper function to extract dynamic fields from rows data
@@ -523,12 +537,42 @@ export function EditableLeadsGrid() {
       }
     };
 
+    // Listen for contact updates from stream view
+    const handleContactUpdated = (event: CustomEvent) => {
+      const { contactId, field, value, oldValue } = event.detail;
+      
+      logger.log(`Contact updated from stream view: ${contactId} - ${field} = ${value}`);
+      
+      // Update the contacts store directly
+      try {
+        const { useContactsStore } = require('@/stores/contactsStore');
+        const { updateContact: updateContactInStore } = useContactsStore.getState();
+        
+        if (typeof updateContactInStore === 'function') {
+          // Create the update object
+          const storeUpdate: any = { [field]: value };
+          updateContactInStore(contactId, storeUpdate);
+          logger.log(`Updated contact ${contactId} in contacts store via event`);
+        }
+      } catch (error) {
+        logger.warn('Could not update contacts store:', error);
+      }
+      
+      // Force a re-render to reflect the changes
+      setForceRenderKey(prev => prev + 1);
+      
+      // Also refresh the data to ensure consistency
+      refreshData();
+    };
+
     document.addEventListener("contact-added", handleContactAdded);
     document.addEventListener("contact-added-immediate", handleContactAddedImmediate as EventListener);
+    document.addEventListener("mockContactsUpdated", handleContactUpdated as EventListener);
 
     return () => {
       document.removeEventListener("contact-added", handleContactAdded);
       document.removeEventListener("contact-added-immediate", handleContactAddedImmediate as EventListener);
+      document.removeEventListener("mockContactsUpdated", handleContactUpdated as EventListener);
     };
   }, [refreshData]);
 

@@ -3,7 +3,7 @@ export interface StreamActivity {
   id: string;
   timestamp: string;
   relativeTime: string;
-  type: 'email' | 'meeting' | 'call' | 'note' | 'task' | 'form' | 'lifecycle';
+  type: 'email' | 'meeting' | 'call' | 'note' | 'task' | 'form' | 'lifecycle' | 'status_update' | 'system';
   user: {
     name: string;
     initials: string;
@@ -12,6 +12,8 @@ export interface StreamActivity {
   body?: string;
   target?: string;
   via?: string;
+  author?: string;
+  reactions?: { type: string; count: number }[];
 }
 
 export const sampleActivities: StreamActivity[] = [

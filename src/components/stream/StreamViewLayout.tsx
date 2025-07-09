@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { StreamProfileCard } from './index';
 import { AboutThisContact } from './index';
 import ActionRow from './ActionRow';
@@ -8,7 +8,10 @@ import StreamToolbar from './StreamToolbar';
 import FilterPanel from './FilterPanel';
 import { EmptyState } from "@/components/ui/empty-state";
 import { useActivity } from "@/contexts/ActivityContext";
+import { useActivities } from "@/hooks/supabase/use-activities";
+import { useAuth } from "@/components/auth";
 import { logger } from '@/utils/logger';
+import { format } from 'date-fns';
 
 // Layout constants
 const LEFT_RAIL_WIDTH = 400; // px
@@ -50,6 +53,8 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
   // State to trigger updates on avatar when contact data changes
   const [updatedContact, setUpdatedContact] = useState(contact);
   const { logCellEdit } = useActivity();
+  const { user } = useAuth();
+  const { activities: contactActivities, createActivity } = useActivities(contact.id);
 
   // Listen for mockContactsUpdated event to refresh the UI
   useEffect(() => {
@@ -163,6 +168,36 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
     finalStatus: status
   });
 
+  // Format activities for the timeline
+  const formattedActivities = useMemo(() => {
+    logger.log('Formatting activities:', {
+      contactActivities,
+      contactId: contact.id
+    });
+    
+    // Only use contact activities from the useActivities hook to prevent duplicates
+    const allActivities = contactActivities.map(activity => ({
+      id: activity.id,
+      type: activity.type as 'email' | 'call' | 'note' | 'meeting' | 'status_update',
+      timestamp: activity.timestamp,
+      relativeTime: format(new Date(activity.timestamp), 'dd/MM'),
+      user: {
+        name: user?.email?.split('@')[0] || 'User',
+        initials: (user?.email?.substring(0, 2) || 'US').toUpperCase()
+      },
+      summary: `${user?.email?.split('@')[0] || 'User'} added a ${activity.type}`,
+      body: activity.content || '',
+      author: user?.email?.split('@')[0] || 'User'
+    }));
+    
+    logger.log('Formatted activities:', allActivities);
+    
+    // Sort by timestamp descending
+    return allActivities.sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }, [contactActivities, contact.id, user]);
+
   // Create a safe contact object with default values - use status consistently
   const safeContact = {
     ...contact,
@@ -238,7 +273,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
         
         {/* Main content area - desktop only */}
         <div className="hidden lg:block flex-1 bg-slate-light/5 rounded-md overflow-y-auto self-start h-full">
-          <StreamTimeline activities={activities} />
+          <StreamTimeline activities={formattedActivities} contactId={contact.id} />
         </div>
         
         {/* Right rail - desktop only */}

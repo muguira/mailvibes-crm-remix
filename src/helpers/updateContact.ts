@@ -119,8 +119,26 @@ export async function updateContact({ id, ...patch }: ContactUpdate) {
           status: updatedRecord.status || 'New'
         };
       }
+
+      // Also update the contacts store to keep the grid view in sync
+      const { useContactsStore } = await import('@/stores/contactsStore');
+      const { updateContact: updateContactInStore } = useContactsStore.getState();
+      
+      if (typeof updateContactInStore === 'function') {
+        // Create the update object with all the changes
+        const storeUpdate: any = {};
+        
+        // Add direct fields
+        Object.entries(patch).forEach(([key, value]) => {
+          storeUpdate[key] = value;
+        });
+        
+        // Call the store update method
+        updateContactInStore(id, storeUpdate);
+        logger.log(`Updated contact ${id} in contacts store`);
+      }
     } catch (mockError) {
-      logger.warn('Could not sync with mock data:', mockError);
+      logger.warn('Could not sync with mock data or contacts store:', mockError);
     }
     
     return { data };
