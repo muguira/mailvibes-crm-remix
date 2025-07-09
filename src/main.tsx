@@ -1,20 +1,20 @@
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { startSyncWorker } from '@/workers/emailSyncWorker';
+import App from './App';
+import './index.css';
+import './services/google/tokenDiagnostics';
 
-// Production CSS verification
-if (import.meta.env.PROD) {
-  const checkStyles = () => {
-    const brandTealVar = getComputedStyle(document.documentElement).getPropertyValue('--brand-teal');
-    const taskDialogZVar = getComputedStyle(document.documentElement).getPropertyValue('--task-dialog-z-index');
-    
-    if (!brandTealVar || !taskDialogZVar) {
-      console.warn('CSS variables not loaded properly in production. Brand styles may not work correctly.');
-    }
-  };
-  
-  // Check after DOM is ready
-  setTimeout(checkStyles, 1000);
-}
+// Start the email sync worker
+startSyncWorker({
+  syncIntervalMs: 5 * 60 * 1000, // 5 minutes
+  maxConcurrentSyncs: 3,
+  retryAttempts: 3,
+  retryDelayMs: 30 * 1000, // 30 seconds
+});
 
-createRoot(document.getElementById("root")!).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);

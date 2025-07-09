@@ -545,8 +545,9 @@ export default function AboutThisContact({
       <CardHeader className="pb-3">
         <CardTitle className="text-lg">About This Contact</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className={compact ? "space-y-3" : "grid grid-cols-2 gap-4 text-sm"}>
+      <CardContent className="h-[calc(100vh-550px)] overflow-y-auto">
+        <div className={compact ? "space-y-3" : "grid grid-cols-2 gap-4 text-sm"
+        }>
           {compact ? (
             // Single-column layout for desktop
             fields.map((field) => (

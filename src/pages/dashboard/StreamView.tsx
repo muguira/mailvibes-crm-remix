@@ -96,7 +96,7 @@ export default function StreamView() {
           <TopNavbar />
           
           {/* Main content area with scrolling */}
-          <div className="overflow-auto flex-1">
+          <div className="overflow-hidden flex-1">
             {/* Content with proper padding to account for fixed navbar */}
             <div className={`px-6 pt-12 ${isMobile ? "pb-6" : "pb-6"}`}>
               <ErrorBoundary sectionName="Stream Content">

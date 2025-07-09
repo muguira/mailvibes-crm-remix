@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Bold, 
@@ -10,11 +10,11 @@ import {
   Phone,
   Mail,
   MessageCircle,
-  FileText,
   Calendar,
   MoreHorizontal,
   CalendarDays,
-  Clock
+  Clock,
+  AlertCircle
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -23,6 +23,9 @@ import { mockContactsById } from "@/components/stream/sample-data";
 import { logger } from '@/utils/logger';
 import { cn } from '@/lib/utils';
 import { useActivities } from '@/hooks/supabase/use-activities';
+import { useGmailConnection } from '@/hooks/use-gmail-auth';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { GmailConnectionModal } from '@/components/stream/GmailConnectionModal';
 
 const ACTIVITY_TYPES = [
   { id: 'call', label: 'Call', icon: Phone },
@@ -35,6 +38,7 @@ interface TimelineComposerProps {
   contactId?: string;
   isCompact?: boolean;
   onExpand?: () => void;
+  onCreateActivity?: (activity: { type: string; content: string; timestamp: string }) => void;
 }
 
 // Custom DateTime picker component
@@ -129,7 +133,7 @@ const DateTimePicker = ({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-32 p-0 z-[10000]" align="start">
-          <div className="max-h-60 overflow-y-auto">
+          <div className="max-h-70 overflow-y-auto">
             {timeOptions.map((option) => (
               <button
                 key={option.value}
@@ -152,7 +156,7 @@ const DateTimePicker = ({
   );
 };
 
-export default function TimelineComposer({ contactId, isCompact = false, onExpand }: TimelineComposerProps) {
+export default function TimelineComposer({ contactId, isCompact = false, onExpand, onCreateActivity }: TimelineComposerProps) {
   const [text, setText] = useState("");
   const [selectedActivityType, setSelectedActivityType] = useState('note');
   const [activityDate, setActivityDate] = useState(new Date());
@@ -165,6 +169,7 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
   const { recordId } = useParams();
   const effectiveContactId = contactId || recordId;
   const { createActivity } = useActivities(effectiveContactId);
+  const { isConnected: isGmailConnected } = useGmailConnection();
   
   // Convert HTML back to plain text for storage
   const getPlainText = () => {
@@ -211,12 +216,21 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
         timestamp: activityTimestamp
       });
       
-      // Create activity in Supabase with custom timestamp
-      createActivity({
-        type: selectedActivityType,
-        content: plainText,
-        timestamp: activityTimestamp
-      });
+      // Use the provided onCreateActivity prop or fall back to internal createActivity
+      if (onCreateActivity) {
+        onCreateActivity({
+          type: selectedActivityType,
+          content: plainText,
+          timestamp: activityTimestamp
+        });
+      } else {
+        // Create activity in Supabase with custom timestamp
+        createActivity({
+          type: selectedActivityType,
+          content: plainText,
+          timestamp: activityTimestamp
+        });
+      }
       
       // Clear the text after sending
       setText("");
@@ -471,9 +485,34 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
           </button>
         </div>
 
+        {/* Gmail not connected indicator */}
+        {!isGmailConnected && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <GmailConnectionModal onRefresh={() => window.location.reload()}>
+                  <button
+                    className={`rounded hover:bg-gray-100 text-amber-500 hover:text-amber-600 ml-auto mr-2 transition-all duration-300 ease-in-out ${
+                      isCompact ? 'p-1' : 'p-2'
+                    }`}
+                    title="Gmail not connected"
+                  >
+                    <AlertCircle className={`transition-all duration-300 ease-in-out ${
+                      isCompact ? 'w-3 h-3' : 'w-4 h-4'
+                    }`} />
+                  </button>
+                </GmailConnectionModal>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-sm">Gmail not connected - Click to connect</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
         {/* More button */}
         <button
-          className={`rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 ml-auto mr-2 transition-all duration-300 ease-in-out ${
+          className={`rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 ${!isGmailConnected ? 'mr-2' : 'ml-auto mr-2'} transition-all duration-300 ease-in-out ${
             isCompact ? 'p-1' : 'p-2'
           }`}
           title="More options"

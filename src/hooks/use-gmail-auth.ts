@@ -82,9 +82,7 @@ export function useGmailAuth(): UseGmailAuthReturn {
           last_sync_status,
           last_sync_error,
           created_at,
-          oauth_tokens (
-            user_info
-          )
+          settings
         `
         )
         .eq("user_id", user.id)
@@ -95,7 +93,10 @@ export function useGmailAuth(): UseGmailAuthReturn {
       const formattedAccounts =
         data?.map((account) => ({
           ...account,
-          user_info: {},
+          user_info:
+            typeof account.settings === "object" && account.settings !== null
+              ? (account.settings as { name?: string; picture?: string })
+              : {},
         })) || [];
 
       setAccounts(formattedAccounts);

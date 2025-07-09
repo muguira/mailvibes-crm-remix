@@ -12,18 +12,21 @@ import {
   CheckCircle2,
   MoreHorizontal,
   Reply,
-  Heart
+  Heart,
+  Settings,
+  Activity
 } from 'lucide-react';
-import { StreamActivity } from './sample-activities';
 import { cn } from '@/lib/utils';
-
-interface ExtendedActivity extends StreamActivity {
-  // All required properties are inherited from StreamActivity
-  // Adding optional properties for additional functionality
-}
+import { TimelineActivity } from '@/hooks/use-timeline-activities';
+import EmailRenderer from '@/components/timeline/EmailRenderer';
 
 interface TimelineItemProps {
-  activity: ExtendedActivity;
+  activity: TimelineActivity;
+  activityIcon?: string;
+  activityColor?: string;
+  activitySummary?: string;
+  activityUserName?: string;
+  contactName?: string;
 }
 
 // Markdown renderer for timeline items
@@ -58,20 +61,22 @@ const renderMarkdown = (text: string) => {
   return html;
 };
 
-const getActivityIcon = (type?: string) => {
-  switch (type) {
-    case 'email':
+const getActivityIcon = (iconName?: string) => {
+  switch (iconName) {
+    case 'Mail':
       return Mail;
-    case 'call':
+    case 'Phone':
       return Phone;
-    case 'task':
+    case 'FileText':
       return FileText;
-    case 'meeting':
+    case 'Calendar':
       return Calendar;
-    case 'status_update':
+    case 'CheckSquare':
       return CheckCircle2;
-    case 'system':
-      return Bell;
+    case 'Settings':
+      return Settings;
+    case 'Activity':
+      return Activity;
     default:
       return MessageCircle;
   }
@@ -87,7 +92,7 @@ const getActivityColor = (type?: string) => {
       return 'text-orange-600 bg-orange-50';
     case 'meeting':
       return 'text-purple-600 bg-purple-50';
-    case 'status_update':
+    case 'note':
       return 'text-teal-600 bg-teal-50';
     case 'system':
       return 'text-gray-600 bg-gray-50';
@@ -107,7 +112,7 @@ const getUserNameColor = (type?: string) => {
       return 'text-orange-600';
     case 'meeting':
       return 'text-purple-600';
-    case 'status_update':
+    case 'note':
       return 'text-teal-600';
     case 'system':
       return 'text-gray-600';
@@ -116,97 +121,132 @@ const getUserNameColor = (type?: string) => {
   }
 };
 
-export default function TimelineItem({ activity }: TimelineItemProps) {
-  const Icon = getActivityIcon(activity.type);
-  const colorClass = getActivityColor(activity.type);
+// Format timestamp to relative time
+const formatRelativeTime = (timestamp: string): string => {
+  const now = new Date();
+  const activityTime = new Date(timestamp);
+  const diffInSeconds = Math.floor((now.getTime() - activityTime.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) {
+    return 'now';
+  } else if (diffInSeconds < 3600) {
+    const minutes = Math.floor(diffInSeconds / 60);
+    return `${minutes}m`;
+  } else if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600);
+    return `${hours}h`;
+  } else if (diffInSeconds < 2592000) {
+    const days = Math.floor(diffInSeconds / 86400);
+    return `${days}d`;
+  } else {
+    return activityTime.toLocaleDateString();
+  }
+};
+
+// Format full timestamp
+const formatFullTimestamp = (timestamp: string): string => {
+  const date = new Date(timestamp);
+  return date.toLocaleString();
+};
+
+export default function TimelineItem({ 
+  activity, 
+  activityIcon, 
+  activityColor, 
+  activitySummary, 
+  activityUserName,
+  contactName 
+}: TimelineItemProps) {
+  const Icon = getActivityIcon(activityIcon);
+  const colorClass = activityColor || getActivityColor(activity.type);
   const userNameColor = getUserNameColor(activity.type);
+  const relativeTime = formatRelativeTime(activity.timestamp);
+  const fullTimestamp = formatFullTimestamp(activity.timestamp);
+  
+  // Get content to display - for emails, show snippet or subject
+  const displayContent = activity.source === 'gmail' && activity.subject 
+    ? activity.snippet || activity.subject
+    : activity.content;
+  
+  // Get user name - use the passed prop or default to User
+  const userName = activityUserName || 'User';
   
   return (
-    <li className="relative pl-[90px] pb-6"> {/* Increased padding to prevent overlap */}
-      {/* Timeline icon and line */}
-      <div className={cn(
-        "absolute left-[38px] top-2 h-8 w-8 rounded-full flex items-center justify-center",
-        colorClass
-      )}>
-        <Icon className="h-4 w-4" />
-      </div>
-      <div className="absolute left-[53px] -bottom-3 top-10 border-l-2 border-dashed border-gray-200"></div>
+    <li className="relative pl-10 pb-6 last:overflow-hidden last:pb-0">
+      {/* Timeline line - more prominent and continuous */}
+      <div className="absolute left-[25px] top-[10px] bottom-[-20px] w-[1px] bg-gray-300"></div>
       
-      {/* Timestamp marker - moved further left */}
-      <div className="absolute left-0 top-3 w-[30px] text-xs text-gray-500 font-medium text-right">
-        {activity.relativeTime}
+      {/* Timestamp on the left side of timeline */}
+      <div className="absolute left-[-15px] top-[5px] w-8 text-xs text-gray-500 font-light text-right">
+        {relativeTime}
       </div>
       
-      {/* Activity card */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 w-full">
-        <div className="flex flex-col gap-3">
-          {/* Activity header */}
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                {/* Activity type icon next to the summary */}
-                <div className={cn(
-                  "flex items-center justify-center w-5 h-5 rounded-full",
-                  colorClass.replace('text-', 'text-').replace('bg-', 'bg-')
-                )}>
-                  <Icon className="h-3 w-3" />
-                </div>
-                <div className="text-sm font-medium text-gray-900">
-                  {activity.summary}
-                  {activity.via && <span className="text-gray-500"> (via {activity.via})</span>}
-                </div>
-              </div>
-              {activity.author && (
-                <div className="flex items-center gap-2 text-xs mt-1">
-                  <span className="text-gray-500">Update by</span>
-                  <span className={cn("font-medium", userNameColor)}>
-                    {activity.author}
-                  </span>
-                </div>
-              )}
-              {activity.timestamp && (
-                <div className="text-xs text-gray-400 mt-1">
-                  {activity.timestamp}
-                </div>
-              )}
-            </div>
-            {activity.type === 'email' && (
-              <Bell className="h-4 w-4 text-gray-400" />
+      {/* Timeline dot - simple visible point */}
+      <div className="absolute left-[21px] top-[10px] w-2 h-2 rounded-full bg-gray-600 z-10"></div>
+      
+      {/* Activity card with white background */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 pr-[7px]">
+        {/* Header with user info */}
+        <div className="flex items-center text-sm mb-1">
+          {/* Activity type icon */}
+          <div className={cn("w-5 h-5 rounded-full flex items-center justify-center mr-2", colorClass)}>
+            <Icon className="h-3 w-3" />
+          </div>
+          
+          <span className={cn("font-medium", userNameColor)}>
+            {userName}
+          </span>
+          <span className="text-gray-500 ml-1">
+            {activity.type === 'email' ? 'emailed' : 
+             activity.type === 'note' ? 'added a note to' :
+             activity.type === 'call' ? 'called' :
+             activity.type === 'meeting' ? 'met with' :
+             activity.type === 'task' ? 'created a task for' :
+             `added a ${activity.type} to`}
+          </span>
+                     <span className="text-gray-700 font-medium ml-1">
+             {activity.type === 'email' && activity.to && activity.to.length > 0 
+               ? activity.to[0].name || activity.to[0].email
+               : contactName || 'Contact'}
+           </span>
+        </div>
+        
+        {/* Timestamp details */}
+        <div className="text-xs text-gray-400 mb-3">
+          {fullTimestamp}
+        </div>
+        
+        {/* Activity content */}
+        {displayContent && (
+          <div className="mb-3">
+            {activity.source === 'gmail' && activity.type === 'email' ? (
+              <EmailRenderer
+                bodyHtml={activity.bodyHtml}
+                bodyText={activity.bodyText}
+                subject={activity.subject}
+              />
+            ) : (
+              <div 
+                className="text-sm text-gray-800 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(displayContent) }}
+              />
             )}
           </div>
-          
-          {/* Activity body with markdown rendering */}
-          <div 
-            className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(activity.body || '') }}
-          />
-          
-          {/* Reactions */}
-          {activity.reactions && activity.reactions.length > 0 && (
-            <div className="flex items-center gap-2 pt-2">
-              {activity.reactions.map((reaction, index) => (
-                <div key={index} className="flex items-center gap-1 text-xs text-gray-500">
-                  <span>{reaction.type}</span>
-                  <span>{reaction.count}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {/* Action row */}
-          <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
-            <button className="flex items-center gap-1 text-xs text-gray-500 hover:text-teal-600 transition-colors">
-              <Reply className="h-3 w-3" />
-              <span>2</span>
-            </button>
-            <button className="flex items-center gap-1 text-xs text-gray-500 hover:text-teal-600 transition-colors">
-              <Heart className="h-3 w-3" />
-              <span>5</span>
-            </button>
-            <button className="flex items-center gap-1 text-xs text-gray-500 hover:text-teal-600 transition-colors">
-              <MoreHorizontal className="h-3 w-3" />
-            </button>
-          </div>
+        )}
+        
+        {/* Action buttons */}
+        <div className="flex items-center gap-4 text-xs text-gray-500">
+          <button className="flex items-center gap-1 hover:text-teal-600 transition-colors">
+            <Reply className="h-3 w-3" />
+            <span>2</span>
+          </button>
+          <button className="flex items-center gap-1 hover:text-teal-600 transition-colors">
+            <Heart className="h-3 w-3" />
+            <span>5</span>
+          </button>
+          <button className="flex items-center gap-1 hover:text-teal-600 transition-colors">
+            <MoreHorizontal className="h-3 w-3" />
+          </button>
         </div>
       </div>
     </li>

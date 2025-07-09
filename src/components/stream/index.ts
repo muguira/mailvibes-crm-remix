@@ -8,3 +8,4 @@ export { default as StreamTimeline } from "./StreamTimeline";
 export { default as FilterPanel } from "./FilterPanel";
 export { default as AssociationsTab } from "./AssociationsTab";
 export { default as AboutTab } from "./AboutTab";
+export { GmailConnectionModal } from "./GmailConnectionModal";
