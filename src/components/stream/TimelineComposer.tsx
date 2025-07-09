@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Bold, 
@@ -10,7 +10,6 @@ import {
   Phone,
   Mail,
   MessageCircle,
-  FileText,
   Calendar,
   MoreHorizontal,
   CalendarDays,
@@ -134,7 +133,7 @@ const DateTimePicker = ({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-32 p-0 z-[10000]" align="start">
-          <div className="max-h-60 overflow-y-auto">
+          <div className="max-h-70 overflow-y-auto">
             {timeOptions.map((option) => (
               <button
                 key={option.value}

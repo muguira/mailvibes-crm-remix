@@ -15,9 +15,10 @@ import { GmailConnectionModal } from './GmailConnectionModal';
 interface StreamTimelineProps {
   contactId: string;
   contactEmail: string;
+  contactName?: string;
 }
 
-export function StreamTimeline({ contactId, contactEmail }: StreamTimelineProps) {
+export function StreamTimeline({ contactId, contactEmail, contactName }: StreamTimelineProps) {
   const timelineRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const [isCompact, setIsCompact] = useState(false);
@@ -87,7 +88,7 @@ export function StreamTimeline({ contactId, contactEmail }: StreamTimelineProps)
   return (
     <div className="flex flex-col h-full">
       {/* Timeline composer */}
-      <div className="flex-shrink-0 p-4">
+      <div className="flex-shrink-0 p-4 pt-0">
         <TimelineComposer 
           contactId={contactId}
           isCompact={isCompact}
@@ -117,12 +118,13 @@ export function StreamTimeline({ contactId, contactEmail }: StreamTimelineProps)
           </div>
         ) : (
           <>
-            <ul className="space-y-0">
+            <ul className="space-y-0 pb-[400px]">
               {activities.map((activity, index) => (
                 <TimelineItem 
                   key={`${activity.id}-${index}`}
                   activity={activity}
                   activityUserName={getUserName(activity)}
+                  contactName={contactName}
                 />
               ))}
             </ul>

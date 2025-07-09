@@ -26,6 +26,7 @@ interface TimelineItemProps {
   activityColor?: string;
   activitySummary?: string;
   activityUserName?: string;
+  contactName?: string;
 }
 
 // Markdown renderer for timeline items
@@ -153,7 +154,8 @@ export default function TimelineItem({
   activityIcon, 
   activityColor, 
   activitySummary, 
-  activityUserName 
+  activityUserName,
+  contactName 
 }: TimelineItemProps) {
   const Icon = getActivityIcon(activityIcon);
   const colorClass = activityColor || getActivityColor(activity.type);
@@ -170,34 +172,46 @@ export default function TimelineItem({
   const userName = activityUserName || 'User';
   
   return (
-    <li className="relative pl-20 pb-6 overflow-hidden last:pb-0">
+    <li className="relative pl-10 pb-6 last:overflow-hidden last:pb-0">
       {/* Timeline line - more prominent and continuous */}
-      <div className="absolute left-10 top-[10px] bottom-[-10px] w-[1px] bg-gray-300"></div>
+      <div className="absolute left-[25px] top-[10px] bottom-[-20px] w-[1px] bg-gray-300"></div>
       
       {/* Timestamp on the left side of timeline */}
-      <div className="absolute left-0 top-[5px] w-8 text-xs text-gray-500 font-medium text-right">
+      <div className="absolute left-[-15px] top-[5px] w-8 text-xs text-gray-500 font-light text-right">
         {relativeTime}
       </div>
       
       {/* Timeline dot - simple visible point */}
-      <div className="absolute left-[37px] top-[10px] w-2 h-2 rounded-full bg-gray-600 z-10"></div>
+      <div className="absolute left-[21px] top-[10px] w-2 h-2 rounded-full bg-gray-600 z-10"></div>
       
       {/* Activity card with white background */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 pr-[7px]">
         {/* Header with user info */}
-        <div className="text-sm mb-1">
+        <div className="flex items-center text-sm mb-1">
+          {/* Activity type icon */}
+          <div className={cn("w-5 h-5 rounded-full flex items-center justify-center mr-2", colorClass)}>
+            <Icon className="h-3 w-3" />
+          </div>
+          
           <span className={cn("font-medium", userNameColor)}>
             {userName}
           </span>
           <span className="text-gray-500 ml-1">
-            added a {activity.type}
+            {activity.type === 'email' ? 'emailed' : 
+             activity.type === 'note' ? 'added a note to' :
+             activity.type === 'call' ? 'called' :
+             activity.type === 'meeting' ? 'met with' :
+             activity.type === 'task' ? 'created a task for' :
+             `added a ${activity.type} to`}
           </span>
+                     <span className="text-gray-700 font-medium ml-1">
+             {activity.type === 'email' && activity.to && activity.to.length > 0 
+               ? activity.to[0].name || activity.to[0].email
+               : contactName || 'Contact'}
+           </span>
         </div>
         
         {/* Timestamp details */}
-        <div className="text-xs text-gray-400 mb-1">
-          Update by {userName}
-        </div>
         <div className="text-xs text-gray-400 mb-3">
           {fullTimestamp}
         </div>

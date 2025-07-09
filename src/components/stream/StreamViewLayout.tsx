@@ -276,6 +276,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
           <StreamTimeline 
             contactId={contact.id} 
             contactEmail={email}
+            contactName={name}
           />
         </div>
         
