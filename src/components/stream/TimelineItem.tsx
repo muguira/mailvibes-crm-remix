@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TimelineActivity } from '@/hooks/use-timeline-activities';
+import EmailRenderer from '@/components/timeline/EmailRenderer';
 
 interface TimelineItemProps {
   activity: TimelineActivity;
@@ -204,10 +205,18 @@ export default function TimelineItem({
         {/* Activity content */}
         {displayContent && (
           <div className="mb-3">
-            <div 
-              className="text-sm text-gray-800 leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(displayContent) }}
-            />
+            {activity.source === 'gmail' && activity.type === 'email' ? (
+              <EmailRenderer
+                bodyHtml={activity.bodyHtml}
+                bodyText={activity.bodyText}
+                subject={activity.subject}
+              />
+            ) : (
+              <div 
+                className="text-sm text-gray-800 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(displayContent) }}
+              />
+            )}
           </div>
         )}
         
