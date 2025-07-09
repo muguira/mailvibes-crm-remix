@@ -18,15 +18,45 @@ import { StreamActivity } from './sample-activities';
 import { cn } from '@/lib/utils';
 
 interface ExtendedActivity extends StreamActivity {
-  type?: 'email' | 'call' | 'note' | 'task' | 'meeting' | 'status_update' | 'system';
-  author?: string;
-  timestamp?: string;
-  reactions?: { type: string; count: number }[];
+  // All required properties are inherited from StreamActivity
+  // Adding optional properties for additional functionality
 }
 
 interface TimelineItemProps {
   activity: ExtendedActivity;
 }
+
+// Markdown renderer for timeline items
+const renderMarkdown = (text: string) => {
+  if (!text) return '';
+  
+  let html = text;
+  
+  // Bold
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  
+  // Italic
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  
+  // Underline
+  html = html.replace(/__(.*?)__/g, '<u>$1</u>');
+  
+  // Links
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 underline hover:text-blue-800" target="_blank" rel="noopener noreferrer">$1</a>');
+  
+  // Bullet lists
+  html = html.replace(/^• (.+)$/gm, '<li class="ml-4">$1</li>');
+  html = html.replace(/(<li class="ml-4">.*<\/li>)/s, '<ul class="list-disc list-inside space-y-1">$1</ul>');
+  
+  // Numbered lists
+  html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-4">$1</li>');
+  html = html.replace(/(<li class="ml-4">.*<\/li>)/s, '<ol class="list-decimal list-inside space-y-1">$1</ol>');
+  
+  // Line breaks
+  html = html.replace(/\n/g, '<br>');
+  
+  return html;
+};
 
 const getActivityIcon = (type?: string) => {
   switch (type) {
@@ -66,9 +96,30 @@ const getActivityColor = (type?: string) => {
   }
 };
 
+// Get user name color based on activity type
+const getUserNameColor = (type?: string) => {
+  switch (type) {
+    case 'email':
+      return 'text-blue-600';
+    case 'call':
+      return 'text-green-600';
+    case 'task':
+      return 'text-orange-600';
+    case 'meeting':
+      return 'text-purple-600';
+    case 'status_update':
+      return 'text-teal-600';
+    case 'system':
+      return 'text-gray-600';
+    default:
+      return 'text-teal-600';
+  }
+};
+
 export default function TimelineItem({ activity }: TimelineItemProps) {
   const Icon = getActivityIcon(activity.type);
   const colorClass = getActivityColor(activity.type);
+  const userNameColor = getUserNameColor(activity.type);
   
   return (
     <li className="relative pl-[90px] pb-6"> {/* Increased padding to prevent overlap */}
@@ -87,18 +138,30 @@ export default function TimelineItem({ activity }: TimelineItemProps) {
       </div>
       
       {/* Activity card */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 max-w-lg">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 w-full">
         <div className="flex flex-col gap-3">
           {/* Activity header */}
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <div className="text-sm font-medium text-gray-900">
-                {activity.summary}
-                {activity.via && <span className="text-gray-500"> (via {activity.via})</span>}
+              <div className="flex items-center gap-2">
+                {/* Activity type icon next to the summary */}
+                <div className={cn(
+                  "flex items-center justify-center w-5 h-5 rounded-full",
+                  colorClass.replace('text-', 'text-').replace('bg-', 'bg-')
+                )}>
+                  <Icon className="h-3 w-3" />
+                </div>
+                <div className="text-sm font-medium text-gray-900">
+                  {activity.summary}
+                  {activity.via && <span className="text-gray-500"> (via {activity.via})</span>}
+                </div>
               </div>
               {activity.author && (
-                <div className="text-xs text-gray-500 mt-1">
-                  Update by {activity.author}
+                <div className="flex items-center gap-2 text-xs mt-1">
+                  <span className="text-gray-500">Update by</span>
+                  <span className={cn("font-medium", userNameColor)}>
+                    {activity.author}
+                  </span>
                 </div>
               )}
               {activity.timestamp && (
@@ -112,10 +175,11 @@ export default function TimelineItem({ activity }: TimelineItemProps) {
             )}
           </div>
           
-          {/* Activity body */}
-          <div className="text-sm text-gray-700 leading-relaxed">
-            {activity.body}
-          </div>
+          {/* Activity body with markdown rendering */}
+          <div 
+            className="text-sm text-gray-700 leading-relaxed prose prose-sm max-w-none"
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(activity.body || '') }}
+          />
           
           {/* Reactions */}
           {activity.reactions && activity.reactions.length > 0 && (
