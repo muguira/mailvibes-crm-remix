@@ -9,6 +9,7 @@ interface DatePickerProps {
   cellRef?: HTMLElement | null;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   onTabNavigation?: (e: React.KeyboardEvent) => void;
+  autoOpen?: boolean;
 }
 
 export function DatePicker({ 
@@ -16,7 +17,8 @@ export function DatePicker({
   onSelect, 
   cellRef,
   onKeyDown,
-  onTabNavigation 
+  onTabNavigation,
+  autoOpen = true
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
@@ -26,6 +28,7 @@ export function DatePicker({
   const [isPositionReady, setIsPositionReady] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const hasOpenedRef = useRef(false);
 
   // Calculate position BEFORE opening
   const calculateAndOpen = () => {
@@ -69,15 +72,18 @@ export function DatePicker({
     }
   };
 
-  // Auto-open on mount
+  // Auto-open on mount only once
   useEffect(() => {
-    // Small delay to ensure cell element is available
-    const timer = setTimeout(() => {
-      calculateAndOpen();
-    }, 50);
-    
-    return () => clearTimeout(timer);
-  }, []);
+    if (autoOpen && !hasOpenedRef.current) {
+      hasOpenedRef.current = true;
+      // Small delay to ensure cell element is available
+      const timer = setTimeout(() => {
+        calculateAndOpen();
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [autoOpen]);
 
   // Handle clicks outside
   useEffect(() => {
@@ -177,7 +183,6 @@ export function DatePicker({
             top: position.top,
             left: position.left,
             minWidth: '300px',
-            visibility: isPositionReady ? 'visible' : 'hidden',
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >

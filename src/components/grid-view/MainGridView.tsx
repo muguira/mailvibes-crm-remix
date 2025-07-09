@@ -505,38 +505,44 @@ export const MainGridView = forwardRef(function MainGridView({
           // Update selection
           setSelectedCell({ rowId: newRowId, columnId: newColumnId });
 
-          // For single step movements (arrow keys), use ultra-fast scrollBySteps
-          const isArrowKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
-          if (isArrowKey) {
-            // First check if the new cell is visible - only scroll if it's outside viewport
-            const gridElement = gridRef.current?._outerRef;
-            if (gridElement) {
-              const containerRect = gridElement.getBoundingClientRect();
-              const cellTop = newRowIndex * ROW_HEIGHT;
-              const cellBottom = cellTop + ROW_HEIGHT;
-              const cellLeft = columns.slice(0, newColumnIndex).reduce((sum, col, idx) => sum + getColumnWidth(idx), 0);
-              const cellRight = cellLeft + getColumnWidth(newColumnIndex);
+          // Check if the new column is a date column
+          const newColumn = columns[newColumnIndex];
+          
+          // Only scroll if it's not a date column
+          if (newColumn?.type !== 'date') {
+            // For single step movements (arrow keys), use ultra-fast scrollBySteps
+            const isArrowKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
+            if (isArrowKey) {
+              // First check if the new cell is visible - only scroll if it's outside viewport
+              const gridElement = gridRef.current?._outerRef;
+              if (gridElement) {
+                const containerRect = gridElement.getBoundingClientRect();
+                const cellTop = newRowIndex * ROW_HEIGHT;
+                const cellBottom = cellTop + ROW_HEIGHT;
+                const cellLeft = columns.slice(0, newColumnIndex).reduce((sum, col, idx) => sum + getColumnWidth(idx), 0);
+                const cellRight = cellLeft + getColumnWidth(newColumnIndex);
 
-              const currentScrollTop = gridElement.scrollTop;
-              const currentScrollLeft = gridElement.scrollLeft;
-              const visibleTop = currentScrollTop;
-              const visibleBottom = currentScrollTop + containerRect.height - HEADER_HEIGHT;
-              const visibleLeft = currentScrollLeft;
-              const visibleRight = currentScrollLeft + containerRect.width;
+                const currentScrollTop = gridElement.scrollTop;
+                const currentScrollLeft = gridElement.scrollLeft;
+                const visibleTop = currentScrollTop;
+                const visibleBottom = currentScrollTop + containerRect.height - HEADER_HEIGHT;
+                const visibleLeft = currentScrollLeft;
+                const visibleRight = currentScrollLeft + containerRect.width;
 
-              // Only scroll if the new cell is outside the visible area
-              const isOutsideViewport = cellTop < visibleTop || cellBottom > visibleBottom ||
-                cellLeft < visibleLeft || cellRight > visibleRight;
+                // Only scroll if the new cell is outside the visible area
+                const isOutsideViewport = cellTop < visibleTop || cellBottom > visibleBottom ||
+                  cellLeft < visibleLeft || cellRight > visibleRight;
 
-              if (isOutsideViewport) {
-                // Use precise positioning when cell is outside viewport
-                scrollToItemIfNeeded(newRowIndex, newColumnIndex);
+                if (isOutsideViewport) {
+                  // Use precise positioning when cell is outside viewport
+                  scrollToItemIfNeeded(newRowIndex, newColumnIndex);
+                }
+                // If cell is inside viewport, don't scroll at all
               }
-              // If cell is inside viewport, don't scroll at all
+            } else {
+              // For larger movements (Tab, multi-step), use precise positioning
+              scrollToItemIfNeeded(newRowIndex, newColumnIndex);
             }
-          } else {
-            // For larger movements (Tab, multi-step), use precise positioning
-            scrollToItemIfNeeded(newRowIndex, newColumnIndex);
           }
 
           // Focus immediately without delays
@@ -855,8 +861,14 @@ export const MainGridView = forwardRef(function MainGridView({
       // First update the selected cell
       setSelectedCell({ rowId: nextRowId, columnId: nextColumnId });
 
-      // Use optimized scroll helper
-      scrollToItemIfNeeded(nextRowIndex, nextColumnIndex);
+      // Check if the next column is a date column
+      const nextColumn = columns[nextColumnIndex];
+      
+      // Only scroll if it's not a date column
+      if (nextColumn?.type !== 'date') {
+        // Use optimized scroll helper
+        scrollToItemIfNeeded(nextRowIndex, nextColumnIndex);
+      }
 
       // Focus immediately without delays
       if (mainViewRef.current) {
