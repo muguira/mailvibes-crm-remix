@@ -1628,11 +1628,8 @@ const EditCell = ({
         }, 10);
       }
     } else if (column.type === 'date') {
-      // For date columns, just focus the input for now
-      if (inputRef.current) {
-        inputRef.current.focus();
-        inputRef.current.select();
-      }
+      // For date columns, don't focus to prevent scrolling
+      // The DatePicker will handle its own focus management
     } else if (inputRef.current) {
       // For text, number, and currency columns
       inputRef.current.focus();

@@ -33,9 +33,8 @@ export function DatePicker({
     // Small delay to ensure click coordinates are set
     const timer = setTimeout(() => {
       setIsOpen(true);
-      if (inputRef.current) {
-        inputRef.current.focus();
-      }
+      // Don't focus the input to prevent scrolling
+      // The cell is already focused from the grid
     }, 50);
     
     return () => clearTimeout(timer);
@@ -55,7 +54,7 @@ export function DatePicker({
       const viewportWidth = window.innerWidth;
       
       // Position the popup just below the click point
-      top = top + 10; // Small offset below click
+      top = top ; // Small offset below click
       
       // Check if popup would go off bottom of screen
       if (top + popupHeight > viewportHeight - 60) { // 60px for pagination bar
@@ -64,10 +63,10 @@ export function DatePicker({
       }
       
       // Center the popup horizontally on the click point
-      left = left - (popupWidth / 2);
+      left = left - (popupWidth / 0);
       
       // Check if popup would go off right side of screen
-      if (left + popupWidth > viewportWidth - 10) {
+      if (left + popupWidth > viewportWidth - 0) {
         left = viewportWidth - popupWidth - 10;
       }
       
