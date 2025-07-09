@@ -6,7 +6,6 @@ import { CalendarIcon } from 'lucide-react';
 interface DatePickerProps {
   value: string | null;
   onSelect: (date: string) => void;
-  clickCoordinates?: { x: number; y: number } | null;
   cellRef?: HTMLElement | null;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   onTabNavigation?: (e: React.KeyboardEvent) => void;
@@ -15,7 +14,6 @@ interface DatePickerProps {
 export function DatePicker({ 
   value, 
   onSelect, 
-  clickCoordinates, 
   cellRef,
   onKeyDown,
   onTabNavigation 
@@ -30,7 +28,7 @@ export function DatePicker({
 
   // Auto-open on mount (when cell is clicked)
   useEffect(() => {
-    // Small delay to ensure click coordinates are set
+    // Small delay to ensure cell element is available
     const timer = setTimeout(() => {
       setIsOpen(true);
       // Don't focus the input to prevent scrolling
@@ -40,12 +38,15 @@ export function DatePicker({
     return () => clearTimeout(timer);
   }, []);
 
-  // Calculate position based on click coordinates or cell position
+  // Calculate position based on cell position
   useEffect(() => {
-    if (isOpen && clickCoordinates) {
-      // Use the exact click coordinates
-      let top = clickCoordinates.y;
-      let left = clickCoordinates.x;
+    if (isOpen && cellRef) {
+      // Get the cell's position
+      const cellRect = cellRef.getBoundingClientRect();
+      
+      // Position the popup based on the cell
+      let top = cellRect.bottom + 5; // 5px below the cell
+      let left = cellRect.left + (cellRect.width / 2); // Center on cell
       
       // Adjust for viewport boundaries
       const popupHeight = 350; // Approximate calendar height
@@ -53,20 +54,17 @@ export function DatePicker({
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
       
-      // Position the popup just below the click point
-      top = top ; // Small offset below click
-      
       // Check if popup would go off bottom of screen
       if (top + popupHeight > viewportHeight - 60) { // 60px for pagination bar
-        // Show above the click point instead
-        top = clickCoordinates.y - popupHeight - 10;
+        // Show above the cell instead
+        top = cellRect.top - popupHeight - 5;
       }
       
-      // Center the popup horizontally on the click point
-      left = left - (popupWidth / 0);
+      // Center the popup horizontally on the cell
+      left = left - (popupWidth / 2);
       
       // Check if popup would go off right side of screen
-      if (left + popupWidth > viewportWidth - 0) {
+      if (left + popupWidth > viewportWidth - 10) {
         left = viewportWidth - popupWidth - 10;
       }
       
@@ -80,7 +78,7 @@ export function DatePicker({
       
       setPosition({ top, left });
     }
-  }, [isOpen, clickCoordinates]);
+  }, [isOpen, cellRef]);
 
   // Handle clicks outside
   useEffect(() => {
@@ -162,7 +160,7 @@ export function DatePicker({
         </button>
       </div>
       
-      {isOpen && clickCoordinates && (
+      {isOpen && cellRef && (
         <div
           ref={popupRef}
           className="fixed bg-white border border-gray-200 rounded-md shadow-lg z-[10000] p-3"

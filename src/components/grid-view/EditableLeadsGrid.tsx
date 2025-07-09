@@ -306,13 +306,6 @@ const getDefaultColumns = (): Column[] => [
     currencyType: 'USD',
     },
     {
-      id: 'closeDate',
-      title: 'Close Date',
-      type: 'date',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
       id: 'owner',
       title: 'Owner',
       type: 'text',
@@ -326,13 +319,6 @@ const getDefaultColumns = (): Column[] => [
       width: DEFAULT_COLUMN_WIDTH,
       editable: true,
     },
-    {
-      id: 'lastContacted',
-      title: 'Last Contacted',
-      type: 'date',
-      width: DEFAULT_COLUMN_WIDTH,
-    editable: true
-  },
 ];
 
 // Helper function to extract dynamic fields from rows data

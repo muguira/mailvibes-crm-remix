@@ -1755,7 +1755,6 @@ const EditCell = ({
         <DatePicker
           value={value}
           onSelect={(date) => onFinishEdit(rowId, columnId, date)}
-          clickCoordinates={clickCoordinates}
           cellRef={cellElement}
           onKeyDown={onKeyDown}
           onTabNavigation={onTabNavigation}
