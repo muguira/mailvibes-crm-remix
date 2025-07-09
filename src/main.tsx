@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { startSyncWorker } from '@/workers/emailSyncWorker';
 import App from './App';
 import './index.css';
+import './services/google/tokenDiagnostics';
 
 // Start the email sync worker
 startSyncWorker({
