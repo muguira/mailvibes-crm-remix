@@ -23,30 +23,15 @@ export function DatePicker({
     value ? new Date(value) : undefined
   );
   const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [isPositionReady, setIsPositionReady] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
-  // Auto-open on mount (when cell is clicked)
-  useEffect(() => {
-    // Small delay to ensure cell element is available
-    const timer = setTimeout(() => {
-      setIsOpen(true);
-      // Don't focus the input to prevent scrolling
-      // The cell is already focused from the grid
-    }, 50);
-    
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Calculate position based on cell position
-  useEffect(() => {
-    if (isOpen && cellRef) {
+  // Calculate position BEFORE opening
+  const calculateAndOpen = () => {
+    if (cellRef) {
       // Get the cell's position
       const cellRect = cellRef.getBoundingClientRect();
-      
-      // Position the popup based on the cell
-      let top = cellRect.bottom + 5; // 5px below the cell
-      let left = cellRect.left + (cellRect.width / 2); // Center on cell
       
       // Adjust for viewport boundaries
       const popupHeight = 350; // Approximate calendar height
@@ -54,14 +39,19 @@ export function DatePicker({
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
       
-      // Check if popup would go off bottom of screen
-      if (top + popupHeight > viewportHeight - 60) { // 60px for pagination bar
-        // Show above the cell instead
-        top = cellRect.top - popupHeight - 5;
-      }
+      // Default to showing above the cell
+      let top = cellRect.top - popupHeight - 5;
+      let left = cellRect.left + (cellRect.width / 2) - (popupWidth / 2);
       
-      // Center the popup horizontally on the cell
-      left = left - (popupWidth / 2);
+      // Check if there's not enough space above, then show below
+      if (top < 10) {
+        top = cellRect.bottom + 5;
+        // Check if it would go off bottom
+        if (top + popupHeight > viewportHeight - 60) {
+          // Still show above if no space below
+          top = Math.max(10, cellRect.top - popupHeight - 5);
+        }
+      }
       
       // Check if popup would go off right side of screen
       if (left + popupWidth > viewportWidth - 10) {
@@ -73,12 +63,21 @@ export function DatePicker({
         left = 10;
       }
       
-      // Ensure minimum distance from top
-      top = Math.max(10, top);
-      
       setPosition({ top, left });
+      setIsPositionReady(true);
+      setIsOpen(true);
     }
-  }, [isOpen, cellRef]);
+  };
+
+  // Auto-open on mount
+  useEffect(() => {
+    // Small delay to ensure cell element is available
+    const timer = setTimeout(() => {
+      calculateAndOpen();
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   // Handle clicks outside
   useEffect(() => {
@@ -92,6 +91,7 @@ export function DatePicker({
         !inputRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
+        setIsPositionReady(false);
       }
     };
     
@@ -105,6 +105,7 @@ export function DatePicker({
       setSelectedDate(date);
       onSelect(format(date, 'yyyy-MM-dd'));
       setIsOpen(false);
+      setIsPositionReady(false);
     }
   };
 
@@ -116,6 +117,7 @@ export function DatePicker({
     } else if (e.key === 'Escape') {
       e.preventDefault();
       setIsOpen(false);
+      setIsPositionReady(false);
       if (onKeyDown) onKeyDown(e);
     } else if (e.key === 'Enter') {
       e.preventDefault();
@@ -142,7 +144,9 @@ export function DatePicker({
           className="w-full h-full px-2 pr-8 bg-transparent border-none focus:outline-none focus:ring-0 cursor-pointer"
           onClick={(e) => {
             e.stopPropagation();
-            setIsOpen(true);
+            if (!isOpen) {
+              calculateAndOpen();
+            }
           }}
           onKeyDown={handleKeyDown}
           placeholder="Select date"
@@ -152,7 +156,12 @@ export function DatePicker({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            setIsOpen(!isOpen);
+            if (isOpen) {
+              setIsOpen(false);
+              setIsPositionReady(false);
+            } else {
+              calculateAndOpen();
+            }
           }}
           type="button"
         >
@@ -160,7 +169,7 @@ export function DatePicker({
         </button>
       </div>
       
-      {isOpen && cellRef && (
+      {isOpen && isPositionReady && cellRef && (
         <div
           ref={popupRef}
           className="fixed bg-white border border-gray-200 rounded-md shadow-lg z-[10000] p-3"
@@ -168,13 +177,17 @@ export function DatePicker({
             top: position.top,
             left: position.left,
             minWidth: '300px',
+            visibility: isPositionReady ? 'visible' : 'hidden',
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium text-gray-900">Select Date</span>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                setIsOpen(false);
+                setIsPositionReady(false);
+              }}
               className="text-gray-400 hover:text-gray-600 text-xl leading-none p-1"
             >
               ×
