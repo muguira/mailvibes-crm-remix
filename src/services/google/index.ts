@@ -2,6 +2,7 @@
 export * from "./pkceService";
 export * from "./tokenService";
 export * from "./authService";
+export * from "./gmailApi";
 
 // Re-export commonly used functions with cleaner names
 export {
@@ -23,3 +24,10 @@ export {
   disconnectGmailAccount as disconnectGmail,
   validateOAuthConfig as validateGmailConfig,
 } from "./authService";
+
+// Gmail API functions
+export {
+  searchContactEmails,
+  getRecentContactEmails,
+  fetchEmailDetails,
+} from "./gmailApi";
