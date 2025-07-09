@@ -1,78 +1,143 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import TimelineItem from './TimelineItem';
 import TimelineComposer from './TimelineComposer';
-
-const TIMELINE_COL_WIDTH = 60;
+import { useTimelineActivities } from "@/hooks/use-timeline-activities";
+import { useAuth } from "@/components/auth";
+import { 
+  Loader2, 
+  RefreshCw,
+  Mail
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { GmailConnectionModal } from './GmailConnectionModal';
 
 interface StreamTimelineProps {
-  activities?: Array<any>;
-  contactId?: string;
+  contactId: string;
+  contactEmail: string;
 }
 
-export default function StreamTimeline({ activities = [], contactId }: StreamTimelineProps) {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+export function StreamTimeline({ contactId, contactEmail }: StreamTimelineProps) {
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+  const [isCompact, setIsCompact] = useState(false);
 
+  const {
+    activities,
+    loading,
+    error,
+    emailsCount,
+    internalCount,
+    hasGmailAccounts,
+    emailSource,
+    lastSyncAt,
+    syncStatus,
+    refreshEmails,
+    triggerSync,
+  } = useTimelineActivities({
+    contactId,
+    contactEmail,
+    includeEmails: true,
+    maxEmails: 20,
+  });
+
+  // Handle scroll to make composer compact
   useEffect(() => {
-    const scrollContainer = scrollContainerRef.current;
-    if (!scrollContainer) return;
-
     const handleScroll = () => {
-      const scrollTop = scrollContainer.scrollTop;
-      // Consider it scrolled if user has scrolled more than 20px
-      setIsScrolled(scrollTop > 20);
+      if (timelineRef.current) {
+        const scrollTop = timelineRef.current.scrollTop;
+        setIsCompact(scrollTop > 50); // Make compact after 50px scroll
+      }
     };
 
-    scrollContainer.addEventListener('scroll', handleScroll);
-    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+    const timelineElement = timelineRef.current;
+    if (timelineElement) {
+      timelineElement.addEventListener('scroll', handleScroll);
+      return () => timelineElement.removeEventListener('scroll', handleScroll);
+    }
   }, []);
 
-  const handleExpand = () => {
-    // Scroll back to top to expand the editor
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      });
+  // Debug logging
+  console.log('StreamTimeline Debug:', {
+    contactId,
+    contactEmail,
+    activitiesCount: activities.length,
+    emailsCount,
+    internalCount,
+    loading,
+    error,
+    activities: activities.slice(0, 3) // Show first 3 activities
+  });
+
+  // Get user name for activities
+  const getUserName = (activity: any) => {
+    if (activity.source === 'gmail' && activity.from) {
+      return activity.from.name || activity.from.email;
+    }
+    return user?.email?.split('@')[0] || 'User';
+  };
+
+  // Handle expanding the composer when clicked in compact mode
+  const handleExpandComposer = () => {
+    if (isCompact && timelineRef.current) {
+      timelineRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   return (
-    <div className="bg-slate-light/10 rounded-md h-full flex flex-col">
-      {/* Fixed TimelineComposer at the top with animated height */}
-      <div className="flex-shrink-0 p-6 pb-0 transition-all duration-300 ease-in-out pb-4">
-        <div className="lg:px-12 w-full">
-          {/* TimelineComposer only visible on desktop */}
-          <div className="hidden lg:block">
-            <TimelineComposer 
-              contactId={contactId} 
-              isCompact={isScrolled} 
-              onExpand={handleExpand}
-            />
-          </div>
-        </div>
+    <div className="flex flex-col h-full">
+      {/* Timeline composer */}
+      <div className="flex-shrink-0 p-4">
+        <TimelineComposer 
+          contactId={contactId}
+          isCompact={isCompact}
+          onExpand={handleExpandComposer}
+        />
       </div>
-      
-      {/* Scrollable activities area */}
+
+      {/* Timeline content */}
       <div 
-        ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto p-6 pt-6"
+        ref={timelineRef}
+        className="flex-1 overflow-y-auto p-4"
       >
-        <div className="lg:px-12 w-full">
-          <ul className="flex flex-col">
-            {activities.length > 0 ? (
-              activities.map((activity) => (
-                <TimelineItem key={activity.id} activity={activity} />
-              ))
-            ) : (
-              <li className="text-center py-8 text-slate-medium">
-                No activities yet. Start a conversation or add a note.
-              </li>
+        {loading && activities.length === 0 ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin mr-2" />
+            <span>Cargando actividades...</span>
+          </div>
+        ) : activities.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <div className="mb-4">
+              <Mail className="w-12 h-12 mx-auto text-gray-300" />
+            </div>
+            <p className="text-lg font-medium">No hay actividades</p>
+            <p className="text-sm">
+              Las actividades aparecerán aquí una vez que las agregues
+            </p>
+          </div>
+        ) : (
+          <>
+            <ul className="space-y-0">
+              {activities.map((activity, index) => (
+                <TimelineItem 
+                  key={`${activity.id}-${index}`}
+                  activity={activity}
+                  activityUserName={getUserName(activity)}
+                />
+              ))}
+            </ul>
+            
+            {loading && activities.length > 0 && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                <span className="text-sm text-gray-500">Cargando más...</span>
+              </div>
             )}
-          </ul>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
 }
+
+export default StreamTimeline;
