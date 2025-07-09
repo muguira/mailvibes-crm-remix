@@ -152,6 +152,10 @@ export const useAuthSlice: StateCreator<
         // Initialize contacts store for authenticated user
         logger.log("User authenticated, starting contact preloading...");
         useContactsStore.getState().initialize(session.user.id);
+
+        // Initialize Gmail auth for authenticated user
+        logger.log("User authenticated, initializing Gmail auth...");
+        get().initializeGmailAuth(session.user.id);
       }
 
       // Set up auth state change listener - only once
@@ -176,6 +180,10 @@ export const useAuthSlice: StateCreator<
           if (event === "SIGNED_IN") {
             logger.log("User signed in, starting contact preloading...");
             useContactsStore.getState().initialize(session.user.id);
+
+            // Initialize Gmail auth for signed in user
+            logger.log("User signed in, initializing Gmail auth...");
+            get().initializeGmailAuth(session.user.id);
           }
         } else if (event === "SIGNED_OUT") {
           set((state) => {
@@ -187,6 +195,10 @@ export const useAuthSlice: StateCreator<
 
           // Clear contacts when user logs out
           useContactsStore.getState().clear();
+
+          // Reset Gmail auth when user logs out
+          logger.log("User signed out, resetting Gmail auth...");
+          get().reset();
         }
       });
 
