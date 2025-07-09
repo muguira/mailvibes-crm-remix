@@ -244,24 +244,54 @@ export class EmailSyncService {
    * Get existing emails from database
    */
   private async getExistingEmails(contactEmail?: string) {
-    const query = supabase
-      .from("emails")
-      .select("gmail_id, id, updated_at")
-      .eq("user_id", this.userId)
-      .eq("email_account_id", this.emailAccountId);
+    if (!contactEmail) {
+      // If no contact email specified, get all emails
+      const { data, error } = await supabase
+        .from("emails")
+        .select("gmail_id, id, updated_at")
+        .eq("user_id", this.userId)
+        .eq("email_account_id", this.emailAccountId);
 
-    if (contactEmail) {
-      query.or(`from_email.eq.${contactEmail},to_emails.cs."${contactEmail}"`);
+      if (error) {
+        logger.error("Error getting existing emails:", error);
+        return [];
+      }
+
+      return data || [];
     }
 
-    const { data, error } = await query;
+    // Query all emails and filter locally to avoid JSONB operator issues
+    const { data: allEmails, error } = await supabase
+      .from("emails")
+      .select("gmail_id, id, updated_at, from_email, to_emails")
+      .eq("user_id", this.userId)
+      .eq("email_account_id", this.emailAccountId);
 
     if (error) {
       logger.error("Error getting existing emails:", error);
       return [];
     }
 
-    return data || [];
+    // Filter emails locally to find those related to the contact
+    const filteredEmails = (allEmails || []).filter((email) => {
+      // Check if contact is in from_email
+      if (email.from_email === contactEmail) {
+        return true;
+      }
+
+      // Check if contact is in to_emails (JSON string)
+      if (email.to_emails) {
+        const toEmailsStr =
+          typeof email.to_emails === "string"
+            ? email.to_emails
+            : JSON.stringify(email.to_emails);
+        return toEmailsStr.includes(contactEmail);
+      }
+
+      return false;
+    });
+
+    return filteredEmails;
   }
 
   /**
