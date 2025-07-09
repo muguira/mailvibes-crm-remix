@@ -156,20 +156,40 @@ export function useHybridContactEmails(
         lastSync = new Date(emailAccount.last_sync_at);
       }
 
-      // Query emails from database
-      const { data: dbEmails, error } = await supabase
+      // Query emails from database using filter function to handle JSONB properly
+      const { data: allDbEmails, error } = await supabase
         .from("emails")
         .select("*")
         .eq("user_id", authUser.id)
         .eq("email_account_id", emailAccount?.id)
-        .or(`from_email.eq.${contactEmail},to_emails.cs."${contactEmail}"`)
         .order("date", { ascending: false })
-        .limit(maxResults);
+        .limit(maxResults * 2); // Get more to filter locally
 
       if (error) {
         logger.error("Error fetching emails from database:", error);
         return { emails: [], hasMore: false };
       }
+
+      // Filter emails locally to find those related to the contact
+      const dbEmails = (allDbEmails || [])
+        .filter((email) => {
+          // Check if contact is in from_email
+          if (email.from_email === contactEmail) {
+            return true;
+          }
+
+          // Check if contact is in to_emails (JSON string)
+          if (email.to_emails) {
+            const toEmailsStr =
+              typeof email.to_emails === "string"
+                ? email.to_emails
+                : JSON.stringify(email.to_emails);
+            return toEmailsStr.includes(contactEmail);
+          }
+
+          return false;
+        })
+        .slice(0, maxResults);
 
       const emails = (dbEmails || []).map(convertDatabaseEmail);
 
