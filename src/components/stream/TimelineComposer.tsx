@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Bold, 
@@ -198,6 +198,80 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
   const { isConnected: isGmailConnected } = useGmailConnection();
   const isMobile = useIsMobile();
   
+  const cleanupMarginsAndFormatting = () => {
+    if (!editableRef.current) return;
+    
+    // Find all normal paragraphs and ensure they have no margins
+    const normalParagraphs = editableRef.current.querySelectorAll('.normal-paragraph');
+    normalParagraphs.forEach(paragraph => {
+      const element = paragraph as HTMLElement;
+      element.style.cssText = 'margin: 0 !important; padding: 0 !important; margin-left: 0 !important; padding-left: 0 !important; list-style: none !important; text-indent: 0 !important; position: static !important; left: auto !important; transform: none !important; display: block !important;';
+    });
+    
+    // Find all divs that come after lists and ensure they have no margins
+    const lists = editableRef.current.querySelectorAll('ul, ol');
+    lists.forEach(list => {
+      const nextSibling = list.nextElementSibling;
+      if (nextSibling && nextSibling.tagName.toLowerCase() === 'div') {
+        const element = nextSibling as HTMLElement;
+        // Add normal-paragraph class if not already present
+        if (!element.classList.contains('normal-paragraph')) {
+          element.classList.add('normal-paragraph');
+          element.style.cssText = 'margin: 0 !important; padding: 0 !important; margin-left: 0 !important; padding-left: 0 !important; list-style: none !important; text-indent: 0 !important; position: static !important; left: auto !important; transform: none !important; display: block !important;';
+        }
+      }
+    });
+    
+    // More aggressive cleanup: find ALL divs that are not inside lists and reset their margins
+    const allDivs = editableRef.current.querySelectorAll('div');
+    allDivs.forEach(div => {
+      const element = div as HTMLElement;
+      // Check if this div is not inside a list and not a special element
+      const isInsideList = element.closest('ul, ol');
+      const isHeading = element.closest('h1, h2, h3, h4, h5, h6');
+      const isBlockquote = element.closest('blockquote');
+      const isPre = element.closest('pre');
+      
+      if (!isInsideList && !isHeading && !isBlockquote && !isPre) {
+        // This is a standalone div, ensure it has no margins
+        element.classList.add('normal-paragraph');
+        element.style.cssText = 'margin: 0 !important; padding: 0 !important; margin-left: 0 !important; padding-left: 0 !important; list-style: none !important; text-indent: 0 !important; position: static !important; left: auto !important; transform: none !important; display: block !important; box-sizing: border-box !important;';
+      }
+    });
+  };
+  
+  // Set up MutationObserver to clean up margins whenever DOM changes
+  useEffect(() => {
+    if (!editableRef.current) return;
+    
+    const observer = new MutationObserver((mutations) => {
+      let shouldCleanup = false;
+      
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList' || mutation.type === 'characterData') {
+          shouldCleanup = true;
+        }
+      });
+      
+      if (shouldCleanup) {
+        // Debounce the cleanup to avoid too many calls
+        setTimeout(() => {
+          cleanupMarginsAndFormatting();
+        }, 10);
+      }
+    });
+    
+    observer.observe(editableRef.current, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+    
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+  
   // Convert HTML back to plain text for storage
   const getPlainText = () => {
     if (!editableRef.current) return text;
@@ -364,38 +438,144 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
         const range = selection.getRangeAt(0);
         const currentElement = range.startContainer.parentElement;
         
-        // Check if we're inside a list item
-        const listItem = currentElement?.closest('li');
-        const list = listItem?.parentElement;
-        
-        if (e.shiftKey && listItem && list) {
-          // Shift + Enter: Add new list item
+        // Check if we're inside a heading
+        const heading = currentElement?.closest('h1, h2, h3, h4, h5, h6');
+        if (heading && !e.shiftKey) {
+          // Regular Enter in heading: exit heading and create normal text
           e.preventDefault();
           
-          const newListItem = document.createElement('li');
-          newListItem.className = listItem.className;
-          newListItem.innerHTML = '<br>'; // Start with a line break for cursor positioning
+          // Create a new paragraph element after the heading
+          const newParagraph = document.createElement('div');
+          newParagraph.className = 'normal-paragraph'; // Specific class for normal paragraphs
+          newParagraph.style.cssText = 'margin: 0 !important; padding: 0 !important; margin-left: 0 !important; padding-left: 0 !important; list-style: none !important; text-indent: 0 !important; position: static !important; left: auto !important; transform: none !important; display: block !important;';
+          newParagraph.innerHTML = '<br>'; // Start with a line break for cursor positioning
           
-          // Insert after current list item
-          if (listItem.nextSibling) {
-            list.insertBefore(newListItem, listItem.nextSibling);
+          // Insert after the heading
+          if (heading.nextSibling) {
+            heading.parentNode?.insertBefore(newParagraph, heading.nextSibling);
           } else {
-            list.appendChild(newListItem);
+            heading.parentNode?.appendChild(newParagraph);
           }
           
-          // Move cursor to the new list item
+          // Move cursor to the new paragraph
           const newRange = document.createRange();
-          newRange.setStart(newListItem, 0);
+          newRange.setStart(newParagraph, 0);
           newRange.collapse(true);
           selection.removeAllRanges();
           selection.addRange(newRange);
           
-          // Update the text state
+          // Update the text state and detect active formats
           setTimeout(() => {
             setText(getPlainText());
+            cleanupMarginsAndFormatting();
+            detectActiveFormats();
           }, 0);
           
           return;
+        }
+        
+        // Check if we're inside a list item
+        const listItem = currentElement?.closest('li');
+        const list = listItem?.parentElement;
+        
+        if (listItem && list) {
+          if (e.shiftKey) {
+            // Shift + Enter in list: check if list item is empty
+            const listItemText = listItem.textContent?.trim();
+            if (!listItemText || listItemText === '') {
+              // Empty list item with Shift+Enter: exit list completely
+              e.preventDefault();
+              
+              // Remove the empty list item first
+              listItem.remove();
+              
+              // Check if list is now empty and remove it
+              if (list.children.length === 0) {
+                // Create a new paragraph element to replace the entire list
+                const newParagraph = document.createElement('div');
+                newParagraph.className = 'normal-paragraph';
+                newParagraph.style.cssText = 'margin: 0 !important; padding: 0 !important; margin-left: 0 !important; padding-left: 0 !important; list-style: none !important; text-indent: 0 !important; position: static !important; left: auto !important; transform: none !important; display: block !important;';
+                newParagraph.innerHTML = '<br>';
+                
+                // Replace the list with the paragraph
+                if (list.parentNode) {
+                  list.parentNode.replaceChild(newParagraph, list);
+                }
+                
+                // Move cursor to the new paragraph
+                const newRange = document.createRange();
+                newRange.setStart(newParagraph, 0);
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+              } else {
+                // List still has items, create paragraph after the list
+                const newParagraph = document.createElement('div');
+                newParagraph.className = 'normal-paragraph';
+                newParagraph.style.cssText = 'margin: 0 !important; padding: 0 !important; margin-left: 0 !important; padding-left: 0 !important; list-style: none !important; text-indent: 0 !important; position: static !important; left: auto !important; transform: none !important; display: block !important;';
+                newParagraph.innerHTML = '<br>';
+                
+                // Insert after the list
+                if (list.nextSibling) {
+                  list.parentNode?.insertBefore(newParagraph, list.nextSibling);
+                } else {
+                  list.parentNode?.appendChild(newParagraph);
+                }
+                
+                // Move cursor to the new paragraph
+                const newRange = document.createRange();
+                newRange.setStart(newParagraph, 0);
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+              }
+              
+              // Update the text state and detect active formats
+              setTimeout(() => {
+                setText(getPlainText());
+                cleanupMarginsAndFormatting();
+                detectActiveFormats();
+              }, 0);
+              
+              return;
+            } else {
+              // Shift + Enter in non-empty list item: Add new list item
+              e.preventDefault();
+              
+              const newListItem = document.createElement('li');
+              newListItem.className = listItem.className;
+              newListItem.innerHTML = '<br>'; // Start with a line break for cursor positioning
+              
+              // Insert after current list item
+              if (listItem.nextSibling) {
+                list.insertBefore(newListItem, listItem.nextSibling);
+              } else {
+                list.appendChild(newListItem);
+              }
+              
+              // Move cursor to the new list item
+              const newRange = document.createRange();
+              newRange.setStart(newListItem, 0);
+              newRange.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+              
+              // Update the text state
+              setTimeout(() => {
+                setText(getPlainText());
+              }, 0);
+              
+              return;
+            }
+          } else {
+            // Regular Enter in list: send message (normal behavior)
+            const plainText = getPlainText();
+            if (plainText.trim()) {
+              e.preventDefault();
+              handleSend();
+              return;
+            }
+          }
         } else if (!e.shiftKey) {
           // Regular Enter: Send message if there's content
           const plainText = getPlainText();
@@ -481,25 +661,36 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
       case 'bulletList':
         // Check if we're already in a list
         const currentListItem = range.startContainer.parentElement?.closest('li');
-        if (currentListItem) {
-          // If already in a list, just add a new item
-          const list = currentListItem.parentElement;
-          const newListItem = document.createElement('li');
-          newListItem.className = 'mb-1';
-          newListItem.innerHTML = '<br>';
+        const currentList = currentListItem?.parentElement;
+        
+        if (currentListItem && currentList?.tagName === 'UL') {
+          // If already in a bullet list, exit list mode (Slack-style behavior)
+          // Create a new paragraph after the list
+          const newParagraph = document.createElement('div');
+          newParagraph.className = 'normal-paragraph';
+          newParagraph.style.cssText = 'margin: 0 !important; padding: 0 !important; margin-left: 0 !important; padding-left: 0 !important; list-style: none !important; text-indent: 0 !important; position: static !important; left: auto !important; transform: none !important; display: block !important;';
+          newParagraph.innerHTML = '<br>';
           
-          if (currentListItem.nextSibling) {
-            list?.insertBefore(newListItem, currentListItem.nextSibling);
+          // Insert the paragraph after the list
+          if (currentList.nextSibling) {
+            currentList.parentNode?.insertBefore(newParagraph, currentList.nextSibling);
           } else {
-            list?.appendChild(newListItem);
+            currentList.parentNode?.appendChild(newParagraph);
           }
           
-          // Move cursor to new item
+          // Move cursor to the new paragraph
           const newRange = document.createRange();
-          newRange.setStart(newListItem, 0);
+          newRange.setStart(newParagraph, 0);
           newRange.collapse(true);
           selection.removeAllRanges();
           selection.addRange(newRange);
+          
+          // Update text state and clean up formatting
+          setTimeout(() => {
+            setText(getPlainText());
+            cleanupMarginsAndFormatting();
+            detectActiveFormats();
+          }, 0);
         } else {
           // Create new list
           const ul = document.createElement('ul');
@@ -532,24 +723,35 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
         // Check if we're already in a numbered list
         const currentNumberedItem = range.startContainer.parentElement?.closest('li');
         const currentNumberedList = currentNumberedItem?.parentElement;
+        
         if (currentNumberedItem && currentNumberedList?.tagName === 'OL') {
-          // If already in a numbered list, just add a new item
-          const newListItem = document.createElement('li');
-          newListItem.className = 'mb-1';
-          newListItem.innerHTML = '<br>';
+          // If already in a numbered list, exit list mode (Slack-style behavior)
+          // Create a new paragraph after the list
+          const newParagraph = document.createElement('div');
+          newParagraph.className = 'normal-paragraph';
+          newParagraph.style.cssText = 'margin: 0 !important; padding: 0 !important; margin-left: 0 !important; padding-left: 0 !important; list-style: none !important; text-indent: 0 !important; position: static !important; left: auto !important; transform: none !important; display: block !important;';
+          newParagraph.innerHTML = '<br>';
           
-          if (currentNumberedItem.nextSibling) {
-            currentNumberedList.insertBefore(newListItem, currentNumberedItem.nextSibling);
+          // Insert the paragraph after the list
+          if (currentNumberedList.nextSibling) {
+            currentNumberedList.parentNode?.insertBefore(newParagraph, currentNumberedList.nextSibling);
           } else {
-            currentNumberedList.appendChild(newListItem);
+            currentNumberedList.parentNode?.appendChild(newParagraph);
           }
           
-          // Move cursor to new item
+          // Move cursor to the new paragraph
           const newRange = document.createRange();
-          newRange.setStart(newListItem, 0);
+          newRange.setStart(newParagraph, 0);
           newRange.collapse(true);
           selection.removeAllRanges();
           selection.addRange(newRange);
+          
+          // Update text state and clean up formatting
+          setTimeout(() => {
+            setText(getPlainText());
+            cleanupMarginsAndFormatting();
+            detectActiveFormats();
+          }, 0);
         } else {
           // Create new numbered list
           const ol = document.createElement('ol');
@@ -600,8 +802,8 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
           selection.removeAllRanges();
           selection.addRange(range);
         } else {
-          // Create new H1 or convert selected text to H1
           if (selectedText) {
+            // Convert selected text to H1
             const h1Element = document.createElement('h1');
             h1Element.className = 'text-2xl font-bold mb-2 mt-4 text-gray-900';
             h1Element.textContent = selectedText;
@@ -612,17 +814,18 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
             selection.removeAllRanges();
             selection.addRange(range);
           } else {
+            // No text selected: create empty H1 and position cursor inside
             const h1Element = document.createElement('h1');
             h1Element.className = 'text-2xl font-bold mb-2 mt-4 text-gray-900';
-            h1Element.textContent = 'Título';
+            h1Element.innerHTML = '<br>'; // Empty but allows cursor positioning
             range.insertNode(h1Element);
-            // Select the text content for editing
-            const textNode = h1Element.firstChild;
-            if (textNode) {
-              range.selectNodeContents(textNode);
-              selection.removeAllRanges();
-              selection.addRange(range);
-            }
+            
+            // Position cursor inside the H1
+            const newRange = document.createRange();
+            newRange.setStart(h1Element, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
           }
         }
         break;
@@ -642,8 +845,8 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
           selection.removeAllRanges();
           selection.addRange(range);
         } else {
-          // Create new H2 or convert selected text to H2
           if (selectedText) {
+            // Convert selected text to H2
             const h2Element = document.createElement('h2');
             h2Element.className = 'text-xl font-bold mb-2 mt-3 text-gray-900';
             h2Element.textContent = selectedText;
@@ -654,17 +857,18 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
             selection.removeAllRanges();
             selection.addRange(range);
           } else {
+            // No text selected: create empty H2 and position cursor inside
             const h2Element = document.createElement('h2');
             h2Element.className = 'text-xl font-bold mb-2 mt-3 text-gray-900';
-            h2Element.textContent = 'Subtítulo';
+            h2Element.innerHTML = '<br>'; // Empty but allows cursor positioning
             range.insertNode(h2Element);
-            // Select the text content for editing
-            const textNode = h2Element.firstChild;
-            if (textNode) {
-              range.selectNodeContents(textNode);
-              selection.removeAllRanges();
-              selection.addRange(range);
-            }
+            
+            // Position cursor inside the H2
+            const newRange = document.createRange();
+            newRange.setStart(h2Element, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
           }
         }
         break;
@@ -684,8 +888,8 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
           selection.removeAllRanges();
           selection.addRange(range);
         } else {
-          // Create new H3 or convert selected text to H3
           if (selectedText) {
+            // Convert selected text to H3
             const h3Element = document.createElement('h3');
             h3Element.className = 'text-lg font-bold mb-2 mt-3 text-gray-900';
             h3Element.textContent = selectedText;
@@ -696,17 +900,18 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
             selection.removeAllRanges();
             selection.addRange(range);
           } else {
+            // No text selected: create empty H3 and position cursor inside
             const h3Element = document.createElement('h3');
             h3Element.className = 'text-lg font-bold mb-2 mt-3 text-gray-900';
-            h3Element.textContent = 'Encabezado';
+            h3Element.innerHTML = '<br>'; // Empty but allows cursor positioning
             range.insertNode(h3Element);
-            // Select the text content for editing
-            const textNode = h3Element.firstChild;
-            if (textNode) {
-              range.selectNodeContents(textNode);
-              selection.removeAllRanges();
-              selection.addRange(range);
-            }
+            
+            // Position cursor inside the H3
+            const newRange = document.createRange();
+            newRange.setStart(h3Element, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
           }
         }
         break;
@@ -809,6 +1014,7 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
     
     // Detect active formats after input
     setTimeout(() => {
+      cleanupMarginsAndFormatting();
       detectActiveFormats();
     }, 0);
   };
@@ -924,6 +1130,7 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
     // Update the text state
     setTimeout(() => {
       setText(getPlainText());
+      cleanupMarginsAndFormatting();
     }, 0);
   };
 
@@ -942,6 +1149,8 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
   const handleSelectionChange = () => {
     // Detect active formats when selection changes
     detectActiveFormats();
+    // Also cleanup margins in case something got messed up
+    cleanupMarginsAndFormatting();
   };
 
   const handleEditorClick = () => {
@@ -1275,6 +1484,62 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
             }
             .rich-text-editor hr {
               margin: 16px 0;
+            }
+            .rich-text-editor div:not(:has(ul)):not(:has(ol)):not(:has(h1)):not(:has(h2)):not(:has(h3)):not(:has(blockquote)):not(:has(pre)):not(:has(hr)) {
+              margin: 0;
+              padding: 0;
+            }
+            .rich-text-editor .normal-paragraph {
+              margin: 0 !important;
+              padding: 0 !important;
+              margin-left: 0 !important;
+              padding-left: 0 !important;
+              list-style: none !important;
+              text-indent: 0 !important;
+              position: relative !important;
+              left: 0 !important;
+              transform: none !important;
+              display: block !important;
+            }
+            .rich-text-editor .normal-paragraph * {
+              margin: 0 !important;
+              padding: 0 !important;
+              margin-left: 0 !important;
+              padding-left: 0 !important;
+              list-style: none !important;
+              text-indent: 0 !important;
+              position: static !important;
+              left: auto !important;
+              transform: none !important;
+            }
+            /* Reset any inherited styles from lists */
+            .rich-text-editor .normal-paragraph,
+            .rich-text-editor .normal-paragraph *,
+            .rich-text-editor div:not(.normal-paragraph) + .normal-paragraph {
+              box-sizing: border-box !important;
+              margin-top: 0 !important;
+              margin-bottom: 0 !important;
+              margin-left: 0 !important;
+              margin-right: 0 !important;
+              padding-top: 0 !important;
+              padding-bottom: 0 !important;
+              padding-left: 0 !important;
+              padding-right: 0 !important;
+            }
+            /* Force normal flow for paragraphs after lists */
+            .rich-text-editor ul + div,
+            .rich-text-editor ol + div,
+            .rich-text-editor ul + .normal-paragraph,
+            .rich-text-editor ol + .normal-paragraph {
+              margin: 0 !important;
+              padding: 0 !important;
+              margin-left: 0 !important;
+              padding-left: 0 !important;
+              text-indent: 0 !important;
+              list-style: none !important;
+              position: static !important;
+              left: auto !important;
+              transform: none !important;
             }
           `
         }} />
