@@ -6,7 +6,9 @@ import { useTimelineActivities } from "@/hooks/use-timeline-activities";
 import { useAuth } from "@/components/auth";
 import { 
   Loader2, 
-  Mail
+  Mail,
+  Calendar,
+  Users
 } from "lucide-react";
 
 
@@ -70,6 +72,42 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     return user?.email?.split('@')[0] || 'User';
   };
 
+  // Get the first interaction date
+  const getFirstInteractionDate = () => {
+    if (activities.length === 0) return null;
+    
+    // Sort activities by timestamp to get the oldest one
+    const sortedActivities = [...activities].sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+    
+    return sortedActivities[0]?.timestamp;
+  };
+
+  // Format the first interaction date
+  const formatFirstInteractionDate = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays === 0) {
+      return 'contact relationship started today';
+    } else if (diffInDays === 1) {
+      return 'contact relationship started yesterday';
+    } else if (diffInDays < 7) {
+      return `contact relationship started ${diffInDays} days ago`;
+    } else if (diffInDays < 30) {
+      const weeks = Math.floor(diffInDays / 7);
+      return `contact relationship started ${weeks} week${weeks > 1 ? 's' : ''} ago`;
+    } else if (diffInDays < 365) {
+      const months = Math.floor(diffInDays / 30);
+      return `contact relationship started ${months} month${months > 1 ? 's' : ''} ago`;
+    } else {
+      const years = Math.floor(diffInDays / 365);
+      return `contact relationship started ${years} year${years > 1 ? 's' : ''} ago`;
+    }
+  };
+
   // Handle expanding the composer when clicked in compact mode
   const handleExpandComposer = () => {
     if (isCompact && timelineRef.current) {
@@ -110,7 +148,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
           </div>
         ) : (
           <>
-            <ul className="space-y-0 pb-[400px]">
+            <ul className="space-y-0">
               {activities.map((activity, index) => (
                 <TimelineItem 
                   key={`${activity.id}-${index}`}
@@ -119,12 +157,38 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
                   contactName={contactName}
                 />
               ))}
+              
+              {/* Conversation start indicator */}
+              {getFirstInteractionDate() && (
+                <li className="relative pl-10 pb-6 pb-[150px]">
+                  {/* Timeline line end */}
+                  
+                  {/* Conversation start indicator */}
+                  <div className="flex items-center justify-center">
+                    <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm text-gray-600">
+                      <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Users className="w-3 h-3 text-gray-500" />
+                      </div>
+                      <span className="font-medium">
+                        {formatFirstInteractionDate(getFirstInteractionDate()!)}
+                      </span>
+                      <div className="text-xs text-gray-400">
+                        {new Date(getFirstInteractionDate()!).toLocaleDateString('en-US', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric'
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              )}
             </ul>
             
             {loading && activities.length > 0 && (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                <span className="text-sm text-gray-500">Cargando más...</span>
+                <span className="text-sm text-gray-500">load  more...</span>
               </div>
             )}
           </>
