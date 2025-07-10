@@ -5,6 +5,7 @@ import { TStore } from "@/types/store/store";
 import { useTasksSlice } from "./useTasksSlice";
 import { useAuthSlice } from "./useAuthSlice";
 import { useGmailAuthSlice } from "./gmailAuthSlice";
+import { useContactProfileSlice } from "./useContactProfileSlice";
 
 /**
  * Main store for the application
@@ -23,6 +24,7 @@ export const useStore = create<TStore>()(
       ...useTasksSlice(...a),
       ...useAuthSlice(...a),
       ...useGmailAuthSlice(...a),
+      ...useContactProfileSlice(...a),
     }))
   )
 );

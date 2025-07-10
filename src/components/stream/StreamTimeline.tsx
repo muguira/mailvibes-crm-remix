@@ -1,16 +1,14 @@
 
-import React, { useRef, useState, useEffect } from 'react';
+import  { useRef, useState, useEffect } from 'react';
 import TimelineItem from './TimelineItem';
 import TimelineComposer from './TimelineComposer';
 import { useTimelineActivities } from "@/hooks/use-timeline-activities";
 import { useAuth } from "@/components/auth";
 import { 
   Loader2, 
-  RefreshCw,
   Mail
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { GmailConnectionModal } from './GmailConnectionModal';
+
 
 interface StreamTimelineProps {
   contactId: string;
@@ -29,12 +27,6 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     error,
     emailsCount,
     internalCount,
-    hasGmailAccounts,
-    emailSource,
-    lastSyncAt,
-    syncStatus,
-    refreshEmails,
-    triggerSync,
   } = useTimelineActivities({
     contactId,
     contactEmail,
@@ -99,7 +91,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
       {/* Timeline content */}
       <div 
         ref={timelineRef}
-        className="flex-1 overflow-y-auto p-4"
+        className="flex-1 overflow-y-auto p-4 pl-14 pr-5"
       >
         {loading && activities.length === 0 ? (
           <div className="flex items-center justify-center py-8">
