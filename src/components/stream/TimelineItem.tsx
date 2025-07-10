@@ -127,22 +127,43 @@ const renderMarkdown = (text: string) => {
   return html;
 };
 
-const getActivityIcon = (iconName?: string) => {
-  switch (iconName) {
-    case 'Mail':
+const getActivityIcon = (iconName?: string, activityType?: string) => {
+  // First check if we have a specific icon name
+  if (iconName) {
+    switch (iconName) {
+      case 'Mail':
+        return Mail;
+      case 'Phone':
+        return Phone;
+      case 'FileText':
+        return FileText;
+      case 'Calendar':
+        return Calendar;
+      case 'CheckSquare':
+        return CheckCircle2;
+      case 'Settings':
+        return Settings;
+      case 'Activity':
+        return Activity;
+      default:
+        return MessageCircle;
+    }
+  }
+  
+  // If no specific icon, use activity type
+  switch (activityType) {
+    case 'email':
       return Mail;
-    case 'Phone':
+    case 'call':
       return Phone;
-    case 'FileText':
-      return FileText;
-    case 'Calendar':
+    case 'meeting':
       return Calendar;
-    case 'CheckSquare':
+    case 'task':
       return CheckCircle2;
-    case 'Settings':
+    case 'note':
+      return MessageCircle;
+    case 'system':
       return Settings;
-    case 'Activity':
-      return Activity;
     default:
       return MessageCircle;
   }
@@ -223,7 +244,7 @@ export default function TimelineItem({
   activityUserName,
   contactName 
 }: TimelineItemProps) {
-  const Icon = getActivityIcon(activityIcon);
+  const Icon = getActivityIcon(activityIcon, activity.type);
   const colorClass = activityColor || getActivityColor(activity.type);
   const userNameColor = getUserNameColor(activity.type);
   const relativeTime = formatRelativeTime(activity.timestamp);
@@ -238,17 +259,19 @@ export default function TimelineItem({
   const userName = activityUserName || 'User';
   
   return (
-    <li className="relative pl-10 pb-6 last:overflow-hidden last:pb-0">
+    <li className="relative pl-12 pb-6 last:overflow-hidden last:pb-0">
       {/* Timeline line - more prominent and continuous */}
-      <div className="absolute left-[25px] top-[10px] bottom-[-20px] w-[1px] bg-gray-300"></div>
+      <div className="absolute left-[22px] top-[20px] bottom-[-20px] w-[1px] bg-gray-200"></div>
       
       {/* Timestamp on the left side of timeline */}
-      <div className="absolute left-[-15px] top-[5px] w-8 text-xs text-gray-500 font-light text-right">
+      <div className="absolute left-[-30px] top-[15px] w-8 text-xs text-gray-500 font-medium text-right">
         {relativeTime}
       </div>
       
-      {/* Timeline dot - simple visible point */}
-      <div className="absolute left-[21px] top-[10px] w-2 h-2 rounded-full bg-gray-600 z-10"></div>
+      {/* Timeline dot with activity icon */}
+      <div className={cn("absolute left-[5px] top-[8px] w-8 h-8 rounded-full flex items-center justify-center z-10", colorClass)}>
+        <Icon className="h-5 w-5" />
+      </div>
       
       {/* Activity card with white background */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 pr-[7px]">

@@ -91,7 +91,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
       {/* Timeline content */}
       <div 
         ref={timelineRef}
-        className="flex-1 overflow-y-auto p-4 pl-7"
+        className="flex-1 overflow-y-auto p-4 pl-14 pr-5"
       >
         {loading && activities.length === 0 ? (
           <div className="flex items-center justify-center py-8">
