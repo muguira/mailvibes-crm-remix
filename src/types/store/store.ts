@@ -9,12 +9,16 @@ import {
 } from "./task";
 import { TAuthStore } from "./auth";
 import { TGmailAuthStore } from "./gmail";
+import { TContactProfileStore } from "./contact-profile";
 
 // =============================================
 // STORE PRINCIPAL DE LA APLICACIÓN
 // =============================================
 
-export type TStore = TTaskStore & TAuthStore & TGmailAuthStore;
+export type TStore = TTaskStore &
+  TAuthStore &
+  TGmailAuthStore &
+  TContactProfileStore;
 
 export interface ITask {
   id: string;

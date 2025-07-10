@@ -1,180 +1,84 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useAuth } from "@/components/auth";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { CustomButton } from "@/components/ui/custom-button";
-import { Edit, Phone, Mail, MapPin, Linkedin, Building, Briefcase } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import {  Phone, Mail, MapPin, Linkedin, Building, Briefcase } from "lucide-react";
 import { ContactDetails, ContactDetailsDialog } from "@/components/list/dialogs/contact-details-dialog";
-import { Contact } from "@/hooks/supabase/use-contacts";
-import { Json } from "@/integrations/supabase/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { logger } from '@/utils/logger';
+import { 
+  useContactProfileStore, 
+  useContactProfileContact, 
+  useContactProfileEditMode, 
+  useContactProfileActions,
+  useContactProfileInitialization 
+} from "@/hooks/useContactProfileStore";
 
 export default function ContactProfile() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [contact, setContact] = useState<Contact | null>(null);
-  const [editMode, setEditMode] = useState<"details" | "experience" | null>(null);
   
-  // Convert contact data to the format needed by the dialog
-  const [contactDetails, setContactDetails] = useState<ContactDetails>({
-    firstName: "",
-    lastName: "",
-    emails: [],
-    phones: [],
-    addresses: [],
-    linkedin: "",
-    company: "",
-    title: ""
-  });
+  // Use Zustand store hooks
+  const { contact, contactDetails, loading, error } = useContactProfileContact();
+  const { editMode, setEditMode } = useContactProfileEditMode();
+  const { initialize, updateContactDetails, clearError } = useContactProfileActions();
+  const { isInitialized, currentContactId } = useContactProfileInitialization();
+  
+  // Get primary field accessors from the store
+  const getPrimaryEmail = useContactProfileStore(state => state.contactProfileGetPrimaryEmail);
+  const getPrimaryPhone = useContactProfileStore(state => state.contactProfileGetPrimaryPhone);
+  const getPrimaryAddress = useContactProfileStore(state => state.contactProfileGetPrimaryAddress);
 
   useEffect(() => {
     if (!id) return;
     
-    const fetchContact = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('contacts')
-          .select('*')
-          .eq('id', id)
-          .single();
-          
-        if (error) throw error;
-        
-        if (data) {
-          // Convert the data to the proper Contact type
-          const contactData = {
-            ...data,
-            data: typeof data.data === 'string' ? JSON.parse(data.data) : data.data as Record<string, any>
-          } as Contact;
-          
-          setContact(contactData);
-          
-          // Parse contact data into the detailed format
-          const contactJsonData = contactData.data || {};
-          const nameParts = data.name ? data.name.split(' ') : ['', ''];
-          
-          setContactDetails({
-            firstName: nameParts[0] || '',
-            lastName: nameParts.slice(1).join(' ') || '',
-            emails: contactJsonData.emails ? contactJsonData.emails.map((email: any) => ({
-              id: email.id || crypto.randomUUID(),
-              value: email.value,
-              isPrimary: email.isPrimary || false,
-              type: email.type || 'work'
-            })) : [],
-            phones: contactJsonData.phones ? contactJsonData.phones.map((phone: any) => ({
-              id: phone.id || crypto.randomUUID(),
-              value: phone.value,
-              isPrimary: phone.isPrimary || false,
-              type: phone.type || 'mobile'
-            })) : [],
-            addresses: contactJsonData.addresses ? contactJsonData.addresses.map((address: any) => ({
-              id: address.id || crypto.randomUUID(),
-              value: address.value,
-              isPrimary: address.isPrimary || false
-            })) : [],
-            linkedin: contactJsonData.linkedin || '',
-            company: data.company || contactJsonData.company || '',
-            title: contactJsonData.title || ''
-          });
-        }
-      } catch (error: any) {
-        logger.error('Error fetching contact:', error);
-        toast.error("Failed to load contact data");
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchContact();
-  }, [id]);
+    // Initialize the contact profile if not already initialized for this contact
+    if (!isInitialized || currentContactId !== id) {
+      initialize(id).catch((error) => {
+        logger.error('Failed to initialize contact profile:', error);
+      });
+    }
+  }, [id, isInitialized, currentContactId, initialize]);
 
+  // Handle saving contact details through the store
   const handleSaveContactDetails = async (contactId: string, details: ContactDetails) => {
     if (!contact) return;
     
     try {
-      // Create the full name from first and last names
-      const fullName = `${details.firstName} ${details.lastName}`.trim();
-      
-      // Convert our structured data to a plain object for Supabase
-      // This is the key change - converting ContactField[] to simple objects
-      const updatedContactData = {
-        ...contact.data,
-        emails: details.emails.map(email => ({
-          id: email.id,
-          value: email.value,
-          isPrimary: email.isPrimary,
-          type: email.type
-        })),
-        phones: details.phones.map(phone => ({
-          id: phone.id,
-          value: phone.value,
-          isPrimary: phone.isPrimary,
-          type: phone.type
-        })),
-        addresses: details.addresses.map(address => ({
-          id: address.id,
-          value: address.value,
-          isPrimary: address.isPrimary
-        })),
-        linkedin: details.linkedin,
-        title: details.title
-      };
-      
-      // Update the contact in the database
-      const { error } = await supabase
-        .from('contacts')
-        .update({
-          name: fullName,
+      await updateContactDetails({
+        contactId,
+        details: {
+          firstName: details.firstName,
+          lastName: details.lastName,
+          emails: details.emails.map(email => ({
+            id: email.id,
+            value: email.value,
+            isPrimary: email.isPrimary,
+            type: email.type
+          })),
+          phones: details.phones.map(phone => ({
+            id: phone.id,
+            value: phone.value,
+            isPrimary: phone.isPrimary,
+            type: phone.type
+          })),
+          addresses: details.addresses.map(address => ({
+            id: address.id,
+            value: address.value,
+            isPrimary: address.isPrimary
+          })),
+          linkedin: details.linkedin,
           company: details.company,
-          email: details.emails.find(e => e.isPrimary)?.value || null,
-          phone: details.phones.find(p => p.isPrimary)?.value || null,
-          data: updatedContactData,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', contactId);
-        
-      if (error) throw error;
-      
-      // Update local state
-      setContact({
-        ...contact,
-        name: fullName,
-        company: details.company,
-        email: details.emails.find(e => e.isPrimary)?.value || null,
-        phone: details.phones.find(p => p.isPrimary)?.value || null,
-        data: updatedContactData
+          title: details.title
+        }
       });
       
-      // Close dialog and show success toast
-      setEditMode(null);
-      toast.success("Contact details have been updated successfully");
+      // The store will handle closing edit mode and showing success toast
     } catch (error: any) {
       logger.error('Error updating contact:', error);
-      toast.error(`Failed to update contact: ${error.message}`);
+      // Error handling is done in the store
     }
-  };
-
-  const getPrimaryEmail = () => {
-    const primaryEmail = contactDetails.emails.find(e => e.isPrimary);
-    return primaryEmail ? primaryEmail.value : (contactDetails.emails[0]?.value || contact?.email || '');
-  };
-
-  const getPrimaryPhone = () => {
-    const primaryPhone = contactDetails.phones.find(p => p.isPrimary);
-    return primaryPhone ? primaryPhone.value : (contactDetails.phones[0]?.value || contact?.phone || '');
-  };
-
-  const getPrimaryAddress = () => {
-    const primaryAddress = contactDetails.addresses.find(a => a.isPrimary);
-    return primaryAddress ? primaryAddress.value : contactDetails.addresses[0]?.value || '';
   };
 
   return (
