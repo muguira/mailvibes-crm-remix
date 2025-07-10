@@ -1554,6 +1554,104 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
               color: #9ca3af;
               pointer-events: none;
             }
+            .rich-text-editor ul {
+              list-style-type: disc;
+              list-style-position: outside;
+              margin: 12px 0;
+              padding-left: 24px;
+            }
+            .rich-text-editor ol {
+              list-style-type: decimal;
+              list-style-position: outside;
+              margin: 12px 0;
+              padding-left: 24px;
+            }
+            .rich-text-editor li {
+              margin-bottom: 4px;
+              line-height: 1.5;
+            }
+            .rich-text-editor ul ul {
+              list-style-type: circle;
+              margin: 4px 0;
+            }
+            .rich-text-editor ol ol {
+              list-style-type: lower-alpha;
+              margin: 4px 0;
+            }
+            .rich-text-editor h1, .rich-text-editor h2, .rich-text-editor h3 {
+              margin-top: 16px;
+              margin-bottom: 8px;
+            }
+            .rich-text-editor blockquote {
+              margin: 12px 0;
+              padding: 8px 16px;
+            }
+            .rich-text-editor pre {
+              margin: 12px 0;
+              padding: 16px;
+            }
+            .rich-text-editor code {
+              padding: 2px 6px;
+            }
+            .rich-text-editor hr {
+              margin: 16px 0;
+            }
+            .rich-text-editor div:not(:has(ul)):not(:has(ol)):not(:has(h1)):not(:has(h2)):not(:has(h3)):not(:has(blockquote)):not(:has(pre)):not(:has(hr)) {
+              margin: 0;
+              padding: 0;
+            }
+            .rich-text-editor .normal-paragraph {
+              margin: 0 !important;
+              padding: 0 !important;
+              margin-left: 0 !important;
+              padding-left: 0 !important;
+              list-style: none !important;
+              text-indent: 0 !important;
+              position: relative !important;
+              left: 0 !important;
+              transform: none !important;
+              display: block !important;
+            }
+            .rich-text-editor .normal-paragraph * {
+              margin: 0 !important;
+              padding: 0 !important;
+              margin-left: 0 !important;
+              padding-left: 0 !important;
+              list-style: none !important;
+              text-indent: 0 !important;
+              position: static !important;
+              left: auto !important;
+              transform: none !important;
+            }
+            /* Reset any inherited styles from lists */
+            .rich-text-editor .normal-paragraph,
+            .rich-text-editor .normal-paragraph *,
+            .rich-text-editor div:not(.normal-paragraph) + .normal-paragraph {
+              box-sizing: border-box !important;
+              margin-top: 0 !important;
+              margin-bottom: 0 !important;
+              margin-left: 0 !important;
+              margin-right: 0 !important;
+              padding-top: 0 !important;
+              padding-bottom: 0 !important;
+              padding-left: 0 !important;
+              padding-right: 0 !important;
+            }
+            /* Force normal flow for paragraphs after lists */
+            .rich-text-editor ul + div,
+            .rich-text-editor ol + div,
+            .rich-text-editor ul + .normal-paragraph,
+            .rich-text-editor ol + .normal-paragraph {
+              margin: 0 !important;
+              padding: 0 !important;
+              margin-left: 0 !important;
+              padding-left: 0 !important;
+              text-indent: 0 !important;
+              list-style: none !important;
+              position: static !important;
+              left: auto !important;
+              transform: none !important;
+            }
             .rich-text-editor:focus {
               outline: none !important;
               border: none !important;
