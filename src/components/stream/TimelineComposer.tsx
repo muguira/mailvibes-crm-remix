@@ -68,6 +68,7 @@ const DateTimePicker = ({
 }) => {
   const [isDateOpen, setIsDateOpen] = useState(false);
   const [isTimeOpen, setIsTimeOpen] = useState(false);
+  const timeScrollRef = useRef<HTMLDivElement>(null);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
@@ -85,15 +86,55 @@ const DateTimePicker = ({
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
-  // Generate time options (every 15 minutes)
+  // Generate time options (every 30 minutes for more compact view)
   const timeOptions = [];
   for (let hour = 0; hour < 24; hour++) {
-    for (let minute = 0; minute < 60; minute += 15) {
+    for (let minute = 0; minute < 60; minute += 30) {
       const timeValue = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
       const label = formatTime(timeValue);
       timeOptions.push({ value: timeValue, label });
     }
   }
+  
+  // Add common times around current selection for better UX
+  const [currentHour, currentMinute] = time.split(':').map(Number);
+  const commonTimes = [
+    `${currentHour.toString().padStart(2, '0')}:00`,
+    `${currentHour.toString().padStart(2, '0')}:15`,
+    `${currentHour.toString().padStart(2, '0')}:30`,
+    `${currentHour.toString().padStart(2, '0')}:45`,
+  ];
+  
+  // Add these times if they don't exist
+  commonTimes.forEach(timeValue => {
+    if (!timeOptions.find(option => option.value === timeValue)) {
+      const label = formatTime(timeValue);
+      timeOptions.push({ value: timeValue, label });
+    }
+  });
+  
+  // Sort all options by time
+  timeOptions.sort((a, b) => {
+    const [aHour, aMinute] = a.value.split(':').map(Number);
+    const [bHour, bMinute] = b.value.split(':').map(Number);
+    return (aHour * 60 + aMinute) - (bHour * 60 + bMinute);
+  });
+
+  // Auto-scroll to selected time when time picker opens
+  useEffect(() => {
+    if (isTimeOpen && timeScrollRef.current) {
+      const selectedIndex = timeOptions.findIndex(option => option.value === time);
+      if (selectedIndex !== -1) {
+        const selectedElement = timeScrollRef.current.children[selectedIndex] as HTMLElement;
+        if (selectedElement) {
+          selectedElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+        }
+      }
+    }
+  }, [isTimeOpen, time]);
 
   return (
     <div className="flex items-center gap-2">
@@ -143,8 +184,32 @@ const DateTimePicker = ({
             {formatTime(time)}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-32 p-0 z-[10000]" align="start">
-          <div className="max-h-70 overflow-y-auto">
+        <PopoverContent className="w-28 p-0 z-[10000]" align="start">
+          <style dangerouslySetInnerHTML={{
+            __html: `
+              .time-picker-scroll::-webkit-scrollbar {
+                width: 4px;
+              }
+              .time-picker-scroll::-webkit-scrollbar-track {
+                background: #f3f4f6;
+              }
+              .time-picker-scroll::-webkit-scrollbar-thumb {
+                background: #d1d5db;
+                border-radius: 2px;
+              }
+              .time-picker-scroll::-webkit-scrollbar-thumb:hover {
+                background: #9ca3af;
+              }
+            `
+          }} />
+          <div 
+            ref={timeScrollRef}
+            className="max-h-48 overflow-y-auto time-picker-scroll"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#d1d5db #f3f4f6'
+            }}
+          >
             {timeOptions.map((option) => (
               <button
                 key={option.value}
@@ -153,8 +218,8 @@ const DateTimePicker = ({
                   setIsTimeOpen(false);
                 }}
                 className={cn(
-                  "w-full text-left px-3 py-2 text-sm hover:bg-gray-100 hover:text-gray-900 transition-colors",
-                  option.value === time && "bg-gray-100 text-gray-900"
+                  "w-full text-left px-2 py-1.5 text-xs hover:bg-gray-100 hover:text-gray-900 transition-colors border-none",
+                  option.value === time && "bg-teal-50 text-teal-700 font-medium"
                 )}
               >
                 {option.label}
