@@ -3,10 +3,8 @@
 /* Enable scrollbars for the data grid */
 .data-grid {
   scrollbar-width: thin !important; /* For Firefox */
-  scrollbar-color: #32BAB0 #f3f4f6 !important; /* For Firefox - thumb and track colors */
-  /* Add padding to prevent content from being hidden under scrollbar */
-  padding-right: 12px !important;
-  padding-bottom: 12px !important;
+  scrollbar-color: #32BAB0 rgba(243, 244, 246, 0.8) !important; /* For Firefox - thumb and track colors */
+  /* Remove padding - scrollbars should overlay on content */
 }
 
 /* Webkit browsers (Chrome, Safari, Edge) */
@@ -14,38 +12,40 @@
   display: block !important;
   width: 12px !important;
   height: 12px !important;
+  /* Scrollbars appear only when content overflows */
 }
 
 .data-grid::-webkit-scrollbar-track {
   display: block !important;
-  background: #f3f4f6 !important;
+  background: rgba(243, 244, 246, 0.6) !important; /* Semi-transparent background */
   border-radius: 6px !important;
 }
 
 .data-grid::-webkit-scrollbar-thumb {
   display: block !important;
-  background: #32BAB0 !important;
+  background: rgba(50, 186, 176, 0.8) !important; /* Semi-transparent thumb */
   border-radius: 6px !important;
-  border: 2px solid #f3f4f6 !important;
+  border: 2px solid rgba(243, 244, 246, 0.6) !important; /* Semi-transparent border */
+  transition: background-color 0.2s ease !important;
 }
 
 .data-grid::-webkit-scrollbar-thumb:hover {
-  background: #2aa39b !important;
+  background: rgba(42, 163, 155, 0.9) !important; /* More opaque on hover */
 }
 
 .data-grid::-webkit-scrollbar-thumb:active {
-  background: #258f88 !important;
+  background: #258f88 !important; /* Solid color when active */
 }
 
 /* Corner where scrollbars meet */
 .data-grid::-webkit-scrollbar-corner {
-  background: #f3f4f6 !important;
+  background: rgba(243, 244, 246, 0.6) !important; /* Semi-transparent background */
 }
 
 /* Also apply to main grid header for horizontal scrolling */
 .main-grid-header {
   scrollbar-width: thin !important;
-  scrollbar-color: #32BAB0 #f3f4f6 !important;
+  scrollbar-color: #32BAB0 rgba(243, 244, 246, 0.8) !important;
 }
 
 .main-grid-header::-webkit-scrollbar {
@@ -55,19 +55,20 @@
 
 .main-grid-header::-webkit-scrollbar-track {
   display: block !important;
-  background: #f3f4f6 !important;
+  background: rgba(243, 244, 246, 0.6) !important;
   border-radius: 6px !important;
 }
 
 .main-grid-header::-webkit-scrollbar-thumb {
   display: block !important;
-  background: #32BAB0 !important;
+  background: rgba(50, 186, 176, 0.8) !important;
   border-radius: 6px !important;
-  border: 2px solid #f3f4f6 !important;
+  border: 2px solid rgba(243, 244, 246, 0.6) !important;
+  transition: background-color 0.2s ease !important;
 }
 
 .main-grid-header::-webkit-scrollbar-thumb:hover {
-  background: #2aa39b !important;
+  background: rgba(42, 163, 155, 0.9) !important;
 }
 
 .main-grid-header::-webkit-scrollbar-thumb:active {
@@ -84,11 +85,6 @@
   
   .data-grid::-webkit-scrollbar-thumb,
   .main-grid-header::-webkit-scrollbar-thumb {
-    border: 1px solid #f3f4f6 !important;
-  }
-  
-  .data-grid {
-    padding-right: 8px !important;
-    padding-bottom: 8px !important;
+    border: 1px solid rgba(243, 244, 246, 0.6) !important;
   }
 } 
