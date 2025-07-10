@@ -259,7 +259,7 @@ export default function TimelineItem({
   const userName = activityUserName || 'User';
   
   return (
-    <li className="relative pl-12 pb-6 last:overflow-hidden last:pb-0">
+    <li className="relative pl-12 pb-6 last:overflow-y-hidden last:pb-0">
       {/* Timeline line - more prominent and continuous */}
       <div className="absolute left-[22px] top-[20px] bottom-[-20px] w-[1px] bg-gray-200"></div>
       

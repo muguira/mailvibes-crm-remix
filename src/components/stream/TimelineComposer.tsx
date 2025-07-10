@@ -22,14 +22,14 @@ import {
   Code2,
   Quote,
   Strikethrough,
-  Minus
+  Minus,
+  Smile
 } from "lucide-react";
 import LinkModal from './LinkModal';
 import CodeBlockModal from './CodeBlockModal';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useParams } from "react-router-dom";
-import { mockContactsById } from "@/components/stream/sample-data";
 import { logger } from '@/utils/logger';
 import { cn } from '@/lib/utils';
 import { useActivities } from '@/hooks/supabase/use-activities';
@@ -256,12 +256,25 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
     }
     return false;
   });
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const editableRef = useRef<HTMLDivElement>(null);
   const { recordId } = useParams();
   const effectiveContactId = contactId || recordId;
   const { createActivity } = useActivities(effectiveContactId);
   const { isConnected: isGmailConnected } = useGmailConnection();
   const isMobile = useIsMobile();
+
+  // Common emojis for quick access
+  const commonEmojis = [
+    '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
+    '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
+    '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩',
+    '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣',
+    '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬',
+    '👍', '👎', '👏', '🙌', '👌', '🤝', '🙏', '💪', '🤔', '🤷',
+    '❤️', '💙', '💚', '💛', '🧡', '💜', '🖤', '🤍', '🤎', '💯',
+    '✅', '❌', '⭐', '🔥', '💡', '🎉', '🎊', '🚀', '💰', '📈'
+  ];
   
   const cleanupMarginsAndFormatting = () => {
     if (!editableRef.current) return;
@@ -1348,6 +1361,37 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
     setCurrentCodeRange(null);
   };
 
+  const handleEmojiSelect = (emoji: string) => {
+    if (editableRef.current) {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        
+        // Create a text node with the emoji
+        const emojiNode = document.createTextNode(emoji);
+        
+        // Insert the emoji at the cursor position
+        range.deleteContents();
+        range.insertNode(emojiNode);
+        
+        // Move cursor after the emoji
+        range.setStartAfter(emojiNode);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        // Update the text state
+        setText(getPlainText());
+        
+        // Focus back on the editor
+        editableRef.current.focus();
+      }
+    }
+    
+    // Close the emoji picker
+    setIsEmojiPickerOpen(false);
+  };
+
   const toggleToolbarExpanded = () => {
     const newExpanded = !isToolbarExpanded;
     setIsToolbarExpanded(newExpanded);
@@ -1477,7 +1521,7 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
       </div>
 
       {/* Rich Text Editor */}
-      <div className={`transition-all duration-300 ease-in-out ${
+      <div className={`outline-none transition-all duration-300 ease-in-out ${
         isCompact ? 'p-2' : 'p-4'
       }`}>
         <div
@@ -1494,6 +1538,8 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
           }`}
           style={{ 
             border: 'none',
+            outline: 'none',
+            boxShadow: 'none',
             resize: 'none'
           }}
           data-placeholder="Type a message..."
@@ -1606,6 +1652,16 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
               left: auto !important;
               transform: none !important;
             }
+            .rich-text-editor:focus {
+              outline: none !important;
+              border: none !important;
+              box-shadow: none !important;
+            }
+            .rich-text-editor {
+              outline: none !important;
+              border: none !important;
+              box-shadow: none !important;
+            }
           `
         }} />
       </div>
@@ -1673,6 +1729,38 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
                     isCompact ? 'w-3 h-3' : 'w-4 h-4'
                   }`} />
                 </button>
+                
+                {/* Emoji Picker */}
+                <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      className={`rounded transition-all duration-300 ease-in-out ${
+                        isEmojiPickerOpen 
+                          ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                          : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                      } ${isCompact ? 'p-1' : 'p-2'}`}
+                      title="Add Emoji"
+                    >
+                      <Smile className={`transition-all duration-300 ease-in-out ${
+                        isCompact ? 'w-3 h-3' : 'w-4 h-4'
+                      }`} />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-3" align="start">
+                    <div className="grid grid-cols-10 gap-1 max-h-48 overflow-y-auto">
+                      {commonEmojis.map((emoji, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleEmojiSelect(emoji)}
+                          className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition-colors text-lg"
+                          title={emoji}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </>
             )}
             
@@ -1729,6 +1817,38 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
                     isCompact ? 'w-3 h-3' : 'w-4 h-4'
                   }`} />
                 </button>
+                
+                {/* Emoji Picker for Mobile */}
+                <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      className={`rounded transition-all duration-300 ease-in-out ${
+                        isEmojiPickerOpen 
+                          ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                          : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                      } ${isCompact ? 'p-1' : 'p-2'}`}
+                      title="Add Emoji"
+                    >
+                      <Smile className={`transition-all duration-300 ease-in-out ${
+                        isCompact ? 'w-3 h-3' : 'w-4 h-4'
+                      }`} />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-3" align="start">
+                    <div className="grid grid-cols-10 gap-1 max-h-48 overflow-y-auto">
+                      {commonEmojis.map((emoji, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleEmojiSelect(emoji)}
+                          className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition-colors text-lg"
+                          title={emoji}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 
                 <div className="w-px h-6 bg-gray-200 mx-2" />
               </>
