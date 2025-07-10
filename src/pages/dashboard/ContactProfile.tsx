@@ -1,21 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useAuth } from "@/components/auth";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { CustomButton } from "@/components/ui/custom-button";
-import { Edit, Phone, Mail, MapPin, Linkedin, Building, Briefcase } from "lucide-react";
+import {  Phone, Mail, MapPin, Linkedin, Building, Briefcase } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ContactDetails, ContactDetailsDialog } from "@/components/list/dialogs/contact-details-dialog";
 import { Contact } from "@/hooks/supabase/use-contacts";
-import { Json } from "@/integrations/supabase/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { logger } from '@/utils/logger';
 
 export default function ContactProfile() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [contact, setContact] = useState<Contact | null>(null);
