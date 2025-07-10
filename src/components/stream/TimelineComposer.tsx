@@ -165,6 +165,7 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
     const now = new Date();
     return now.toTimeString().slice(0, 5);
   });
+  const [isDateTimeManuallySet, setIsDateTimeManuallySet] = useState(false);
   const editableRef = useRef<HTMLDivElement>(null);
   const { recordId } = useParams();
   const effectiveContactId = contactId || recordId;
@@ -200,11 +201,22 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
   const handleSend = () => {
     const plainText = getPlainText();
     if (plainText.trim() && effectiveContactId) {
+      // Use current date/time if not manually set, otherwise use the selected date/time
+      let finalDate = activityDate;
+      let finalTime = activityTime;
+      
+      if (!isDateTimeManuallySet) {
+        // Update to current date/time for most recent timestamp
+        const now = new Date();
+        finalDate = now;
+        finalTime = now.toTimeString().slice(0, 5);
+      }
+      
       // Combine date and time into a proper timestamp
-      const year = activityDate.getFullYear();
-      const month = activityDate.getMonth();
-      const day = activityDate.getDate();
-      const [hours, minutes] = activityTime.split(':');
+      const year = finalDate.getFullYear();
+      const month = finalDate.getMonth();
+      const day = finalDate.getDate();
+      const [hours, minutes] = finalTime.split(':');
       
       const activityDateTime = new Date(year, month, day, parseInt(hours), parseInt(minutes));
       const activityTimestamp = activityDateTime.toISOString();
@@ -213,7 +225,8 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
         type: selectedActivityType, 
         content: plainText, 
         contactId: effectiveContactId,
-        timestamp: activityTimestamp
+        timestamp: activityTimestamp,
+        wasManuallySet: isDateTimeManuallySet
       });
       
       // Use the provided onCreateActivity prop or fall back to internal createActivity
@@ -242,6 +255,7 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
       setActivityDate(new Date());
       const now = new Date();
       setActivityTime(now.toTimeString().slice(0, 5));
+      setIsDateTimeManuallySet(false);
     }
   };
   
@@ -305,6 +319,13 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
 
   const handleInput = () => {
     setText(getPlainText());
+    
+    // Update date/time to current when user starts typing (if not manually set)
+    if (!isDateTimeManuallySet && getPlainText().trim()) {
+      const now = new Date();
+      setActivityDate(now);
+      setActivityTime(now.toTimeString().slice(0, 5));
+    }
   };
 
   const handleFocus = () => {
@@ -326,6 +347,17 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
     if (editableRef.current) {
       editableRef.current.innerHTML = '';
     }
+  };
+
+  // Handle manual date/time changes
+  const handleDateChange = (newDate: Date) => {
+    setActivityDate(newDate);
+    setIsDateTimeManuallySet(true);
+  };
+
+  const handleTimeChange = (newTime: string) => {
+    setActivityTime(newTime);
+    setIsDateTimeManuallySet(true);
   };
 
   return (
@@ -366,9 +398,9 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
       }`}>
         <DateTimePicker
           date={activityDate}
-          onDateChange={setActivityDate}
+          onDateChange={handleDateChange}
           time={activityTime}
-          onTimeChange={setActivityTime}
+          onTimeChange={handleTimeChange}
           isCompact={isCompact}
         />
       </div>
