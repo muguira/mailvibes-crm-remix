@@ -33,8 +33,7 @@ interface TimelineItemProps {
 const renderMarkdown = (text: string) => {
   if (!text) return '';
   
-  // Debug: Log the input text to see what we're processing
-  console.log('renderMarkdown input:', text);
+
   
   let html = text;
   
@@ -90,8 +89,7 @@ const renderMarkdown = (text: string) => {
     return match;
   });
   
-  // Debug: Log after blockquote processing
-  console.log('After blockquote processing:', html);
+
   
   // Listas con bullets (mejoradas para manejar múltiples líneas y anidación)
   // Procesar listas anidadas primero (con más espacios)
@@ -124,8 +122,7 @@ const renderMarkdown = (text: string) => {
   // Saltos de línea (al final para no interferir con otros elementos)
   html = html.replace(/\n/g, '<br>');
   
-  // Debug: Log final result
-  console.log('renderMarkdown output:', html);
+
   
   return html;
 };

@@ -34,6 +34,7 @@ import { logger } from '@/utils/logger';
 import { cn } from '@/lib/utils';
 import { useActivities } from '@/hooks/supabase/use-activities';
 import { useGmailConnection } from '@/hooks/use-gmail-auth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GmailConnectionModal } from '@/components/stream/GmailConnectionModal';
 
@@ -183,11 +184,19 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
   const [selectedTextForCode, setSelectedTextForCode] = useState('');
   const [currentCodeRange, setCurrentCodeRange] = useState<Range | null>(null);
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
+  const [isToolbarExpanded, setIsToolbarExpanded] = useState(() => {
+    // Initialize from localStorage or default to false
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('timeline-toolbar-expanded') === 'true';
+    }
+    return false;
+  });
   const editableRef = useRef<HTMLDivElement>(null);
   const { recordId } = useParams();
   const effectiveContactId = contactId || recordId;
   const { createActivity } = useActivities(effectiveContactId);
   const { isConnected: isGmailConnected } = useGmailConnection();
+  const isMobile = useIsMobile();
   
   // Convert HTML back to plain text for storage
   const getPlainText = () => {
@@ -1065,6 +1074,15 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
     setCurrentCodeRange(null);
   };
 
+  const toggleToolbarExpanded = () => {
+    const newExpanded = !isToolbarExpanded;
+    setIsToolbarExpanded(newExpanded);
+    // Persist state to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('timeline-toolbar-expanded', newExpanded.toString());
+    }
+  };
+
   // Function to detect active formats at cursor position
   const detectActiveFormats = () => {
     const selection = window.getSelection();
@@ -1266,199 +1284,264 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
       <div className={`flex items-center justify-between border-t border-gray-100 transition-all duration-300 ease-in-out ${
         isCompact ? 'p-2' : 'p-3'
       }`}>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => handleFormatting('bold')}
-            className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('bold') 
-                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            } ${isCompact ? 'p-1' : 'p-2'}`}
-            title="Bold"
-          >
-            <Bold className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
-          <button
-            onClick={() => handleFormatting('italic')}
-            className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('italic') 
-                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            } ${isCompact ? 'p-1' : 'p-2'}`}
-            title="Italic"
-          >
-            <Italic className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
-          <button
-            onClick={() => handleFormatting('underline')}
-            className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('underline') 
-                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            } ${isCompact ? 'p-1' : 'p-2'}`}
-            title="Underline"
-          >
-            <Underline className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
-          <button
-            onClick={() => handleFormatting('strikethrough')}
-            className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('strikethrough') 
-                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            } ${isCompact ? 'p-1' : 'p-2'}`}
-            title="Strikethrough"
-          >
-            <Strikethrough className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
-          
-          <div className="w-px h-6 bg-gray-200 mx-2" />
-          
-          {/* Headings */}
-          <button
-            onClick={() => handleFormatting('heading1')}
-            className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('heading1') 
-                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            } ${isCompact ? 'p-1' : 'p-2'}`}
-            title="Heading 1"
-          >
-            <Heading1 className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
-          <button
-            onClick={() => handleFormatting('heading2')}
-            className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('heading2') 
-                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            } ${isCompact ? 'p-1' : 'p-2'}`}
-            title="Heading 2"
-          >
-            <Heading2 className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
-          <button
-            onClick={() => handleFormatting('heading3')}
-            className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('heading3') 
-                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            } ${isCompact ? 'p-1' : 'p-2'}`}
-            title="Heading 3"
-          >
-            <Heading3 className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
-          
-          <div className="w-px h-6 bg-gray-200 mx-2" />
-          
-          <button
-            onClick={() => handleFormatting('bulletList')}
-            className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('bulletList') 
-                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            } ${isCompact ? 'p-1' : 'p-2'}`}
-            title="Bullet List"
-          >
-            <List className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
-          <button
-            onClick={() => handleFormatting('numberedList')}
-            className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('numberedList') 
-                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            } ${isCompact ? 'p-1' : 'p-2'}`}
-            title="Numbered List"
-          >
-            <ListOrdered className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
-          
-          <div className="w-px h-6 bg-gray-200 mx-2" />
-          
-          <button
-            onClick={() => handleFormatting('link')}
-            className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('link') 
-                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            } ${isCompact ? 'p-1' : 'p-2'}`}
-            title="Add Link"
-          >
-            <Link className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
-          
-          <div className="w-px h-6 bg-gray-200 mx-2" />
-          
-          {/* Code and Special Elements */}
-          <button
-            onClick={() => handleFormatting('code')}
-            className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('code') 
-                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            } ${isCompact ? 'p-1' : 'p-2'}`}
-            title="Inline Code"
-          >
-            <Code className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
-          <button
-            onClick={() => handleFormatting('codeblock')}
-            className={`rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all duration-300 ease-in-out ${
-              isCompact ? 'p-1' : 'p-2'
-            }`}
-            title="Code Block"
-          >
-            <Code2 className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
-          <button
-            onClick={() => handleFormatting('quote')}
-            className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('quote') 
-                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-            } ${isCompact ? 'p-1' : 'p-2'}`}
-            title="Quote"
-          >
-            <Quote className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
-          <button
-            onClick={() => handleFormatting('divider')}
-            className={`rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all duration-300 ease-in-out ${
-              isCompact ? 'p-1' : 'p-2'
-            }`}
-            title="Horizontal Rule"
-          >
-            <Minus className={`transition-all duration-300 ease-in-out ${
-              isCompact ? 'w-3 h-3' : 'w-4 h-4'
-            }`} />
-          </button>
+        <div className="flex items-center gap-1 overflow-hidden">
+          {/* Basic Tools - Always Visible */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleFormatting('bold')}
+              className={`rounded transition-all duration-300 ease-in-out ${
+                activeFormats.has('bold') 
+                  ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              } ${isCompact ? 'p-1' : 'p-2'}`}
+              title="Bold"
+            >
+              <Bold className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+            <button
+              onClick={() => handleFormatting('italic')}
+              className={`rounded transition-all duration-300 ease-in-out ${
+                activeFormats.has('italic') 
+                  ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              } ${isCompact ? 'p-1' : 'p-2'}`}
+              title="Italic"
+            >
+              <Italic className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+            
+            {/* Show more tools on desktop */}
+            {!isMobile && (
+              <>
+                <button
+                  onClick={() => handleFormatting('bulletList')}
+                  className={`rounded transition-all duration-300 ease-in-out ${
+                    activeFormats.has('bulletList') 
+                      ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                      : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                  } ${isCompact ? 'p-1' : 'p-2'}`}
+                  title="Bullet List"
+                >
+                  <List className={`transition-all duration-300 ease-in-out ${
+                    isCompact ? 'w-3 h-3' : 'w-4 h-4'
+                  }`} />
+                </button>
+                <button
+                  onClick={() => handleFormatting('link')}
+                  className={`rounded transition-all duration-300 ease-in-out ${
+                    activeFormats.has('link') 
+                      ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                      : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                  } ${isCompact ? 'p-1' : 'p-2'}`}
+                  title="Add Link"
+                >
+                  <Link className={`transition-all duration-300 ease-in-out ${
+                    isCompact ? 'w-3 h-3' : 'w-4 h-4'
+                  }`} />
+                </button>
+              </>
+            )}
+            
+            {/* More Button */}
+            <button
+              onClick={toggleToolbarExpanded}
+              className={`rounded transition-all duration-300 ease-in-out ${
+                isToolbarExpanded 
+                  ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              } ${isCompact ? 'p-1' : 'p-2'} ml-1`}
+              title={isToolbarExpanded ? "Hide advanced tools" : "Show more tools"}
+            >
+              <MoreHorizontal className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+          </div>
+
+          {/* Advanced Tools - Expandable */}
+          <div className={`flex items-center gap-1 transition-all duration-300 ease-in-out overflow-hidden ${
+            isToolbarExpanded 
+              ? 'max-w-full opacity-100 ml-2' 
+              : 'max-w-0 opacity-0 ml-0'
+          }`}>
+            <div className="w-px h-6 bg-gray-200 mx-2" />
+            
+            {/* Mobile: Show basic tools in expanded section */}
+            {isMobile && (
+              <>
+                <button
+                  onClick={() => handleFormatting('bulletList')}
+                  className={`rounded transition-all duration-300 ease-in-out ${
+                    activeFormats.has('bulletList') 
+                      ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                      : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                  } ${isCompact ? 'p-1' : 'p-2'}`}
+                  title="Bullet List"
+                >
+                  <List className={`transition-all duration-300 ease-in-out ${
+                    isCompact ? 'w-3 h-3' : 'w-4 h-4'
+                  }`} />
+                </button>
+                <button
+                  onClick={() => handleFormatting('link')}
+                  className={`rounded transition-all duration-300 ease-in-out ${
+                    activeFormats.has('link') 
+                      ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                      : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                  } ${isCompact ? 'p-1' : 'p-2'}`}
+                  title="Add Link"
+                >
+                  <Link className={`transition-all duration-300 ease-in-out ${
+                    isCompact ? 'w-3 h-3' : 'w-4 h-4'
+                  }`} />
+                </button>
+                
+                <div className="w-px h-6 bg-gray-200 mx-2" />
+              </>
+            )}
+            
+            <button
+              onClick={() => handleFormatting('underline')}
+              className={`rounded transition-all duration-300 ease-in-out ${
+                activeFormats.has('underline') 
+                  ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              } ${isCompact ? 'p-1' : 'p-2'}`}
+              title="Underline"
+            >
+              <Underline className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+            <button
+              onClick={() => handleFormatting('strikethrough')}
+              className={`rounded transition-all duration-300 ease-in-out ${
+                activeFormats.has('strikethrough') 
+                  ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              } ${isCompact ? 'p-1' : 'p-2'}`}
+              title="Strikethrough"
+            >
+              <Strikethrough className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+            
+            <div className="w-px h-6 bg-gray-200 mx-2" />
+            
+            {/* Headings */}
+            <button
+              onClick={() => handleFormatting('heading1')}
+              className={`rounded transition-all duration-300 ease-in-out ${
+                activeFormats.has('heading1') 
+                  ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              } ${isCompact ? 'p-1' : 'p-2'}`}
+              title="Heading 1"
+            >
+              <Heading1 className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+            <button
+              onClick={() => handleFormatting('heading2')}
+              className={`rounded transition-all duration-300 ease-in-out ${
+                activeFormats.has('heading2') 
+                  ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              } ${isCompact ? 'p-1' : 'p-2'}`}
+              title="Heading 2"
+            >
+              <Heading2 className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+            <button
+              onClick={() => handleFormatting('heading3')}
+              className={`rounded transition-all duration-300 ease-in-out ${
+                activeFormats.has('heading3') 
+                  ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              } ${isCompact ? 'p-1' : 'p-2'}`}
+              title="Heading 3"
+            >
+              <Heading3 className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+            
+            <div className="w-px h-6 bg-gray-200 mx-2" />
+            
+            <button
+              onClick={() => handleFormatting('numberedList')}
+              className={`rounded transition-all duration-300 ease-in-out ${
+                activeFormats.has('numberedList') 
+                  ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              } ${isCompact ? 'p-1' : 'p-2'}`}
+              title="Numbered List"
+            >
+              <ListOrdered className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+            
+            <div className="w-px h-6 bg-gray-200 mx-2" />
+            
+            {/* Code and Special Elements */}
+            <button
+              onClick={() => handleFormatting('code')}
+              className={`rounded transition-all duration-300 ease-in-out ${
+                activeFormats.has('code') 
+                  ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              } ${isCompact ? 'p-1' : 'p-2'}`}
+              title="Inline Code"
+            >
+              <Code className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+            <button
+              onClick={() => handleFormatting('codeblock')}
+              className={`rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all duration-300 ease-in-out ${
+                isCompact ? 'p-1' : 'p-2'
+              }`}
+              title="Code Block"
+            >
+              <Code2 className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+            <button
+              onClick={() => handleFormatting('quote')}
+              className={`rounded transition-all duration-300 ease-in-out ${
+                activeFormats.has('quote') 
+                  ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                  : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+              } ${isCompact ? 'p-1' : 'p-2'}`}
+              title="Quote"
+            >
+              <Quote className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+            <button
+              onClick={() => handleFormatting('divider')}
+              className={`rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all duration-300 ease-in-out ${
+                isCompact ? 'p-1' : 'p-2'
+              }`}
+              title="Horizontal Rule"
+            >
+              <Minus className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+          </div>
         </div>
 
         {/* Gmail not connected indicator */}
@@ -1486,20 +1569,10 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
           </TooltipProvider>
         )}
 
-        {/* More button */}
-        <button
-          className={`rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 ${!isGmailConnected ? 'mr-2' : 'ml-auto mr-2'} transition-all duration-300 ease-in-out ${
-            isCompact ? 'p-1' : 'p-2'
-          }`}
-          title="More options"
-        >
-          <MoreHorizontal className={`transition-all duration-300 ease-in-out ${
-            isCompact ? 'w-3 h-3' : 'w-4 h-4'
-          }`} />
-        </button>
+
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className={`flex items-center gap-2 ${!isGmailConnected ? 'ml-auto' : 'ml-auto'}`}>
           <Button
             variant="outline"
             size="sm"
