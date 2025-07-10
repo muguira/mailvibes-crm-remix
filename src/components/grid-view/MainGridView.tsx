@@ -1454,7 +1454,6 @@ export const MainGridView = forwardRef(function MainGridView({
             overflowY: 'scroll',
             width: '100%',
             boxSizing: 'border-box',
-            paddingBottom: '40px'
           }}
         >
           {Cell}

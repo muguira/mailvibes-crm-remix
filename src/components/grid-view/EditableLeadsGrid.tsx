@@ -9,7 +9,7 @@ import {
   ROW_HEIGHT,
   INDEX_COLUMN_WIDTH
 } from '@/components/grid-view/grid-constants';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ExternalLink, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { mockContactsById } from '@/components/stream/sample-data';
@@ -374,10 +374,10 @@ const createDynamicColumns = (fields: Set<string>): Column[] => {
 };
 
 export function EditableLeadsGrid() {
-  // Get authentication state
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { logCellEdit, logColumnAdd, logColumnDelete, logFilterChange } = useActivity();
-    
+  
   // Set up state for grid
   const [isGridReady, setIsGridReady] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -394,6 +394,21 @@ export function EditableLeadsGrid() {
   
   // State to track hidden columns for unhide functionality
   const [hiddenColumns, setHiddenColumns] = useState<Column[]>([]);
+  
+  // Track deleted columns to prevent re-adding them from dynamic data
+  const [deletedColumnIds, setDeletedColumnIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('deletedColumnIds');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  
+  // Persist deleted columns to localStorage
+  useEffect(() => {
+    localStorage.setItem('deletedColumnIds', JSON.stringify(Array.from(deletedColumnIds)));
+  }, [deletedColumnIds]);
   
   // Add state for delete column dialog
   const [deleteColumnDialog, setDeleteColumnDialog] = useState<{
@@ -585,14 +600,17 @@ export function EditableLeadsGrid() {
       // Get current column IDs
       const currentColumnIds = new Set(columns.map(col => col.id));
       
-      // Only add new dynamic columns that don't already exist
-      const newColumns = dynamicColumns.filter(col => !currentColumnIds.has(col.id));
+      // Only add new dynamic columns that don't already exist AND haven't been deleted
+      const newColumns = dynamicColumns.filter(col => 
+        !currentColumnIds.has(col.id) && !deletedColumnIds.has(col.id)
+      );
       
       if (newColumns.length > 0) {
+        console.log(`📋 Adding ${newColumns.length} new dynamic columns:`, newColumns.map(c => c.id));
         setColumns(prev => [...prev, ...newColumns]);
       }
     }
-  }, [rows]); // Removed columns from dependencies to prevent re-renders
+  }, [rows, deletedColumnIds]); // Added deletedColumnIds to dependencies
 
   // Add loading state to prevent duplicate loads
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
@@ -794,11 +812,20 @@ export function EditableLeadsGrid() {
   
   // Handle column deletion
   const handleDeleteColumn = async (columnId: string) => {
-    // Don't delete the primary columns
-    if (['name', 'status', 'company'].includes(columnId)) {
+    // Define core columns that should never be deleted
+    const protectedColumns = [
+      'name',           // Contact name - core field
+      'status',         // Lead status - core field  
+      'company',        // Company - core field
+      'email',          // Email - core field for contact identification
+      'importListName', // List name from imports - needed for filtering
+    ];
+
+    // Check if this is a protected column
+    if (protectedColumns.includes(columnId)) {
       toast({
-        title: "Cannot delete primary column",
-        description: "This column is required and cannot be removed.",
+        title: "Cannot delete core column",
+        description: "This column is required for the system to function properly and cannot be removed.",
         variant: "destructive"
       });
       return;
@@ -806,8 +833,15 @@ export function EditableLeadsGrid() {
     
     // Find the column to get its name
     const column = columns.find(col => col.id === columnId);
-    if (!column) return;
-    
+    if (!column) {
+      toast({
+        title: "Column not found",
+        description: "The column you're trying to delete could not be found.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Show the confirmation dialog
     setDeleteColumnDialog({
       isOpen: true,
@@ -827,11 +861,17 @@ export function EditableLeadsGrid() {
     setColumnOperationLoading({ type: 'delete', columnId });
     
     try {
-      // Log the column deletion
+      // Log the column deletion attempt
+      console.log(`🗑️ Attempting to delete column: ${columnId} (${columnName})`);
       logColumnDelete(columnId, columnName);
+      
+      // Add to deleted columns set to prevent re-adding
+      setDeletedColumnIds(prev => new Set([...prev, columnId]));
+      console.log(`🚫 Added ${columnId} to deleted columns list`);
       
       // Remove from columns array
       const newColumns = columns.filter(col => col.id !== columnId);
+      console.log(`📊 Columns after deletion: ${newColumns.length} remaining`);
       setColumns(newColumns);
       
       // Remove column data from all rows
@@ -839,23 +879,36 @@ export function EditableLeadsGrid() {
         const { [columnId]: _, ...rest } = row;
         return rest;
       });
+      console.log(`📝 Updated ${updatedRows.length} rows to remove column data`);
       
       // Update the rows in the database
+      let updateErrors = 0;
       for (const row of updatedRows) {
-        await updateCell({ rowId: row.id, columnId, value: undefined });
+        try {
+          await updateCell({ rowId: row.id, columnId, value: undefined });
+        } catch (error) {
+          updateErrors++;
+          console.error(`❌ Failed to update row ${row.id}:`, error);
+        }
+      }
+      
+      if (updateErrors > 0) {
+        console.warn(`⚠️ ${updateErrors} rows failed to update during column deletion`);
       }
       
       // Persist the column deletion
       await persistColumns(newColumns);
+      console.log(`✅ Column deletion completed successfully`);
       
       toast({
         title: "Column deleted",
         description: `Successfully deleted column "${columnName}" and all its data`,
       });
     } catch (error) {
+      console.error(`❌ Column deletion failed:`, error);
       toast({
         title: "Error deleting column",
-        description: "Failed to delete the column. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to delete the column. Please try again.",
         variant: "destructive"
       });
     } finally {
