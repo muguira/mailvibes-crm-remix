@@ -4,10 +4,18 @@ import { useAuth } from "@/components/auth";
 import { LeadContact } from "@/components/stream/sample-data";
 import { mockContactsById } from "@/components/stream/sample-data";
 
+interface ColumnFilter {
+  columnId: string;
+  value: any;
+  type?: string;
+  operator?: string;
+}
+
 interface UseInstantContactsOptions {
   searchTerm: string;
   pageSize: number;
   currentPage: number;
+  columnFilters?: ColumnFilter[];
 }
 
 interface UseInstantContactsReturn {
@@ -22,6 +30,7 @@ export function useInstantContacts({
   searchTerm,
   pageSize,
   currentPage,
+  columnFilters = [],
 }: UseInstantContactsOptions): UseInstantContactsReturn {
   const { user } = useAuth();
 
@@ -54,26 +63,117 @@ export function useInstantContacts({
     });
   }, [cache]);
 
-  // Filter contacts based on search term - this will re-run when cache or orderedIds change
+  // Filter contacts based on search term and column filters
   const filteredIds = useMemo(() => {
-    if (!searchTerm || searchTerm.trim() === "") {
-      return orderedIds;
+    let filtered = orderedIds;
+
+    // Apply search term filter
+    if (searchTerm && searchTerm.trim() !== "") {
+      const query = searchTerm.trim().toLowerCase();
+      filtered = filtered.filter((id) => {
+        const contact = cache[id];
+        if (!contact) return false;
+
+        // Search in name, email, company, and phone
+        return (
+          contact.name?.toLowerCase().includes(query) ||
+          contact.email?.toLowerCase().includes(query) ||
+          contact.company?.toLowerCase().includes(query) ||
+          contact.phone?.toLowerCase().includes(query)
+        );
+      });
     }
 
-    const query = searchTerm.trim().toLowerCase();
-    return orderedIds.filter((id) => {
-      const contact = cache[id];
-      if (!contact) return false;
+    // Apply column filters
+    if (columnFilters && columnFilters.length > 0) {
+      filtered = filtered.filter((id) => {
+        const contact = cache[id];
+        if (!contact) return false;
 
-      // Search in name, email, company, and phone
-      return (
-        contact.name?.toLowerCase().includes(query) ||
-        contact.email?.toLowerCase().includes(query) ||
-        contact.company?.toLowerCase().includes(query) ||
-        contact.phone?.toLowerCase().includes(query)
-      );
-    });
-  }, [searchTerm, orderedIds, cache]);
+        return columnFilters.every((filter) => {
+          const { columnId, value, type, operator } = filter;
+          const cellValue = contact[columnId as keyof LeadContact];
+
+          if (type === "status" && Array.isArray(value)) {
+            return value.includes(cellValue);
+          } else if (type === "dropdown") {
+            if (Array.isArray(value) && value.length > 0) {
+              // Multi-select dropdown filter
+              return value.includes(cellValue);
+            } else if (value && value !== '') {
+              // Single-select dropdown filter
+              return cellValue === value;
+            }
+          } else if (type === "date") {
+            if (operator === 'is_empty') {
+              return !cellValue || cellValue === '';
+            } else if (operator === 'is_not_empty') {
+              return cellValue && cellValue !== '';
+            } else if (value) {
+              const dateValue = cellValue ? new Date(cellValue as string) : null;
+              if (!dateValue) return false;
+
+              if (value.start && value.end) {
+                const start = new Date(value.start);
+                const end = new Date(value.end);
+                return dateValue >= start && dateValue <= end;
+              } else if (value.start) {
+                return dateValue >= new Date(value.start);
+              } else if (value.end) {
+                return dateValue <= new Date(value.end);
+              }
+            }
+          } else if (type === "text" && operator) {
+            const textValue = String(cellValue || '').toLowerCase();
+            const searchValue = String(value || '').toLowerCase();
+            
+            if (operator === 'is_empty') {
+              return !cellValue || cellValue === '';
+            } else if (operator === 'is_not_empty') {
+              return cellValue && cellValue !== '';
+            } else if (operator === 'contains') {
+              return textValue.includes(searchValue);
+            } else if (operator === 'equals') {
+              return textValue === searchValue;
+            } else if (operator === 'starts_with') {
+              return textValue.startsWith(searchValue);
+            } else if (operator === 'ends_with') {
+              return textValue.endsWith(searchValue);
+            }
+          } else if (type === "number" && operator) {
+            const numValue = cellValue ? parseFloat(cellValue as string) : null;
+            
+            if (operator === 'is_empty') {
+              return numValue === null || numValue === undefined;
+            } else if (operator === 'is_not_empty') {
+              return numValue !== null && numValue !== undefined;
+            } else if (numValue !== null && numValue !== undefined) {
+              if (operator === 'equals') {
+                return numValue === value;
+              } else if (operator === 'greater_than') {
+                return numValue > value;
+              } else if (operator === 'less_than') {
+                return numValue < value;
+              } else if (operator === 'greater_equal') {
+                return numValue >= value;
+              } else if (operator === 'less_equal') {
+                return numValue <= value;
+              } else if (operator === 'between' && value.min !== undefined && value.max !== undefined) {
+                return numValue >= value.min && numValue <= value.max;
+              }
+            }
+          } else if (!operator) {
+            // Backward compatibility for filters without operators
+            return cellValue === value;
+          }
+
+          return false;
+        });
+      });
+    }
+
+    return filtered;
+  }, [searchTerm, columnFilters, orderedIds, cache]);
 
   // Paginate filtered results - this will re-run when filteredIds or cache change
   const paginatedRows = useMemo(() => {
@@ -85,9 +185,9 @@ export function useInstantContacts({
       .map((id) => cache[id])
       .filter(Boolean); // Remove any undefined entries
     
-    console.log(`[useInstantContacts] Returning ${rows.length} paginated rows from ${filteredIds.length} filtered contacts`);
+    console.log(`[useInstantContacts] Returning ${rows.length} paginated rows from ${filteredIds.length} filtered contacts (${columnFilters.length} filters applied)`);
     return rows;
-  }, [filteredIds, currentPage, pageSize, cache]);
+  }, [filteredIds, currentPage, pageSize, cache, columnFilters.length]);
 
   return {
     rows: paginatedRows,

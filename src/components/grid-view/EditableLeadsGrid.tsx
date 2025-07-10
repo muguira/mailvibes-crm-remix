@@ -441,7 +441,8 @@ export function EditableLeadsGrid() {
   } = useInstantContacts({
     searchTerm: debouncedSearchTerm,
     pageSize,
-    currentPage
+    currentPage,
+    columnFilters: activeFilters.columnFilters || []
   });
   
   // Keep the original hook for mutations only

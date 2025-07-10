@@ -232,7 +232,7 @@ export function GridViewContainer({
   };
 
   // Handle filter changes
-  const handleApplyFilters = (filters: { columns: string[], values: Record<string, unknown> }) => {
+  const handleApplyFilters = (filters: { columns: string[], values: Record<string, unknown>, columnFilters?: any[] }) => {
     logger.log("Applying filters:", filters);
     if (externalOnApplyFilters) {
       externalOnApplyFilters(filters);
