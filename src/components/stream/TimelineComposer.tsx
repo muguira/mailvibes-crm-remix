@@ -19,7 +19,6 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useParams } from "react-router-dom";
-import { mockContactsById } from "@/components/stream/sample-data";
 import { logger } from '@/utils/logger';
 import { cn } from '@/lib/utils';
 import { useActivities } from '@/hooks/supabase/use-activities';
@@ -374,7 +373,7 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
       </div>
 
       {/* Rich Text Editor */}
-      <div className={`transition-all duration-300 ease-in-out ${
+      <div className={`outline-none transition-all duration-300 ease-in-out ${
         isCompact ? 'p-2' : 'p-4'
       }`}>
         <div
@@ -388,6 +387,8 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
           }`}
           style={{ 
             border: 'none',
+            outline: 'none',
+            boxShadow: 'none',
             resize: 'none'
           }}
           data-placeholder="Type a message..."
@@ -401,6 +402,16 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
               content: attr(data-placeholder);
               color: #9ca3af;
               pointer-events: none;
+            }
+            .rich-text-editor:focus {
+              outline: none !important;
+              border: none !important;
+              box-shadow: none !important;
+            }
+            .rich-text-editor {
+              outline: none !important;
+              border: none !important;
+              box-shadow: none !important;
             }
           `
         }} />
