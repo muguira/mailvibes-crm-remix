@@ -13,11 +13,6 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from '@/components/ui/popover';
-import {
   Command,
   CommandList,
   CommandGroup,
@@ -30,6 +25,7 @@ import { NewColumnModal } from './NewColumnModal';
 import { logger } from '@/utils/logger';
 import { cn } from '@/lib/utils';
 import { useContactsStore } from '@/stores/contactsStore';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from '@/hooks/use-toast';
 
 export interface MainGridViewProps {
@@ -1603,6 +1599,28 @@ const EditCell = ({
     setDropdownPosition({ top, left });
   }, [column.options?.length, clickCoordinates]);
 
+  // Calculate calendar position
+  const calculateCalendarPosition = useCallback(() => {
+    if (inputRef.current) {
+      const inputRect = inputRef.current.getBoundingClientRect();
+      let top = inputRect.bottom + 5;
+      let left = inputRect.left;
+
+      const calendarHeight = 350; // Approximate height of calendar
+      const calendarWidth = 300;
+
+      if (top + calendarHeight > window.innerHeight) {
+        top = inputRect.top - calendarHeight - 5;
+      }
+
+      if (left + calendarWidth > window.innerWidth) {
+        left = window.innerWidth - calendarWidth - 10;
+      }
+
+      setDropdownPosition({ top, left });
+    }
+  }, []);
+
   // Focus input on mount and handle initial state
   useEffect(() => {
     if (column.type === 'status') {
@@ -1621,6 +1639,7 @@ const EditCell = ({
         inputRef.current.focus();
         if (!directTyping) {
           // If double-clicked (not direct typing), open the calendar
+          calculateCalendarPosition();
           setDatePickerOpen(true);
         } else if (initialValue) {
           // If direct typing, set the initial character
@@ -1649,7 +1668,7 @@ const EditCell = ({
         inputRef.current.select();
       }
     }
-  }, [directTyping, initialValue, column.type, calculateDropdownPosition]);
+  }, [directTyping, initialValue, column.type, calculateDropdownPosition, calculateCalendarPosition]);
 
   // Handle clicks outside dropdown
   useEffect(() => {
@@ -1813,90 +1832,51 @@ const EditCell = ({
     
     case 'date':
       return (
-        <div className="relative w-full h-full">
-          <input
-            ref={inputRef}
-            type="text"
-            value={dateInputValue}
-            onChange={handleDateInputChange}
-            placeholder="MM/DD/YYYY"
-            className="w-full h-full px-2 bg-transparent border-none focus:outline-none focus:ring-0"
-            onBlur={(e) => {
-              // Only save and close if not clicking on calendar
-              if (!datePickerOpen) {
-                if (selectedDate) {
-                  onFinishEdit(rowId, columnId, selectedDate.toISOString());
-                }
-                onBlur(e);
-              }
-            }}
-            onKeyDown={handleDateKeyDown}
-          />
-          
-          {/* Calendar icon button */}
-          <button
-            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setDatePickerOpen(!datePickerOpen);
-            }}
-            type="button"
-          >
-            <CalendarIcon className="h-4 w-4 text-gray-500" />
-          </button>
-          
-          {/* Calendar popup */}
-          {datePickerOpen && (
-            <div
-              className="fixed bg-white border border-gray-200 rounded-md shadow-lg z-[10000] p-3"
-              style={{
-                top: (() => {
-                  const baseTop = clickCoordinates ? clickCoordinates.y - 160 : 0;
-                  const calendarHeight = 350; // Approximate height of calendar
-                  const paginationBarHeight = 60;
-                  const maxAllowedBottom = window.innerHeight - paginationBarHeight;
-                  
-                  // Check if calendar would go below pagination bar
-                  if (baseTop + calendarHeight > maxAllowedBottom) {
-                    // Place calendar above the click point instead
-                    const aboveTop = clickCoordinates ? clickCoordinates.y - calendarHeight - 10 : 10;
-                    return Math.max(10, aboveTop);
+        <Popover key={`${rowId}-${columnId}`} open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+          <PopoverTrigger asChild>
+            <div className="relative w-full h-full">
+              <input
+                ref={inputRef}
+                type="text"
+                value={dateInputValue}
+                onChange={handleDateInputChange}
+                placeholder="MM/DD/YYYY"
+                className="w-full h-full px-2 bg-transparent border-none focus:outline-none focus:ring-0"
+                onBlur={(e) => {
+                  // Only save and close if not clicking on calendar
+                  if (!datePickerOpen) {
+                    if (selectedDate) {
+                      onFinishEdit(rowId, columnId, selectedDate.toISOString());
+                    }
+                    onBlur(e);
                   }
-                  
-                  // Ensure calendar doesn't go above viewport
-                  return Math.max(10, baseTop);
-                })(),
-                left: (() => {
-                  const baseLeft = clickCoordinates ? clickCoordinates.x - 250 : 0;
-                  const calendarWidth = 300;
-                  
-                  // Ensure calendar doesn't go off screen
-                  if (baseLeft < 10) {
-                    return 10;
-                  }
-                  if (baseLeft + calendarWidth > window.innerWidth - 10) {
-                    return Math.max(10, window.innerWidth - calendarWidth - 10);
-                  }
-                  return baseLeft;
-                })(),
-                minWidth: '300px',
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <div className="mb-2">
-                <span className="text-sm font-medium text-gray-900">Select Date</span>
-              </div>
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateSelect}
-                initialFocus
-                className="rounded-md border-0"
+                }}
+                onKeyDown={handleDateKeyDown}
               />
+              
+              {/* Calendar icon button */}
+              <button
+                className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDatePickerOpen(!datePickerOpen);
+                }}
+                type="button"
+              >
+                <CalendarIcon className="h-4 w-4 text-gray-500" />
+              </button>
             </div>
-          )}
-        </div>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleDateSelect}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
       );
     
     case 'number':
