@@ -1536,7 +1536,6 @@ const EditCell = ({
   const [dateInputValue, setDateInputValue] = useState(
     value && column.type === 'date' ? format(new Date(value), 'MM/dd/yyyy') : ''
   );
-
   // Calculate dropdown position based on exact click location
   const calculateDropdownPosition = useCallback((clickEvent?: React.MouseEvent) => {
     let top = 0;
@@ -1599,28 +1598,6 @@ const EditCell = ({
     setDropdownPosition({ top, left });
   }, [column.options?.length, clickCoordinates]);
 
-  // Calculate calendar position
-  const calculateCalendarPosition = useCallback(() => {
-    if (inputRef.current) {
-      const inputRect = inputRef.current.getBoundingClientRect();
-      let top = inputRect.bottom + 5;
-      let left = inputRect.left;
-
-      const calendarHeight = 350; // Approximate height of calendar
-      const calendarWidth = 300;
-
-      if (top + calendarHeight > window.innerHeight) {
-        top = inputRect.top - calendarHeight - 5;
-      }
-
-      if (left + calendarWidth > window.innerWidth) {
-        left = window.innerWidth - calendarWidth - 10;
-      }
-
-      setDropdownPosition({ top, left });
-    }
-  }, []);
-
   // Focus input on mount and handle initial state
   useEffect(() => {
     if (column.type === 'status') {
@@ -1639,7 +1616,6 @@ const EditCell = ({
         inputRef.current.focus();
         if (!directTyping) {
           // If double-clicked (not direct typing), open the calendar
-          calculateCalendarPosition();
           setDatePickerOpen(true);
         } else if (initialValue) {
           // If direct typing, set the initial character
@@ -1668,9 +1644,9 @@ const EditCell = ({
         inputRef.current.select();
       }
     }
-  }, [directTyping, initialValue, column.type, calculateDropdownPosition, calculateCalendarPosition]);
+  }, [directTyping, initialValue, column.type, calculateDropdownPosition]);
 
-  // Handle clicks outside dropdown
+  // Handle clicks outside dropdown and calendar positioning
   useEffect(() => {
     if (!statusDropdownOpen && !datePickerOpen) return;
     
@@ -1684,17 +1660,22 @@ const EditCell = ({
       // Handle date picker
       if (datePickerOpen) {
         const target = event.target as HTMLElement;
-        // Don't close if clicking on calendar or input
+        // Don't close if clicking on calendar, input, or calendar button
         if (!target.closest('.react-day-picker') && 
+            !target.closest('[data-testid="calendar"]') &&
             !target.closest('button[type="button"]') && 
-            inputRef.current && !inputRef.current.contains(target)) {
+            inputRef.current && !inputRef.current.contains(target) &&
+            !target.closest('.fixed.z-\\[10010\\]')) {
           setDatePickerOpen(false);
         }
       }
     };
     
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, [statusDropdownOpen, datePickerOpen]);
 
   // Handle date input change
@@ -1726,6 +1707,8 @@ const EditCell = ({
       setDatePickerOpen(false);
     }
   };
+
+
 
   // Handle select change
   const handleSelectChange = (value: string) => {
@@ -1832,16 +1815,16 @@ const EditCell = ({
     
     case 'date':
       return (
-        <Popover key={`${rowId}-${columnId}`} open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
           <PopoverTrigger asChild>
-            <div className="relative w-full h-full">
+            <div className="relative w-full">
               <input
                 ref={inputRef}
                 type="text"
                 value={dateInputValue}
                 onChange={handleDateInputChange}
                 placeholder="MM/DD/YYYY"
-                className="w-full h-full px-2 bg-transparent border-none focus:outline-none focus:ring-0"
+                className="w-full px-2 bg-transparent border-none focus:outline-none focus:ring-0"
                 onBlur={(e) => {
                   // Only save and close if not clicking on calendar
                   if (!datePickerOpen) {
@@ -1868,7 +1851,7 @@ const EditCell = ({
               </button>
             </div>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
+          <PopoverContent className="w-auto p-0" align="start" side="bottom">
             <Calendar
               mode="single"
               selected={selectedDate}

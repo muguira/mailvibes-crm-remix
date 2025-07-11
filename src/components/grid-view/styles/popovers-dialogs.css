@@ -17,10 +17,10 @@
   z-index: 10003 !important;
 }
 
-/* Popover content wrapper - ONLY for grid context */
-.grid-container [data-radix-popper-content-wrapper],
-.main-grid-view [data-radix-popper-content-wrapper],
-.grid-view [data-radix-popper-content-wrapper] {
+/* Popover content wrapper - ONLY for grid context (excluding date calendars) */
+.grid-container [data-radix-popper-content-wrapper]:not(:has(.date-calendar-popup)),
+.main-grid-view [data-radix-popper-content-wrapper]:not(:has(.date-calendar-popup)),
+.grid-view [data-radix-popper-content-wrapper]:not(:has(.date-calendar-popup)) {
   z-index: 10005 !important;
   padding-bottom: 0 !important;
   margin-bottom: 0 !important;
@@ -29,6 +29,22 @@
   will-change: transform !important;
   left: 170px !important;
   top: -140px !important;
+}
+
+/* Allow natural positioning for date calendar popups */
+.grid-container [data-radix-popper-content-wrapper]:has(.date-calendar-popup),
+.main-grid-view [data-radix-popper-content-wrapper]:has(.date-calendar-popup),
+.grid-view [data-radix-popper-content-wrapper]:has(.date-calendar-popup) {
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  position: absolute !important;
+  z-index: 10010 !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+  transform-style: initial !important;
+  isolation: initial !important;
+  will-change: initial !important;
 }
 
 /* Force smaller dialog on mobile */
