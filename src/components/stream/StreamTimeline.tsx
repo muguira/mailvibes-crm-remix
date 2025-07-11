@@ -39,7 +39,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
   });
 
   // Get toggle pin function from activities hook
-  const { togglePin } = useActivities(contactId);
+  const { togglePin, editActivity, deleteActivity } = useActivities(contactId);
 
   // Handle scroll to make composer compact
   useEffect(() => {
@@ -137,6 +137,42 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     togglePin({ activityId, isPinned: newPinState });
   };
 
+  // Handle edit activity
+  const handleEditActivity = (activityId: string, newContent: string) => {
+    // Find the activity to verify it exists
+    const activity = activities.find(a => a.id === activityId);
+    
+    if (!activity) {
+      console.error('Activity not found for ID:', activityId);
+      return;
+    }
+    
+    if (activity.source !== 'internal') {
+      console.error('Cannot edit non-internal activity:', activity);
+      return;
+    }
+    
+    editActivity({ activityId, content: newContent });
+  };
+
+  // Handle delete activity
+  const handleDeleteActivity = (activityId: string) => {
+    // Find the activity to verify it exists
+    const activity = activities.find(a => a.id === activityId);
+    
+    if (!activity) {
+      console.error('Activity not found for ID:', activityId);
+      return;
+    }
+    
+    if (activity.source !== 'internal') {
+      console.error('Cannot delete non-internal activity:', activity);
+      return;
+    }
+    
+    deleteActivity(activityId);
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Timeline composer */}
@@ -195,6 +231,8 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
                       activityUserName={getUserName(activity)}
                       contactName={contactName}
                       onTogglePin={handleTogglePin}
+                      onEditActivity={handleEditActivity}
+                      onDeleteActivity={handleDeleteActivity}
                     />
                   </div>
                 );
