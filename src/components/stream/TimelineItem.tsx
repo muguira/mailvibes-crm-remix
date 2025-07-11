@@ -22,6 +22,7 @@ import {
 import { cn } from '@/lib/utils';
 import { TimelineActivity } from '@/hooks/use-timeline-activities';
 import EmailRenderer from '@/components/timeline/EmailRenderer';
+import { MarkdownEditor } from '@/components/markdown';
 
 interface TimelineItemProps {
   activity: TimelineActivity;
@@ -456,12 +457,14 @@ export default function TimelineItem({
             {isEditing ? (
               /* Edit mode */
               <div className="space-y-3">
-                <textarea
+                <MarkdownEditor
                   value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  rows={4}
+                  onChange={setEditContent}
                   placeholder="Edit your note..."
+                  minHeight="100px"
+                  showToolbar={true}
+                  isCompact={false}
+                  autoFocus={true}
                 />
                 <div className="flex gap-2">
                   <button

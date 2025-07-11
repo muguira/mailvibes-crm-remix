@@ -270,7 +270,6 @@ export function useActivities(contactId?: string) {
         .from("user_activities")
         .update({
           new_value: content,
-          updated_at: new Date().toISOString(),
         })
         .eq("id", activityId)
         .eq("user_id", user.id) // Ensure user can only edit their own activities
