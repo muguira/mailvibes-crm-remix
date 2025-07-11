@@ -20,6 +20,7 @@ import StreamView from "@/pages/dashboard/StreamView"; // Import the new StreamV
 import Integrations from "@/pages/dashboard/Integrations";
 import Imports from "@/pages/dashboard/Imports";
 import Settings from "@/pages/dashboard/Settings";
+import AccountProperties from "@/pages/dashboard/AccountProperties";
 import Landing from "@/pages/Landing";
 import Import from "@/pages/Import";
 import GmailImport from "@/pages/dashboard/GmailImport";
@@ -64,6 +65,7 @@ function App() {
                   <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
                   <Route path="/settings/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
                   <Route path="/settings/imports" element={<PrivateRoute><Imports /></PrivateRoute>} />
+                  <Route path="/settings/account-properties" element={<PrivateRoute><AccountProperties /></PrivateRoute>} />
                   <Route path="/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

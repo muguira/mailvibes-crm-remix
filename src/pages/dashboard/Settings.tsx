@@ -79,6 +79,17 @@ const Settings = () => {
                                                 Billing
                                             </button>
                                             <button className="w-full px-3 py-2 text-left text-sm text-gray-600 rounded-md hover:bg-gray-50 hover:text-gray-900">
+                                                Payment Methods
+                                            </button>
+                                            <button
+                                                className={cn(
+                                                    "w-full px-3 py-2 text-left text-sm rounded-md transition-colors",
+                                                    isActive('/settings/account-properties') 
+                                                        ? "bg-gray-100 text-gray-900 font-medium" 
+                                                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                                )}
+                                                onClick={() => navigate('/settings/account-properties')}
+                                            >
                                                 Account Properties
                                             </button>
                                             <button
