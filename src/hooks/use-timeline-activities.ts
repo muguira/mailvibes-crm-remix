@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useActivities, Activity } from "@/hooks/supabase/use-activities";
 import { useHybridContactEmails } from "@/hooks/use-hybrid-contact-emails";
+import { usePinnedEmails } from "@/hooks/supabase/use-pinned-emails";
 import { useStore } from "@/stores";
 import { GmailEmail } from "@/services/google/gmailApi";
 import { logger } from "@/utils/logger";
@@ -20,6 +21,14 @@ export interface TimelineActivity {
     email: string;
   };
   to?: Array<{
+    name?: string;
+    email: string;
+  }>;
+  cc?: Array<{
+    name?: string;
+    email: string;
+  }>;
+  bcc?: Array<{
     name?: string;
     email: string;
   }>;
@@ -93,6 +102,9 @@ export function useTimelineActivities(
     autoFetch: includeEmails && hasGmailAccounts,
   });
 
+  // Get pinned emails
+  const { isEmailPinned } = usePinnedEmails(contactEmail);
+
   // Convert internal activities to timeline format
   const timelineInternalActivities: TimelineActivity[] = useMemo(() => {
     return (internalActivities || []).map((activity: Activity) => ({
@@ -117,9 +129,12 @@ export function useTimelineActivities(
       content: email.snippet,
       timestamp: email.date,
       source: "gmail" as const,
+      is_pinned: isEmailPinned(email.id), // Check if email is pinned
       subject: email.subject,
       from: email.from,
       to: email.to,
+      cc: email.cc,
+      bcc: email.bcc,
       snippet: email.snippet,
       isRead: email.isRead,
       isImportant: email.isImportant,
@@ -128,7 +143,7 @@ export function useTimelineActivities(
       labels: email.labels,
       attachments: email.attachments,
     }));
-  }, [emails, includeEmails, hasGmailAccounts]);
+  }, [emails, includeEmails, hasGmailAccounts, isEmailPinned]);
 
   // Combine and sort activities chronologically
   const allActivities: TimelineActivity[] = useMemo(() => {

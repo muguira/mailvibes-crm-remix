@@ -4,6 +4,7 @@ import TimelineItem from './TimelineItem';
 import TimelineComposer from './TimelineComposer';
 import { useTimelineActivities } from "@/hooks/use-timeline-activities";
 import { useActivities } from "@/hooks/supabase/use-activities";
+import { usePinnedEmails } from "@/hooks/supabase/use-pinned-emails";
 import { useAuth } from "@/components/auth";
 import { 
   Loader2, 
@@ -40,6 +41,9 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
 
   // Get toggle pin function from activities hook
   const { togglePin, editActivity, deleteActivity } = useActivities(contactId);
+  
+  // Get email pin functions
+  const { toggleEmailPin } = usePinnedEmails(contactEmail);
 
   // Handle scroll to make composer compact
   useEffect(() => {
@@ -129,12 +133,16 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
       return;
     }
     
-    if (activity.source !== 'internal') {
-      console.error('Cannot pin non-internal activity:', activity);
-      return;
+    if (activity.source === 'internal') {
+      // Handle internal activity pin
+      togglePin({ activityId, isPinned: newPinState });
+    } else if (activity.source === 'gmail' && activity.type === 'email') {
+      // Handle Gmail email pin
+      const emailId = activityId.replace('email-', ''); // Remove 'email-' prefix
+      toggleEmailPin({ emailId, isPinned: newPinState });
+    } else {
+      console.error('Cannot pin this type of activity:', activity);
     }
-    
-    togglePin({ activityId, isPinned: newPinState });
   };
 
   // Handle edit activity
