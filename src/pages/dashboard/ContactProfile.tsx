@@ -7,6 +7,8 @@ import {  Phone, Mail, MapPin, Linkedin, Building, Briefcase } from "lucide-reac
 import { ContactDetails, ContactDetailsDialog } from "@/components/list/dialogs/contact-details-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { logger } from '@/utils/logger';
+import { triggerContactSync } from "@/workers/emailSyncWorker";
+import { useStore } from "@/stores";
 import { 
   useContactProfileStore, 
   useContactProfileContact, 
@@ -25,6 +27,9 @@ export default function ContactProfile() {
   const { initialize, updateContactDetails, clearError } = useContactProfileActions();
   const { isInitialized, currentContactId } = useContactProfileInitialization();
   
+  // Gmail integration
+  const { connectedAccounts, authUser } = useStore();
+  
   // Get primary field accessors from the store
   const getPrimaryEmail = useContactProfileStore(state => state.contactProfileGetPrimaryEmail);
   const getPrimaryPhone = useContactProfileStore(state => state.contactProfileGetPrimaryPhone);
@@ -40,6 +45,25 @@ export default function ContactProfile() {
       });
     }
   }, [id, isInitialized, currentContactId, initialize]);
+
+  // Trigger email sync when entering contact profile
+  useEffect(() => {
+    if (!id || !contact?.email || !authUser?.id || connectedAccounts.length === 0) {
+      return;
+    }
+
+    // Trigger email sync for this contact to get latest emails
+    try {
+      triggerContactSync(
+        authUser.id,
+        connectedAccounts[0].email,
+        contact.email
+      );
+      logger.info(`Triggered email sync for contact: ${contact.email}`);
+    } catch (error) {
+      logger.error('Failed to trigger email sync:', error);
+    }
+  }, [id, contact?.email, authUser?.id, connectedAccounts]);
 
   // Handle saving contact details through the store
   const handleSaveContactDetails = async (contactId: string, details: ContactDetails) => {
