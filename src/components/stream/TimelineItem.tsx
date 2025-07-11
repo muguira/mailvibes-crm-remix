@@ -15,7 +15,9 @@ import {
   Heart,
   Settings,
   Activity,
-  Pin
+  Pin,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TimelineActivity } from '@/hooks/use-timeline-activities';
@@ -29,6 +31,8 @@ interface TimelineItemProps {
   activityUserName?: string;
   contactName?: string;
   onTogglePin?: (activityId: string, currentState: boolean) => void;
+  onEditActivity?: (activityId: string, newContent: string) => void;
+  onDeleteActivity?: (activityId: string) => void;
 }
 
 // Markdown renderer for timeline items - Enhanced version
@@ -245,9 +249,15 @@ export default function TimelineItem({
   activitySummary, 
   activityUserName,
   contactName,
-  onTogglePin 
+  onTogglePin,
+  onEditActivity,
+  onDeleteActivity
 }: TimelineItemProps) {
   const [optimisticPinState, setOptimisticPinState] = useState(activity.is_pinned);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(activity.content || '');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   const Icon = getActivityIcon(activityIcon, activity.type);
   const colorClass = activityColor || getActivityColor(activity.type);
@@ -267,6 +277,68 @@ export default function TimelineItem({
   React.useEffect(() => {
     setOptimisticPinState(activity.is_pinned);
   }, [activity.is_pinned]);
+
+  // Update edit content when activity changes
+  React.useEffect(() => {
+    setEditContent(activity.content || '');
+  }, [activity.content]);
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showDropdown && !(event.target as Element).closest('.dropdown-menu')) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDropdown]);
+
+  const handlePinClick = () => {
+    setOptimisticPinState(!optimisticPinState);
+    if (onTogglePin) {
+      onTogglePin(activity.id, !optimisticPinState);
+    }
+    setShowDropdown(false);
+  };
+
+  const handleEditClick = () => {
+    setIsEditing(true);
+    setEditContent(activity.content || '');
+    setShowDropdown(false);
+  };
+
+  const handleSaveEdit = () => {
+    if (onEditActivity && editContent.trim()) {
+      onEditActivity(activity.id, editContent.trim());
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditContent(activity.content || '');
+  };
+
+  const handleRemoveClick = () => {
+    setShowDeleteConfirm(true);
+    setShowDropdown(false);
+  };
+
+  const handleConfirmDelete = () => {
+    if (onDeleteActivity) {
+      onDeleteActivity(activity.id);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+  };
+
+  // Only show edit/delete for internal activities (user-created notes)
+  const canEditDelete = activity.source === 'internal' && activity.type === 'note';
   
   return (
     <li className="relative pl-12 pb-8  last:pb-0">
@@ -289,26 +361,54 @@ export default function TimelineItem({
           ? 'border-amber-200 bg-amber-50/30' 
           : 'border-gray-200'
       }`}>
-        {/* Pin button - top right corner */}
-        {onTogglePin && activity.source === 'internal' && (
+        {/* Dropdown menu button - top right corner */}
+        <div className="absolute top-2 right-2 dropdown-menu">
           <button
-            onClick={() => {
-              // Update optimistic state immediately for instant feedback
-              setOptimisticPinState(!optimisticPinState);
-              onTogglePin(activity.id, !optimisticPinState);
-            }}
-            className={`absolute top-2 right-2 p-1.5 rounded-full transition-all duration-200 hover:scale-110 ${
-              optimisticPinState
-                ? 'text-amber-600 bg-amber-100 hover:bg-amber-200'
-                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-            }`}
-            title={optimisticPinState ? 'Unpin activity' : 'Pin activity'}
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-200"
+            title="More options"
           >
-            <Pin className={`w-3.5 h-3.5 transition-transform ${
-              optimisticPinState ? 'rotate-45' : ''
-            }`} />
+            <MoreHorizontal className="w-4 h-4" />
           </button>
-        )}
+          
+          {/* Dropdown menu */}
+          {showDropdown && (
+            <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[140px]">
+              {/* Pin/Unpin option */}
+              {activity.source === 'internal' && (
+                <button
+                  onClick={handlePinClick}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <Pin className={`w-4 h-4 ${optimisticPinState ? 'text-amber-600' : 'text-gray-500'}`} />
+                  <span>{optimisticPinState ? 'Unpin' : 'Pin'}</span>
+                </button>
+              )}
+              
+              {/* Edit option */}
+              {canEditDelete && (
+                <button
+                  onClick={handleEditClick}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4 text-gray-500" />
+                  <span>Edit</span>
+                </button>
+              )}
+              
+              {/* Remove option */}
+              {canEditDelete && (
+                <button
+                  onClick={handleRemoveClick}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Remove</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Pinned indicator badge */}
         {optimisticPinState && (
@@ -353,17 +453,45 @@ export default function TimelineItem({
         {/* Activity content */}
         {displayContent && (
           <div className="mb-3 pl-7">
-            {activity.source === 'gmail' && activity.type === 'email' ? (
-              <EmailRenderer
-                bodyHtml={activity.bodyHtml}
-                bodyText={activity.bodyText}
-                subject={activity.subject}
-              />
+            {isEditing ? (
+              /* Edit mode */
+              <div className="space-y-3">
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  rows={4}
+                  placeholder="Edit your note..."
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveEdit}
+                    className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-md hover:bg-teal-700 transition-colors"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : (
-              <div 
-                className="text-sm text-gray-800 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(displayContent) }}
-              />
+              /* Display mode */
+              activity.source === 'gmail' && activity.type === 'email' ? (
+                <EmailRenderer
+                  bodyHtml={activity.bodyHtml}
+                  bodyText={activity.bodyText}
+                  subject={activity.subject}
+                />
+              ) : (
+                <div 
+                  className="text-sm text-gray-800 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(displayContent) }}
+                />
+              )
             )}
           </div>
         )}
@@ -378,11 +506,36 @@ export default function TimelineItem({
             <Heart className="h-3 w-3" />
             <span>5</span>
           </button>
-          <button className="flex items-center gap-1 hover:text-teal-600 transition-colors">
-            <MoreHorizontal className="h-3 w-3" />
-          </button>
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Delete Activity
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete this activity? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCancelDelete}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </li>
   );
 }
