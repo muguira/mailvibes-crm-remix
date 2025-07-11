@@ -14,6 +14,7 @@ interface ColumnFilter {
   columnId: string;
   value: any;
   type?: string;
+  operator?: string;
 }
 
 interface FilterParams {
@@ -127,32 +128,71 @@ export function useLeadsRows() {
           // Apply column filters if provided
           if (filters?.columnFilters && filters.columnFilters.length > 0) {
             for (const filter of filters.columnFilters) {
-              const { columnId, value, type } = filter;
+              const { columnId, value, type, operator } = filter;
 
-              if (
-                type === "status" &&
-                Array.isArray(value) &&
-                value.length > 0
-              ) {
+              if (type === "status" && Array.isArray(value) && value.length > 0) {
                 // For status filters with multiple values, use IN
                 query = query.in(columnId, value);
+              } else if (type === "dropdown" && value && value !== '') {
+                // For single-value dropdown filters, use exact match
+                query = query.eq(columnId, value);
               } else if (type === "date" && value) {
-                // For date filters
-                if (value.start && value.end) {
-                  query = query
-                    .gte(columnId, value.start)
-                    .lte(columnId, value.end);
+                // Handle different date operators
+                if (operator === 'is_empty') {
+                  query = query.is(columnId, null);
+                } else if (operator === 'is_not_empty') {
+                  query = query.not(columnId, 'is', null);
+                } else if (value.start && value.end) {
+                  // Between dates
+                  query = query.gte(columnId, value.start).lte(columnId, value.end);
                 } else if (value.start) {
+                  // After date
                   query = query.gte(columnId, value.start);
                 } else if (value.end) {
+                  // Before date
                   query = query.lte(columnId, value.end);
+                }
+              } else if (type === "text" && operator) {
+                // Handle different text operators
+                if (operator === 'is_empty') {
+                  query = query.or(`${columnId}.is.null,${columnId}.eq.`);
+                } else if (operator === 'is_not_empty') {
+                  query = query.not(columnId, 'is', null).not(columnId, 'eq', '');
+                } else if (operator === 'contains') {
+                  query = query.ilike(columnId, `%${value}%`);
+                } else if (operator === 'equals') {
+                  query = query.eq(columnId, value);
+                } else if (operator === 'starts_with') {
+                  query = query.ilike(columnId, `${value}%`);
+                } else if (operator === 'ends_with') {
+                  query = query.ilike(columnId, `%${value}`);
+                }
+              } else if (type === "number" && operator) {
+                // Handle different number operators
+                if (operator === 'is_empty') {
+                  query = query.is(columnId, null);
+                } else if (operator === 'is_not_empty') {
+                  query = query.not(columnId, 'is', null);
+                } else if (operator === 'equals') {
+                  query = query.eq(columnId, value);
+                } else if (operator === 'greater_than') {
+                  query = query.gt(columnId, value);
+                } else if (operator === 'less_than') {
+                  query = query.lt(columnId, value);
+                } else if (operator === 'greater_equal') {
+                  query = query.gte(columnId, value);
+                } else if (operator === 'less_equal') {
+                  query = query.lte(columnId, value);
+                } else if (operator === 'between' && value.min !== undefined && value.max !== undefined) {
+                  query = query.gte(columnId, value.min).lte(columnId, value.max);
                 }
               } else if (
                 value !== null &&
                 value !== undefined &&
-                value !== ""
+                value !== "" &&
+                !operator
               ) {
-                // For other filters, use exact match
+                // For other filters without operators, use exact match (backward compatibility)
                 query = query.eq(columnId, value);
               }
             }
@@ -263,26 +303,77 @@ export function useLeadsRows() {
           if (filters?.columnFilters && filters.columnFilters.length > 0) {
             filteredRows = filteredRows.filter((row) => {
               return filters.columnFilters!.every((filter) => {
-                const value = row[filter.columnId];
+                const { columnId, value, type, operator } = filter;
+                const cellValue = row[columnId];
 
-                if (filter.type === "status" && Array.isArray(filter.value)) {
-                  return filter.value.includes(value);
-                } else if (filter.type === "date" && filter.value) {
-                  const dateValue = value ? new Date(value) : null;
-                  if (!dateValue) return false;
+                if (type === "status" && Array.isArray(value)) {
+                  return value.includes(cellValue);
+                } else if (type === "dropdown" && value && value !== '') {
+                  return cellValue === value;
+                } else if (type === "date") {
+                  if (operator === 'is_empty') {
+                    return !cellValue || cellValue === '';
+                  } else if (operator === 'is_not_empty') {
+                    return cellValue && cellValue !== '';
+                  } else if (value) {
+                    const dateValue = cellValue ? new Date(cellValue) : null;
+                    if (!dateValue) return false;
 
-                  if (filter.value.start && filter.value.end) {
-                    const start = new Date(filter.value.start);
-                    const end = new Date(filter.value.end);
-                    return dateValue >= start && dateValue <= end;
-                  } else if (filter.value.start) {
-                    return dateValue >= new Date(filter.value.start);
-                  } else if (filter.value.end) {
-                    return dateValue <= new Date(filter.value.end);
+                    if (value.start && value.end) {
+                      const start = new Date(value.start);
+                      const end = new Date(value.end);
+                      return dateValue >= start && dateValue <= end;
+                    } else if (value.start) {
+                      return dateValue >= new Date(value.start);
+                    } else if (value.end) {
+                      return dateValue <= new Date(value.end);
+                    }
                   }
+                } else if (type === "text" && operator) {
+                  const textValue = String(cellValue || '').toLowerCase();
+                  const searchValue = String(value || '').toLowerCase();
+                  
+                  if (operator === 'is_empty') {
+                    return !cellValue || cellValue === '';
+                  } else if (operator === 'is_not_empty') {
+                    return cellValue && cellValue !== '';
+                  } else if (operator === 'contains') {
+                    return textValue.includes(searchValue);
+                  } else if (operator === 'equals') {
+                    return textValue === searchValue;
+                  } else if (operator === 'starts_with') {
+                    return textValue.startsWith(searchValue);
+                  } else if (operator === 'ends_with') {
+                    return textValue.endsWith(searchValue);
+                  }
+                } else if (type === "number" && operator) {
+                  const numValue = cellValue ? parseFloat(cellValue) : null;
+                  
+                  if (operator === 'is_empty') {
+                    return numValue === null || numValue === undefined;
+                  } else if (operator === 'is_not_empty') {
+                    return numValue !== null && numValue !== undefined;
+                  } else if (numValue !== null && numValue !== undefined) {
+                    if (operator === 'equals') {
+                      return numValue === value;
+                    } else if (operator === 'greater_than') {
+                      return numValue > value;
+                    } else if (operator === 'less_than') {
+                      return numValue < value;
+                    } else if (operator === 'greater_equal') {
+                      return numValue >= value;
+                    } else if (operator === 'less_equal') {
+                      return numValue <= value;
+                    } else if (operator === 'between' && value.min !== undefined && value.max !== undefined) {
+                      return numValue >= value.min && numValue <= value.max;
+                    }
+                  }
+                } else if (!operator) {
+                  // Backward compatibility for filters without operators
+                  return cellValue === value;
                 }
 
-                return value === filter.value;
+                return false;
               });
             });
           }

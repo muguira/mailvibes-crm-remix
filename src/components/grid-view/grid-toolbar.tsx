@@ -34,7 +34,7 @@ interface GridToolbarProps {
   onSearchChange: (term: string) => void;
   filterCount: number;
   columns: Column[];
-  onApplyFilters: (filters: { columns: string[], values: Record<string, any> }) => void;
+  onApplyFilters: (filters: { columns: string[], values: Record<string, any>, columnFilters?: any[] }) => void;
   activeFilters: { columns: string[], values: Record<string, any> };
   hiddenColumns?: Column[];
   onUnhideColumn?: (columnId: string) => void;
@@ -127,16 +127,127 @@ export function GridToolbar({
     return () => window.removeEventListener('resize', checkMobile);
   }, [searchTerm]);
   
-  // Filter columns to show only those with filterable types
-  const filterColumns = columns.filter(col => 
-    ['text', 'number', 'date', 'status', 'currency'].includes(col.type)
-  );
+  // Filter columns to show only those with filterable types, excluding contact info columns
+  const filterColumns = columns.filter(col => {
+    // Exclude contact info columns that are covered by search
+    const excludedColumns = ['name', 'phone', 'email', 'linkedin', 'x', 'instagram', 'facebook', 'twitter'];
+    
+    // Only include filterable column types and exclude contact info columns
+    return ['text', 'number', 'date', 'status', 'currency'].includes(col.type) && 
+           !excludedColumns.includes(col.id);
+  });
   
   // Helper function to apply filters
   function handleApplyFilters() {
+    // Convert the filter values to the expected backend format
+    const columnFilters = selectedColumns.map(columnId => {
+      const filterValue = filterValues[columnId];
+      const column = columns.find(col => col.id === columnId);
+      
+      if (!filterValue || !column) return null;
+      
+      // Convert based on filter type
+      if (filterValue.type === 'text') {
+        if (filterValue.operator === 'is_empty') {
+          return { columnId, value: null, type: 'text', operator: 'is_empty' };
+        } else if (filterValue.operator === 'is_not_empty') {
+          return { columnId, value: null, type: 'text', operator: 'is_not_empty' };
+        } else if (filterValue.text?.trim()) {
+          return { 
+            columnId, 
+            value: filterValue.text.trim(), 
+            type: 'text', 
+            operator: filterValue.operator 
+          };
+        }
+      } else if (filterValue.type === 'dropdown') {
+        // Handle both single-select and multi-select dropdown filters
+        if (filterValue.values && Array.isArray(filterValue.values) && filterValue.values.length > 0) {
+          // Multi-select dropdown
+          return { 
+            columnId, 
+            value: filterValue.values, 
+            type: 'dropdown' 
+          };
+        } else if (filterValue.value && filterValue.value !== '' && filterValue.value !== '__all__') {
+          // Single-select dropdown
+          return { 
+            columnId, 
+            value: filterValue.value, 
+            type: 'dropdown' 
+          };
+        }
+      } else if (filterValue.type === 'status') {
+        if (filterValue.statuses?.length > 0) {
+          return { 
+            columnId, 
+            value: filterValue.statuses, 
+            type: 'status' 
+          };
+        }
+      } else if (filterValue.type === 'date') {
+        if (filterValue.operator === 'is_empty') {
+          return { columnId, value: null, type: 'date', operator: 'is_empty' };
+        } else if (filterValue.operator === 'is_not_empty') {
+          return { columnId, value: null, type: 'date', operator: 'is_not_empty' };
+        } else if (filterValue.startDate || filterValue.endDate) {
+          const dateFilter: any = { 
+            columnId, 
+            type: 'date',
+            operator: filterValue.operator
+          };
+          
+          if (filterValue.operator === 'between') {
+            dateFilter.value = {
+              start: filterValue.startDate,
+              end: filterValue.endDate
+            };
+          } else if (filterValue.operator === 'before') {
+            dateFilter.value = { end: filterValue.startDate };
+          } else if (filterValue.operator === 'after') {
+            dateFilter.value = { start: filterValue.startDate };
+          } else if (filterValue.operator === 'on') {
+            dateFilter.value = {
+              start: filterValue.startDate,
+              end: filterValue.startDate
+            };
+          }
+          
+          return dateFilter;
+        }
+      } else if (filterValue.type === 'number') {
+        if (filterValue.operator === 'is_empty') {
+          return { columnId, value: null, type: 'number', operator: 'is_empty' };
+        } else if (filterValue.operator === 'is_not_empty') {
+          return { columnId, value: null, type: 'number', operator: 'is_not_empty' };
+        } else if (filterValue.number1 !== undefined) {
+          const numberFilter: any = { 
+            columnId, 
+            type: 'number',
+            operator: filterValue.operator
+          };
+          
+          if (filterValue.operator === 'between') {
+            numberFilter.value = {
+              min: filterValue.number1,
+              max: filterValue.number2
+            };
+          } else {
+            numberFilter.value = filterValue.number1;
+          }
+          
+          return numberFilter;
+        }
+      }
+      
+      return null;
+    }).filter(filter => filter !== null);
+    
+    // Apply the filters
     onApplyFilters({
       columns: selectedColumns,
-      values: filterValues
+      values: filterValues,
+      columnFilters // Add the converted filters for backend
     });
   }
   
@@ -268,6 +379,72 @@ export function GridToolbar({
         </div>
         
         <div className="flex items-center space-x-2">
+          {/* Show applied filters to the left of the Filter button */}
+          {selectedColumns.length > 0 && (
+            <div className="flex items-center gap-2">
+              {selectedColumns.map(columnId => {
+                const column = columns.find(col => col.id === columnId);
+                const filterValue = filterValues[columnId];
+                if (!column || !filterValue) return null;
+                
+                let badgeText = column.title;
+                
+                // Add descriptive text based on filter value
+                if (filterValue.type === 'text' && filterValue.text) {
+                  badgeText += `: ${filterValue.operator} "${filterValue.text}"`;
+                } else if (filterValue.type === 'dropdown') {
+                  if (Array.isArray(filterValue.values) && filterValue.values.length > 0) {
+                    // Multi-select dropdown
+                    badgeText += `: ${filterValue.values.length} selected`;
+                  } else if (filterValue.value && filterValue.value !== '' && filterValue.value !== '__all__') {
+                    // Single-select dropdown
+                    badgeText += `: ${filterValue.value}`;
+                  }
+                } else if (filterValue.type === 'status' && filterValue.statuses?.length > 0) {
+                  badgeText += `: ${filterValue.statuses.length} selected`;
+                } else if (filterValue.type === 'date') {
+                  if (filterValue.operator === 'between' && filterValue.startDate && filterValue.endDate) {
+                    badgeText += `: ${filterValue.operator}`;
+                  } else if (filterValue.startDate || filterValue.endDate) {
+                    badgeText += `: ${filterValue.operator}`;
+                  }
+                } else if (filterValue.type === 'number') {
+                  if (filterValue.operator === 'between' && filterValue.number1 && filterValue.number2) {
+                    badgeText += `: ${filterValue.number1} - ${filterValue.number2}`;
+                  } else if (filterValue.number1) {
+                    badgeText += `: ${filterValue.operator} ${filterValue.number1}`;
+                  }
+                }
+                
+                return (
+                  <Badge key={columnId} variant="outline" className="gap-1 max-w-[200px] bg-blue-50 text-blue-700 border-blue-200">
+                    <span className="truncate">{badgeText}</span>
+                    <X 
+                      size={12} 
+                      className="cursor-pointer flex-shrink-0 hover:text-red-600" 
+                      onClick={() => {
+                        // Remove this specific filter and apply changes immediately
+                        const newSelectedColumns = selectedColumns.filter(id => id !== columnId);
+                        const newFilterValues = { ...filterValues };
+                        delete newFilterValues[columnId];
+                        
+                        setSelectedColumns(newSelectedColumns);
+                        setFilterValues(newFilterValues);
+                        
+                        // Apply the updated filters immediately
+                        onApplyFilters({
+                          columns: newSelectedColumns,
+                          values: newFilterValues,
+                          columnFilters: []
+                        });
+                      }}
+                    />
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+          
           {/* Filter button */}
           <div className="flex items-center toolbar-button-container">
             <FilterPopupBase
@@ -287,6 +464,7 @@ export function GridToolbar({
               align="end"
               triggerClassName={`h-9 px-3 border border-gray-300 rounded-md text-sm flex items-center ${filterCount > 0 ? "has-filters" : ""}`}
               iconOnly={isMobile}
+              data={data}
             />
           </div>
           
