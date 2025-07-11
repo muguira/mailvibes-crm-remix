@@ -1,9 +1,12 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Link from '@tiptap/extension-link';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import Underline from '@tiptap/extension-underline';
+import { createLowlight } from 'lowlight';
 import { cn } from '@/lib/utils';
 import MarkdownToolbar from './MarkdownToolbar';
-import { htmlToMarkdown, markdownToHtml } from './utils/markdownConverter';
-import { detectActiveFormats, cleanupMarginsAndFormatting } from './utils/formatDetection';
-import { handleFormatting, handleKeyDown } from './utils/markdownUtils';
 
 interface MarkdownEditorProps {
   value: string;
@@ -28,322 +31,270 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   disabled = false,
   autoFocus = false
 }) => {
-  const editableRef = useRef<HTMLDivElement>(null);
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
   const [activeHeadingMode, setActiveHeadingMode] = useState<string | null>(null);
 
-  // Convert markdown to HTML for display
-  useEffect(() => {
-    if (editableRef.current && value !== getPlainText()) {
-      const htmlContent = markdownToHtml(value);
-      editableRef.current.innerHTML = htmlContent;
-      cleanupMarginsAndFormatting(editableRef.current);
+  const lowlight = createLowlight();
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        // Configure extensions to match current behavior
+        heading: {
+          levels: [1, 2, 3],
+          HTMLAttributes: {
+            class: (level: number) => {
+              const classes = {
+                1: "text-2xl font-bold mb-2 mt-4 text-gray-900",
+                2: "text-xl font-bold mb-2 mt-3 text-gray-900",
+                3: "text-lg font-bold mb-2 mt-3 text-gray-900",
+              };
+              return classes[level as keyof typeof classes] || '';
+            }
+          }
+        },
+        bulletList: {
+          HTMLAttributes: {
+            class: "list-disc list-outside my-3 pl-6"
+          }
+        },
+        orderedList: {
+          HTMLAttributes: {
+            class: "list-decimal list-outside my-3 pl-6"
+          }
+        },
+        listItem: {
+          HTMLAttributes: {
+            class: "mb-1"
+          }
+        },
+        blockquote: {
+          HTMLAttributes: {
+            class: "border-l-4 border-teal-500 pl-4 py-2 my-2 bg-teal-50 text-gray-700 italic"
+          }
+        },
+        code: {
+          HTMLAttributes: {
+            class: "bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-mono"
+          }
+        },
+        horizontalRule: {
+          HTMLAttributes: {
+            class: "border-t border-gray-300 my-4"
+          }
+        }
+      }),
+      Underline,
+      Link.configure({
+        HTMLAttributes: {
+          class: "text-teal-600 underline hover:text-teal-800 transition-colors",
+          target: "_blank",
+          rel: "noopener noreferrer"
+        }
+      }),
+      CodeBlockLowlight.configure({
+        lowlight,
+        HTMLAttributes: {
+          class: "bg-gray-100 text-gray-800 p-4 rounded-lg overflow-x-auto my-2"
+        }
+      })
+    ],
+    content: value,
+    editable: !disabled,
+    autofocus: autoFocus,
+    editorProps: {
+      attributes: {
+        class: cn(
+          "w-full focus:outline-none text-sm text-gray-900 prose prose-sm max-w-none rich-text-editor transition-all duration-300 ease-in-out",
+          disabled && "opacity-50 cursor-not-allowed"
+        ),
+        style: `border: none; outline: none; box-shadow: none; resize: none; min-height: ${minHeight}`,
+        'data-placeholder': placeholder,
+      },
+    },
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      onChange(html);
+    },
+    onSelectionUpdate: ({ editor }) => {
+      updateActiveFormats(editor);
+    },
+    onCreate: ({ editor }) => {
+      updateActiveFormats(editor);
     }
-  }, [value]);
+  });
 
-  // Auto focus if requested
-  useEffect(() => {
-    if (autoFocus && editableRef.current) {
-      editableRef.current.focus();
-    }
-  }, [autoFocus]);
-
-  // Get plain text (markdown) from HTML content
-  const getPlainText = (): string => {
-    if (!editableRef.current) return '';
-    return htmlToMarkdown(editableRef.current.innerHTML);
-  };
-
-  // Apply heading mode to current line
-  const applyHeadingModeToCurrentLine = () => {
-    if (!activeHeadingMode || !editableRef.current) return;
-
-    const selection = window.getSelection();
-    if (!selection || !selection.rangeCount) return;
-
-    const range = selection.getRangeAt(0);
-    let currentElement = range.startContainer;
+  // Update active formats based on current selection
+  const updateActiveFormats = (editor: any) => {
+    const formats = new Set<string>();
     
-    // Find the current line/element
-    if (currentElement.nodeType === Node.TEXT_NODE) {
-      currentElement = currentElement.parentNode;
-    }
-
-    // Find the container element (div, p, or heading)
-    const container = (currentElement as Element)?.closest("div, p, h1, h2, h3, h4, h5, h6");
-    if (!container) return;
-
-    const headingLevel = activeHeadingMode.charAt(activeHeadingMode.length - 1);
-    const headingTag = `h${headingLevel}`;
-    const headingClasses = {
-      h1: "text-2xl font-bold mb-2 mt-4 text-gray-900",
-      h2: "text-xl font-bold mb-2 mt-3 text-gray-900",
-      h3: "text-lg font-bold mb-2 mt-3 text-gray-900",
-    };
-
-    // If already the correct heading, do nothing
-    if (container.tagName.toLowerCase() === headingTag) {
-      return;
-    }
-
-    // Create new heading element
-    const newHeading = document.createElement(headingTag);
-    newHeading.className = headingClasses[headingTag as keyof typeof headingClasses];
-    newHeading.textContent = container.textContent || "";
-
-    // Store cursor position relative to text content
-    const textContent = container.textContent || "";
-    const cursorOffset = range.startOffset;
+    if (editor.isActive('bold')) formats.add('bold');
+    if (editor.isActive('italic')) formats.add('italic');
+    if (editor.isActive('underline')) formats.add('underline');
+    if (editor.isActive('strike')) formats.add('strikethrough');
+    if (editor.isActive('code')) formats.add('code');
+    if (editor.isActive('link')) formats.add('link');
+    if (editor.isActive('heading', { level: 1 })) formats.add('heading1');
+    if (editor.isActive('heading', { level: 2 })) formats.add('heading2');
+    if (editor.isActive('heading', { level: 3 })) formats.add('heading3');
+    if (editor.isActive('blockquote')) formats.add('quote');
+    if (editor.isActive('bulletList')) formats.add('bulletList');
+    if (editor.isActive('orderedList')) formats.add('numberedList');
     
-    // Replace the container with heading
-    container.replaceWith(newHeading);
-    
-    // Restore cursor position
-    const newRange = document.createRange();
-    const textNode = newHeading.firstChild;
-    if (textNode) {
-      const offset = Math.min(cursorOffset, textNode.textContent?.length || 0);
-      newRange.setStart(textNode, offset);
-      newRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(newRange);
-    }
-  };
-
-  // Handle input changes
-  const handleInput = () => {
-    // Apply heading mode if active
-    if (activeHeadingMode && editableRef.current) {
-      applyHeadingModeToCurrentLine();
-    }
-
-    const plainText = getPlainText();
-    onChange(plainText);
-    
-    // Detect active formats after input
-    setTimeout(() => {
-      cleanupMarginsAndFormatting(editableRef.current);
-      setActiveFormats(detectActiveFormats(editableRef.current));
-    }, 0);
-  };
-
-  // Handle selection changes
-  const handleSelectionChange = () => {
-    setActiveFormats(detectActiveFormats(editableRef.current));
-    cleanupMarginsAndFormatting(editableRef.current);
+    setActiveFormats(formats);
   };
 
   // Handle formatting commands
   const handleFormat = (format: string) => {
+    if (!editor) return;
+
     // Handle heading mode activation/deactivation
     if (format === 'heading1' || format === 'heading2' || format === 'heading3') {
-      const selection = window.getSelection();
-      const selectedText = selection?.toString().trim() || '';
+      const level = parseInt(format.charAt(format.length - 1)) as 1 | 2 | 3;
+      const selection = editor.state.selection;
       
-      if (selectedText === '') {
+      if (selection.empty) {
         // No text selected - toggle heading mode
         if (activeHeadingMode === format) {
           // Deactivate current heading mode
+          console.log('Deactivating heading mode:', format);
           setActiveHeadingMode(null);
         } else {
           // Activate new heading mode
+          console.log('Activating heading mode:', format);
           setActiveHeadingMode(format);
+          // Apply heading to current line
+          editor.chain().focus().toggleHeading({ level }).run();
         }
         return;
+      } else {
+        // Text selected - apply heading normally
+        editor.chain().focus().toggleHeading({ level }).run();
       }
+      return;
     }
 
-    handleFormatting(
-      format,
-      editableRef.current,
-      handleLinkRequest,
-      handleCodeBlockRequest
-    );
-    
-    // Update the text state and detect active formats
-    setTimeout(() => {
-      const plainText = getPlainText();
-      onChange(plainText);
-      setActiveFormats(detectActiveFormats(editableRef.current));
-    }, 0);
+    // Handle other formats
+    switch (format) {
+      case 'bold':
+        editor.chain().focus().toggleBold().run();
+        break;
+      case 'italic':
+        editor.chain().focus().toggleItalic().run();
+        break;
+      case 'underline':
+        editor.chain().focus().toggleUnderline().run();
+        break;
+      case 'strikethrough':
+        editor.chain().focus().toggleStrike().run();
+        break;
+      case 'code':
+        editor.chain().focus().toggleCode().run();
+        break;
+      case 'bulletList':
+        editor.chain().focus().toggleBulletList().run();
+        break;
+      case 'numberedList':
+        editor.chain().focus().toggleOrderedList().run();
+        break;
+      case 'quote':
+        editor.chain().focus().toggleBlockquote().run();
+        break;
+      case 'divider':
+        editor.chain().focus().setHorizontalRule().run();
+        break;
+    }
   };
 
   // Handle link requests
   const handleLinkRequest = (linkText: string, range: Range) => {
-    if (editableRef.current) {
-      editableRef.current.focus();
-      
-      const selection = window.getSelection();
-      if (selection) {
-        selection.removeAllRanges();
-        selection.addRange(range);
-        
-        // Create link element
-        const linkElement = document.createElement('a');
-        linkElement.href = linkText; // In this case, linkText contains the URL
-        linkElement.textContent = linkText;
-        linkElement.className = 'text-teal-600 underline hover:text-teal-800 transition-colors';
-        linkElement.target = '_blank';
-        linkElement.rel = 'noopener noreferrer';
-        
-        // Replace selection with link
-        range.deleteContents();
-        range.insertNode(linkElement);
-        
-        // Move cursor after the link
-        range.setStartAfter(linkElement);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-      }
-      
-      // Update the text state
-      setTimeout(() => {
-        const plainText = getPlainText();
-        onChange(plainText);
-      }, 0);
+    if (!editor) return;
+    
+    const url = linkText;
+    if (url) {
+      editor.chain().focus().setLink({ href: url }).run();
     }
   };
 
   // Handle code block requests
   const handleCodeBlockRequest = (code: string, range: Range) => {
-    if (!editableRef.current) return;
+    if (!editor) return;
     
-    editableRef.current.focus();
-    
-    // Create the code block elements
-    const preElement = document.createElement('pre');
-    preElement.className = 'bg-gray-100 text-gray-800 p-4 rounded-lg overflow-x-auto my-2';
-    
-    const codeElement = document.createElement('code');
-    codeElement.className = 'text-sm font-mono';
-    codeElement.textContent = code;
-    
-    preElement.appendChild(codeElement);
-    
-    // Insert the code block
-    const selection = window.getSelection();
-    if (selection) {
-      selection.removeAllRanges();
-      selection.addRange(range);
-      range.deleteContents();
-      range.insertNode(preElement);
-      
-      // Position cursor after the code block
-      const newRange = document.createRange();
-      newRange.setStartAfter(preElement);
-      newRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(newRange);
-    }
-    
-    // Update the text state
-    setTimeout(() => {
-      const plainText = getPlainText();
-      onChange(plainText);
-      setActiveFormats(detectActiveFormats(editableRef.current));
-    }, 0);
+    editor.chain().focus().setCodeBlock().run();
+    // Insert the code content
+    editor.commands.insertContent(code);
   };
 
-  // Handle paste events
-  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const pastedText = e.clipboardData.getData('text/plain');
-    
-    // Convert pasted markdown to HTML for visual preview
-    const htmlContent = markdownToHtml(pastedText);
-    
-    // Insert the processed content
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      range.deleteContents();
+  // Handle heading mode application on typing
+  useEffect(() => {
+    if (!editor || !activeHeadingMode) return;
+
+    const handleUpdate = () => {
+      const level = parseInt(activeHeadingMode.charAt(activeHeadingMode.length - 1)) as 1 | 2 | 3;
+      const { from, to } = editor.state.selection;
       
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = htmlContent;
-      
-      // Insert each child node
-      while (tempDiv.firstChild) {
-        range.insertNode(tempDiv.firstChild);
-        range.collapse(false);
+      // If we're typing and not in a heading, apply heading
+      if (from === to && !editor.isActive('heading', { level })) {
+        editor.chain().focus().toggleHeading({ level }).run();
       }
-    }
-    
-    // Update the text state
-    setTimeout(() => {
-      const plainText = getPlainText();
-      onChange(plainText);
-      cleanupMarginsAndFormatting(editableRef.current);
-    }, 0);
-  };
+    };
 
-  // Handle key events
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    // Handle Shift+Enter to deactivate heading mode and create normal paragraph
-    if (e.key === 'Enter' && e.shiftKey && activeHeadingMode) {
-      e.preventDefault();
-      setActiveHeadingMode(null);
+    editor.on('update', handleUpdate);
+    return () => {
+      editor.off('update', handleUpdate);
+    };
+  }, [editor, activeHeadingMode]);
+
+  // Handle Shift+Enter to deactivate heading mode
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      console.log('Key pressed:', event.key, 'Shift:', event.shiftKey, 'Active heading mode:', activeHeadingMode);
       
-      // Create a new normal paragraph
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
+      if (event.key === 'Enter' && event.shiftKey && activeHeadingMode) {
+        event.preventDefault();
+        event.stopPropagation();
         
-        const newParagraph = document.createElement("div");
-        newParagraph.className = "normal-paragraph";
-        newParagraph.style.cssText =
-          "margin: 0 !important; padding: 0 !important; margin-left: 0 !important; padding-left: 0 !important; list-style: none !important; text-indent: 0 !important; position: static !important; left: auto !important; transform: none !important; display: block !important;";
-        newParagraph.innerHTML = "<br>";
+        console.log('Deactivating heading mode and creating normal paragraph');
+        setActiveHeadingMode(null);
         
-        range.insertNode(newParagraph);
+        // Create a new paragraph and move cursor there
+        editor.chain().focus().splitBlock().run();
         
-        // Position cursor in the new paragraph
-        const newRange = document.createRange();
-        newRange.setStart(newParagraph, 0);
-        newRange.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(newRange);
-        
-        // Update content
+        // Ensure the new block is not a heading
         setTimeout(() => {
-          const plainText = getPlainText();
-          onChange(plainText);
+          if (editor.isActive('heading')) {
+            editor.chain().focus().setParagraph().run();
+          }
         }, 0);
       }
-      return;
-    }
+    };
 
-    handleKeyDown(e, editableRef.current, onChange, getPlainText);
-  };
+    const editorElement = editor.view.dom;
+    editorElement.addEventListener('keydown', handleKeyDown, true); // Use capture phase
+    
+    return () => {
+      editorElement.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [editor, activeHeadingMode]);
+
+  // Sync content when value changes externally
+  useEffect(() => {
+    if (editor && value !== editor.getHTML()) {
+      editor.commands.setContent(value, false);
+    }
+  }, [value, editor]);
 
   return (
     <div className={cn("bg-white rounded-lg border border-gray-200 shadow-sm", className)}>
       {/* Rich Text Editor */}
       <div className={cn("outline-none transition-all duration-300 ease-in-out", isCompact ? 'p-2' : 'p-4')}>
-        <div
-          ref={editableRef}
-          contentEditable={!disabled}
-          onInput={handleInput}
-          onKeyDown={handleKeyPress}
-          onPaste={handlePaste}
-          onMouseUp={handleSelectionChange}
-          onKeyUp={handleSelectionChange}
-          className={cn(
-            "w-full focus:outline-none text-sm text-gray-900 prose prose-sm max-w-none rich-text-editor transition-all duration-300 ease-in-out",
-            disabled && "opacity-50 cursor-not-allowed"
-          )}
-          style={{ 
-            border: 'none',
-            outline: 'none',
-            boxShadow: 'none',
-            resize: 'none',
-            minHeight: minHeight
-          }}
-          data-placeholder={placeholder}
-          suppressContentEditableWarning={true}
-        />
+        {/* Debug indicator */}
+        <div className="text-xs text-green-600 mb-1">Using TiptapEditor {activeHeadingMode && `(${activeHeadingMode} mode active)`}</div>
+        <EditorContent editor={editor} />
         
-        {/* Placeholder styling and rich text editor styles */}
+        {/* Preserve exact same styling */}
         <style dangerouslySetInnerHTML={{
           __html: `
             .rich-text-editor:empty:before {
@@ -444,11 +395,24 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               border: none !important;
               box-shadow: none !important;
             }
+            /* Tiptap specific styles to match design */
+            .ProseMirror {
+              outline: none !important;
+              border: none !important;
+              box-shadow: none !important;
+            }
+            .ProseMirror:empty:before {
+              content: attr(data-placeholder);
+              color: #9ca3af;
+              pointer-events: none;
+              height: 0;
+              float: left;
+            }
           `
         }} />
       </div>
 
-      {/* Formatting Toolbar */}
+      {/* Formatting Toolbar - Keep exact same structure */}
       {showToolbar && (
         <MarkdownToolbar
           activeFormats={activeHeadingMode ? new Set([...activeFormats, activeHeadingMode]) : activeFormats}

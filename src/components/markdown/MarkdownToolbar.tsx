@@ -23,22 +23,56 @@ import LinkModal from './modals/LinkModal';
 import CodeBlockModal from './modals/CodeBlockModal';
 
 interface MarkdownToolbarProps {
-  activeFormats: Set<string>;
+  editor: any;
   onFormat: (format: string) => void;
-  onLinkRequest: (selectedText: string, range: Range) => void;
+  onLinkRequest: (url: string, linkText: string) => void;
   onCodeBlockRequest: (selectedText: string, range: Range) => void;
   isCompact?: boolean;
   className?: string;
 }
 
 const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
-  activeFormats,
+  editor,
   onFormat,
   onLinkRequest,
   onCodeBlockRequest,
   isCompact = false,
   className
 }) => {
+  // Get active formats from editor following Tiptap best practices
+  const isFormatActive = (format: string): boolean => {
+    if (!editor) return false;
+    
+    switch (format) {
+      case 'bold':
+        return editor.isActive('bold');
+      case 'italic':
+        return editor.isActive('italic');
+      case 'underline':
+        return editor.isActive('underline');
+      case 'strikethrough':
+        return editor.isActive('strike');
+      case 'code':
+        return editor.isActive('code');
+      case 'link':
+        return editor.isActive('link');
+      case 'heading1':
+        return editor.isActive('heading', { level: 1 });
+      case 'heading2':
+        return editor.isActive('heading', { level: 2 });
+      case 'heading3':
+        return editor.isActive('heading', { level: 3 });
+      case 'quote':
+        return editor.isActive('blockquote');
+      case 'bulletList':
+        return editor.isActive('bulletList');
+      case 'numberedList':
+        return editor.isActive('orderedList');
+      default:
+        return false;
+    }
+  };
+
   const [isToolbarExpanded, setIsToolbarExpanded] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('markdown-toolbar-expanded') === 'true';
@@ -52,6 +86,8 @@ const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
   const [selectedTextForCode, setSelectedTextForCode] = useState('');
   const [currentCodeRange, setCurrentCodeRange] = useState<Range | null>(null);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [emojiButtonRef, setEmojiButtonRef] = useState<HTMLButtonElement | null>(null);
+  const [emojiPickerPosition, setEmojiPickerPosition] = useState({ top: 0, left: 0 });
   
   const isMobile = useIsMobile();
 
@@ -100,9 +136,7 @@ const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
   };
 
   const handleLinkConfirm = (url: string, linkText: string) => {
-    if (currentRange) {
-      onLinkRequest(linkText, currentRange);
-    }
+    onLinkRequest(url, linkText);
     setCurrentRange(null);
     setSelectedTextForLink('');
     setIsLinkModalOpen(false);
@@ -130,32 +164,44 @@ const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
   };
 
   const handleEmojiSelect = (emoji: string) => {
-    // Insert emoji at cursor position
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      const emojiNode = document.createTextNode(emoji);
-      
-      range.deleteContents();
-      range.insertNode(emojiNode);
-      range.setStartAfter(emojiNode);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
+    if (editor) {
+      editor.chain().focus().insertContent(emoji).run();
     }
-    
     setIsEmojiPickerOpen(false);
   };
 
+  const handleEmojiButtonClick = () => {
+    if (emojiButtonRef) {
+      const rect = emojiButtonRef.getBoundingClientRect();
+      setEmojiPickerPosition({
+        top: rect.top - 250, // 250px above the button
+        left: rect.left - 160 + (rect.width / 2) // Center the picker on the button
+      });
+    }
+    setIsEmojiPickerOpen(!isEmojiPickerOpen);
+  };
+
+  // Close emoji picker when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isEmojiPickerOpen && !(event.target as Element).closest('.emoji-picker')) {
+        setIsEmojiPickerOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isEmojiPickerOpen]);
+
   return (
-    <div className={cn("flex items-center justify-between border-t border-gray-100 transition-all duration-300 ease-in-out", className)}>
-      <div className="flex items-center gap-1 overflow-hidden">
+    <div className={cn("flex items-center border-t border-gray-100 transition-all duration-300 ease-in-out", className)}>
+      <div className="flex items-center gap-1 overflow-hidden w-full">
         {/* Basic Tools - Always Visible */}
         <div className="flex items-center gap-1">
           <button
             onClick={() => onFormat('bold')}
             className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('bold') 
+              isFormatActive('bold') 
                 ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
                 : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
             } ${isCompact ? 'p-1' : 'p-2'}`}
@@ -168,7 +214,7 @@ const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           <button
             onClick={() => onFormat('italic')}
             className={`rounded transition-all duration-300 ease-in-out ${
-              activeFormats.has('italic') 
+              isFormatActive('italic') 
                 ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
                 : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
             } ${isCompact ? 'p-1' : 'p-2'}`}
@@ -185,7 +231,7 @@ const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
               <button
                 onClick={() => onFormat('underline')}
                 className={`rounded transition-all duration-300 ease-in-out ${
-                  activeFormats.has('underline') 
+                  isFormatActive('underline') 
                     ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
                     : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
                 } ${isCompact ? 'p-1' : 'p-2'}`}
@@ -198,7 +244,7 @@ const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
               <button
                 onClick={() => onFormat('bulletList')}
                 className={`rounded transition-all duration-300 ease-in-out ${
-                  activeFormats.has('bulletList') 
+                  isFormatActive('bulletList') 
                     ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
                     : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
                 } ${isCompact ? 'p-1' : 'p-2'}`}
@@ -211,7 +257,7 @@ const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
               <button
                 onClick={() => onFormat('numberedList')}
                 className={`rounded transition-all duration-300 ease-in-out ${
-                  activeFormats.has('numberedList') 
+                  isFormatActive('numberedList') 
                     ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
                     : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
                 } ${isCompact ? 'p-1' : 'p-2'}`}
@@ -224,173 +270,200 @@ const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
             </>
           )}
           
-          {/* Expandable Tools */}
-          {(isToolbarExpanded || !isMobile) && (
-            <>
-              <button
-                onClick={() => onFormat('strikethrough')}
-                className={`rounded transition-all duration-300 ease-in-out ${
-                  activeFormats.has('strikethrough') 
-                    ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                } ${isCompact ? 'p-1' : 'p-2'}`}
-                title="Strikethrough"
+          {/* Emoji Picker - Always visible */}
+          <div className="relative emoji-picker">
+            <button
+              ref={setEmojiButtonRef}
+              onClick={handleEmojiButtonClick}
+              className={`rounded transition-all duration-300 ease-in-out hover:bg-gray-100 text-gray-600 hover:text-gray-900 ${
+                isCompact ? 'p-1' : 'p-2'
+              }`}
+              title="Insert Emoji"
+            >
+              <Smile className={`transition-all duration-300 ease-in-out ${
+                isCompact ? 'w-3 h-3' : 'w-4 h-4'
+              }`} />
+            </button>
+            
+            {isEmojiPickerOpen && (
+              <div 
+                className="fixed bg-white border border-gray-200 rounded-lg shadow-xl z-[9999] w-[320px] max-h-[240px] overflow-hidden"
+                style={{
+                  top: `${emojiPickerPosition.top}px`,
+                  left: `${emojiPickerPosition.left}px`,
+                }}
               >
-                <Strikethrough className={`transition-all duration-300 ease-in-out ${
-                  isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                }`} />
-              </button>
-              <button
-                onClick={() => onFormat('heading1')}
-                className={`rounded transition-all duration-300 ease-in-out ${
-                  activeFormats.has('heading1') 
-                    ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                } ${isCompact ? 'p-1' : 'p-2'}`}
-                title="Heading 1"
-              >
-                <Heading1 className={`transition-all duration-300 ease-in-out ${
-                  isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                }`} />
-              </button>
-              <button
-                onClick={() => onFormat('heading2')}
-                className={`rounded transition-all duration-300 ease-in-out ${
-                  activeFormats.has('heading2') 
-                    ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                } ${isCompact ? 'p-1' : 'p-2'}`}
-                title="Heading 2"
-              >
-                <Heading2 className={`transition-all duration-300 ease-in-out ${
-                  isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                }`} />
-              </button>
-              <button
-                onClick={() => onFormat('heading3')}
-                className={`rounded transition-all duration-300 ease-in-out ${
-                  activeFormats.has('heading3') 
-                    ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                } ${isCompact ? 'p-1' : 'p-2'}`}
-                title="Heading 3"
-              >
-                <Heading3 className={`transition-all duration-300 ease-in-out ${
-                  isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                }`} />
-              </button>
-              <button
-                onClick={() => onFormat('code')}
-                className={`rounded transition-all duration-300 ease-in-out ${
-                  activeFormats.has('code') 
-                    ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                } ${isCompact ? 'p-1' : 'p-2'}`}
-                title="Inline Code"
-              >
-                <Code className={`transition-all duration-300 ease-in-out ${
-                  isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                }`} />
-              </button>
-              <button
-                onClick={handleCodeBlockClick}
-                className={`rounded transition-all duration-300 ease-in-out hover:bg-gray-100 text-gray-600 hover:text-gray-900 ${
-                  isCompact ? 'p-1' : 'p-2'
-                }`}
-                title="Code Block"
-              >
-                <Code2 className={`transition-all duration-300 ease-in-out ${
-                  isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                }`} />
-              </button>
-              <button
-                onClick={() => onFormat('quote')}
-                className={`rounded transition-all duration-300 ease-in-out ${
-                  activeFormats.has('quote') 
-                    ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                } ${isCompact ? 'p-1' : 'p-2'}`}
-                title="Quote"
-              >
-                <Quote className={`transition-all duration-300 ease-in-out ${
-                  isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                }`} />
-              </button>
-              <button
-                onClick={handleLinkClick}
-                className={`rounded transition-all duration-300 ease-in-out ${
-                  activeFormats.has('link') 
-                    ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                } ${isCompact ? 'p-1' : 'p-2'}`}
-                title="Add Link"
-              >
-                <Link className={`transition-all duration-300 ease-in-out ${
-                  isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                }`} />
-              </button>
-              <button
-                onClick={() => onFormat('divider')}
-                className={`rounded transition-all duration-300 ease-in-out hover:bg-gray-100 text-gray-600 hover:text-gray-900 ${
-                  isCompact ? 'p-1' : 'p-2'
-                }`}
-                title="Horizontal Rule"
-              >
-                <Minus className={`transition-all duration-300 ease-in-out ${
-                  isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                }`} />
-              </button>
-              
-              {/* Emoji Picker */}
-              <div className="relative">
-                <button
-                  onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                  className={`rounded transition-all duration-300 ease-in-out hover:bg-gray-100 text-gray-600 hover:text-gray-900 ${
-                    isCompact ? 'p-1' : 'p-2'
-                  }`}
-                  title="Add Emoji"
-                >
-                  <Smile className={`transition-all duration-300 ease-in-out ${
-                    isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                  }`} />
-                </button>
-                
-                {isEmojiPickerOpen && (
-                  <div className="absolute bottom-full right-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50 w-64">
-                    <div className="grid grid-cols-8 gap-1">
-                      {commonEmojis.map((emoji, index) => (
-                        <button
-                          key={index}
-                          onClick={() => handleEmojiSelect(emoji)}
-                          className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-lg transition-colors"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
+                <div className="p-3 max-h-[240px] overflow-y-auto emoji-scroll">
+                  <div className="grid grid-cols-8 gap-1">
+                    {commonEmojis.map((emoji, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleEmojiSelect(emoji)}
+                        className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-base transition-colors flex-shrink-0"
+                        title={emoji}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
                   </div>
-                )}
+                </div>
+                {/* Custom scrollbar styles */}
+                <style dangerouslySetInnerHTML={{
+                  __html: `
+                    .emoji-scroll::-webkit-scrollbar {
+                      width: 6px;
+                    }
+                    .emoji-scroll::-webkit-scrollbar-track {
+                      background: #f1f1f1;
+                      border-radius: 3px;
+                    }
+                    .emoji-scroll::-webkit-scrollbar-thumb {
+                      background: #c1c1c1;
+                      border-radius: 3px;
+                    }
+                    .emoji-scroll::-webkit-scrollbar-thumb:hover {
+                      background: #a1a1a1;
+                    }
+                  `
+                }} />
               </div>
-            </>
-          )}
+            )}
+          </div>
+
+          {/* Expand/Collapse Button - Always visible */}
+          <button
+            onClick={toggleToolbarExpanded}
+            className={`rounded transition-all duration-300 ease-in-out hover:bg-gray-100 text-gray-600 hover:text-gray-900 ${
+              isCompact ? 'p-1' : 'p-2'
+            }`}
+            title={isToolbarExpanded ? "Collapse tools" : "Expand tools"}
+          >
+            <MoreHorizontal className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            } ${isToolbarExpanded ? 'rotate-90' : ''}`} />
+          </button>
+        </div>
+
+        {/* Expandable tools */}
+        <div className={`flex items-center gap-1 transition-all duration-300 ease-in-out ${
+          isToolbarExpanded ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 overflow-hidden'
+        }`}>
+          <button
+            onClick={() => onFormat('strikethrough')}
+            className={`rounded transition-all duration-300 ease-in-out ${
+              isFormatActive('strikethrough') 
+                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+            } ${isCompact ? 'p-1' : 'p-2'}`}
+            title="Strikethrough"
+          >
+            <Strikethrough className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
+          <button
+            onClick={() => onFormat('code')}
+            className={`rounded transition-all duration-300 ease-in-out ${
+              isFormatActive('code') 
+                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+            } ${isCompact ? 'p-1' : 'p-2'}`}
+            title="Inline Code"
+          >
+            <Code className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
+          <button
+            onClick={() => onFormat('heading1')}
+            className={`rounded transition-all duration-300 ease-in-out ${
+              isFormatActive('heading1') 
+                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+            } ${isCompact ? 'p-1' : 'p-2'}`}
+            title="Heading 1"
+          >
+            <Heading1 className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
+          <button
+            onClick={() => onFormat('heading2')}
+            className={`rounded transition-all duration-300 ease-in-out ${
+              isFormatActive('heading2') 
+                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+            } ${isCompact ? 'p-1' : 'p-2'}`}
+            title="Heading 2"
+          >
+            <Heading2 className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
+          <button
+            onClick={() => onFormat('heading3')}
+            className={`rounded transition-all duration-300 ease-in-out ${
+              isFormatActive('heading3') 
+                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+            } ${isCompact ? 'p-1' : 'p-2'}`}
+            title="Heading 3"
+          >
+            <Heading3 className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
+          <button
+            onClick={() => onFormat('quote')}
+            className={`rounded transition-all duration-300 ease-in-out ${
+              isFormatActive('quote') 
+                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+            } ${isCompact ? 'p-1' : 'p-2'}`}
+            title="Quote"
+          >
+            <Quote className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
+          <button
+            onClick={handleLinkClick}
+            className={`rounded transition-all duration-300 ease-in-out ${
+              isFormatActive('link') 
+                ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+            } ${isCompact ? 'p-1' : 'p-2'}`}
+            title="Insert Link"
+          >
+            <Link className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
+          <button
+            onClick={handleCodeBlockClick}
+            className={`rounded transition-all duration-300 ease-in-out hover:bg-gray-100 text-gray-600 hover:text-gray-900 ${
+              isCompact ? 'p-1' : 'p-2'
+            }`}
+            title="Code Block"
+          >
+            <Code2 className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
+          <button
+            onClick={() => onFormat('divider')}
+            className={`rounded transition-all duration-300 ease-in-out hover:bg-gray-100 text-gray-600 hover:text-gray-900 ${
+              isCompact ? 'p-1' : 'p-2'
+            }`}
+            title="Horizontal Rule"
+          >
+            <Minus className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
         </div>
       </div>
-      
-      {/* Expand/Collapse Button for Mobile */}
-      {isMobile && (
-        <button
-          onClick={toggleToolbarExpanded}
-          className={`rounded transition-all duration-300 ease-in-out hover:bg-gray-100 text-gray-600 hover:text-gray-900 ${
-            isCompact ? 'p-1' : 'p-2'
-          }`}
-          title={isToolbarExpanded ? "Collapse toolbar" : "Expand toolbar"}
-        >
-          <MoreHorizontal className={`transition-all duration-300 ease-in-out ${
-            isCompact ? 'w-3 h-3' : 'w-4 h-4'
-          }`} />
-        </button>
-      )}
-      
+
       {/* Modals */}
       <LinkModal
         isOpen={isLinkModalOpen}
