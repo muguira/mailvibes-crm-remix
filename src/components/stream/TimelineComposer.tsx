@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Phone,
@@ -18,7 +18,7 @@ import { useGmailConnection } from '@/hooks/use-gmail-auth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GmailConnectionModal } from '@/components/stream/GmailConnectionModal';
-import { TiptapEditor } from '@/components/markdown';
+import { TiptapEditor, MarkdownToolbar } from '@/components/markdown';
 
 const ACTIVITY_TYPES = [
   { id: 'call', label: 'Call', icon: Phone },
@@ -155,6 +155,7 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
     return now.toTimeString().slice(0, 5);
   });
   const [isDateTimeManuallySet, setIsDateTimeManuallySet] = useState(false);
+  const [editor, setEditor] = useState<any>(null);
   const { recordId } = useParams();
   const effectiveContactId = contactId || recordId;
   const { createActivity } = useActivities(effectiveContactId);
@@ -247,6 +248,71 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
     setIsDateTimeManuallySet(true);
   };
 
+  // Handle formatting commands for the editor
+  const handleFormat = useCallback((format: string) => {
+    if (!editor) return;
+
+    switch (format) {
+      case 'bold':
+        editor.chain().focus().toggleBold().run();
+        break;
+      case 'italic':
+        editor.chain().focus().toggleItalic().run();
+        break;
+      case 'underline':
+        editor.chain().focus().toggleUnderline().run();
+        break;
+      case 'strikethrough':
+        editor.chain().focus().toggleStrike().run();
+        break;
+      case 'code':
+        editor.chain().focus().toggleCode().run();
+        break;
+      case 'heading1':
+        editor.chain().focus().toggleHeading({ level: 1 }).run();
+        break;
+      case 'heading2':
+        editor.chain().focus().toggleHeading({ level: 2 }).run();
+        break;
+      case 'heading3':
+        editor.chain().focus().toggleHeading({ level: 3 }).run();
+        break;
+      case 'bulletList':
+        editor.chain().focus().toggleBulletList().run();
+        break;
+      case 'numberedList':
+        editor.chain().focus().toggleOrderedList().run();
+        break;
+      case 'quote':
+        editor.chain().focus().toggleBlockquote().run();
+        break;
+      case 'divider':
+        editor.chain().focus().setHorizontalRule().run();
+        break;
+    }
+  }, [editor]);
+
+  const handleLinkRequest = useCallback((url: string, linkText: string) => {
+    if (!editor) return;
+
+    if (url && linkText) {
+      editor.chain().focus().setLink({ href: url }).insertContent(linkText).run();
+    }
+  }, [editor]);
+
+  const handleCodeBlockRequest = useCallback((selectedText: string, range: Range) => {
+    if (!editor) return;
+
+    const selection = window.getSelection();
+    if (selection && range) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      const codeBlock = `\`\`\`\n${selectedText}\n\`\`\``;
+      editor.chain().focus().insertContent(codeBlock).run();
+    }
+  }, [editor]);
+
   return (
     <div 
       className="bg-white rounded-lg border border-gray-200 shadow-sm transition-all duration-300 ease-in-out"
@@ -294,50 +360,67 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
 
       {/* Rich Text Editor */}
       <div className={`outline-none transition-all duration-300 ease-in-out ${
-        isCompact ? 'p-2' : 'p-4'
+        isCompact ? 'p-0' : 'p-0'
       }`}>
         <TiptapEditor
           value={text}
           onChange={setText}
           placeholder="Type a message..."
           minHeight={isCompact ? "40px" : "80px"}
-          showToolbar={true}
+          showToolbar={false}
+          externalToolbar={true}
           isCompact={isCompact}
           autoFocus={false}
+          onEditorReady={(editor) => setEditor(editor)}
         />
       </div>
 
-      {/* Action Buttons */}
+      {/* Horizontal layout: Toolbar + Action Buttons */}
       <div className={`flex items-center justify-between border-t border-gray-100 transition-all duration-300 ease-in-out ${
         isCompact ? 'p-2' : 'p-3'
       }`}>
-        {/* Gmail not connected indicator */}
-        {!isGmailConnected && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <GmailConnectionModal onRefresh={() => window.location.reload()}>
-                  <button
-                    className={`rounded hover:bg-gray-100 text-amber-500 hover:text-amber-600 transition-all duration-300 ease-in-out ${
-                      isCompact ? 'p-1' : 'p-2'
-                    }`}
-                    title="Gmail not connected"
-                  >
-                    <AlertCircle className={`transition-all duration-300 ease-in-out ${
-                      isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                    }`} />
-                  </button>
-                </GmailConnectionModal>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-sm">Gmail not connected - Click to connect</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+        {/* Left side: Gmail indicator + Toolbar */}
+        <div className="flex items-center gap-3">
+          {/* Gmail not connected indicator */}
+          {!isGmailConnected && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <GmailConnectionModal onRefresh={() => window.location.reload()}>
+                    <button
+                      className={`rounded hover:bg-gray-100 text-amber-500 hover:text-amber-600 transition-all duration-300 ease-in-out ${
+                        isCompact ? 'p-1' : 'p-2'
+                      }`}
+                      title="Gmail not connected"
+                    >
+                      <AlertCircle className={`transition-all duration-300 ease-in-out ${
+                        isCompact ? 'w-3 h-3' : 'w-4 h-4'
+                      }`} />
+                    </button>
+                  </GmailConnectionModal>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-sm">Gmail not connected - Click to connect</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
+          {/* Toolbar */}
+          <div className="flex-1">
+            <MarkdownToolbar
+              editor={editor}
+              onFormat={handleFormat}
+              onLinkRequest={handleLinkRequest}
+              onCodeBlockRequest={handleCodeBlockRequest}
+              isCompact={isCompact}
+              className="p-0"
+            />
+          </div>
+        </div>
 
-        {/* Action Buttons */}
-        <div className={`flex items-center gap-2 ${!isGmailConnected ? 'ml-auto' : 'ml-auto'}`}>
+        {/* Right side: Action Buttons */}
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"

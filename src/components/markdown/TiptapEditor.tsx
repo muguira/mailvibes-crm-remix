@@ -15,9 +15,11 @@ interface TiptapEditorProps {
   className?: string;
   minHeight?: string;
   showToolbar?: boolean;
+  externalToolbar?: boolean;
   isCompact?: boolean;
   disabled?: boolean;
   autoFocus?: boolean;
+  onEditorReady?: (editor: any) => void;
 }
 
 const TiptapEditor: React.FC<TiptapEditorProps> = ({
@@ -27,9 +29,11 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
   className,
   minHeight = "80px",
   showToolbar = true,
+  externalToolbar = false,
   isCompact = false,
   disabled = false,
-  autoFocus = false
+  autoFocus = false,
+  onEditorReady
 }) => {
   const lowlight = createLowlight();
 
@@ -110,6 +114,11 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
       },
     },
     onUpdate: handleUpdate,
+    onCreate: ({ editor }) => {
+      if (onEditorReady) {
+        onEditorReady(editor);
+      }
+    },
   });
 
   // Handle formatting commands using Tiptap's recommended command chaining
@@ -156,37 +165,32 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
     }
   }, [editor]);
 
-  // Handle link requests
   const handleLinkRequest = useCallback((url: string, linkText: string) => {
     if (!editor) return;
-    
+
     if (url && linkText) {
-      // Insert the link text with the URL
-      editor.chain().focus().insertContent(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-teal-600 underline hover:text-teal-800 transition-colors">${linkText}</a>`).run();
+      editor.chain().focus().setLink({ href: url }).insertContent(linkText).run();
     }
   }, [editor]);
 
-  // Handle code block requests
-  const handleCodeBlockRequest = useCallback((code: string, range: Range) => {
+  const handleCodeBlockRequest = useCallback((selectedText: string, range: Range) => {
     if (!editor) return;
-    
-    editor.chain().focus().setCodeBlock().run();
-    // Insert the code content
-    editor.commands.insertContent(code);
-  }, [editor]);
 
-  // Sync content when value changes externally (following Tiptap recommendations)
-  React.useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value, false);
+    const selection = window.getSelection();
+    if (selection && range) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      const codeBlock = `\`\`\`\n${selectedText}\n\`\`\``;
+      editor.chain().focus().insertContent(codeBlock).run();
     }
-  }, [value, editor]);
+  }, [editor]);
 
   return (
-    <div className={cn("bg-white rounded-lg border border-gray-200 shadow-sm relative", className)}>
+    <div className={cn("bg-white relative", className)}>
       {/* Rich Text Editor */}
-      <div className={cn("outline-none transition-all duration-300 ease-in-out", isCompact ? 'p-2' : 'p-4')}>
-        <EditorContent editor={editor} />
+      <div className={cn("outline-none transition-all duration-300 ease-in-out", isCompact ? 'p-2' : 'p-2')}>
+        <EditorContent editor={editor} className=""/>
         
         {/* Tiptap-specific styling following their recommendations */}
         <style dangerouslySetInnerHTML={{
@@ -258,8 +262,8 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
         }} />
       </div>
 
-      {/* Formatting Toolbar */}
-      {showToolbar && (
+      {/* Internal Formatting Toolbar - only show if not external */}
+      {showToolbar && !externalToolbar && (
         <div className="relative overflow-visible">
           <MarkdownToolbar
             editor={editor}

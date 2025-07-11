@@ -194,7 +194,7 @@ const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
   }, [isEmojiPickerOpen]);
 
   return (
-    <div className={cn("flex items-center border-t border-gray-100 transition-all duration-300 ease-in-out", className)}>
+    <div className={cn("flex items-center transition-all duration-300 ease-in-out", className)}>
       <div className="flex items-center gap-1 overflow-hidden w-full">
         {/* Basic Tools - Always Visible */}
         <div className="flex items-center gap-1">
