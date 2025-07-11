@@ -207,7 +207,7 @@ export const markdownToHtml = (markdown: string): string => {
         return `<li class="ml-${Math.min(
           level * 4,
           12
-        )} mb-1" style="list-style-type: ${
+        )} list-item" style="list-style-type: ${
           level > 0 ? "circle" : "disc"
         };">${content}</li>`;
       }
@@ -222,7 +222,7 @@ export const markdownToHtml = (markdown: string): string => {
         return `<li class="ml-${Math.min(
           level * 4,
           12
-        )} mb-1" style="list-style-type: ${
+        )} numbered-item" style="list-style-type: ${
           level > 0 ? "lower-alpha" : "decimal"
         };">${content}</li>`;
       }
@@ -235,18 +235,39 @@ export const markdownToHtml = (markdown: string): string => {
 
   // Wrap bullet lists
   processedContent = processedContent.replace(
-    /(<li class="[^"]*mb-1[^"]*"[^>]*style="list-style-type: (disc|circle);"[^>]*>.*?<\/li>(\n<li class="[^"]*mb-1[^"]*"[^>]*style="list-style-type: (disc|circle);"[^>]*>.*?<\/li>)*)/gs,
-    '<ul class="list-disc list-outside space-y-1 my-3 pl-6">$1</ul>'
+    /(<li class="[^"]*list-item[^"]*"[^>]*>.*?<\/li>(\n<li class="[^"]*list-item[^"]*"[^>]*>.*?<\/li>)*)/gs,
+    '<ul class="list-disc list-outside my-3 pl-6">$1</ul>'
   );
 
   // Wrap numbered lists
   processedContent = processedContent.replace(
-    /(<li class="[^"]*mb-1[^"]*"[^>]*style="list-style-type: (decimal|lower-alpha);"[^>]*>.*?<\/li>(\n<li class="[^"]*mb-1[^"]*"[^>]*style="list-style-type: (decimal|lower-alpha);"[^>]*>.*?<\/li>)*)/gs,
-    '<ol class="list-decimal list-outside space-y-1 my-3 pl-6">$1</ol>'
+    /(<li class="[^"]*numbered-item[^"]*"[^>]*>.*?<\/li>(\n<li class="[^"]*numbered-item[^"]*"[^>]*>.*?<\/li>)*)/gs,
+    '<ol class="list-decimal list-outside my-3 pl-6">$1</ol>'
   );
 
   // 9. Handle line breaks (process last to avoid interference)
+  // IMPORTANTE: No convertir saltos de línea que están dentro de listas
+  // Primero, proteger el contenido de las listas
+  const listPlaceholders: string[] = [];
+  processedContent = processedContent.replace(
+    /(<[uo]l[^>]*>.*?<\/[uo]l>)/gs,
+    (match) => {
+      const placeholder = `__LIST_PLACEHOLDER_${listPlaceholders.length}__`;
+      listPlaceholders.push(match);
+      return placeholder;
+    }
+  );
+
+  // Ahora convertir saltos de línea solo fuera de las listas
   processedContent = processedContent.replace(/\n/g, "<br>");
+
+  // Restaurar las listas
+  listPlaceholders.forEach((list, index) => {
+    processedContent = processedContent.replace(
+      `__LIST_PLACEHOLDER_${index}__`,
+      list
+    );
+  });
 
   return processedContent;
 };

@@ -30,6 +30,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 }) => {
   const editableRef = useRef<HTMLDivElement>(null);
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
+  const [activeHeadingMode, setActiveHeadingMode] = useState<string | null>(null);
 
   // Convert markdown to HTML for display
   useEffect(() => {
@@ -53,8 +54,69 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     return htmlToMarkdown(editableRef.current.innerHTML);
   };
 
+  // Apply heading mode to current line
+  const applyHeadingModeToCurrentLine = () => {
+    if (!activeHeadingMode || !editableRef.current) return;
+
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+    let currentElement = range.startContainer;
+    
+    // Find the current line/element
+    if (currentElement.nodeType === Node.TEXT_NODE) {
+      currentElement = currentElement.parentNode;
+    }
+
+    // Find the container element (div, p, or heading)
+    const container = (currentElement as Element)?.closest("div, p, h1, h2, h3, h4, h5, h6");
+    if (!container) return;
+
+    const headingLevel = activeHeadingMode.charAt(activeHeadingMode.length - 1);
+    const headingTag = `h${headingLevel}`;
+    const headingClasses = {
+      h1: "text-2xl font-bold mb-2 mt-4 text-gray-900",
+      h2: "text-xl font-bold mb-2 mt-3 text-gray-900",
+      h3: "text-lg font-bold mb-2 mt-3 text-gray-900",
+    };
+
+    // If already the correct heading, do nothing
+    if (container.tagName.toLowerCase() === headingTag) {
+      return;
+    }
+
+    // Create new heading element
+    const newHeading = document.createElement(headingTag);
+    newHeading.className = headingClasses[headingTag as keyof typeof headingClasses];
+    newHeading.textContent = container.textContent || "";
+
+    // Store cursor position relative to text content
+    const textContent = container.textContent || "";
+    const cursorOffset = range.startOffset;
+    
+    // Replace the container with heading
+    container.replaceWith(newHeading);
+    
+    // Restore cursor position
+    const newRange = document.createRange();
+    const textNode = newHeading.firstChild;
+    if (textNode) {
+      const offset = Math.min(cursorOffset, textNode.textContent?.length || 0);
+      newRange.setStart(textNode, offset);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+    }
+  };
+
   // Handle input changes
   const handleInput = () => {
+    // Apply heading mode if active
+    if (activeHeadingMode && editableRef.current) {
+      applyHeadingModeToCurrentLine();
+    }
+
     const plainText = getPlainText();
     onChange(plainText);
     
@@ -73,6 +135,24 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   // Handle formatting commands
   const handleFormat = (format: string) => {
+    // Handle heading mode activation/deactivation
+    if (format === 'heading1' || format === 'heading2' || format === 'heading3') {
+      const selection = window.getSelection();
+      const selectedText = selection?.toString().trim() || '';
+      
+      if (selectedText === '') {
+        // No text selected - toggle heading mode
+        if (activeHeadingMode === format) {
+          // Deactivate current heading mode
+          setActiveHeadingMode(null);
+        } else {
+          // Activate new heading mode
+          setActiveHeadingMode(format);
+        }
+        return;
+      }
+    }
+
     handleFormatting(
       format,
       editableRef.current,
@@ -199,6 +279,40 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   // Handle key events
   const handleKeyPress = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Handle Shift+Enter to deactivate heading mode and create normal paragraph
+    if (e.key === 'Enter' && e.shiftKey && activeHeadingMode) {
+      e.preventDefault();
+      setActiveHeadingMode(null);
+      
+      // Create a new normal paragraph
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        
+        const newParagraph = document.createElement("div");
+        newParagraph.className = "normal-paragraph";
+        newParagraph.style.cssText =
+          "margin: 0 !important; padding: 0 !important; margin-left: 0 !important; padding-left: 0 !important; list-style: none !important; text-indent: 0 !important; position: static !important; left: auto !important; transform: none !important; display: block !important;";
+        newParagraph.innerHTML = "<br>";
+        
+        range.insertNode(newParagraph);
+        
+        // Position cursor in the new paragraph
+        const newRange = document.createRange();
+        newRange.setStart(newParagraph, 0);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        
+        // Update content
+        setTimeout(() => {
+          const plainText = getPlainText();
+          onChange(plainText);
+        }, 0);
+      }
+      return;
+    }
+
     handleKeyDown(e, editableRef.current, onChange, getPlainText);
   };
 
@@ -337,7 +451,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       {/* Formatting Toolbar */}
       {showToolbar && (
         <MarkdownToolbar
-          activeFormats={activeFormats}
+          activeFormats={activeHeadingMode ? new Set([...activeFormats, activeHeadingMode]) : activeFormats}
           onFormat={handleFormat}
           onLinkRequest={handleLinkRequest}
           onCodeBlockRequest={handleCodeBlockRequest}

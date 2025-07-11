@@ -182,6 +182,7 @@ export const handleFormatting = (
       };
 
       if (selectedText) {
+        // Text is selected - convert selection to heading
         const headingElement = document.createElement(headingTag);
         headingElement.className =
           headingClasses[headingTag as keyof typeof headingClasses];
@@ -193,16 +194,68 @@ export const handleFormatting = (
         selection.removeAllRanges();
         selection.addRange(range);
       } else {
-        const headingElement = document.createElement(headingTag);
-        headingElement.className =
-          headingClasses[headingTag as keyof typeof headingClasses];
-        headingElement.textContent = `Heading ${headingLevel}`;
-        range.insertNode(headingElement);
-        const textNode = headingElement.firstChild;
-        if (textNode) {
-          range.selectNodeContents(textNode);
-          selection.removeAllRanges();
-          selection.addRange(range);
+        // No text selected - check if cursor is in a heading
+        let currentElement = range.startContainer;
+        if (currentElement.nodeType === Node.TEXT_NODE) {
+          currentElement = currentElement.parentNode;
+        }
+
+        // Find the closest heading element
+        const currentHeading = (currentElement as Element)?.closest(
+          "h1, h2, h3, h4, h5, h6"
+        );
+
+        if (currentHeading) {
+          // We're in a heading - check if it's the same level
+          const currentHeadingLevel = currentHeading.tagName.toLowerCase();
+
+          if (currentHeadingLevel === headingTag) {
+            // Same level - convert to normal paragraph
+            const normalParagraph = document.createElement("div");
+            normalParagraph.className = "normal-paragraph";
+            normalParagraph.style.cssText =
+              "margin: 0 !important; padding: 0 !important; margin-left: 0 !important; padding-left: 0 !important; list-style: none !important; text-indent: 0 !important; position: static !important; left: auto !important; transform: none !important; display: block !important;";
+            normalParagraph.textContent = currentHeading.textContent || "";
+
+            // Replace the heading with normal paragraph
+            currentHeading.replaceWith(normalParagraph);
+
+            // Position cursor in the new paragraph
+            const newRange = document.createRange();
+            newRange.setStart(normalParagraph.firstChild || normalParagraph, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          } else {
+            // Different level - change heading level
+            const newHeading = document.createElement(headingTag);
+            newHeading.className =
+              headingClasses[headingTag as keyof typeof headingClasses];
+            newHeading.textContent = currentHeading.textContent || "";
+
+            // Replace the current heading with new level
+            currentHeading.replaceWith(newHeading);
+
+            // Position cursor in the new heading
+            const newRange = document.createRange();
+            newRange.setStart(newHeading.firstChild || newHeading, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          }
+        } else {
+          // Not in a heading - create new heading
+          const headingElement = document.createElement(headingTag);
+          headingElement.className =
+            headingClasses[headingTag as keyof typeof headingClasses];
+          headingElement.textContent = `Heading ${headingLevel}`;
+          range.insertNode(headingElement);
+          const textNode = headingElement.firstChild;
+          if (textNode) {
+            range.selectNodeContents(textNode);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
         }
       }
       break;

@@ -102,32 +102,47 @@ const renderMarkdown = (text: string) => {
   // Procesar listas anidadas primero (con más espacios)
   html = html.replace(/^(\s{2,})[-*+•] (.+)$/gm, (match, indent, content) => {
     const level = Math.floor(indent.length / 2);
-    return `<li class="ml-${Math.min(level * 4, 12)} mb-1 list-item" style="list-style-type: circle;">${content}</li>`;
+    return `<li class="ml-${Math.min(level * 4, 12)} list-item" style="list-style-type: circle;">${content}</li>`;
   });
   
   // Procesar listas de primer nivel
-  html = html.replace(/^[-*+•] (.+)$/gm, '<li class="mb-1 list-item">$1</li>');
+  html = html.replace(/^[-*+•] (.+)$/gm, '<li class="list-item">$1</li>');
   
   // Envolver listas de bullets consecutivas
-  html = html.replace(/(<li class="[^"]*mb-1[^"]*list-item[^"]*"[^>]*>.*?<\/li>(\s*<li class="[^"]*mb-1[^"]*list-item[^"]*"[^>]*>.*?<\/li>)*)/gs, 
-    '<ul class="list-disc list-outside space-y-1 my-3 pl-6">$1</ul>');
+  html = html.replace(/(<li class="[^"]*list-item[^"]*"[^>]*>.*?<\/li>(\s*<li class="[^"]*list-item[^"]*"[^>]*>.*?<\/li>)*)/gs, 
+    '<ul class="list-disc list-outside my-3 pl-6">$1</ul>');
   
   // Listas numeradas (mejoradas para manejar múltiples líneas y anidación)
   // Procesar listas numeradas anidadas primero
   html = html.replace(/^(\s{2,})(\d+)\. (.+)$/gm, (match, indent, num, content) => {
     const level = Math.floor(indent.length / 2);
-    return `<li class="ml-${Math.min(level * 4, 12)} mb-1 numbered-item" style="list-style-type: lower-alpha;">${content}</li>`;
+    return `<li class="ml-${Math.min(level * 4, 12)} numbered-item" style="list-style-type: lower-alpha;">${content}</li>`;
   });
   
   // Procesar listas numeradas de primer nivel
-  html = html.replace(/^(\d+)\. (.+)$/gm, '<li class="mb-1 numbered-item">$2</li>');
+  html = html.replace(/^(\d+)\. (.+)$/gm, '<li class="numbered-item">$2</li>');
   
   // Envolver listas numeradas consecutivas
-  html = html.replace(/(<li class="[^"]*mb-1[^"]*numbered-item[^"]*"[^>]*>.*?<\/li>(\s*<li class="[^"]*mb-1[^"]*numbered-item[^"]*"[^>]*>.*?<\/li>)*)/gs, 
-    '<ol class="list-decimal list-outside space-y-1 my-3 pl-6">$1</ol>');
+  html = html.replace(/(<li class="[^"]*numbered-item[^"]*"[^>]*>.*?<\/li>(\s*<li class="[^"]*numbered-item[^"]*"[^>]*>.*?<\/li>)*)/gs, 
+    '<ol class="list-decimal list-outside my-3 pl-6">$1</ol>');
   
   // Saltos de línea (al final para no interferir con otros elementos)
+  // IMPORTANTE: No convertir saltos de línea que están dentro de listas
+  // Primero, proteger el contenido de las listas
+  const listPlaceholders: string[] = [];
+  html = html.replace(/(<[uo]l[^>]*>.*?<\/[uo]l>)/gs, (match) => {
+    const placeholder = `__LIST_PLACEHOLDER_${listPlaceholders.length}__`;
+    listPlaceholders.push(match);
+    return placeholder;
+  });
+  
+  // Ahora convertir saltos de línea solo fuera de las listas
   html = html.replace(/\n/g, '<br>');
+  
+  // Restaurar las listas
+  listPlaceholders.forEach((list, index) => {
+    html = html.replace(`__LIST_PLACEHOLDER_${index}__`, list);
+  });
   
 
   
