@@ -459,7 +459,13 @@ export default function TimelineItem({
       <div className="absolute left-[22px] top-[20px] bottom-[-20px] w-[1px] bg-gray-200"></div>
       
       {/* Timestamp on the left side of timeline */}
-      <div className="absolute left-[-30px] top-[15px] w-8 text-xs text-gray-500 font-medium text-right">
+      <div 
+        className="absolute top-[15px] text-xs text-gray-500 font-medium text-right"
+        style={{
+          right: 'calc(100% - 5px)', // Position relative to the timeline dot
+          minWidth: relativeTime.length <= 2 ? '24px' : relativeTime.length <= 4 ? '32px' : '48px'
+        }}
+      >
         {relativeTime}
       </div>
       
