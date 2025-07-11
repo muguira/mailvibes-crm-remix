@@ -61,7 +61,7 @@ export function useHybridContactEmails(
     maxResults = 20,
     autoFetch = true,
     preferDatabase = true,
-    maxAge = 15, // 15 minutes
+    maxAge = 2, // 2 minutes for faster refresh of recent emails
   } = options;
 
   const [emails, setEmails] = useState<GmailEmail[]>([]);

@@ -344,15 +344,8 @@ export async function getRecentContactEmails(
   maxResults: number = 20
 ): Promise<GmailApiResponse> {
   try {
-    // Search for emails in the last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateString = thirtyDaysAgo
-      .toISOString()
-      .split("T")[0]
-      .replace(/-/g, "/");
-
-    const query = `(from:${contactEmail} OR to:${contactEmail}) after:${dateString}`;
+    // Search for all emails from/to the contact (no date filter for recent emails)
+    const query = `(from:${contactEmail} OR to:${contactEmail})`;
 
     const params = new URLSearchParams({
       q: query,

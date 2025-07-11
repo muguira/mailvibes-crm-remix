@@ -7,7 +7,7 @@ import './services/google/tokenDiagnostics';
 
 // Start the email sync worker
 startSyncWorker({
-  syncIntervalMs: 5 * 60 * 1000, // 5 minutes
+  syncIntervalMs: 1 * 60 * 1000, // 1 minute for faster email sync
   maxConcurrentSyncs: 3,
   retryAttempts: 3,
   retryDelayMs: 30 * 1000, // 30 seconds
