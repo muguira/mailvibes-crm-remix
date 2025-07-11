@@ -187,10 +187,10 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
   }, [editor]);
 
   return (
-    <div className={cn("bg-white rounded-lg border border-gray-200 shadow-sm relative", className)}>
+    <div className={cn("bg-white relative", className)}>
       {/* Rich Text Editor */}
-      <div className={cn("outline-none transition-all duration-300 ease-in-out", isCompact ? 'p-2' : 'p-4')}>
-        <EditorContent editor={editor} />
+      <div className={cn("outline-none transition-all duration-300 ease-in-out", isCompact ? 'p-2' : 'p-2')}>
+        <EditorContent editor={editor} className=""/>
         
         {/* Tiptap-specific styling following their recommendations */}
         <style dangerouslySetInnerHTML={{

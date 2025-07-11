@@ -360,7 +360,7 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
 
       {/* Rich Text Editor */}
       <div className={`outline-none transition-all duration-300 ease-in-out ${
-        isCompact ? 'p-2' : 'p-4'
+        isCompact ? 'p-0' : 'p-0'
       }`}>
         <TiptapEditor
           value={text}
