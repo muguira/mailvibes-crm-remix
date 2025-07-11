@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -120,6 +120,13 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
       }
     },
   });
+
+  // Sync external value changes with editor content
+  useEffect(() => {
+    if (editor && value !== editor.getHTML()) {
+      editor.commands.setContent(value, false);
+    }
+  }, [editor, value]);
 
   // Handle formatting commands using Tiptap's recommended command chaining
   const handleFormat = useCallback((format: string) => {

@@ -211,6 +211,11 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
       // Clear the text after sending
       setText("");
       
+      // Also clear the editor directly to ensure it's empty
+      if (editor) {
+        editor.commands.setContent('', false);
+      }
+      
       // Reset to current date/time for next activity
       setActivityDate(new Date());
       const now = new Date();
@@ -235,6 +240,10 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
 
   const clearContent = () => {
     setText("");
+    // Also clear the editor directly to ensure it's empty
+    if (editor) {
+      editor.commands.setContent('', false);
+    }
   };
 
   // Handle manual date/time changes
