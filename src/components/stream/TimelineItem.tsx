@@ -268,6 +268,30 @@ const formatFullTimestamp = (timestamp: string): string => {
   return date.toLocaleString();
 };
 
+// Helper function to format email recipients display
+const formatEmailRecipients = (to?: Array<{name?: string; email: string}>, contactName?: string) => {
+  if (!to || to.length === 0) {
+    return contactName || 'Contact';
+  }
+  
+  if (to.length === 1) {
+    return to[0].name || to[0].email;
+  }
+  
+  // Multiple recipients - show first recipient + count
+  const firstRecipient = to[0].name || to[0].email;
+  const remainingCount = to.length - 1;
+  
+  return (
+    <span>
+      {firstRecipient}
+      <span className="text-gray-400 ml-1">
+        and {remainingCount} more
+      </span>
+    </span>
+  );
+};
+
 export default function TimelineItem({ 
   activity, 
   activityIcon, 
@@ -323,29 +347,25 @@ export default function TimelineItem({
   }, [showDropdown]);
 
   const handlePinClick = () => {
-    setOptimisticPinState(!optimisticPinState);
-    if (onTogglePin) {
-      onTogglePin(activity.id, !optimisticPinState);
-    }
+    const newPinState = !optimisticPinState;
+    setOptimisticPinState(newPinState);
+    onTogglePin?.(activity.id, newPinState);
     setShowDropdown(false);
   };
 
   const handleEditClick = () => {
     setIsEditing(true);
-    setEditContent(activity.content || '');
     setShowDropdown(false);
   };
 
   const handleSaveEdit = () => {
-    if (onEditActivity && editContent.trim()) {
-      onEditActivity(activity.id, editContent.trim());
-      setIsEditing(false);
-    }
+    onEditActivity?.(activity.id, editContent);
+    setIsEditing(false);
   };
 
   const handleCancelEdit = () => {
-    setIsEditing(false);
     setEditContent(activity.content || '');
+    setIsEditing(false);
   };
 
   const handleRemoveClick = () => {
@@ -354,10 +374,8 @@ export default function TimelineItem({
   };
 
   const handleConfirmDelete = () => {
-    if (onDeleteActivity) {
-      onDeleteActivity(activity.id);
-      setShowDeleteConfirm(false);
-    }
+    onDeleteActivity?.(activity.id);
+    setShowDeleteConfirm(false);
   };
 
   const handleCancelDelete = () => {
@@ -432,8 +450,11 @@ export default function TimelineItem({
   // Only show edit/delete for internal activities (user-created notes)
   const canEditDelete = activity.source === 'internal' && activity.type === 'note';
   
+  // Allow pinning for both internal activities and Gmail emails
+  const canPin = activity.source === 'internal' || (activity.source === 'gmail' && activity.type === 'email');
+  
   return (
-    <li className="relative pl-12 pb-8  last:pb-0">
+    <li className="relative pl-12 pb-8  last:pb-0 mb-5">
       {/* Timeline line - more prominent and continuous */}
       <div className="absolute left-[22px] top-[20px] bottom-[-20px] w-[1px] bg-gray-200"></div>
       
@@ -448,55 +469,48 @@ export default function TimelineItem({
       </div>
       
       {/* Activity card with white background */}
-      <div className={`bg-white rounded-lg border shadow-sm p-4 mb-5 pr-[7px] relative ${
-        optimisticPinState 
-          ? 'border-amber-200 bg-amber-50/30' 
-          : 'border-gray-200'
-      }`}>
-        {/* Dropdown menu button - top right corner */}
-        <div className="absolute top-2 right-2 dropdown-menu">
-          <button
-            onClick={() => setShowDropdown(!showDropdown)}
-            className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-200"
-            title="More options"
-          >
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
+      <div className="relative bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200 w-[calc(100%-20px)]">
+        {/* Dropdown menu */}
+        <div className="absolute top-2 right-2">
+          {(canEditDelete || canPin) && (
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="w-6 h-6 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors dropdown-menu"
+            >
+              <MoreHorizontal className="w-4 h-4 text-gray-400" />
+            </button>
+          )}
           
-          {/* Dropdown menu */}
-          {showDropdown && (
-            <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[140px]">
-              {/* Pin/Unpin option */}
-              {activity.source === 'internal' && (
+          {showDropdown && (canEditDelete || canPin) && (
+            <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-20 min-w-[120px] dropdown-menu">
+              {canPin && (
                 <button
                   onClick={handlePinClick}
                   className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                 >
-                  <Pin className={`w-4 h-4 ${optimisticPinState ? 'text-amber-600' : 'text-gray-500'}`} />
+                  <Pin className="w-4 h-4" />
                   <span>{optimisticPinState ? 'Unpin' : 'Pin'}</span>
                 </button>
               )}
               
-              {/* Edit option */}
               {canEditDelete && (
-                <button
-                  onClick={handleEditClick}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <Edit className="w-4 h-4 text-gray-500" />
-                  <span>Edit</span>
-                </button>
-              )}
-              
-              {/* Remove option */}
-              {canEditDelete && (
-                <button
-                  onClick={handleRemoveClick}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Remove</span>
-                </button>
+                <>
+                  <button
+                    onClick={handleEditClick}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Edit</span>
+                  </button>
+
+                  <button
+                    onClick={handleRemoveClick}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Remove</span>
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -531,11 +545,23 @@ export default function TimelineItem({
              `added a ${activity.type} to`}
           </span>
           <span className="text-gray-700 font-medium ml-1">
-             {activity.type === 'email' && activity.to && activity.to.length > 0 
-               ? activity.to[0].name || activity.to[0].email
-               : contactName || 'Contact'}
-           </span>
+            {activity.type === 'email' 
+              ? formatEmailRecipients(activity.to, contactName)
+              : contactName || 'Contact'}
+          </span>
         </div>
+        
+        {/* Additional email details for multiple recipients */}
+        {activity.type === 'email' && activity.to && activity.to.length > 1 && (
+          <div className="text-xs text-gray-500 mb-2 pl-7">
+            <span className="font-medium">To:</span> {activity.to.map(recipient => recipient.name || recipient.email).join(', ')}
+            {activity.cc && activity.cc.length > 0 && (
+              <div className="mt-1">
+                <span className="font-medium">CC:</span> {activity.cc.map(recipient => recipient.name || recipient.email).join(', ')}
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Timestamp details */}
         <div className="text-xs text-gray-400 mb-3 pl-7">

@@ -192,6 +192,7 @@ function parseGmailMessage(gmailMessage: any): GmailEmail {
   // Extract body text and HTML
   let bodyText = "";
   let bodyHtml = "";
+  let isCalendarInvitation = false;
 
   if (gmailMessage.payload?.body?.data) {
     // Simple message body
@@ -203,6 +204,34 @@ function parseGmailMessage(gmailMessage: any): GmailEmail {
         bodyText = base64UrlDecode(part.body.data);
       } else if (part.mimeType === "text/html" && part.body?.data) {
         bodyHtml = base64UrlDecode(part.body.data);
+      } else if (part.mimeType === "text/calendar" && part.body?.data) {
+        // Handle calendar invitation
+        isCalendarInvitation = true;
+        const calendarData = base64UrlDecode(part.body.data);
+        const calendarInfo = parseCalendarData(calendarData);
+
+        // Use calendar info as body content if no other content exists
+        if (!bodyText && !bodyHtml) {
+          bodyText = calendarInfo;
+        } else {
+          // Append calendar info to existing content
+          bodyText += "\n\n" + calendarInfo;
+        }
+      }
+    }
+  }
+
+  // Check for calendar attachments (.ics files)
+  if (!isCalendarInvitation) {
+    const calendarAttachment = findCalendarAttachment(parts);
+    if (calendarAttachment) {
+      isCalendarInvitation = true;
+      // Add a note about the calendar invitation
+      const calendarNote = "📅 Calendar invitation attached";
+      if (!bodyText && !bodyHtml) {
+        bodyText = calendarNote;
+      } else {
+        bodyText += "\n\n" + calendarNote;
       }
     }
   }
@@ -267,6 +296,155 @@ function parseGmailMessage(gmailMessage: any): GmailEmail {
     labels: gmailMessage.labelIds || [],
     attachments: attachments.length > 0 ? attachments : undefined,
   };
+}
+
+/**
+ * Parses calendar data from text/calendar MIME type
+ * @param calendarData - Raw calendar data in iCal format
+ * @returns Formatted calendar information
+ */
+function parseCalendarData(calendarData: string): string {
+  try {
+    const lines = calendarData.split("\n");
+    let summary = "";
+    let dtstart = "";
+    let dtend = "";
+    let location = "";
+    let description = "";
+    let organizer = "";
+    let method = "";
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith("SUMMARY:")) {
+        summary = trimmedLine.replace("SUMMARY:", "").trim();
+      } else if (trimmedLine.startsWith("DTSTART:")) {
+        dtstart = trimmedLine.replace("DTSTART:", "").trim();
+      } else if (trimmedLine.startsWith("DTEND:")) {
+        dtend = trimmedLine.replace("DTEND:", "").trim();
+      } else if (trimmedLine.startsWith("LOCATION:")) {
+        location = trimmedLine.replace("LOCATION:", "").trim();
+      } else if (trimmedLine.startsWith("DESCRIPTION:")) {
+        description = trimmedLine.replace("DESCRIPTION:", "").trim();
+      } else if (trimmedLine.startsWith("ORGANIZER:")) {
+        organizer = trimmedLine.replace("ORGANIZER:", "").trim();
+      } else if (trimmedLine.startsWith("METHOD:")) {
+        method = trimmedLine.replace("METHOD:", "").trim();
+      }
+    }
+
+    // Format the calendar information
+    let calendarInfo = "📅 Calendar Invitation\n\n";
+
+    if (method) {
+      const methodText =
+        method === "REQUEST"
+          ? "Meeting Request"
+          : method === "REPLY"
+            ? "Meeting Response"
+            : method === "CANCEL"
+              ? "Meeting Cancellation"
+              : method;
+      calendarInfo += `Type: ${methodText}\n`;
+    }
+
+    if (summary) {
+      calendarInfo += `Event: ${summary}\n`;
+    }
+
+    if (dtstart) {
+      const startDate = formatCalendarDate(dtstart);
+      calendarInfo += `Start: ${startDate}\n`;
+    }
+
+    if (dtend) {
+      const endDate = formatCalendarDate(dtend);
+      calendarInfo += `End: ${endDate}\n`;
+    }
+
+    if (location) {
+      calendarInfo += `Location: ${location}\n`;
+    }
+
+    if (organizer) {
+      const organizerEmail = organizer
+        .replace("mailto:", "")
+        .replace(/^.*:/, "");
+      calendarInfo += `Organizer: ${organizerEmail}\n`;
+    }
+
+    if (description) {
+      calendarInfo += `\nDescription:\n${description}`;
+    }
+
+    return calendarInfo;
+  } catch (error) {
+    logger.error("Error parsing calendar data:", error);
+    return "📅 Calendar invitation (unable to parse details)";
+  }
+}
+
+/**
+ * Formats calendar date from iCal format to readable format
+ * @param dateString - Date string in iCal format (e.g., "20241201T100000Z")
+ * @returns Formatted date string
+ */
+function formatCalendarDate(dateString: string): string {
+  try {
+    // Handle different date formats
+    let date: Date;
+
+    if (dateString.includes("T")) {
+      // Format: 20241201T100000Z or 20241201T100000
+      const cleanDate = dateString.replace(/[TZ]/g, "");
+      if (cleanDate.length >= 8) {
+        const year = cleanDate.substring(0, 4);
+        const month = cleanDate.substring(4, 6);
+        const day = cleanDate.substring(6, 8);
+        const hour = cleanDate.substring(8, 10) || "00";
+        const minute = cleanDate.substring(10, 12) || "00";
+
+        date = new Date(`${year}-${month}-${day}T${hour}:${minute}:00Z`);
+      } else {
+        date = new Date(dateString);
+      }
+    } else {
+      // Format: 20241201
+      const year = dateString.substring(0, 4);
+      const month = dateString.substring(4, 6);
+      const day = dateString.substring(6, 8);
+      date = new Date(`${year}-${month}-${day}`);
+    }
+
+    return date.toLocaleString();
+  } catch (error) {
+    logger.error("Error formatting calendar date:", error);
+    return dateString;
+  }
+}
+
+/**
+ * Finds calendar attachment in message parts
+ * @param parts - Message parts array
+ * @returns Calendar attachment info or null
+ */
+function findCalendarAttachment(parts: any[]): any {
+  for (const part of parts) {
+    if (
+      part.filename &&
+      (part.filename.toLowerCase().endsWith(".ics") ||
+        part.mimeType === "application/ics" ||
+        part.mimeType === "text/calendar")
+    ) {
+      return part;
+    }
+
+    if (part.parts) {
+      const found = findCalendarAttachment(part.parts);
+      if (found) return found;
+    }
+  }
+  return null;
 }
 
 /**
