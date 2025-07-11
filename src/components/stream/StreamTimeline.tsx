@@ -1,14 +1,16 @@
 
-import  { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import TimelineItem from './TimelineItem';
 import TimelineComposer from './TimelineComposer';
 import { useTimelineActivities } from "@/hooks/use-timeline-activities";
+import { useActivities } from "@/hooks/supabase/use-activities";
 import { useAuth } from "@/components/auth";
 import { 
   Loader2, 
   Mail,
   Calendar,
-  Users
+  Users,
+  Pin
 } from "lucide-react";
 
 
@@ -36,6 +38,9 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     maxEmails: 20,
   });
 
+  // Get toggle pin function from activities hook
+  const { togglePin, editActivity, deleteActivity } = useActivities(contactId);
+
   // Handle scroll to make composer compact
   useEffect(() => {
     const handleScroll = () => {
@@ -60,8 +65,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     emailsCount,
     internalCount,
     loading,
-    error,
-    activities: activities.slice(0, 3) // Show first 3 activities
+    error
   });
 
   // Get user name for activities
@@ -115,6 +119,60 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     }
   };
 
+  // Handle toggle pin for activities
+  const handleTogglePin = (activityId: string, newPinState: boolean) => {
+    // Find the activity to verify it exists
+    const activity = activities.find(a => a.id === activityId);
+    
+    if (!activity) {
+      console.error('Activity not found for ID:', activityId);
+      return;
+    }
+    
+    if (activity.source !== 'internal') {
+      console.error('Cannot pin non-internal activity:', activity);
+      return;
+    }
+    
+    togglePin({ activityId, isPinned: newPinState });
+  };
+
+  // Handle edit activity
+  const handleEditActivity = (activityId: string, newContent: string) => {
+    // Find the activity to verify it exists
+    const activity = activities.find(a => a.id === activityId);
+    
+    if (!activity) {
+      console.error('Activity not found for ID:', activityId);
+      return;
+    }
+    
+    if (activity.source !== 'internal') {
+      console.error('Cannot edit non-internal activity:', activity);
+      return;
+    }
+    
+    editActivity({ activityId, content: newContent });
+  };
+
+  // Handle delete activity
+  const handleDeleteActivity = (activityId: string) => {
+    // Find the activity to verify it exists
+    const activity = activities.find(a => a.id === activityId);
+    
+    if (!activity) {
+      console.error('Activity not found for ID:', activityId);
+      return;
+    }
+    
+    if (activity.source !== 'internal') {
+      console.error('Cannot delete non-internal activity:', activity);
+      return;
+    }
+    
+    deleteActivity(activityId);
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Timeline composer */}
@@ -149,14 +207,36 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
         ) : (
           <>
             <ul className="space-y-0">
-              {activities.map((activity, index) => (
-                <TimelineItem 
-                  key={`${activity.id}-${index}`}
-                  activity={activity}
-                  activityUserName={getUserName(activity)}
-                  contactName={contactName}
-                />
-              ))}
+              {activities.map((activity, index) => {
+                // Check if we need to show a separator between pinned and unpinned activities
+                const showSeparator = index > 0 && 
+                  activities[index - 1].is_pinned && 
+                  !activity.is_pinned;
+
+                return (
+                  <div key={`${activity.id}-${index}`}>
+                    {showSeparator && (
+                      <li className="relative pl-10 py-4">
+                        <div className="flex items-center">
+                          <div className="flex-1 border-t border-gray-200"></div>
+                          <div className="px-3 text-xs text-gray-500 bg-white">
+                            Recent Activities
+                          </div>
+                          <div className="flex-1 border-t border-gray-200"></div>
+                        </div>
+                      </li>
+                    )}
+                    <TimelineItem 
+                      activity={activity}
+                      activityUserName={getUserName(activity)}
+                      contactName={contactName}
+                      onTogglePin={handleTogglePin}
+                      onEditActivity={handleEditActivity}
+                      onDeleteActivity={handleDeleteActivity}
+                    />
+                  </div>
+                );
+              })}
               
               {/* Conversation start indicator */}
               {getFirstInteractionDate() && (

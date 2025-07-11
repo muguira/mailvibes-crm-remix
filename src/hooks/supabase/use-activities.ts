@@ -11,6 +11,7 @@ export interface Activity {
   type: string;
   content?: string | null;
   timestamp: string;
+  is_pinned?: boolean;
 }
 
 // Hook for activities CRUD operations
@@ -27,6 +28,7 @@ export function useActivities(contactId?: string) {
       .eq("entity_id", contactId)
       .eq("entity_type", "contact")
       .in("activity_type", ["note_add", "email", "call", "meeting"])
+      .order("is_pinned", { ascending: false })
       .order("timestamp", { ascending: false });
 
     if (error) {
@@ -69,13 +71,25 @@ export function useActivities(contactId?: string) {
         content = item.new_value || null;
       }
 
-      return {
+      const activity = {
         id: item.id,
         contact_id: item.entity_id,
         type: item.activity_type === "note_add" ? "note" : item.activity_type,
         content,
         timestamp: item.timestamp,
+        is_pinned: item.is_pinned || false,
       };
+
+      // Log activity details for debugging
+      console.log("📋 Activity loaded:", {
+        id: activity.id,
+        type: activity.type,
+        is_pinned: activity.is_pinned,
+        user_id: item.user_id,
+        content: activity.content?.substring(0, 30) + "...",
+      });
+
+      return activity;
     });
 
     return activities;
@@ -86,6 +100,100 @@ export function useActivities(contactId?: string) {
     queryKey: ["activities", user?.id, contactId],
     queryFn: fetchActivities,
     enabled: !!user && !!contactId,
+  });
+
+  // Mutation to toggle pin status
+  const togglePinMutation = useMutation({
+    mutationFn: async ({
+      activityId,
+      isPinned,
+    }: {
+      activityId: string;
+      isPinned: boolean;
+    }) => {
+      if (!user) throw new Error("User not authenticated");
+
+      console.log("🔍 Attempting to update pin status:", {
+        activityId,
+        isPinned,
+        userId: user.id,
+      });
+
+      // First, let's check if the activity exists
+      const { data: existingActivity, error: checkError } = await supabase
+        .from("user_activities")
+        .select("id, user_id, is_pinned")
+        .eq("id", activityId)
+        .single();
+
+      console.log("🔍 Activity check result:", {
+        existingActivity,
+        checkError,
+      });
+
+      if (checkError || !existingActivity) {
+        throw new Error(`Activity not found: ${activityId}`);
+      }
+
+      // Log the current pin status vs what we're trying to set
+      console.log("🔍 Pin status comparison:", {
+        activityId,
+        currentPinned: existingActivity.is_pinned,
+        targetPinned: isPinned,
+        needsUpdate: existingActivity.is_pinned !== isPinned,
+      });
+
+      // Skip update if already at target state
+      if (existingActivity.is_pinned === isPinned) {
+        console.log("⚠️ Activity already at target pin state, skipping update");
+        return existingActivity;
+      }
+
+      // Now update the pin status
+      const { data, error } = await supabase
+        .from("user_activities")
+        .update({ is_pinned: isPinned })
+        .eq("id", activityId)
+        .eq("user_id", user.id) // Ensure user can only pin their own activities
+        .select();
+
+      console.log("📊 Pin update result:", {
+        data,
+        error,
+        affectedRows: data?.length,
+      });
+
+      if (error) throw error;
+      return data[0];
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate multiple related queries to ensure UI updates
+      queryClient.invalidateQueries({
+        queryKey: ["activities", user?.id, contactId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["user_activities", user?.id],
+      });
+
+      // Force refetch to ensure immediate UI update
+      queryClient.refetchQueries({
+        queryKey: ["activities", user?.id, contactId],
+      });
+
+      toast({
+        title: "Success",
+        description: variables.isPinned
+          ? "Activity pinned"
+          : "Activity unpinned",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to update pin status: ${error.message}`,
+        variant: "destructive",
+      });
+    },
   });
 
   // Mutation to create an activity
@@ -141,10 +249,118 @@ export function useActivities(contactId?: string) {
     },
   });
 
+  // Mutation to edit an activity
+  const editActivityMutation = useMutation({
+    mutationFn: async ({
+      activityId,
+      content,
+    }: {
+      activityId: string;
+      content: string;
+    }) => {
+      if (!user) throw new Error("User not authenticated");
+
+      console.log("🔍 Attempting to edit activity:", {
+        activityId,
+        content: content.substring(0, 50) + "...",
+        userId: user.id,
+      });
+
+      const { data, error } = await supabase
+        .from("user_activities")
+        .update({
+          new_value: content,
+        })
+        .eq("id", activityId)
+        .eq("user_id", user.id) // Ensure user can only edit their own activities
+        .select();
+
+      console.log("📊 Edit activity result:", {
+        data,
+        error,
+        affectedRows: data?.length,
+      });
+
+      if (error) throw error;
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["activities", user?.id, contactId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["user_activities", user?.id],
+      });
+
+      toast({
+        title: "Success",
+        description: "Activity updated successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to update activity: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to delete an activity
+  const deleteActivityMutation = useMutation({
+    mutationFn: async (activityId: string) => {
+      if (!user) throw new Error("User not authenticated");
+
+      console.log("🔍 Attempting to delete activity:", {
+        activityId,
+        userId: user.id,
+      });
+
+      const { data, error } = await supabase
+        .from("user_activities")
+        .delete()
+        .eq("id", activityId)
+        .eq("user_id", user.id) // Ensure user can only delete their own activities
+        .select();
+
+      console.log("📊 Delete activity result:", {
+        data,
+        error,
+        affectedRows: data?.length,
+      });
+
+      if (error) throw error;
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["activities", user?.id, contactId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["user_activities", user?.id],
+      });
+
+      toast({
+        title: "Success",
+        description: "Activity deleted successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to delete activity: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     activities: activitiesQuery.data || [],
     isLoading: activitiesQuery.isLoading,
     isError: activitiesQuery.isError,
     createActivity: createActivityMutation.mutate,
+    editActivity: editActivityMutation.mutate,
+    deleteActivity: deleteActivityMutation.mutate,
+    togglePin: togglePinMutation.mutate,
   };
 }

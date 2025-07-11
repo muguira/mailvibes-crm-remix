@@ -647,10 +647,10 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
             }
           } else {
             // Regular Enter in list: send message (normal behavior)
-            const plainText = getPlainText();
-            if (plainText.trim()) {
-              e.preventDefault();
-              handleSend();
+      const plainText = getPlainText();
+      if (plainText.trim()) {
+        e.preventDefault();
+        handleSend();
               return;
             }
           }
@@ -1672,38 +1672,38 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
       }`}>
         <div className="flex items-center gap-1 overflow-hidden">
           {/* Basic Tools - Always Visible */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => handleFormatting('bold')}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => handleFormatting('bold')}
               className={`rounded transition-all duration-300 ease-in-out ${
                 activeFormats.has('bold') 
                   ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
                   : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
               } ${isCompact ? 'p-1' : 'p-2'}`}
-              title="Bold"
-            >
-              <Bold className={`transition-all duration-300 ease-in-out ${
-                isCompact ? 'w-3 h-3' : 'w-4 h-4'
-              }`} />
-            </button>
-            <button
-              onClick={() => handleFormatting('italic')}
+            title="Bold"
+          >
+            <Bold className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
+          <button
+            onClick={() => handleFormatting('italic')}
               className={`rounded transition-all duration-300 ease-in-out ${
                 activeFormats.has('italic') 
                   ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
                   : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
               } ${isCompact ? 'p-1' : 'p-2'}`}
-              title="Italic"
-            >
-              <Italic className={`transition-all duration-300 ease-in-out ${
-                isCompact ? 'w-3 h-3' : 'w-4 h-4'
-              }`} />
-            </button>
+            title="Italic"
+          >
+            <Italic className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
             
             {/* Show more tools on desktop */}
             {!isMobile && (
               <>
-                <button
+          <button
                   onClick={() => handleFormatting('bulletList')}
                   className={`rounded transition-all duration-300 ease-in-out ${
                     activeFormats.has('bulletList') 
@@ -1726,10 +1726,10 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
                   title="Add Link"
                 >
                   <Link className={`transition-all duration-300 ease-in-out ${
-                    isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                  }`} />
-                </button>
-                
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
+          
                 {/* Emoji Picker */}
                 <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
                   <PopoverTrigger asChild>
@@ -1786,24 +1786,24 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
               ? 'max-w-full opacity-100 ml-2' 
               : 'max-w-0 opacity-0 ml-0'
           }`}>
-            <div className="w-px h-6 bg-gray-200 mx-2" />
-            
+          <div className="w-px h-6 bg-gray-200 mx-2" />
+          
             {/* Mobile: Show basic tools in expanded section */}
             {isMobile && (
               <>
-                <button
-                  onClick={() => handleFormatting('bulletList')}
+          <button
+            onClick={() => handleFormatting('bulletList')}
                   className={`rounded transition-all duration-300 ease-in-out ${
                     activeFormats.has('bulletList') 
                       ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
                       : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
                   } ${isCompact ? 'p-1' : 'p-2'}`}
-                  title="Bullet List"
-                >
-                  <List className={`transition-all duration-300 ease-in-out ${
-                    isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                  }`} />
-                </button>
+            title="Bullet List"
+          >
+            <List className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
                 <button
                   onClick={() => handleFormatting('link')}
                   className={`rounded transition-all duration-300 ease-in-out ${
@@ -1926,24 +1926,24 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
             
             <div className="w-px h-6 bg-gray-200 mx-2" />
             
-            <button
-              onClick={() => handleFormatting('numberedList')}
+          <button
+            onClick={() => handleFormatting('numberedList')}
               className={`rounded transition-all duration-300 ease-in-out ${
                 activeFormats.has('numberedList') 
                   ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
                   : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
               } ${isCompact ? 'p-1' : 'p-2'}`}
-              title="Numbered List"
-            >
-              <ListOrdered className={`transition-all duration-300 ease-in-out ${
-                isCompact ? 'w-3 h-3' : 'w-4 h-4'
-              }`} />
-            </button>
-            
-            <div className="w-px h-6 bg-gray-200 mx-2" />
-            
+            title="Numbered List"
+          >
+            <ListOrdered className={`transition-all duration-300 ease-in-out ${
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
+          
+          <div className="w-px h-6 bg-gray-200 mx-2" />
+          
             {/* Code and Special Elements */}
-            <button
+          <button
               onClick={() => handleFormatting('code')}
               className={`rounded transition-all duration-300 ease-in-out ${
                 activeFormats.has('code') 
@@ -1958,9 +1958,9 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
             </button>
             <button
               onClick={() => handleFormatting('codeblock')}
-              className={`rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all duration-300 ease-in-out ${
-                isCompact ? 'p-1' : 'p-2'
-              }`}
+            className={`rounded hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all duration-300 ease-in-out ${
+              isCompact ? 'p-1' : 'p-2'
+            }`}
               title="Code Block"
             >
               <Code2 className={`transition-all duration-300 ease-in-out ${
@@ -1988,9 +1988,9 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
               title="Horizontal Rule"
             >
               <Minus className={`transition-all duration-300 ease-in-out ${
-                isCompact ? 'w-3 h-3' : 'w-4 h-4'
-              }`} />
-            </button>
+              isCompact ? 'w-3 h-3' : 'w-4 h-4'
+            }`} />
+          </button>
           </div>
         </div>
 
