@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   MessageCircle, 
   ThumbsUp, 
@@ -14,7 +14,8 @@ import {
   Reply,
   Heart,
   Settings,
-  Activity
+  Activity,
+  Pin
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TimelineActivity } from '@/hooks/use-timeline-activities';
@@ -27,6 +28,7 @@ interface TimelineItemProps {
   activitySummary?: string;
   activityUserName?: string;
   contactName?: string;
+  onTogglePin?: (activityId: string, currentState: boolean) => void;
 }
 
 // Markdown renderer for timeline items - Enhanced version
@@ -242,8 +244,11 @@ export default function TimelineItem({
   activityColor, 
   activitySummary, 
   activityUserName,
-  contactName 
+  contactName,
+  onTogglePin 
 }: TimelineItemProps) {
+  const [optimisticPinState, setOptimisticPinState] = useState(activity.is_pinned);
+  
   const Icon = getActivityIcon(activityIcon, activity.type);
   const colorClass = activityColor || getActivityColor(activity.type);
   const userNameColor = getUserNameColor(activity.type);
@@ -258,8 +263,13 @@ export default function TimelineItem({
   // Get user name - use the passed prop or default to User
   const userName = activityUserName || 'User';
   
+  // Update optimistic state when activity changes
+  React.useEffect(() => {
+    setOptimisticPinState(activity.is_pinned);
+  }, [activity.is_pinned]);
+  
   return (
-    <li className="relative pl-12 pb-6 last:overflow-y-hidden last:pb-0">
+    <li className="relative pl-12 pb-8  last:pb-0">
       {/* Timeline line - more prominent and continuous */}
       <div className="absolute left-[22px] top-[20px] bottom-[-20px] w-[1px] bg-gray-200"></div>
       
@@ -274,9 +284,44 @@ export default function TimelineItem({
       </div>
       
       {/* Activity card with white background */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 pr-[7px]">
+      <div className={`bg-white rounded-lg border shadow-sm p-4 mb-5 pr-[7px] relative ${
+        optimisticPinState 
+          ? 'border-amber-200 bg-amber-50/30' 
+          : 'border-gray-200'
+      }`}>
+        {/* Pin button - top right corner */}
+        {onTogglePin && activity.source === 'internal' && (
+          <button
+            onClick={() => {
+              // Update optimistic state immediately for instant feedback
+              setOptimisticPinState(!optimisticPinState);
+              onTogglePin(activity.id, !optimisticPinState);
+            }}
+            className={`absolute top-2 right-2 p-1.5 rounded-full transition-all duration-200 hover:scale-110 ${
+              optimisticPinState
+                ? 'text-amber-600 bg-amber-100 hover:bg-amber-200'
+                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+            }`}
+            title={optimisticPinState ? 'Unpin activity' : 'Pin activity'}
+          >
+            <Pin className={`w-3.5 h-3.5 transition-transform ${
+              optimisticPinState ? 'rotate-45' : ''
+            }`} />
+          </button>
+        )}
+
+        {/* Pinned indicator badge */}
+        {optimisticPinState && (
+          <div className="absolute top-2 left-2 flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-1 rounded-full text-xs font-medium">
+            <Pin className="w-3 h-3" />
+            <span>Pinned</span>
+          </div>
+        )}
+
         {/* Header with user info */}
-        <div className="flex items-center text-sm mb-1">
+        <div className={`flex items-center text-sm mb-2 ${
+          optimisticPinState ? 'mt-6' : ''
+        }`}>
           {/* Activity type icon */}
           <div className={cn("w-5 h-5 rounded-full flex items-center justify-center mr-2", colorClass)}>
             <Icon className="h-3 w-3" />
@@ -293,7 +338,7 @@ export default function TimelineItem({
              activity.type === 'task' ? 'created a task for' :
              `added a ${activity.type} to`}
           </span>
-                     <span className="text-gray-700 font-medium ml-1">
+          <span className="text-gray-700 font-medium ml-1">
              {activity.type === 'email' && activity.to && activity.to.length > 0 
                ? activity.to[0].name || activity.to[0].email
                : contactName || 'Contact'}
@@ -301,13 +346,13 @@ export default function TimelineItem({
         </div>
         
         {/* Timestamp details */}
-        <div className="text-xs text-gray-400 mb-3">
+        <div className="text-xs text-gray-400 mb-3 pl-7">
           {fullTimestamp}
         </div>
         
         {/* Activity content */}
         {displayContent && (
-          <div className="mb-3">
+          <div className="mb-3 pl-7">
             {activity.source === 'gmail' && activity.type === 'email' ? (
               <EmailRenderer
                 bodyHtml={activity.bodyHtml}
@@ -324,7 +369,7 @@ export default function TimelineItem({
         )}
         
         {/* Action buttons */}
-        <div className="flex items-center gap-4 text-xs text-gray-500">
+        <div className="flex items-center gap-4 text-xs text-gray-500 pl-7">
           <button className="flex items-center gap-1 hover:text-teal-600 transition-colors">
             <Reply className="h-3 w-3" />
             <span>2</span>

@@ -11,6 +11,7 @@ export interface TimelineActivity {
   content?: string | null;
   timestamp: string;
   source: "internal" | "gmail";
+  is_pinned?: boolean;
 
   // Email-specific fields
   subject?: string;
@@ -69,29 +70,12 @@ export function useTimelineActivities(
   } = useStore();
   const hasGmailAccounts = connectedAccounts.length > 0;
 
-  // Debug logging for Gmail store state
-  console.log("useTimelineActivities - Gmail store state:", {
-    connectedAccounts,
-    hasGmailAccounts,
-    gmailLoading,
-    gmailError,
-    accountsCount: connectedAccounts.length,
-  });
-
   // Get internal activities
   const {
     activities: internalActivities,
     isLoading: internalLoading,
     isError: internalError,
   } = useActivities(contactId);
-
-  // Debug logging for internal activities
-  console.log("useTimelineActivities - Internal activities:", {
-    contactId,
-    internalActivities,
-    internalLoading,
-    internalError,
-  });
 
   // Get emails using hybrid approach
   const {
@@ -109,17 +93,6 @@ export function useTimelineActivities(
     autoFetch: includeEmails && hasGmailAccounts,
   });
 
-  // Debug logging for emails
-  console.log("useTimelineActivities - Emails:", {
-    contactEmail,
-    emails,
-    emailsLoading,
-    emailsError,
-    hasGmailAccounts,
-    includeEmails,
-    connectedAccounts,
-  });
-
   // Convert internal activities to timeline format
   const timelineInternalActivities: TimelineActivity[] = useMemo(() => {
     return (internalActivities || []).map((activity: Activity) => ({
@@ -128,35 +101,17 @@ export function useTimelineActivities(
       content: activity.content,
       timestamp: activity.timestamp,
       source: "internal" as const,
+      is_pinned: activity.is_pinned || false,
     }));
   }, [internalActivities]);
 
   // Convert emails to timeline format
   const timelineEmailActivities: TimelineActivity[] = useMemo(() => {
     if (!includeEmails || !hasGmailAccounts) {
-      console.log("useTimelineActivities - Skipping emails:", {
-        includeEmails,
-        hasGmailAccounts,
-        reason: !includeEmails ? "emails not included" : "no gmail accounts",
-      });
       return [];
     }
 
-    console.log(
-      "useTimelineActivities - Converting emails to timeline format:",
-      {
-        emailsCount: emails.length,
-        emails: emails.map((email) => ({
-          id: email.id,
-          subject: email.subject,
-          from: email.from,
-          date: email.date,
-          dateType: typeof email.date,
-        })),
-      }
-    );
-
-    const converted = emails.map((email: GmailEmail) => ({
+    return emails.map((email: GmailEmail) => ({
       id: `email-${email.id}`,
       type: "email" as const,
       content: email.snippet,
@@ -173,45 +128,44 @@ export function useTimelineActivities(
       labels: email.labels,
       attachments: email.attachments,
     }));
-
-    console.log(
-      "useTimelineActivities - Converted email activities:",
-      converted
-    );
-    return converted;
   }, [emails, includeEmails, hasGmailAccounts]);
 
   // Combine and sort activities chronologically
   const allActivities: TimelineActivity[] = useMemo(() => {
-    console.log("useTimelineActivities - Combining activities:", {
-      internalCount: timelineInternalActivities.length,
-      emailCount: timelineEmailActivities.length,
-      internalActivities: timelineInternalActivities,
-      emailActivities: timelineEmailActivities,
-    });
-
     const combined = [
       ...timelineInternalActivities,
       ...timelineEmailActivities,
     ];
 
     const sorted = combined.sort((a, b) => {
+      // 1. Pinned activities go first
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+
+      // 2. Within each group (pinned/unpinned), sort by date (most recent first)
       const dateA = new Date(a.timestamp);
       const dateB = new Date(b.timestamp);
-      return dateB.getTime() - dateA.getTime(); // Most recent first
+      return dateB.getTime() - dateA.getTime();
     });
 
-    console.log("useTimelineActivities - Final sorted activities:", {
-      totalCount: sorted.length,
-      activities: sorted.map((activity) => ({
-        id: activity.id,
-        type: activity.type,
-        source: activity.source,
-        timestamp: activity.timestamp,
-        subject: activity.subject,
-        content: activity.content?.substring(0, 50) + "...",
-      })),
-    });
+    // Debug logging for sorting
+    const pinnedCount = sorted.filter((a) => a.is_pinned).length;
+    const unpinnedCount = sorted.filter((a) => !a.is_pinned).length;
+
+    if (pinnedCount > 0) {
+      console.log("🔄 Timeline sorting result:", {
+        totalActivities: sorted.length,
+        pinnedCount,
+        unpinnedCount,
+        firstThreeActivities: sorted.slice(0, 3).map((a) => ({
+          id: a.id,
+          type: a.type,
+          source: a.source,
+          is_pinned: a.is_pinned,
+          timestamp: a.timestamp,
+        })),
+      });
+    }
 
     return sorted;
   }, [timelineInternalActivities, timelineEmailActivities]);
