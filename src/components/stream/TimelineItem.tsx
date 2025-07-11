@@ -585,9 +585,10 @@ export default function TimelineItem({
                   autoFocus={true}
                   onEditorReady={(editor) => setEditor(editor)}
                 />
-                {/* Horizontal layout: Toolbar + Action Buttons */}
-                <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-                  <div className="flex-1">
+                {/* Responsive layout: Toolbar + Action Buttons */}
+                <div className="border-t border-gray-100 pt-3">
+                  {/* Toolbar */}
+                  <div className="mb-3">
                     <MarkdownToolbar
                       editor={editor}
                       onFormat={handleFormat}
@@ -597,7 +598,9 @@ export default function TimelineItem({
                       className="p-0"
                     />
                   </div>
-                  <div className="flex gap-2 ml-4">
+                  
+                  {/* Action Buttons - Always on their own line */}
+                  <div className="flex gap-2 justify-end">
                     <button
                       onClick={handleSaveEdit}
                       className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-md hover:bg-teal-700 transition-colors"
