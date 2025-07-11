@@ -249,11 +249,119 @@ export function useActivities(contactId?: string) {
     },
   });
 
+  // Mutation to edit an activity
+  const editActivityMutation = useMutation({
+    mutationFn: async ({
+      activityId,
+      content,
+    }: {
+      activityId: string;
+      content: string;
+    }) => {
+      if (!user) throw new Error("User not authenticated");
+
+      console.log("🔍 Attempting to edit activity:", {
+        activityId,
+        content: content.substring(0, 50) + "...",
+        userId: user.id,
+      });
+
+      const { data, error } = await supabase
+        .from("user_activities")
+        .update({
+          new_value: content,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", activityId)
+        .eq("user_id", user.id) // Ensure user can only edit their own activities
+        .select();
+
+      console.log("📊 Edit activity result:", {
+        data,
+        error,
+        affectedRows: data?.length,
+      });
+
+      if (error) throw error;
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["activities", user?.id, contactId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["user_activities", user?.id],
+      });
+
+      toast({
+        title: "Success",
+        description: "Activity updated successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to update activity: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to delete an activity
+  const deleteActivityMutation = useMutation({
+    mutationFn: async (activityId: string) => {
+      if (!user) throw new Error("User not authenticated");
+
+      console.log("🔍 Attempting to delete activity:", {
+        activityId,
+        userId: user.id,
+      });
+
+      const { data, error } = await supabase
+        .from("user_activities")
+        .delete()
+        .eq("id", activityId)
+        .eq("user_id", user.id) // Ensure user can only delete their own activities
+        .select();
+
+      console.log("📊 Delete activity result:", {
+        data,
+        error,
+        affectedRows: data?.length,
+      });
+
+      if (error) throw error;
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["activities", user?.id, contactId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["user_activities", user?.id],
+      });
+
+      toast({
+        title: "Success",
+        description: "Activity deleted successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to delete activity: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     activities: activitiesQuery.data || [],
     isLoading: activitiesQuery.isLoading,
     isError: activitiesQuery.isError,
     createActivity: createActivityMutation.mutate,
+    editActivity: editActivityMutation.mutate,
+    deleteActivity: deleteActivityMutation.mutate,
     togglePin: togglePinMutation.mutate,
   };
 }
