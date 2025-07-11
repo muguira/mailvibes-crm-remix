@@ -22,7 +22,7 @@ import {
 import { cn } from '@/lib/utils';
 import { TimelineActivity } from '@/hooks/use-timeline-activities';
 import EmailRenderer from '@/components/timeline/EmailRenderer';
-import { MarkdownEditor } from '@/components/markdown';
+import { TiptapEditor } from '@/components/markdown';
 
 interface TimelineItemProps {
   activity: TimelineActivity;
@@ -36,12 +36,22 @@ interface TimelineItemProps {
   onDeleteActivity?: (activityId: string) => void;
 }
 
+// Function to detect if content is already HTML (from TiptapEditor) or markdown
+const isHtmlContent = (content: string): boolean => {
+  // Check for common HTML tags that TiptapEditor generates
+  const htmlTagRegex = /<(h[1-6]|p|div|ul|ol|li|strong|em|code|blockquote|a|br)\b[^>]*>/i;
+  return htmlTagRegex.test(content);
+};
+
 // Markdown renderer for timeline items - Enhanced version
 const renderMarkdown = (text: string) => {
   if (!text) return '';
   
+  // If content is already HTML (from TiptapEditor), return it as-is
+  if (isHtmlContent(text)) {
+    return text;
+  }
 
-  
   let html = text;
   
   // Encabezados (H1-H6) - deben procesarse antes que otros elementos
@@ -472,7 +482,7 @@ export default function TimelineItem({
             {isEditing ? (
               /* Edit mode */
               <div className="space-y-3">
-                <MarkdownEditor
+                <TiptapEditor
                   value={editContent}
                   onChange={setEditContent}
                   placeholder="Edit your note..."
@@ -506,7 +516,7 @@ export default function TimelineItem({
                 />
               ) : (
                 <div 
-                  className="text-sm text-gray-800 leading-relaxed"
+                  className="text-sm text-gray-800 leading-relaxed timeline-content"
                   dangerouslySetInnerHTML={{ __html: renderMarkdown(displayContent) }}
                 />
               )
@@ -554,6 +564,63 @@ export default function TimelineItem({
           </div>
         </div>
       )}
+      
+      {/* Timeline content styles */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .timeline-content h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 16px;
+            margin-bottom: 8px;
+            color: #111827;
+          }
+          .timeline-content h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-top: 12px;
+            margin-bottom: 8px;
+            color: #111827;
+          }
+          .timeline-content h3 {
+            font-size: 1.125rem;
+            font-weight: 700;
+            margin-top: 12px;
+            margin-bottom: 8px;
+            color: #111827;
+          }
+          .timeline-content ul {
+            list-style-type: disc;
+            list-style-position: outside;
+            margin: 12px 0;
+            padding-left: 24px;
+          }
+          .timeline-content ol {
+            list-style-type: decimal;
+            list-style-position: outside;
+            margin: 12px 0;
+            padding-left: 24px;
+          }
+          .timeline-content li {
+            margin-bottom: 4px;
+            line-height: 1.5;
+          }
+          .timeline-content blockquote {
+            margin: 12px 0;
+            padding: 8px 16px;
+          }
+          .timeline-content pre {
+            margin: 12px 0;
+            padding: 16px;
+          }
+          .timeline-content code {
+            padding: 2px 6px;
+          }
+          .timeline-content hr {
+            margin: 16px 0;
+          }
+        `
+      }} />
     </li>
   );
 }
