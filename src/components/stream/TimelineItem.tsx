@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   MessageCircle, 
   ThumbsUp, 
@@ -22,7 +22,7 @@ import {
 import { cn } from '@/lib/utils';
 import { TimelineActivity } from '@/hooks/use-timeline-activities';
 import EmailRenderer from '@/components/timeline/EmailRenderer';
-import { TiptapEditor } from '@/components/markdown';
+import { TiptapEditor, MarkdownToolbar } from '@/components/markdown';
 
 interface TimelineItemProps {
   activity: TimelineActivity;
@@ -284,6 +284,7 @@ export default function TimelineItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(activity.content || '');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editor, setEditor] = useState<any>(null);
   
   const Icon = getActivityIcon(activityIcon, activity.type);
   const colorClass = activityColor || getActivityColor(activity.type);
@@ -362,6 +363,71 @@ export default function TimelineItem({
   const handleCancelDelete = () => {
     setShowDeleteConfirm(false);
   };
+
+  // Handle formatting commands for the editor
+  const handleFormat = useCallback((format: string) => {
+    if (!editor) return;
+
+    switch (format) {
+      case 'bold':
+        editor.chain().focus().toggleBold().run();
+        break;
+      case 'italic':
+        editor.chain().focus().toggleItalic().run();
+        break;
+      case 'underline':
+        editor.chain().focus().toggleUnderline().run();
+        break;
+      case 'strikethrough':
+        editor.chain().focus().toggleStrike().run();
+        break;
+      case 'code':
+        editor.chain().focus().toggleCode().run();
+        break;
+      case 'heading1':
+        editor.chain().focus().toggleHeading({ level: 1 }).run();
+        break;
+      case 'heading2':
+        editor.chain().focus().toggleHeading({ level: 2 }).run();
+        break;
+      case 'heading3':
+        editor.chain().focus().toggleHeading({ level: 3 }).run();
+        break;
+      case 'bulletList':
+        editor.chain().focus().toggleBulletList().run();
+        break;
+      case 'numberedList':
+        editor.chain().focus().toggleOrderedList().run();
+        break;
+      case 'quote':
+        editor.chain().focus().toggleBlockquote().run();
+        break;
+      case 'divider':
+        editor.chain().focus().setHorizontalRule().run();
+        break;
+    }
+  }, [editor]);
+
+  const handleLinkRequest = useCallback((url: string, linkText: string) => {
+    if (!editor) return;
+
+    if (url && linkText) {
+      editor.chain().focus().setLink({ href: url }).insertContent(linkText).run();
+    }
+  }, [editor]);
+
+  const handleCodeBlockRequest = useCallback((selectedText: string, range: Range) => {
+    if (!editor) return;
+
+    const selection = window.getSelection();
+    if (selection && range) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      const codeBlock = `\`\`\`\n${selectedText}\n\`\`\``;
+      editor.chain().focus().insertContent(codeBlock).run();
+    }
+  }, [editor]);
 
   // Only show edit/delete for internal activities (user-created notes)
   const canEditDelete = activity.source === 'internal' && activity.type === 'note';
@@ -487,23 +553,38 @@ export default function TimelineItem({
                   onChange={setEditContent}
                   placeholder="Edit your note..."
                   minHeight="100px"
-                  showToolbar={true}
+                  showToolbar={false}
+                  externalToolbar={true}
                   isCompact={false}
                   autoFocus={true}
+                  onEditorReady={(editor) => setEditor(editor)}
                 />
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSaveEdit}
-                    className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-md hover:bg-teal-700 transition-colors"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={handleCancelEdit}
-                    className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300 transition-colors"
-                  >
-                    Cancel
-                  </button>
+                {/* Horizontal layout: Toolbar + Action Buttons */}
+                <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+                  <div className="flex-1">
+                    <MarkdownToolbar
+                      editor={editor}
+                      onFormat={handleFormat}
+                      onLinkRequest={handleLinkRequest}
+                      onCodeBlockRequest={handleCodeBlockRequest}
+                      isCompact={false}
+                      className="p-0"
+                    />
+                  </div>
+                  <div className="flex gap-2 ml-4">
+                    <button
+                      onClick={handleSaveEdit}
+                      className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-md hover:bg-teal-700 transition-colors"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
