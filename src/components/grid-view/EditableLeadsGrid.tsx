@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { GridViewContainer } from '@/components/grid-view/GridViewContainer';
 import { Column, GridRow } from '@/components/grid-view/types';
 import { GridSkeleton } from '@/components/grid-view/GridSkeleton';
@@ -455,34 +455,45 @@ export function EditableLeadsGrid() {
   } = useLeadsRows();
 
   // Calculate total pages based on filtered results
-  const totalPages = Math.ceil(totalCount / pageSize);
+  const totalPages = useMemo(() => Math.ceil(totalCount / pageSize), [totalCount, pageSize]);
   
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, activeFilters]);
+  // Create stable grid key to prevent unnecessary re-renders
+  const gridKey = useMemo(() => `grid-stable-${forceRenderKey}`, [forceRenderKey]);
   
   // Handle page change
-  const handlePageChange = (page: number) => {
+  const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
     // Scroll to top of grid when changing pages
     const gridElement = document.querySelector('.grid-components-container');
     if (gridElement) {
       gridElement.scrollTop = 0;
     }
-  };
+  }, []);
   
   // Handle page size change
-  const handlePageSizeChange = (size: number) => {
+  const handlePageSizeChange = useCallback((size: number) => {
     setPageSize(size);
     // Reset to first page when changing page size
     setCurrentPage(1);
-  };
+  }, []);
+  
+  // Handle search change with immediate page reset to prevent multiple re-renders
+  const handleSearchChange = useCallback((term: string) => {
+    // Only update if the term actually changed to prevent unnecessary re-renders
+    setSearchTerm(prevTerm => {
+      if (prevTerm !== term) {
+        // Reset to first page immediately when search term changes
+        setCurrentPage(1);
+        return term;
+      }
+      return prevTerm;
+    });
+  }, []);
 
   // Handle contact deletion
   const [isContactDeletionLoading, setIsContactDeletionLoading] = useState(false);
   
-  const handleDeleteContacts = async (contactIds: string[]): Promise<void> => {
+  const handleDeleteContacts = useCallback(async (contactIds: string[]): Promise<void> => {
     setIsContactDeletionLoading(true);
     try {
       await deleteContacts(contactIds);
@@ -492,10 +503,10 @@ export function EditableLeadsGrid() {
     } finally {
       setIsContactDeletionLoading(false);
     }
-  };
+  }, [deleteContacts]);
   
   // Function to persist columns to both localStorage and Supabase
-  const persistColumns = async (newColumns: Column[]) => {
+  const persistColumns = useCallback(async (newColumns: Column[]) => {
     // Save to localStorage immediately
     saveColumnsToLocal(newColumns);
     
@@ -503,7 +514,7 @@ export function EditableLeadsGrid() {
     if (user) {
       await saveColumnsToSupabase(user, newColumns);
     }
-  };
+  }, [user]);
   
   // Resize handler extracted so it can be reused
   const handleResize = useCallback(() => {
@@ -545,9 +556,6 @@ export function EditableLeadsGrid() {
       if (newContact) {
         // Force a re-render by updating the render key
         setForceRenderKey(prev => prev + 1);
-        
-        // Also force a column re-render
-        setColumns(prevColumns => [...prevColumns]);
         
         // Refresh the data to ensure the new contact is visible
         refreshData();
@@ -593,26 +601,31 @@ export function EditableLeadsGrid() {
     };
   }, [refreshData]);
 
-  // Add dynamic columns based on imported data
+  // Add dynamic columns based on imported data - memoized to prevent unnecessary recalculations
+  const dynamicFields = useMemo(() => {
+    if (rows.length === 0) return new Set<string>();
+    return extractDynamicFields(rows);
+  }, [rows]);
+
+  const dynamicColumnsToAdd = useMemo(() => {
+    if (dynamicFields.size === 0) return [];
+    
+    const dynamicColumns = createDynamicColumns(dynamicFields);
+    const currentColumnIds = new Set(columns.map(col => col.id));
+    
+    // Only add new dynamic columns that don't already exist AND haven't been deleted
+    return dynamicColumns.filter(col => 
+      !currentColumnIds.has(col.id) && !deletedColumnIds.has(col.id)
+    );
+  }, [dynamicFields, columns, deletedColumnIds]);
+
+  // Add dynamic columns when needed
   useEffect(() => {
-    if (rows.length > 0) {
-      const dynamicFields = extractDynamicFields(rows);
-      const dynamicColumns = createDynamicColumns(dynamicFields);
-      
-      // Get current column IDs
-      const currentColumnIds = new Set(columns.map(col => col.id));
-      
-      // Only add new dynamic columns that don't already exist AND haven't been deleted
-      const newColumns = dynamicColumns.filter(col => 
-        !currentColumnIds.has(col.id) && !deletedColumnIds.has(col.id)
-      );
-      
-      if (newColumns.length > 0) {
-        console.log(`📋 Adding ${newColumns.length} new dynamic columns:`, newColumns.map(c => c.id));
-        setColumns(prev => [...prev, ...newColumns]);
-      }
+    if (dynamicColumnsToAdd.length > 0) {
+      console.log(`📋 Adding ${dynamicColumnsToAdd.length} new dynamic columns:`, dynamicColumnsToAdd.map(c => c.id));
+      setColumns(prev => [...prev, ...dynamicColumnsToAdd]);
     }
-  }, [rows, deletedColumnIds]); // Added deletedColumnIds to dependencies
+  }, [dynamicColumnsToAdd]);
 
   // Add loading state to prevent duplicate loads
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
@@ -764,7 +777,7 @@ export function EditableLeadsGrid() {
   }, [handleResize]);
   
   // Handle cell edit
-  const handleCellChange = async (rowId: string, columnId: string, value: any) => {
+  const handleCellChange = useCallback(async (rowId: string, columnId: string, value: any) => {
     const cellKey = `${rowId}-${columnId}`;
     
     try {
@@ -801,10 +814,10 @@ export function EditableLeadsGrid() {
         variant: "destructive"
       });
     }
-  };
+  }, [rows, columns, updateCell, logCellEdit]);
 
   // Handle columns reordering
-  const handleColumnsReorder = (columnIds: string[]) => {
+  const handleColumnsReorder = useCallback((columnIds: string[]) => {
     const uniqueColumnIds = [...new Set(columnIds)];
     const columnsById = new Map(columns.map(c => [c.id, c]));
     const newColumns = uniqueColumnIds
@@ -818,7 +831,7 @@ export function EditableLeadsGrid() {
 
     // Log the activity
     logFilterChange({ type: 'columns_reorder', columns: uniqueColumnIds });
-  };
+  }, [columns, logFilterChange]);
   
   // Handle column deletion
   const handleDeleteColumn = async (columnId: string) => {
@@ -1251,7 +1264,7 @@ export function EditableLeadsGrid() {
     <div className="h-full w-full flex flex-col">
       <div className="flex-1 overflow-hidden relative">
         <GridViewContainer 
-          key={`grid-${rows.length}-${rows[0]?.id || 'empty'}-${forceRenderKey}`} // Force re-render when rows change
+          key={gridKey} // Use stable key to prevent unnecessary re-renders
         columns={columns} 
           data={rows}  // Use all rows instead of paginated data
         listName="All Leads"
@@ -1266,7 +1279,7 @@ export function EditableLeadsGrid() {
           onHideColumn={handleHideColumn}
           onUnhideColumn={handleUnhideColumn}
           hiddenColumns={hiddenColumns}
-          onSearchChange={setSearchTerm}
+          onSearchChange={handleSearchChange}
           searchTerm={searchTerm}
           activeFilters={activeFilters}
           onApplyFilters={setActiveFilters}
