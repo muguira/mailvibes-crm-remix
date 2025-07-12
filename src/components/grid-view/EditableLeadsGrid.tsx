@@ -804,18 +804,19 @@ export function EditableLeadsGrid() {
 
   // Handle columns reordering
   const handleColumnsReorder = (columnIds: string[]) => {
-    const newColumns = columns.map(col => ({
-      ...col,
-      order: columnIds.indexOf(col.id)
-    })).sort((a, b) => a.order - b.order);
-    
+    const uniqueColumnIds = [...new Set(columnIds)];
+    const columnsById = new Map(columns.map(c => [c.id, c]));
+    const newColumns = uniqueColumnIds
+      .map(id => columnsById.get(id))
+      .filter((c): c is Column => !!c);
+
     setColumns(newColumns);
-    
+
     // Persist the reordered columns
     persistColumns(newColumns);
-    
+
     // Log the activity
-    logFilterChange({ type: 'columns_reorder', columns: columnIds });
+    logFilterChange({ type: 'columns_reorder', columns: uniqueColumnIds });
   };
   
   // Handle column deletion
