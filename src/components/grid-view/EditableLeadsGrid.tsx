@@ -778,6 +778,13 @@ export function EditableLeadsGrid() {
   
   // Handle cell edit
   const handleCellChange = useCallback(async (rowId: string, columnId: string, value: any) => {
+    console.log('EditableLeadsGrid handleCellChange called:', {
+      rowId,
+      columnId,
+      value,
+      timestamp: new Date().toISOString()
+    });
+    
     const cellKey = `${rowId}-${columnId}`;
     
     try {
@@ -785,29 +792,57 @@ export function EditableLeadsGrid() {
       const row = rows.find(r => r.id === rowId);
       const oldValue = row ? row[columnId] : null;
 
+      console.log('Row found for handleCellChange:', {
+        rowId,
+        rowFound: !!row,
+        rowName: row?.name,
+        oldValue,
+        newValue: value,
+        columnId
+      });
+
       // Format date values before saving
       const column = columns.find(c => c.id === columnId);
       let finalValue = value;
       if (column && column.type === 'date' && value instanceof Date) {
-        finalValue = format(value, 'yyyy-MM-dd');
+        finalValue = value.toISOString().split('T')[0];
       }
-              
-      // Save to Supabase through our hook
+
+      console.log('Final value after processing:', {
+        originalValue: value,
+        finalValue,
+        columnType: column?.type,
+        isDateColumn: column?.type === 'date'
+      });
+
+      // Update the cell using the hook
       await updateCell({ rowId, columnId, value: finalValue });
-          
-      // Sync with mockContactsById
-      const updatedRow = rows.find(r => r.id === rowId) || { id: rowId };
-      updatedRow[columnId] = value;
-      syncContact(updatedRow as GridRow);
-      
+
       // Log the activity with contact name if available
       logCellEdit(
-        rowId, 
-        columnId, 
-        value, 
+        rowId,
+        columnId,
+        finalValue, 
         oldValue
       );
+
+      console.log('EditableLeadsGrid handleCellChange completed successfully:', {
+        rowId,
+        columnId,
+        finalValue,
+        cellKey
+      });
+
     } catch (error) {
+      console.error('Error in EditableLeadsGrid handleCellChange:', {
+        error,
+        rowId,
+        columnId,
+        value,
+        cellKey
+      });
+      
+      // Show error toast
       toast({
         title: "Error updating cell",
         description: "Failed to save changes. Please try again.",
