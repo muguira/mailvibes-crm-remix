@@ -442,7 +442,7 @@ export function useLeadsRows() {
     );
   };
 
-  // Update a specific cell in a row - this is what we need to add
+  // Update a cell value
   const updateCell = async ({
     rowId,
     columnId,
@@ -452,52 +452,53 @@ export function useLeadsRows() {
     columnId: string;
     value: any;
   }) => {
-    // Find the row if it exists in our current state
-    const existingRowIndex = rows.findIndex((row) => row.id === rowId);
-    let updatedRow;
-    let latestRows: LeadContact[] = rows;
+    // Find the row being updated
+    const rowIndex = rows.findIndex((row) => row.id === rowId);
+    if (rowIndex === -1) {
+      logger.error(`Row with id ${rowId} not found`);
+      return;
+    }
 
-    if (existingRowIndex >= 0) {
-      // Update existing row
-      updatedRow = {
-        ...rows[existingRowIndex],
-        [columnId]: value,
-      };
+    const currentRow = rows[rowIndex];
 
-      // Update local state
-      setRows((prevRows) => {
-        const newRows = [...prevRows];
-        newRows[existingRowIndex] = updatedRow;
-        latestRows = newRows;
-        return newRows;
+    // DETAILED LOGGING: Track the cell update request
+    logger.log("UpdateCell called:", {
+      rowId,
+      columnId,
+      value,
+      currentRowName: currentRow.name,
+      currentRowUserId: currentRow.user_id,
+      currentRowHasName: !!currentRow.name,
+      currentRowHasUserId: !!currentRow.user_id,
+      isAuthenticated: !!user,
+      authenticatedUserId: user?.id,
+    });
+
+    // Check if the current row is missing user_id
+    if (!currentRow.user_id) {
+      logger.warn("POTENTIAL ISSUE: Contact missing user_id before update:", {
+        rowId,
+        contactName: currentRow.name,
+        columnBeingUpdated: columnId,
+        willAddUserId: !!user?.id,
       });
-    } else {
-      // Create a new row
-      updatedRow = {
-        id: rowId,
-        [columnId]: value,
-        name: "Untitled Contact", // Add default name to prevent constraint violation
-      };
-
-      // Add to local state
-      setRows((prevRows) => [updatedRow, ...prevRows]);
-      latestRows = [updatedRow, ...rows];
     }
 
-    // Immediately update mockContactsById for Stream View to ensure consistent data
-    // This is critical to keep both views in sync
-    if (mockContactsById[rowId]) {
-      mockContactsById[rowId] = {
-        ...mockContactsById[rowId],
-        [columnId]: value,
-      };
-    } else {
-      mockContactsById[rowId] = {
-        id: rowId,
-        name: updatedRow.name || "Untitled Contact", // Ensure name exists
-        [columnId]: value,
-      };
-    }
+    // Create updated row
+    const updatedRow = {
+      ...currentRow,
+      [columnId]: value,
+    };
+
+    // Update local state first for immediate UI feedback
+    setRows((prevRows) => {
+      const newRows = [...prevRows];
+      newRows[rowIndex] = updatedRow;
+      return newRows;
+    });
+
+    // Update mockContactsById for Stream View
+    mockContactsById[updatedRow.id] = updatedRow;
 
     // DEBUG: Add this to test simple connection
     if (columnId === "name") {
@@ -527,10 +528,33 @@ export function useLeadsRows() {
       });
 
       if (response.error) {
+        logger.error("UpdateContact returned error:", {
+          error: response.error,
+          rowId,
+          columnId,
+          originalName: currentRow.name,
+          updatedName: updatedRow.name,
+        });
         throw response.error;
       }
+
+      // Log successful update
+      logger.log("UpdateCell completed successfully:", {
+        rowId,
+        columnId,
+        originalName: currentRow.name,
+        finalName: updatedRow.name,
+        hadUserIdBefore: !!currentRow.user_id,
+        hasUserIdAfter: !!user?.id,
+      });
     } catch (error) {
-      logger.error("Error updating cell:", error);
+      logger.error("Error updating cell:", {
+        error,
+        rowId,
+        columnId,
+        contactName: currentRow.name,
+        hadUserId: !!currentRow.user_id,
+      });
       // Fall back to localStorage
       saveRowsToLocal(rows);
 
@@ -544,7 +568,7 @@ export function useLeadsRows() {
     }
 
     // Persist the latest rows to local storage regardless of Supabase outcome
-    saveRowsToLocal(latestRows);
+    saveRowsToLocal(rows);
 
     return updatedRow;
   };
@@ -568,19 +592,24 @@ export function useLeadsRows() {
         // Add to local state first for immediate UI feedback - always at the beginning
         setRows((prevRows) => {
           const newRows = [contactToSave, ...prevRows];
-          logger.log(`Updated rows state with new contact. Total rows: ${newRows.length}`);
+          logger.log(
+            `Updated rows state with new contact. Total rows: ${newRows.length}`
+          );
           return newRows;
         });
 
         // Update mockContactsById for Stream View
         mockContactsById[dbId] = contactToSave;
-        
+
         // Also update the contacts store for consistent UI across components
         try {
-          const { addContact } = require('@/stores/contactsStore').useContactsStore.getState();
-          if (typeof addContact === 'function') {
+          const { addContact } =
+            require("@/stores/contactsStore").useContactsStore.getState();
+          if (typeof addContact === "function") {
             addContact(contactToSave);
-            logger.log("Contact also added to contactsStore for immediate visibility");
+            logger.log(
+              "Contact also added to contactsStore for immediate visibility"
+            );
           }
         } catch (err) {
           // If the store doesn't have this function, just continue
@@ -589,9 +618,11 @@ export function useLeadsRows() {
 
         // Force a re-render by dispatching a custom event
         setTimeout(() => {
-          document.dispatchEvent(new CustomEvent('contact-added-immediate', { 
-            detail: { contact: contactToSave } 
-          }));
+          document.dispatchEvent(
+            new CustomEvent("contact-added-immediate", {
+              detail: { contact: contactToSave },
+            })
+          );
         }, 100); // Small delay to ensure state has updated
 
         // Extract fields for Supabase
@@ -659,67 +690,79 @@ export function useLeadsRows() {
   // Add function to delete multiple contacts (soft delete)
   const deleteContacts = async (contactIds: string[]): Promise<void> => {
     if (!contactIds.length) return;
-    
+
     // Start timing the delete operation
     const deleteStartTime = performance.now();
-    console.log(`🚀 [DELETE TIMING] Starting delete operation for ${contactIds.length} contacts at ${deleteStartTime.toFixed(2)}ms`);
-    
+    console.log(
+      `🚀 [DELETE TIMING] Starting delete operation for ${contactIds.length} contacts at ${deleteStartTime.toFixed(2)}ms`
+    );
+
     // Store original state in case we need to restore
     const originalRows = [...rows];
     const originalMockContacts: Record<string, LeadContact> = {};
-    contactIds.forEach(id => {
+    contactIds.forEach((id) => {
       if (mockContactsById[id]) {
         originalMockContacts[id] = { ...mockContactsById[id] };
       }
     });
-    
+
     try {
       // Convert IDs to database format if needed
       const dbIds = contactIds.map(transformRowId);
-      
+
       // IMPORTANT: Pause background loading during delete operation
-      const { pauseBackgroundLoading, resumeBackgroundLoading } = useContactsStore.getState();
+      const { pauseBackgroundLoading, resumeBackgroundLoading } =
+        useContactsStore.getState();
       pauseBackgroundLoading();
-      
+
       const uiUpdateStartTime = performance.now();
-      console.log(`⚡ [DELETE TIMING] Starting UI updates at ${uiUpdateStartTime.toFixed(2)}ms`);
-      
+      console.log(
+        `⚡ [DELETE TIMING] Starting UI updates at ${uiUpdateStartTime.toFixed(2)}ms`
+      );
+
       // IMPORTANT: Immediately mark contacts as deleted in the store to prevent flickering
       const { removeContacts } = useContactsStore.getState();
       removeContacts(contactIds);
-      
+
       // Update local state by removing deleted contacts immediately
-      const newRows = rows.filter(row => !contactIds.includes(row.id));
+      const newRows = rows.filter((row) => !contactIds.includes(row.id));
       setRows(newRows);
       saveRowsToLocal(newRows);
-      
+
       // Remove from mockContactsById immediately
-      contactIds.forEach(id => {
+      contactIds.forEach((id) => {
         delete mockContactsById[id];
       });
-      
+
       const uiUpdateEndTime = performance.now();
-      console.log(`✅ [DELETE TIMING] UI updates completed in ${(uiUpdateEndTime - uiUpdateStartTime).toFixed(2)}ms`);
-      
+      console.log(
+        `✅ [DELETE TIMING] UI updates completed in ${(uiUpdateEndTime - uiUpdateStartTime).toFixed(2)}ms`
+      );
+
       // Dispatch immediate UI feedback event (this will close the dialog)
-      document.dispatchEvent(new CustomEvent('contacts-deleted-immediate', { 
-        detail: { 
-          count: contactIds.length,
-          contactIds: contactIds,
-          timing: uiUpdateEndTime - deleteStartTime
-        } 
-      }));
-      
+      document.dispatchEvent(
+        new CustomEvent("contacts-deleted-immediate", {
+          detail: {
+            count: contactIds.length,
+            contactIds: contactIds,
+            timing: uiUpdateEndTime - deleteStartTime,
+          },
+        })
+      );
+
       if (user) {
         const dbStartTime = performance.now();
-        console.log(`🗄️ [DELETE TIMING] Starting database operation at ${dbStartTime.toFixed(2)}ms`);
-        
+        console.log(
+          `🗄️ [DELETE TIMING] Starting database operation at ${dbStartTime.toFixed(2)}ms`
+        );
+
         // Use the soft delete function with aggressive timeout settings for fast UI response
-        const { data, error } = await withRetrySupabase(() => 
-          supabase.rpc('soft_delete_contacts', {
-            contact_ids: dbIds,
-            user_id_param: user.id
-          }),
+        const { data, error } = await withRetrySupabase(
+          () =>
+            supabase.rpc("soft_delete_contacts", {
+              contact_ids: dbIds,
+              user_id_param: user.id,
+            }),
           {
             maxAttempts: 2, // Only retry once
             initialDelay: 300, // Very short initial delay
@@ -727,101 +770,123 @@ export function useLeadsRows() {
             backoffMultiplier: 1.5, // Gentle backoff
             shouldRetry: (error: any) => {
               // Don't retry on timeout errors for faster response
-              if (error?.code === '57014' || error?.message?.includes('timeout')) {
+              if (
+                error?.code === "57014" ||
+                error?.message?.includes("timeout")
+              ) {
                 return false;
               }
               // Only retry on network errors, not database errors
               return error?.status >= 500 || !error?.status;
-            }
+            },
           }
         );
-        
+
         const dbEndTime = performance.now();
-        console.log(`🗄️ [DELETE TIMING] Database operation completed in ${(dbEndTime - dbStartTime).toFixed(2)}ms`);
-        
+        console.log(
+          `🗄️ [DELETE TIMING] Database operation completed in ${(dbEndTime - dbStartTime).toFixed(2)}ms`
+        );
+
         if (error) {
           // If database operation fails, we need to restore the contacts
-          console.error(`❌ [DELETE TIMING] Database operation failed after ${(dbEndTime - deleteStartTime).toFixed(2)}ms:`, error);
-          logger.error('Soft delete failed, restoring contacts to UI:', error);
-          
+          console.error(
+            `❌ [DELETE TIMING] Database operation failed after ${(dbEndTime - deleteStartTime).toFixed(2)}ms:`,
+            error
+          );
+          logger.error("Soft delete failed, restoring contacts to UI:", error);
+
           // Restore contacts to local state
           setRows(originalRows);
           saveRowsToLocal(originalRows);
-          
+
           // Restore to mockContactsById
           Object.entries(originalMockContacts).forEach(([id, contact]) => {
             mockContactsById[id] = contact;
           });
-          
+
           // Restore to contacts store
           const { restoreContacts } = useContactsStore.getState();
-          const contactsToRestore = contactIds.map(id => originalMockContacts[id]).filter(Boolean);
+          const contactsToRestore = contactIds
+            .map((id) => originalMockContacts[id])
+            .filter(Boolean);
           restoreContacts(contactsToRestore);
-          
+
           throw error;
         }
-        
+
         // Check if any contacts were moved
         const movedCount = data?.[0]?.moved_count || 0;
         if (movedCount === 0) {
           // If no contacts were moved, restore them
-          console.warn(`⚠️ [DELETE TIMING] No contacts were moved, restoring after ${(dbEndTime - deleteStartTime).toFixed(2)}ms`);
-          logger.warn('No contacts were moved, restoring to UI');
-          
+          console.warn(
+            `⚠️ [DELETE TIMING] No contacts were moved, restoring after ${(dbEndTime - deleteStartTime).toFixed(2)}ms`
+          );
+          logger.warn("No contacts were moved, restoring to UI");
+
           // Restore contacts to local state
           setRows(originalRows);
           saveRowsToLocal(originalRows);
-          
+
           // Restore to mockContactsById
           Object.entries(originalMockContacts).forEach(([id, contact]) => {
             mockContactsById[id] = contact;
           });
-          
+
           // Restore to contacts store
           const { restoreContacts } = useContactsStore.getState();
-          const contactsToRestore = contactIds.map(id => originalMockContacts[id]).filter(Boolean);
+          const contactsToRestore = contactIds
+            .map((id) => originalMockContacts[id])
+            .filter(Boolean);
           restoreContacts(contactsToRestore);
-          
-          throw new Error('No contacts were deleted');
+
+          throw new Error("No contacts were deleted");
         }
-        
+
         const totalTime = dbEndTime - deleteStartTime;
-        console.log(`🎉 [DELETE TIMING] Successfully deleted ${movedCount} contacts in ${totalTime.toFixed(2)}ms`);
+        console.log(
+          `🎉 [DELETE TIMING] Successfully deleted ${movedCount} contacts in ${totalTime.toFixed(2)}ms`
+        );
         logger.log(`Soft deleted ${movedCount} contacts`);
       }
-      
+
       // Resume background loading after successful delete
       setTimeout(() => {
         resumeBackgroundLoading();
       }, 2000); // Wait 2 seconds before resuming to let database settle
-      
+
       // Invalidate queries to refresh data
-      queryClient.invalidateQueries(['leadsRows', user?.id]);
-      queryClient.invalidateQueries(['contacts', user?.id]);
-      
+      queryClient.invalidateQueries(["leadsRows", user?.id]);
+      queryClient.invalidateQueries(["contacts", user?.id]);
+
       // Dispatch final success event
       const finalTime = performance.now();
-      document.dispatchEvent(new CustomEvent('contacts-deleted', { 
-        detail: { 
-          count: contactIds.length,
-          contactIds: contactIds,
-          totalTime: finalTime - deleteStartTime
-        } 
-      }));
-      
-      console.log(`🏁 [DELETE TIMING] Total operation completed in ${(finalTime - deleteStartTime).toFixed(2)}ms`);
-      
+      document.dispatchEvent(
+        new CustomEvent("contacts-deleted", {
+          detail: {
+            count: contactIds.length,
+            contactIds: contactIds,
+            totalTime: finalTime - deleteStartTime,
+          },
+        })
+      );
+
+      console.log(
+        `🏁 [DELETE TIMING] Total operation completed in ${(finalTime - deleteStartTime).toFixed(2)}ms`
+      );
     } catch (error) {
       // Resume background loading even if delete failed
       const { resumeBackgroundLoading } = useContactsStore.getState();
       setTimeout(() => {
         resumeBackgroundLoading();
       }, 1000);
-      
+
       const errorTime = performance.now();
-      console.error(`💥 [DELETE TIMING] Delete operation failed after ${(errorTime - deleteStartTime).toFixed(2)}ms:`, error);
-      logger.error('Error deleting contacts:', error);
-      throw new Error('Failed to delete contacts');
+      console.error(
+        `💥 [DELETE TIMING] Delete operation failed after ${(errorTime - deleteStartTime).toFixed(2)}ms:`,
+        error
+      );
+      logger.error("Error deleting contacts:", error);
+      throw new Error("Failed to delete contacts");
     }
   };
 
