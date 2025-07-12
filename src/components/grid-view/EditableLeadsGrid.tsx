@@ -432,7 +432,99 @@ export function EditableLeadsGrid() {
   // Debounce search term for better performance
   const debouncedSearchTerm = useDebounce(searchTerm, 200);
   
-  // Use the new instant contacts hook
+  // Convert activeFilters to ColumnFilter format for useInstantContacts
+  const columnFilters = useMemo(() => {
+    if (!activeFilters.columns || activeFilters.columns.length === 0) {
+      return [];
+    }
+    
+    return activeFilters.columns.map(columnId => {
+      const filterValue = activeFilters.values[columnId] as any; // Type assertion since it's unknown
+      const column = columns.find(col => col.id === columnId);
+      
+      if (!filterValue || !column) return null;
+      
+      // Convert based on filter type
+      if (filterValue.type === 'text') {
+        if (filterValue.operator === 'is_empty') {
+          return { columnId, value: null, type: 'text', operator: 'is_empty' };
+        } else if (filterValue.operator === 'is_not_empty') {
+          return { columnId, value: null, type: 'text', operator: 'is_not_empty' };
+        } else if (filterValue.text?.trim()) {
+          return { 
+            columnId, 
+            value: filterValue.text.trim(), 
+            type: 'text', 
+            operator: filterValue.operator 
+          };
+        }
+      } else if (filterValue.type === 'dropdown') {
+        // Handle both single-select and multi-select dropdown filters
+        if (filterValue.values && Array.isArray(filterValue.values) && filterValue.values.length > 0) {
+          // Multi-select dropdown
+          return { 
+            columnId, 
+            value: filterValue.values, 
+            type: 'dropdown' 
+          };
+        } else if (filterValue.value && filterValue.value !== '' && filterValue.value !== '__all__') {
+          // Single-select dropdown
+          return { 
+            columnId, 
+            value: filterValue.value, 
+            type: 'dropdown' 
+          };
+        }
+      } else if (filterValue.type === 'status') {
+        if (filterValue.statuses?.length > 0) {
+          return { 
+            columnId, 
+            value: filterValue.statuses, 
+            type: 'status' 
+          };
+        }
+      } else if (filterValue.type === 'date') {
+        if (filterValue.operator === 'is_empty') {
+          return { columnId, value: null, type: 'date', operator: 'is_empty' };
+        } else if (filterValue.operator === 'is_not_empty') {
+          return { columnId, value: null, type: 'date', operator: 'is_not_empty' };
+        } else if (filterValue.dateRange) {
+          return { 
+            columnId, 
+            value: filterValue.dateRange, 
+            type: 'date' 
+          };
+        }
+      } else if (filterValue.type === 'number') {
+        if (filterValue.operator === 'is_empty') {
+          return { columnId, value: null, type: 'number', operator: 'is_empty' };
+        } else if (filterValue.operator === 'is_not_empty') {
+          return { columnId, value: null, type: 'number', operator: 'is_not_empty' };
+        } else if (filterValue.number1 !== undefined) {
+          const numberFilter: any = { 
+            columnId, 
+            type: 'number',
+            operator: filterValue.operator
+          };
+          
+          if (filterValue.operator === 'between') {
+            numberFilter.value = {
+              min: filterValue.number1,
+              max: filterValue.number2
+            };
+          } else {
+            numberFilter.value = filterValue.number1;
+          }
+          
+          return numberFilter;
+        }
+      }
+      
+      return null;
+    }).filter(filter => filter !== null);
+  }, [activeFilters, columns]);
+
+  // Use the instant contacts hook with proper filters
   const {
     rows,
     loading,
@@ -443,7 +535,7 @@ export function EditableLeadsGrid() {
     searchTerm: debouncedSearchTerm,
     pageSize,
     currentPage,
-    columnFilters: []
+    columnFilters, // Use converted filters
   });
   
   // Keep the original hook for mutations only
@@ -493,28 +585,319 @@ export function EditableLeadsGrid() {
   // Handle contact deletion
   const [isContactDeletionLoading, setIsContactDeletionLoading] = useState(false);
   
-  const handleDeleteContacts = useCallback(async (contactIds: string[]): Promise<void> => {
+  const handleDeleteContacts = useCallback(async (contactIds: string[]) => {
     setIsContactDeletionLoading(true);
+    
     try {
       await deleteContacts(contactIds);
-      return Promise.resolve();
+      
+      // Show success message
+      toast({
+        title: "Contacts deleted",
+        description: `Successfully deleted ${contactIds.length} contact${contactIds.length === 1 ? '' : 's'}.`,
+      });
+      
+      // Force re-render to update the grid
+      setForceRenderKey(prev => prev + 1);
+      
     } catch (error) {
-      return Promise.reject(error);
+      console.error('Error deleting contacts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete contacts. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsContactDeletionLoading(false);
     }
-  }, [deleteContacts]);
-  
+  }, [deleteContacts, toast]);
+
   // Function to persist columns to both localStorage and Supabase
   const persistColumns = useCallback(async (newColumns: Column[]) => {
-    // Save to localStorage immediately
-    saveColumnsToLocal(newColumns);
-    
-    // Save to Supabase if user is authenticated
-    if (user) {
-      await saveColumnsToSupabase(user, newColumns);
+    try {
+      // Save to localStorage immediately for fast access
+      saveColumnsToLocal(newColumns);
+      
+      // Save to Supabase for persistence across devices
+      if (user) {
+        const { supabase } = await import('@/integrations/supabase/client');
+        await supabase
+          .from('user_settings' as any)
+          .upsert({
+            user_id: user.id,
+            setting_key: 'grid_columns',
+            setting_value: newColumns
+          });
+      }
+    } catch (error) {
+      logger.error('Error persisting columns:', error);
     }
   }, [user]);
+
+  // Add dynamic columns based on imported data - memoized to prevent unnecessary recalculations
+  const dynamicFields = useMemo(() => {
+    if (rows.length === 0) return new Set<string>();
+    return extractDynamicFields(rows);
+  }, [rows]);
+
+  const dynamicColumnsToAdd = useMemo(() => {
+    const fieldsToAdd = Array.from(dynamicFields).filter(field => 
+      !columns.some(col => col.id === field) && 
+      !deletedColumnIds.has(field)
+    );
+    
+    return fieldsToAdd.map(field => ({
+      id: field,
+      title: field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1'),
+      type: 'text' as const,
+      width: DEFAULT_COLUMN_WIDTH,
+      editable: true,
+    }));
+  }, [dynamicFields, columns, deletedColumnIds]);
+
+  // Add dynamic columns when new fields are detected
+  useEffect(() => {
+    if (dynamicColumnsToAdd.length > 0) {
+      setColumns(prevColumns => {
+        const newColumns = [...prevColumns];
+        dynamicColumnsToAdd.forEach(newColumn => {
+          // Check if column already exists to prevent duplicates
+          if (!newColumns.some(col => col.id === newColumn.id)) {
+            newColumns.push(newColumn);
+          }
+        });
+        return newColumns;
+      });
+    }
+  }, [dynamicColumnsToAdd]);
+
+  // Sync contacts with mockContactsById for stream view compatibility
+  useEffect(() => {
+    if (rows && rows.length > 0) {
+      rows.forEach(row => {
+        syncContact(row);
+      });
+    }
+  }, [rows]);
+
+  // Handle cell edit
+  const handleCellChange = useCallback(async (rowId: string, columnId: string, value: any) => {
+    console.log('EditableLeadsGrid handleCellChange called:', {
+      rowId,
+      columnId,
+      value,
+      timestamp: new Date().toISOString()
+    });
+    
+    const cellKey = `${rowId}-${columnId}`;
+    
+    try {
+      // Find the old value for activity logging
+      const row = rows.find(r => r.id === rowId);
+      const oldValue = row ? row[columnId] : null;
+
+      console.log('Row found for handleCellChange:', {
+        rowId,
+        rowFound: !!row,
+        rowName: row?.name,
+        oldValue,
+        newValue: value,
+        columnId
+      });
+
+      // Format date values before saving
+      const column = columns.find(c => c.id === columnId);
+      let finalValue = value;
+      if (column && column.type === 'date' && value instanceof Date) {
+        finalValue = value.toISOString().split('T')[0];
+      }
+
+      console.log('Final value after processing:', {
+        originalValue: value,
+        finalValue,
+        columnType: column?.type,
+        isDateColumn: column?.type === 'date'
+      });
+
+      // Update the cell using the hook
+      await updateCell({ rowId, columnId, value: finalValue });
+
+      // Log the activity with contact name if available
+      logCellEdit(
+        rowId,
+        columnId,
+        finalValue, 
+        oldValue
+      );
+
+      console.log('EditableLeadsGrid handleCellChange completed successfully:', {
+        rowId,
+        columnId,
+        finalValue,
+        cellKey
+      });
+
+    } catch (error) {
+      console.error('Error updating cell:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update cell. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [rows, columns, updateCell, logCellEdit]);
+
+  // Handle columns reordering
+  const handleColumnsReorder = useCallback((columnIds: string[]) => {
+    // Reorder columns based on new order
+    const reorderedColumns = columnIds.map(id => columns.find(col => col.id === id)).filter(Boolean) as Column[];
+    
+    // Update state
+    setColumns(reorderedColumns);
+    
+    // Persist the new order
+    persistColumns(reorderedColumns);
+  }, [columns, persistColumns]);
+
+  // Handle column deletion
+  const handleDeleteColumn = useCallback(async (columnId: string) => {
+    // Find the column to delete
+    const columnToDelete = columns.find(col => col.id === columnId);
+    if (!columnToDelete) return;
+
+    // Set loading state
+    setColumnOperationLoading({ type: 'delete', columnId });
+
+    try {
+      // Check if this is a default column that cannot be deleted
+      const defaultColumnIds = ['name', 'email', 'company', 'phone', 'status', 'owner', 'revenue', 'source', 'created_at', 'updated_at'];
+      
+      if (defaultColumnIds.includes(columnId)) {
+        setDeleteColumnDialog({
+          isOpen: true,
+          columnId,
+          columnName: columnToDelete.title
+        });
+        return;
+      }
+
+      // Remove the column from the columns array
+      const updatedColumns = columns.filter(col => col.id !== columnId);
+      setColumns(updatedColumns);
+      
+      // Add to deleted columns set
+      setDeletedColumnIds(prev => new Set([...prev, columnId]));
+      
+      // Remove column data from all rows
+      const updatedRows = rows.map(row => {
+        const { [columnId]: _, ...rest } = row as any;
+        return rest;
+      });
+      console.log(`📝 Updated ${updatedRows.length} rows to remove column data`);
+      
+      // Update the rows in the database
+      let updateErrors = 0;
+      for (const row of updatedRows) {
+        try {
+          await updateCell({ rowId: (row as any).id, columnId, value: undefined });
+        } catch (error) {
+          updateErrors++;
+          console.error(`Error updating row ${(row as any).id}:`, error);
+        }
+      }
+      
+      // Log the column deletion
+      logColumnDelete(columnId, columnToDelete.title);
+      
+      // Persist the updated columns
+      persistColumns(updatedColumns);
+      
+      // Show success message
+      toast({
+        title: "Column deleted",
+        description: updateErrors > 0 
+          ? `Column "${columnToDelete.title}" deleted with ${updateErrors} update errors.`
+          : `Column "${columnToDelete.title}" deleted successfully.`,
+        variant: updateErrors > 0 ? "destructive" : "default",
+      });
+      
+    } catch (error) {
+      console.error('Error deleting column:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete column. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setColumnOperationLoading({ type: null });
+    }
+  }, [columns, rows, updateCell, logColumnDelete, persistColumns, toast]);
+
+  // Handle the actual deletion after confirmation
+  const handleConfirmDeleteColumn = useCallback(async () => {
+    const { columnId, columnName } = deleteColumnDialog;
+    
+    // Close the dialog
+    setDeleteColumnDialog({ isOpen: false, columnId: '', columnName: '' });
+    
+    // Set loading state
+    setColumnOperationLoading({ type: 'delete', columnId });
+    
+    try {
+      // Log the column deletion attempt
+      console.log(`🗑️ Attempting to delete column: ${columnId} (${columnName})`);
+      logColumnDelete(columnId, columnName);
+      
+      // Add to deleted columns set to prevent re-adding
+      setDeletedColumnIds(prev => new Set([...prev, columnId]));
+      console.log(`🚫 Added ${columnId} to deleted columns list`);
+      
+      // Remove from columns array
+      const newColumns = columns.filter(col => col.id !== columnId);
+      console.log(`📊 Columns after deletion: ${newColumns.length} remaining`);
+      setColumns(newColumns);
+      
+      // Remove column data from all rows
+      const updatedRows = rows.map(row => {
+        const { [columnId]: _, ...rest } = row as any;
+        return rest;
+      });
+      console.log(`📝 Updated ${updatedRows.length} rows to remove column data`);
+      
+      // Update the rows in the database
+      let updateErrors = 0;
+      for (const row of updatedRows) {
+        try {
+          await updateCell({ rowId: (row as any).id, columnId, value: undefined });
+        } catch (error) {
+          updateErrors++;
+          console.error(`❌ Failed to update row ${(row as any).id}:`, error);
+        }
+      }
+      
+      if (updateErrors > 0) {
+        console.warn(`⚠️ ${updateErrors} rows failed to update during column deletion`);
+      }
+      
+      // Persist the column deletion
+      await persistColumns(newColumns);
+      console.log(`✅ Column deletion completed successfully`);
+      
+      toast({
+        title: "Column deleted",
+        description: `Successfully deleted column "${columnName}" and all its data`,
+      });
+    } catch (error) {
+      console.error(`❌ Column deletion failed:`, error);
+      toast({
+        title: "Error deleting column",
+        description: error instanceof Error ? error.message : "Failed to delete the column. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setColumnOperationLoading({ type: null });
+    }
+  }, [deleteColumnDialog, columns, rows, updateCell, logColumnDelete, persistColumns, toast]);
   
   // Resize handler extracted so it can be reused
   const handleResize = useCallback(() => {
@@ -600,32 +983,6 @@ export function EditableLeadsGrid() {
       document.removeEventListener("mockContactsUpdated", handleContactUpdated as EventListener);
     };
   }, [refreshData]);
-
-  // Add dynamic columns based on imported data - memoized to prevent unnecessary recalculations
-  const dynamicFields = useMemo(() => {
-    if (rows.length === 0) return new Set<string>();
-    return extractDynamicFields(rows);
-  }, [rows]);
-
-  const dynamicColumnsToAdd = useMemo(() => {
-    if (dynamicFields.size === 0) return [];
-    
-    const dynamicColumns = createDynamicColumns(dynamicFields);
-    const currentColumnIds = new Set(columns.map(col => col.id));
-    
-    // Only add new dynamic columns that don't already exist AND haven't been deleted
-    return dynamicColumns.filter(col => 
-      !currentColumnIds.has(col.id) && !deletedColumnIds.has(col.id)
-    );
-  }, [dynamicFields, columns, deletedColumnIds]);
-
-  // Add dynamic columns when needed
-  useEffect(() => {
-    if (dynamicColumnsToAdd.length > 0) {
-      console.log(`📋 Adding ${dynamicColumnsToAdd.length} new dynamic columns:`, dynamicColumnsToAdd.map(c => c.id));
-      setColumns(prev => [...prev, ...dynamicColumnsToAdd]);
-    }
-  }, [dynamicColumnsToAdd]);
 
   // Add loading state to prevent duplicate loads
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
@@ -775,204 +1132,6 @@ export function EditableLeadsGrid() {
     // Cleanup
     return () => window.removeEventListener('resize', handleResize);
   }, [handleResize]);
-  
-  // Handle cell edit
-  const handleCellChange = useCallback(async (rowId: string, columnId: string, value: any) => {
-    console.log('EditableLeadsGrid handleCellChange called:', {
-      rowId,
-      columnId,
-      value,
-      timestamp: new Date().toISOString()
-    });
-    
-    const cellKey = `${rowId}-${columnId}`;
-    
-    try {
-      // Find the old value for activity logging
-      const row = rows.find(r => r.id === rowId);
-      const oldValue = row ? row[columnId] : null;
-
-      console.log('Row found for handleCellChange:', {
-        rowId,
-        rowFound: !!row,
-        rowName: row?.name,
-        oldValue,
-        newValue: value,
-        columnId
-      });
-
-      // Format date values before saving
-      const column = columns.find(c => c.id === columnId);
-      let finalValue = value;
-      if (column && column.type === 'date' && value instanceof Date) {
-        finalValue = value.toISOString().split('T')[0];
-      }
-
-      console.log('Final value after processing:', {
-        originalValue: value,
-        finalValue,
-        columnType: column?.type,
-        isDateColumn: column?.type === 'date'
-      });
-
-      // Update the cell using the hook
-      await updateCell({ rowId, columnId, value: finalValue });
-
-      // Log the activity with contact name if available
-      logCellEdit(
-        rowId,
-        columnId,
-        finalValue, 
-        oldValue
-      );
-
-      console.log('EditableLeadsGrid handleCellChange completed successfully:', {
-        rowId,
-        columnId,
-        finalValue,
-        cellKey
-      });
-
-    } catch (error) {
-      console.error('Error in EditableLeadsGrid handleCellChange:', {
-        error,
-        rowId,
-        columnId,
-        value,
-        cellKey
-      });
-      
-      // Show error toast
-      toast({
-        title: "Error updating cell",
-        description: "Failed to save changes. Please try again.",
-        variant: "destructive"
-      });
-    }
-  }, [rows, columns, updateCell, logCellEdit]);
-
-  // Handle columns reordering
-  const handleColumnsReorder = useCallback((columnIds: string[]) => {
-    const uniqueColumnIds = [...new Set(columnIds)];
-    const columnsById = new Map(columns.map(c => [c.id, c]));
-    const newColumns = uniqueColumnIds
-      .map(id => columnsById.get(id))
-      .filter((c): c is Column => !!c);
-
-    setColumns(newColumns);
-
-    // Persist the reordered columns
-    persistColumns(newColumns);
-
-    // Log the activity
-    logFilterChange({ type: 'columns_reorder', columns: uniqueColumnIds });
-  }, [columns, logFilterChange]);
-  
-  // Handle column deletion
-  const handleDeleteColumn = async (columnId: string) => {
-    // Define core columns that should never be deleted
-    const protectedColumns = [
-      'name',           // Contact name - core field
-      'status',         // Lead status - core field  
-      'company',        // Company - core field
-      'email',          // Email - core field for contact identification
-      'importListName', // List name from imports - needed for filtering
-    ];
-
-    // Check if this is a protected column
-    if (protectedColumns.includes(columnId)) {
-      toast({
-        title: "Cannot delete core column",
-        description: "This column is required for the system to function properly and cannot be removed.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Find the column to get its name
-    const column = columns.find(col => col.id === columnId);
-    if (!column) {
-      toast({
-        title: "Column not found",
-        description: "The column you're trying to delete could not be found.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Show the confirmation dialog
-    setDeleteColumnDialog({
-      isOpen: true,
-      columnId,
-      columnName: column.title
-    });
-  };
-  
-  // Handle the actual deletion after confirmation
-  const handleConfirmDeleteColumn = async () => {
-    const { columnId, columnName } = deleteColumnDialog;
-    
-    // Close the dialog
-    setDeleteColumnDialog({ isOpen: false, columnId: '', columnName: '' });
-    
-    // Set loading state
-    setColumnOperationLoading({ type: 'delete', columnId });
-    
-    try {
-      // Log the column deletion attempt
-      console.log(`🗑️ Attempting to delete column: ${columnId} (${columnName})`);
-      logColumnDelete(columnId, columnName);
-      
-      // Add to deleted columns set to prevent re-adding
-      setDeletedColumnIds(prev => new Set([...prev, columnId]));
-      console.log(`🚫 Added ${columnId} to deleted columns list`);
-      
-      // Remove from columns array
-      const newColumns = columns.filter(col => col.id !== columnId);
-      console.log(`📊 Columns after deletion: ${newColumns.length} remaining`);
-      setColumns(newColumns);
-      
-      // Remove column data from all rows
-      const updatedRows = rows.map(row => {
-        const { [columnId]: _, ...rest } = row as any;
-        return rest;
-      });
-      console.log(`📝 Updated ${updatedRows.length} rows to remove column data`);
-      
-      // Update the rows in the database
-      let updateErrors = 0;
-      for (const row of updatedRows) {
-        try {
-          await updateCell({ rowId: (row as any).id, columnId, value: undefined });
-        } catch (error) {
-          updateErrors++;
-          console.error(`❌ Failed to update row ${(row as any).id}:`, error);
-        }
-      }
-      
-      if (updateErrors > 0) {
-        console.warn(`⚠️ ${updateErrors} rows failed to update during column deletion`);
-      }
-      
-      // Persist the column deletion
-      await persistColumns(newColumns);
-      console.log(`✅ Column deletion completed successfully`);
-      
-      toast({
-        title: "Column deleted",
-        description: `Successfully deleted column "${columnName}" and all its data`,
-      });
-    } catch (error) {
-      console.error(`❌ Column deletion failed:`, error);
-      toast({
-        title: "Error deleting column",
-        description: error instanceof Error ? error.message : "Failed to delete the column. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setColumnOperationLoading({ type: null });
-    }
-  };
   
   // Handle adding a new column
   const handleAddColumn = async (afterColumnId: string) => {
@@ -1220,72 +1379,67 @@ export function EditableLeadsGrid() {
   if (loading && rows.length === 0) {
     return <GridSkeleton rowCount={15} columnCount={10} />;
   }
-  
+
   // Check if we're waiting for contacts to load for the current page
   // This happens when user jumps to a page beyond what's loaded (e.g., clicking page 2142)
-  const waitingForPageData = rows.length === 0 && isBackgroundLoading && 
-    currentPage > Math.ceil(loadedCount / pageSize);
-  
+  const waitingForPageData = rows.length === 0 && loading && 
+    currentPage > Math.ceil(totalCount / pageSize);
+
   if (waitingForPageData) {
-    const percentage = Math.round((loadedCount / totalCount) * 100);
-    const remainingContacts = totalCount - loadedCount;
+    const percentage = Math.round((totalCount / pageSize) * 100);
+    const remainingContacts = totalCount - rows.length;
     const estimatedSeconds = Math.ceil(remainingContacts / 1000 * 0.5); // ~0.5s per 1000 contacts
     const estimatedMinutes = Math.floor(estimatedSeconds / 60);
-    const remainingSeconds = estimatedSeconds % 60;
-    
+    const displaySeconds = estimatedSeconds % 60;
+
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50/50 backdrop-blur-sm">
-        <div className="bg-white rounded-xl shadow-2xl border border-gray-100 p-8 max-w-md w-full mx-4 transform transition-all animate-in fade-in-0 zoom-in-95 duration-300">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative">
-              <div className="absolute inset-0 bg-[#4ab4a7]/20 rounded-full animate-ping"></div>
-              <div className="absolute inset-0 bg-[#4ab4a7]/10 rounded-full animate-pulse"></div>
-              <Database className="h-8 w-8 text-[#4ab4a7] relative z-10" />
-            </div>
-            <div>
-              <h3 className="text-xl font-semibold text-gray-900">Preloading contacts...</h3>
-              <p className="text-sm text-gray-500 mt-0.5">Please wait while we load your data</p>
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            {/* Custom progress bar with moving pill */}
-            <div className="relative h-8 bg-gray-100 rounded-full overflow-hidden">
-              {/* Filled progress background */}
-              <div 
-                className="absolute inset-y-0 left-0 bg-[#4ab4a7] transition-all duration-300 ease-out"
-                style={{ width: `${percentage}%` }}
-              />
-              
-              {/* Moving percentage pill */}
-              <div 
-                className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-out"
-                style={{ left: `calc(${percentage}% - ${percentage > 95 ? '60px' : percentage < 5 ? '0px' : '30px'})` }}
-              >
-                <div className="bg-white px-3 py-1 rounded-full shadow-md border border-gray-200">
-                  <span className="text-sm font-semibold text-gray-700">{percentage}%</span>
-                </div>
-              </div>
+      <div className="h-full flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-6 max-w-md">
+            <div className="space-y-2">
+              <Database className="h-12 w-12 text-blue-500 mx-auto" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                Loading Page {currentPage.toLocaleString()}
+              </h3>
+              <p className="text-sm text-gray-600">
+                We're loading contacts for page {currentPage.toLocaleString()}. This may take a moment as we fetch the data.
+              </p>
             </div>
             
-            <div className="flex items-center justify-between text-sm">
-              <div>
-                <span className="text-gray-900 font-medium">{loadedCount.toLocaleString()}</span>
-                <span className="text-gray-500"> of </span>
-                <span className="text-gray-900 font-medium">{totalCount.toLocaleString()}</span>
-                <span className="text-gray-500"> contacts</span>
-              </div>
-              {estimatedSeconds > 0 && (
-                <div className="text-gray-500">
-                  ~{estimatedMinutes > 0 ? `${estimatedMinutes}m ${remainingSeconds}s` : `${remainingSeconds}s`} remaining
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <div>
+                  <span className="text-gray-900 font-medium">{rows.length}</span>
+                  <span className="text-gray-500"> of </span>
+                  <span className="text-gray-900 font-medium">{totalCount}</span>
+                  <span className="text-gray-500"> contacts</span>
                 </div>
+                <div className="text-gray-500">
+                  {percentage}% loaded
+                </div>
+              </div>
+              
+              <Progress value={percentage} className="h-2" />
+              
+              {estimatedMinutes > 0 ? (
+                <p className="text-xs text-gray-500">
+                  Estimated time: {estimatedMinutes}m {displaySeconds}s
+                </p>
+              ) : (
+                <p className="text-xs text-gray-500">
+                  Estimated time: {displaySeconds}s
+                </p>
               )}
             </div>
             
-            <div className="pt-3 border-t border-gray-100">
-              <p className="text-xs text-gray-500 text-center">
-                💡 Tip: You can navigate to other pages while contacts load in the background
-              </p>
+            <div className="flex gap-2 justify-center">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setCurrentPage(1)}
+              >
+                Go to First Page
+              </Button>
             </div>
           </div>
         </div>
@@ -1293,24 +1447,22 @@ export function EditableLeadsGrid() {
     );
   }
   
-  // Remove the special empty state handling - pagination should always be shown
-  
   return (
     <div className="h-full w-full flex flex-col">
       <div className="flex-1 overflow-hidden relative">
         <GridViewContainer 
           key={gridKey} // Use stable key to prevent unnecessary re-renders
-        columns={columns} 
+          columns={columns} 
           data={rows}  // Use all rows instead of paginated data
-        listName="All Leads"
-        listType="Lead"
-        listId="leads-grid"
+          listName="All Leads"
+          listType="Lead"
+          listId="leads-grid"
           firstRowIndex={(currentPage - 1) * pageSize}  // Calculate the correct start index for row numbering
-        onCellChange={handleCellChange}
-        onColumnsReorder={handleColumnsReorder}
+          onCellChange={handleCellChange}
+          onColumnsReorder={handleColumnsReorder}
           onAddColumn={handleAddColumn}
           onInsertColumn={handleInsertColumn}
-        onDeleteColumn={handleDeleteColumn}
+          onDeleteColumn={handleDeleteColumn}
           onHideColumn={handleHideColumn}
           onUnhideColumn={handleUnhideColumn}
           hiddenColumns={hiddenColumns}
