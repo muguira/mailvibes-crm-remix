@@ -11,7 +11,7 @@ import {
 } from '@/components/grid-view/grid-constants';
 import { Link, useNavigate } from 'react-router-dom';
 import { ExternalLink, Loader2 } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
+import { format } from 'date-fns';
 import { mockContactsById } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
 import { PAGE_SIZE, LEADS_STORAGE_KEY } from '@/constants/grid';
@@ -770,9 +770,16 @@ export function EditableLeadsGrid() {
       // Find the old value for activity logging
       const row = rows.find(r => r.id === rowId);
       const oldValue = row ? row[columnId] : null;
+
+      // Format date values before saving
+      const column = columns.find(c => c.id === columnId);
+      let finalValue = value;
+      if (column && column.type === 'date' && value instanceof Date) {
+        finalValue = format(value, 'yyyy-MM-dd');
+      }
               
       // Save to Supabase through our hook
-      await updateCell({ rowId, columnId, value });
+      await updateCell({ rowId, columnId, value: finalValue });
           
       // Sync with mockContactsById
       const updatedRow = rows.find(r => r.id === rowId) || { id: rowId };
@@ -797,18 +804,19 @@ export function EditableLeadsGrid() {
 
   // Handle columns reordering
   const handleColumnsReorder = (columnIds: string[]) => {
-    const newColumns = columns.map(col => ({
-      ...col,
-      order: columnIds.indexOf(col.id)
-    })).sort((a, b) => a.order - b.order);
-    
+    const uniqueColumnIds = [...new Set(columnIds)];
+    const columnsById = new Map(columns.map(c => [c.id, c]));
+    const newColumns = uniqueColumnIds
+      .map(id => columnsById.get(id))
+      .filter((c): c is Column => !!c);
+
     setColumns(newColumns);
-    
+
     // Persist the reordered columns
     persistColumns(newColumns);
-    
+
     // Log the activity
-    logFilterChange({ type: 'columns_reorder', columns: columnIds });
+    logFilterChange({ type: 'columns_reorder', columns: uniqueColumnIds });
   };
   
   // Handle column deletion

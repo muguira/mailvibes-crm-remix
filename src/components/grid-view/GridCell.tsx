@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Column, GridRow } from './types';
 import { format } from 'date-fns';
 import { Check, X } from 'lucide-react';
@@ -50,6 +50,9 @@ export const GridCell: React.FC<GridCellProps> = ({
 }) => {
   // Use optimistic value if present
   const displayValue = optimisticValue !== undefined ? optimisticValue : value;
+  
+  // Ref para el elemento de la celda
+  const cellRef = useRef<HTMLDivElement>(null);
 
   // Handlers
   const handleClick = (e: React.MouseEvent) => {
@@ -79,6 +82,48 @@ export const GridCell: React.FC<GridCellProps> = ({
     if (onFinishEdit) onFinishEdit(row.id, column.id, val);
     if (setEditingCell) setTimeout(() => setEditingCell(null), 0);
   };
+
+  // Función para manejar el cierre del calendario
+  const handleCalendarClose = () => {
+    if (onFinishEdit) onFinishEdit(row.id, column.id, displayValue);
+    if (setEditingCell) setEditingCell(null);
+  };
+
+  // Hook para posicionar el calendario cerca de la celda
+  useEffect(() => {
+    if (!isEditing || column.type !== 'date') return;
+
+    const repositionCalendar = () => {
+      // Buscar el popover del calendario
+      const popoverWrapper = document.querySelector('[data-radix-popper-content-wrapper] .date-calendar-popup');
+      
+      if (popoverWrapper && cellRef.current) {
+        const wrapper = popoverWrapper.closest('[data-radix-popper-content-wrapper]') as HTMLElement;
+        if (wrapper) {
+          const cellRect = cellRef.current.getBoundingClientRect();
+          
+          // Calcular posición cerca de la celda
+          const left = cellRect.left;
+          const top = cellRect.bottom + 5;
+          
+          // Aplicar posición
+          wrapper.style.setProperty('left', `${left}px`, 'important');
+          wrapper.style.setProperty('top', `${top}px`, 'important');
+          wrapper.style.setProperty('transform', 'none', 'important');
+          wrapper.style.setProperty('position', 'fixed', 'important');
+        }
+      }
+    };
+
+    // Ejecutar múltiples veces para asegurar que funcione
+    const timeouts = [0, 50, 100, 200, 500].map(delay => 
+      setTimeout(repositionCalendar, delay)
+    );
+
+    return () => {
+      timeouts.forEach(timeout => clearTimeout(timeout));
+    };
+  }, [isEditing, column.type]);
 
   // Renderers for special types
   if (column.type === 'status') {
@@ -171,20 +216,28 @@ export const GridCell: React.FC<GridCellProps> = ({
 
   if (column.type === 'date') {
     return (
-      <div
-        style={{
-          ...style,
-          borderRight: '1px solid #e5e7eb',
-          borderBottom: '1px solid #e5e7eb',
-        }}
-        className={`grid-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''} ${isSelected ? 'selected-cell' : ''}`}
-        data-cell={cellId}
-        data-column-id={column.id}
-        onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
-        onContextMenu={handleContextMenu}
-      >
-        {isEditing ? (
+      <>
+        <div
+          ref={cellRef}
+          style={{
+            ...style,
+            borderRight: '1px solid #e5e7eb',
+            borderBottom: '1px solid #e5e7eb',
+          }}
+          className={`grid-cell ${column.id === contextMenuColumn ? 'highlight-column' : ''} ${isSelected ? 'selected-cell' : ''}`}
+          data-cell={cellId}
+          data-column-id={column.id}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+          onContextMenu={handleContextMenu}
+        >
+          <div className="w-full h-full flex justify-center items-center">
+            {formatCellValue(displayValue, column, row)}
+          </div>
+        </div>
+        
+        {/* Render calendar using Popover */}
+        {isEditing && (
           <div className="w-full h-full flex justify-center items-center">
             <Popover
               key={`${row.id}-${column.id}-${isEditing}`}
@@ -201,11 +254,11 @@ export const GridCell: React.FC<GridCellProps> = ({
                 </div>
               </PopoverTrigger>
               <PopoverContent
-                className="date-options-popup p-0"
-                align="start"
+                className="date-options-popup date-calendar-popup p-0"
+                align="center"
                 side="bottom"
-                alignOffset={-50}
-                sideOffset={5}
+                alignOffset={0}
+                sideOffset={8}
                 onInteractOutside={handleClose}
               >
                 <div className="date-popup-header p-3 border-b flex justify-between items-center border-2">
@@ -257,12 +310,8 @@ export const GridCell: React.FC<GridCellProps> = ({
               </PopoverContent>
             </Popover>
           </div>
-        ) : (
-          <div className="cell-content">
-            {formatCellValue(displayValue, column, row)}
-          </div>
         )}
-      </div>
+      </>
     );
   }
 
