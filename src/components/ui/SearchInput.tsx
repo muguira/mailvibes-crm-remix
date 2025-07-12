@@ -14,7 +14,7 @@ interface SearchInputProps {
   autoFocus?: boolean;
 }
 
-export const SearchInput: React.FC<SearchInputProps> = ({
+export const SearchInput: React.FC<SearchInputProps> = React.memo(({
   placeholder = 'Search...',
   value,
   onChange,
@@ -38,10 +38,10 @@ export const SearchInput: React.FC<SearchInputProps> = ({
 
   // Update internal state when external value changes
   useEffect(() => {
-    if (value !== undefined) {
+    if (value !== undefined && value !== searchValue) {
       setSearchValue(value);
     }
-  }, [value]);
+  }, [value, searchValue]);
 
   // Auto-focus and position cursor when contacts finish loading
   useEffect(() => {
@@ -94,15 +94,15 @@ export const SearchInput: React.FC<SearchInputProps> = ({
     return false;
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setSearchValue(newValue);
     if (onChange) {
       onChange(newValue);
     }
-  };
+  }, [onChange]);
 
-  const handleClear = () => {
+  const handleClear = React.useCallback(() => {
     if (showLoadingToast()) return;
     
     setSearchValue('');
@@ -112,28 +112,28 @@ export const SearchInput: React.FC<SearchInputProps> = ({
     if (inputRef.current) {
       inputRef.current.focus();
     }
-  };
+  }, [onChange, showLoadingToast]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = React.useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (showLoadingToast()) return;
     
     if (onSubmit) {
       onSubmit(searchValue);
     }
-  };
+  }, [onSubmit, searchValue, showLoadingToast]);
 
-  const handleFocus = () => {
+  const handleFocus = React.useCallback(() => {
     if (showLoadingToast()) {
       inputRef.current?.blur();
       return;
     }
     setIsFocused(true);
-  };
+  }, [showLoadingToast]);
 
-  const handleClick = () => {
+  const handleClick = React.useCallback(() => {
     if (showLoadingToast()) return;
-  };
+  }, [showLoadingToast]);
 
   return (
     <form
@@ -167,6 +167,10 @@ export const SearchInput: React.FC<SearchInputProps> = ({
           onFocus={handleFocus}
           onBlur={() => setIsFocused(false)}
           onClick={handleClick}
+          onMouseDown={(e) => {
+            // Prevent blur when clicking inside the input
+            e.stopPropagation();
+          }}
           autoFocus={autoFocus}
         />
         
@@ -183,5 +187,5 @@ export const SearchInput: React.FC<SearchInputProps> = ({
       </div>
     </form>
   );
-};
+});
  
