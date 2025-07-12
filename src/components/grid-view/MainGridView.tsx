@@ -1527,7 +1527,6 @@ const EditCell = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     value ? new Date(value) : undefined
   );
@@ -1536,67 +1535,6 @@ const EditCell = ({
   const [dateInputValue, setDateInputValue] = useState(
     value && column.type === 'date' ? format(new Date(value), 'MM/dd/yyyy') : ''
   );
-  // Calculate dropdown position based on exact click location
-  const calculateDropdownPosition = useCallback((clickEvent?: React.MouseEvent) => {
-    let top = 0;
-    let left = 0;
-    
-    // Use stored click coordinates first (from cell click), then clickEvent, then fallback to cell position
-    if (clickCoordinates) {
-      top = clickCoordinates.y - 160; // 160px above click
-      left = clickCoordinates.x - 250; // 250px to the left
-    } else if (clickEvent) {
-      // Use exact click position
-      top = clickEvent.clientY - 160; // 160px above click
-      left = clickEvent.clientX - 250; // 250px to the left
-    } else if (selectRef.current) {
-      // Fallback to cell position
-      const cellElement = selectRef.current.closest('.grid-cell');
-      if (cellElement) {
-        const cellRect = cellElement.getBoundingClientRect();
-        top = cellRect.bottom - 160; // 160px above cell
-        left = cellRect.left - 250; // 250px to the left
-      }
-    }
-    
-    const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
-    const dropdownHeight = Math.min(300, (column.options?.length || 5) * 40 + 60); // Estimate height with header
-    const dropdownWidth = 200;
-    
-    // Reserve space for pagination bar (approximately 60px from bottom)
-    const paginationBarHeight = 60;
-    const maxAllowedBottom = viewportHeight - paginationBarHeight;
-    
-    // Check if dropdown would go below the pagination bar area
-    if (top + dropdownHeight > maxAllowedBottom) {
-      // Place dropdown above the click point instead
-      if (clickCoordinates) {
-        top = clickCoordinates.y - dropdownHeight - 10; // 10px gap above click
-      } else if (clickEvent) {
-        top = clickEvent.clientY - dropdownHeight - 10;
-      } else {
-        top = Math.max(10, maxAllowedBottom - dropdownHeight - 10);
-      }
-    }
-    
-    // Ensure dropdown doesn't go above viewport
-    if (top < 10) {
-      top = 10;
-    }
-    
-    // Adjust if dropdown would go off screen to the left
-    if (left < 10) {
-      left = 10;
-    }
-    
-    // Adjust if dropdown would go off screen horizontally to the right
-    if (left + dropdownWidth > viewportWidth - 10) {
-      left = Math.max(10, viewportWidth - dropdownWidth - 10);
-    }
-    
-    setDropdownPosition({ top, left });
-  }, [column.options?.length, clickCoordinates]);
 
   // Focus input on mount and handle initial state
   useEffect(() => {
@@ -1604,9 +1542,8 @@ const EditCell = ({
       // For status columns, focus the trigger and open dropdown
       if (selectRef.current) {
         selectRef.current.focus();
-        // Calculate position and open dropdown
+        // Open dropdown
         setTimeout(() => {
-          calculateDropdownPosition(); // No click event on initial mount
           setStatusDropdownOpen(true);
         }, 10);
       }
@@ -1644,19 +1581,13 @@ const EditCell = ({
         inputRef.current.select();
       }
     }
-  }, [directTyping, initialValue, column.type, calculateDropdownPosition]);
+  }, [directTyping, initialValue, column.type]);
 
   // Handle clicks outside dropdown and calendar positioning
   useEffect(() => {
     if (!statusDropdownOpen && !datePickerOpen) return;
     
     const handleClickOutside = (event: MouseEvent) => {
-      // Handle status dropdown
-      if (statusDropdownOpen && dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
-          selectRef.current && !selectRef.current.contains(event.target as Node)) {
-        setStatusDropdownOpen(false);
-      }
-      
       // Handle date picker
       if (datePickerOpen) {
         const target = event.target as HTMLElement;
@@ -1665,7 +1596,7 @@ const EditCell = ({
             !target.closest('[data-testid="calendar"]') &&
             !target.closest('button[type="button"]') && 
             inputRef.current && !inputRef.current.contains(target) &&
-            !target.closest('.fixed.z-\\[10010\\]')) {
+            !target.closest('.fixed.z-\[10010\]')) {
           setDatePickerOpen(false);
         }
       }
@@ -1743,39 +1674,23 @@ const EditCell = ({
   switch (column.type) {
     case 'status':
       return (
-        <>
-          <button
-            ref={selectRef as any}
-            className="h-full w-full px-2 bg-transparent border-none focus:outline-none focus:ring-0 text-left flex items-center justify-between"
-            onClick={(e) => {
-              calculateDropdownPosition(e);
-              setStatusDropdownOpen(true);
-            }}
-          >
-            <span>{value || 'Select status'}</span>
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          
-          {/* Custom dropdown with Shadcn UI styling */}
-          {statusDropdownOpen && (
-            <div
-              ref={dropdownRef}
-              className="fixed bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden z-[10000]"
-              style={{
-                top: dropdownPosition.top,
-                left: dropdownPosition.left,
-                minWidth: '200px',
-                maxHeight: (() => {
-                  // Calculate available height from dropdown position to pagination bar
-                  const paginationBarHeight = 60;
-                  const maxAllowedBottom = window.innerHeight - paginationBarHeight;
-                  const availableHeight = maxAllowedBottom - dropdownPosition.top - 10;
-                  return Math.min(250, Math.max(100, availableHeight)) + 'px';
-                })(),
-              }}
+        <Popover open={statusDropdownOpen} onOpenChange={setStatusDropdownOpen}>
+          <PopoverTrigger asChild>
+            <button
+              ref={selectRef as any}
+              className="w-full px-2 bg-transparent border-none focus:outline-none focus:ring-0 text-left flex items-center justify-between"
             >
+              <span>{value || 'Select status'}</span>
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-auto p-0"
+            align="start"
+            side="bottom"
+          >
               {/* Header */}
               <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
                 <span className="text-sm font-medium text-gray-900">Select Status</span>
@@ -1808,9 +1723,8 @@ const EditCell = ({
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-        </>
+          </PopoverContent>
+        </Popover>
       );
     
     case 'date':
