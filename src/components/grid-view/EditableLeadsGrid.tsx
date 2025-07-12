@@ -484,16 +484,50 @@ export function EditableLeadsGrid() {
           };
         }
       } else if (filterValue.type === 'date') {
+        console.log('Processing date filter:', {
+          columnId,
+          filterValue,
+          operator: filterValue.operator,
+          startDate: filterValue.startDate,
+          endDate: filterValue.endDate
+        });
+        
         if (filterValue.operator === 'is_empty') {
           return { columnId, value: null, type: 'date', operator: 'is_empty' };
         } else if (filterValue.operator === 'is_not_empty') {
           return { columnId, value: null, type: 'date', operator: 'is_not_empty' };
-        } else if (filterValue.dateRange) {
-          return { 
+        } else if (filterValue.startDate || filterValue.endDate) {
+          // Convert the filter format to match what useInstantContacts expects
+          const dateFilter: any = { 
             columnId, 
-            value: filterValue.dateRange, 
-            type: 'date' 
+            type: 'date',
+            operator: filterValue.operator
           };
+          
+          if (filterValue.operator === 'between' && filterValue.startDate && filterValue.endDate) {
+            dateFilter.value = {
+              start: filterValue.startDate,
+              end: filterValue.endDate
+            };
+          } else if (filterValue.operator === 'before' && filterValue.startDate) {
+            dateFilter.value = { end: filterValue.startDate };
+          } else if (filterValue.operator === 'after' && filterValue.startDate) {
+            dateFilter.value = { start: filterValue.startDate };
+          } else if (filterValue.operator === 'on' && filterValue.startDate) {
+            dateFilter.value = {
+              start: filterValue.startDate,
+              end: filterValue.startDate
+            };
+          } else {
+            // Fallback for other operators or missing dates
+            console.warn('Date filter missing required dates:', filterValue);
+            return null;
+          }
+          
+          console.log('Created date filter:', dateFilter);
+          return dateFilter;
+        } else {
+          console.warn('Date filter missing startDate/endDate:', filterValue);
         }
       } else if (filterValue.type === 'number') {
         if (filterValue.operator === 'is_empty') {
