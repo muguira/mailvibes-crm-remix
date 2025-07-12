@@ -26,6 +26,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { DeleteColumnDialog } from '@/components/grid-view/DeleteColumnDialog';
 import { Database } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { v4 as uuidv4 } from 'uuid';
 
 // Constants
 const COLUMNS_STORAGE_KEY = 'gridColumns-v1';
@@ -442,7 +443,7 @@ export function EditableLeadsGrid() {
     searchTerm: debouncedSearchTerm,
     pageSize,
     currentPage,
-    columnFilters: activeFilters.columnFilters || []
+    columnFilters: []
   });
   
   // Keep the original hook for mutations only
@@ -885,7 +886,7 @@ export function EditableLeadsGrid() {
       
       // Remove column data from all rows
       const updatedRows = rows.map(row => {
-        const { [columnId]: _, ...rest } = row;
+        const { [columnId]: _, ...rest } = row as any;
         return rest;
       });
       console.log(`📝 Updated ${updatedRows.length} rows to remove column data`);
@@ -894,10 +895,10 @@ export function EditableLeadsGrid() {
       let updateErrors = 0;
       for (const row of updatedRows) {
         try {
-          await updateCell({ rowId: row.id, columnId, value: undefined });
+          await updateCell({ rowId: (row as any).id, columnId, value: undefined });
         } catch (error) {
           updateErrors++;
-          console.error(`❌ Failed to update row ${row.id}:`, error);
+          console.error(`❌ Failed to update row ${(row as any).id}:`, error);
         }
       }
       
