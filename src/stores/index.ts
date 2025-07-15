@@ -1,12 +1,12 @@
-import { create } from "zustand";
-import { immer } from "zustand/middleware/immer";
-import { subscribeWithSelector } from "zustand/middleware";
-import { TStore } from "@/types/store/store";
-import { useTasksSlice } from "./useTasksSlice";
-import { useAuthSlice } from "./useAuthSlice";
-import { useGmailAuthSlice } from "./gmailAuthSlice";
-import { useContactProfileSlice } from "./useContactProfileSlice";
-import { useEditableLeadsGridSlice } from "./useEditableLeadsGridSlice";
+import { create } from 'zustand'
+import { immer } from 'zustand/middleware/immer'
+import { subscribeWithSelector } from 'zustand/middleware'
+import { TStore } from '@/types/store/store'
+import { useTasksSlice } from './useTasksSlice'
+import { useAuthSlice } from './useAuthSlice'
+import { useGmailAuthSlice } from './gmailAuthSlice'
+import { useContactProfileSlice } from './useContactProfileSlice'
+import { useEditableLeadsGridSlice } from './useEditableLeadsGridSlice'
 
 /**
  * Main store for the application
@@ -27,6 +27,6 @@ export const useStore = create<TStore>()(
       ...useGmailAuthSlice(...a),
       ...useContactProfileSlice(...a),
       ...useEditableLeadsGridSlice(...a),
-    }))
-  )
-);
+    })),
+  ),
+)

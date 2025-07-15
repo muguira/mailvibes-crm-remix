@@ -8,17 +8,17 @@
  * @version 1.0.0
  */
 
-import { StateCreator } from "zustand";
-import { TStore } from "@/types/store/store";
+import { StateCreator } from 'zustand'
+import { TStore } from '@/types/store/store'
 import {
   TEditableLeadsGridStore,
   IActiveFilters,
   IDeleteColumnDialog,
   IColumnOperationLoading,
   IEditableLeadsGridErrorState,
-} from "@/types/store/editable-leads-grid";
-import { Column } from "@/components/grid-view/types";
-import { INITIAL_EDITABLE_LEADS_GRID_STATE } from "@/constants/store/editable-leads-grid";
+} from '@/types/store/editable-leads-grid'
+import { Column } from '@/components/grid-view/types'
+import { INITIAL_EDITABLE_LEADS_GRID_STATE } from '@/constants/store/editable-leads-grid'
 
 /**
  * Editable Leads Grid slice for Zustand store
@@ -44,7 +44,7 @@ import { INITIAL_EDITABLE_LEADS_GRID_STATE } from "@/constants/store/editable-le
  */
 export const useEditableLeadsGridSlice: StateCreator<
   TStore,
-  [["zustand/subscribeWithSelector", never], ["zustand/immer", never]],
+  [['zustand/subscribeWithSelector', never], ['zustand/immer', never]],
   [],
   TEditableLeadsGridStore
 > = (set, get) => ({
@@ -58,14 +58,14 @@ export const useEditableLeadsGridSlice: StateCreator<
    * @param term - The search term to set
    */
   editableLeadsGridSetSearchTerm: (term: string) => {
-    set((state) => {
+    set(state => {
       // Only update if the term actually changed
       if (state.searchTerm !== term) {
-        state.searchTerm = term;
+        state.searchTerm = term
         // Reset to first page when search term changes
-        state.currentPage = 1;
+        state.currentPage = 1
       }
-    });
+    })
   },
 
   /**
@@ -73,11 +73,11 @@ export const useEditableLeadsGridSlice: StateCreator<
    * @param filters - The filters to apply
    */
   editableLeadsGridSetActiveFilters: (filters: IActiveFilters) => {
-    set((state) => {
-      state.activeFilters = filters;
+    set(state => {
+      state.activeFilters = filters
       // Reset to first page when filters change
-      state.currentPage = 1;
-    });
+      state.currentPage = 1
+    })
   },
 
   // ==================== PAGINATION ====================
@@ -87,9 +87,9 @@ export const useEditableLeadsGridSlice: StateCreator<
    * @param page - The page number to set
    */
   editableLeadsGridSetCurrentPage: (page: number) => {
-    set((state) => {
-      state.currentPage = Math.max(1, page);
-    });
+    set(state => {
+      state.currentPage = Math.max(1, page)
+    })
   },
 
   /**
@@ -97,11 +97,11 @@ export const useEditableLeadsGridSlice: StateCreator<
    * @param size - The page size to set
    */
   editableLeadsGridSetPageSize: (size: number) => {
-    set((state) => {
-      state.pageSize = Math.max(1, Math.min(size, 100));
+    set(state => {
+      state.pageSize = Math.max(1, Math.min(size, 100))
       // Reset to first page when page size changes
-      state.currentPage = 1;
-    });
+      state.currentPage = 1
+    })
   },
 
   // ==================== COLUMN MANAGEMENT ====================
@@ -111,9 +111,9 @@ export const useEditableLeadsGridSlice: StateCreator<
    * @param columns - The columns to set
    */
   editableLeadsGridSetColumns: (columns: Column[]) => {
-    set((state) => {
-      state.columns = columns;
-    });
+    set(state => {
+      state.columns = columns
+    })
   },
 
   /**
@@ -121,9 +121,9 @@ export const useEditableLeadsGridSlice: StateCreator<
    * @param hiddenColumns - The hidden columns to set
    */
   editableLeadsGridSetHiddenColumns: (hiddenColumns: Column[]) => {
-    set((state) => {
-      state.hiddenColumns = hiddenColumns;
-    });
+    set(state => {
+      state.hiddenColumns = hiddenColumns
+    })
   },
 
   /**
@@ -131,9 +131,9 @@ export const useEditableLeadsGridSlice: StateCreator<
    * @param deletedColumnIds - The deleted column IDs to set
    */
   editableLeadsGridSetDeletedColumnIds: (deletedColumnIds: Set<string>) => {
-    set((state) => {
-      state.deletedColumnIds = deletedColumnIds;
-    });
+    set(state => {
+      state.deletedColumnIds = deletedColumnIds
+    })
   },
 
   /**
@@ -141,21 +141,19 @@ export const useEditableLeadsGridSlice: StateCreator<
    * @param dialog - The dialog state to set
    */
   editableLeadsGridSetDeleteColumnDialog: (dialog: IDeleteColumnDialog) => {
-    set((state) => {
-      state.deleteColumnDialog = dialog;
-    });
+    set(state => {
+      state.deleteColumnDialog = dialog
+    })
   },
 
   /**
    * Set the column operation loading state
    * @param loading - The loading state to set
    */
-  editableLeadsGridSetColumnOperationLoading: (
-    loading: IColumnOperationLoading
-  ) => {
-    set((state) => {
-      state.columnOperationLoading = loading;
-    });
+  editableLeadsGridSetColumnOperationLoading: (loading: IColumnOperationLoading) => {
+    set(state => {
+      state.columnOperationLoading = loading
+    })
   },
 
   /**
@@ -163,18 +161,18 @@ export const useEditableLeadsGridSlice: StateCreator<
    * @param loading - The loading state to set
    */
   editableLeadsGridSetIsContactDeletionLoading: (loading: boolean) => {
-    set((state) => {
-      state.isContactDeletionLoading = loading;
-    });
+    set(state => {
+      state.isContactDeletionLoading = loading
+    })
   },
 
   /**
    * Force re-render by incrementing the render key
    */
   editableLeadsGridForceRerender: () => {
-    set((state) => {
-      state.forceRenderKey = state.forceRenderKey + 1;
-    });
+    set(state => {
+      state.forceRenderKey = state.forceRenderKey + 1
+    })
   },
 
   // ==================== COMPUTED GETTERS ====================
@@ -184,136 +182,134 @@ export const useEditableLeadsGridSlice: StateCreator<
    * @param totalCount - Total number of items
    */
   editableLeadsGridGetTotalPages: (totalCount: number): number => {
-    const state = get();
-    return Math.ceil(totalCount / state.pageSize);
+    const state = get()
+    return Math.ceil(totalCount / state.pageSize)
   },
 
   /**
    * Get grid key for stable rendering
    */
   editableLeadsGridGetGridKey: (): string => {
-    const state = get();
-    return `grid-stable-${state.forceRenderKey}`;
+    const state = get()
+    return `grid-stable-${state.forceRenderKey}`
   },
 
   // ==================== PLACEHOLDER FUNCTIONS ====================
   // These are kept as simple placeholders to maintain type compatibility
 
   editableLeadsGridInitialize: async () => {
-    console.log("editableLeadsGridInitialize - placeholder");
+    console.log('editableLeadsGridInitialize - placeholder')
   },
 
   editableLeadsGridReset: () => {
-    console.log("editableLeadsGridReset - placeholder");
+    console.log('editableLeadsGridReset - placeholder')
   },
 
   editableLeadsGridHandlePageChange: () => {
-    console.log("editableLeadsGridHandlePageChange - placeholder");
+    console.log('editableLeadsGridHandlePageChange - placeholder')
   },
 
   editableLeadsGridHandlePageSizeChange: () => {
-    console.log("editableLeadsGridHandlePageSizeChange - placeholder");
+    console.log('editableLeadsGridHandlePageSizeChange - placeholder')
   },
 
   editableLeadsGridAddColumn: async () => {
-    console.log("editableLeadsGridAddColumn - placeholder");
+    console.log('editableLeadsGridAddColumn - placeholder')
   },
 
   editableLeadsGridInsertColumn: async () => {
-    console.log("editableLeadsGridInsertColumn - placeholder");
+    console.log('editableLeadsGridInsertColumn - placeholder')
   },
 
   editableLeadsGridDeleteColumn: async () => {
-    console.log("editableLeadsGridDeleteColumn - placeholder");
+    console.log('editableLeadsGridDeleteColumn - placeholder')
   },
 
   editableLeadsGridHideColumn: async () => {
-    console.log("editableLeadsGridHideColumn - placeholder");
+    console.log('editableLeadsGridHideColumn - placeholder')
   },
 
   editableLeadsGridUnhideColumn: async () => {
-    console.log("editableLeadsGridUnhideColumn - placeholder");
+    console.log('editableLeadsGridUnhideColumn - placeholder')
   },
 
   editableLeadsGridReorderColumns: () => {
-    console.log("editableLeadsGridReorderColumns - placeholder");
+    console.log('editableLeadsGridReorderColumns - placeholder')
   },
 
   editableLeadsGridPersistColumns: async () => {
-    console.log("editableLeadsGridPersistColumns - placeholder");
+    console.log('editableLeadsGridPersistColumns - placeholder')
   },
 
   editableLeadsGridLoadStoredColumns: async () => {
-    console.log("editableLeadsGridLoadStoredColumns - placeholder");
+    console.log('editableLeadsGridLoadStoredColumns - placeholder')
   },
 
   editableLeadsGridSaveHiddenColumns: async () => {
-    console.log("editableLeadsGridSaveHiddenColumns - placeholder");
+    console.log('editableLeadsGridSaveHiddenColumns - placeholder')
   },
 
   editableLeadsGridLoadHiddenColumns: async () => {
-    console.log("editableLeadsGridLoadHiddenColumns - placeholder");
+    console.log('editableLeadsGridLoadHiddenColumns - placeholder')
   },
 
   editableLeadsGridDeleteContacts: async () => {
-    console.log("editableLeadsGridDeleteContacts - placeholder");
+    console.log('editableLeadsGridDeleteContacts - placeholder')
   },
 
   editableLeadsGridOpenDeleteColumnDialog: () => {
-    console.log("editableLeadsGridOpenDeleteColumnDialog - placeholder");
+    console.log('editableLeadsGridOpenDeleteColumnDialog - placeholder')
   },
 
   editableLeadsGridCloseDeleteColumnDialog: () => {
-    console.log("editableLeadsGridCloseDeleteColumnDialog - placeholder");
+    console.log('editableLeadsGridCloseDeleteColumnDialog - placeholder')
   },
 
   editableLeadsGridConfirmDeleteColumn: async () => {
-    console.log("editableLeadsGridConfirmDeleteColumn - placeholder");
+    console.log('editableLeadsGridConfirmDeleteColumn - placeholder')
   },
 
   editableLeadsGridAddDynamicColumns: () => {
-    console.log("editableLeadsGridAddDynamicColumns - placeholder");
+    console.log('editableLeadsGridAddDynamicColumns - placeholder')
   },
 
   editableLeadsGridExtractDynamicFields: () => {
-    console.log("editableLeadsGridExtractDynamicFields - placeholder");
-    return new Set<string>();
+    console.log('editableLeadsGridExtractDynamicFields - placeholder')
+    return new Set<string>()
   },
 
   editableLeadsGridHandleResize: () => {
-    console.log("editableLeadsGridHandleResize - placeholder");
+    console.log('editableLeadsGridHandleResize - placeholder')
   },
 
   editableLeadsGridGetColumnFilters: () => {
-    console.log("editableLeadsGridGetColumnFilters - placeholder");
-    return [];
+    console.log('editableLeadsGridGetColumnFilters - placeholder')
+    return []
   },
 
   editableLeadsGridGetDynamicColumnsToAdd: () => {
-    console.log("editableLeadsGridGetDynamicColumnsToAdd - placeholder");
-    return [];
+    console.log('editableLeadsGridGetDynamicColumnsToAdd - placeholder')
+    return []
   },
 
-  editableLeadsGridClearError: (
-    operation: keyof IEditableLeadsGridErrorState
-  ) => {
-    set((state) => {
-      state.editableLeadsGridErrors[operation] = null;
-    });
+  editableLeadsGridClearError: (operation: keyof IEditableLeadsGridErrorState) => {
+    set(state => {
+      state.editableLeadsGridErrors[operation] = null
+    })
   },
 
   editableLeadsGridClearAllErrors: () => {
-    set((state) => {
+    set(state => {
       state.editableLeadsGridErrors = {
         columnOperation: null,
         persistence: null,
         contactDeletion: null,
         initialization: null,
-      };
-    });
+      }
+    })
   },
 
   editableLeadsGridHandleCellEdit: async () => {
-    console.log("editableLeadsGridHandleCellEdit - placeholder");
+    console.log('editableLeadsGridHandleCellEdit - placeholder')
   },
-});
+})
