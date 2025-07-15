@@ -41,9 +41,9 @@ export interface GridContainerProps {
   // hiddenColumns, onUnhideColumn - now obtained from Zustand slice internally
   // isContactDeletionLoading - now obtained from Zustand slice internally
   // columnOperationLoading - now obtained from Zustand slice internally
+  // onColumnsReorder - now handled internally via Zustand slice with persistence
   onCellChange?: (rowId: string, columnId: string, value: any) => void
   onColumnChange?: (columnId: string, updates: Partial<Column>) => void
-  onColumnsReorder?: (columnIds: string[]) => void
   onDeleteColumn?: (columnId: string) => void
   onAddColumn?: (afterColumnId: string) => void
   onInsertColumn?: (

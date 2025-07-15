@@ -13,13 +13,13 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Upload, Mail } from 'lucide-react';
 import { useStore } from '@/stores';
+import { useAuth } from '@/components/auth';
 
 export function GridViewContainer({
   columns,
   data,
   firstRowIndex = 0,
   onCellChange,
-  onColumnsReorder,
   onDeleteColumn,
   onAddColumn,
   onInsertColumn,
@@ -40,8 +40,12 @@ export function GridViewContainer({
     columnOperationLoading,
     editableLeadsGridSetSearchTerm,
     editableLeadsGridSetActiveFilters,
-    editableLeadsGridUnhideColumn
+    editableLeadsGridUnhideColumn,
+    editableLeadsGridReorderColumns,
+    editableLeadsGridPersistColumns,
   } = useStore();
+  // Get user for persistence operations
+  const { user } = useAuth();
   // Container references for sizing
   const containerRef = useRef<HTMLDivElement>(null);
   const mainGridRef = useRef<any>(null);
@@ -243,24 +247,28 @@ export function GridViewContainer({
   };
 
   // Handle columns reordering - ensure frozen column remains unchanged
-  const handleColumnsReorder = useCallback((newColumnIds: string[]) => {
-    if (onColumnsReorder) {
-      // Make sure contact column stays in the correct position
-      const contactColumnIndex = columns.findIndex(col => (col.id === 'name' && col.frozen) || col.id === 'opportunity');
-      const newColumns = newColumnIds
-        .filter(id => id !== 'name' && id !== 'opportunity') // Remove contact/opportunity if it's in the list
-        .map(id => columns.find(col => col.id === id)!); // Map to full column objects
+  const handleColumnsReorder = useCallback(async (newColumnIds: string[]) => {
+    // Make sure contact column stays in the correct position
+    const contactColumnIndex = columns.findIndex(col => (col.id === 'name' && col.frozen) || col.id === 'opportunity');
+    const newColumns = newColumnIds
+      .filter(id => id !== 'name' && id !== 'opportunity') // Remove contact/opportunity if it's in the list
+      .map(id => columns.find(col => col.id === id)!); // Map to full column objects
 
-      // Re-insert contact at its original position if needed
-      if (contactColumnIndex >= 0 && contactColumn) {
-        // Only re-insert if it was in the original columns array
-        newColumns.splice(contactColumnIndex, 0, contactColumn);
-      }
-
-      // Call the parent handler with the updated order
-      onColumnsReorder(newColumns.map(col => col.id));
+    // Re-insert contact at its original position if needed
+    if (contactColumnIndex >= 0 && contactColumn) {
+      // Only re-insert if it was in the original columns array
+      newColumns.splice(contactColumnIndex, 0, contactColumn);
     }
-  }, [onColumnsReorder, columns, contactColumn]);
+
+    const finalColumnIds = newColumns.map(col => col.id);
+    
+    // Update slice state
+    editableLeadsGridReorderColumns(finalColumnIds);
+    
+    // Persist to database and localStorage
+    const reorderedColumns = finalColumnIds.map(id => columns.find(col => col.id === id)).filter(Boolean);
+    await editableLeadsGridPersistColumns(reorderedColumns, user);
+  }, [editableLeadsGridReorderColumns, editableLeadsGridPersistColumns, columns, contactColumn, user]);
 
   // Memoized callback for MainGridView onColumnsReorder
   const handleMainGridColumnsReorder = useCallback((columns: Column[]) => {
