@@ -10,26 +10,30 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertTriangle } from 'lucide-react';
+import { useStore } from '@/stores';
 
 interface DeleteColumnDialogProps {
-  isOpen: boolean;
-  columnName: string;
-  onClose: () => void;
+  // isOpen, columnName, onClose - now obtained from Zustand slice internally
   onConfirm: () => void;
 }
 
 export function DeleteColumnDialog({
-  isOpen,
-  columnName,
-  onClose,
   onConfirm,
 }: DeleteColumnDialogProps) {
+  // Get dialog state from Zustand slice
+  const {
+    deleteColumnDialog,
+    editableLeadsGridCloseDeleteColumnDialog
+  } = useStore();
+  
+  const { isOpen, columnName } = deleteColumnDialog;
+  
   const [confirmText, setConfirmText] = useState('');
   const isConfirmValid = confirmText === 'DELETE';
 
   const handleClose = () => {
     setConfirmText('');
-    onClose();
+    editableLeadsGridCloseDeleteColumnDialog();
   };
 
   const handleConfirm = () => {

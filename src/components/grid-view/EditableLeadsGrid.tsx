@@ -702,9 +702,6 @@ export function EditableLeadsGrid() {
       
       {/* Delete Column Confirmation Dialog */}
       <DeleteColumnDialog
-        isOpen={deleteColumnDialog.isOpen}
-        columnName={deleteColumnDialog.columnName}
-        onClose={editableLeadsGridCloseDeleteColumnDialog}
         onConfirm={handleConfirmDeleteColumn}
       />
     </div>
