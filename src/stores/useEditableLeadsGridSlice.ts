@@ -727,7 +727,7 @@ export const useEditableLeadsGridSlice: StateCreator<
         Object.assign(state, {
           searchTerm: '',
           currentPage: 1,
-          pageSize: 25,
+          pageSize: 20,
           activeFilters: { columns: [], values: {} },
           deletedColumnIds: new Set<string>(),
           lastCellEdit: null,

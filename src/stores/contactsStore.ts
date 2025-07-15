@@ -40,7 +40,7 @@ interface ContactsState {
   _deletedContactIds: Set<string> // track deleted contacts to prevent re-adding
 }
 
-const FIRST_BATCH_SIZE = 25 // First batch - load immediately (optimized for one page view)
+const FIRST_BATCH_SIZE = 20 // First batch - load immediately (optimized for one page view)
 const CHUNK_SIZE = 1000 // Background chunks
 
 // Store the background loading promise outside of the store
@@ -353,7 +353,7 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
 
           // Start background loading for remaining contacts if there are more
           if (hasMoreContacts) {
-            logger.log('Starting background loading for remaining contacts (26 onwards)...')
+            logger.log('Starting background loading for remaining contacts (21 onwards)...')
             // Small delay to let UI render first batch
             setTimeout(() => {
               get().startBackgroundLoading()
