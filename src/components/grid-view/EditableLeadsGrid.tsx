@@ -79,6 +79,8 @@ export function EditableLeadsGrid() {
     editableLeadsGridHandleResize,
     editableLeadsGridGetColumnFilters,
   } = useStore();
+  
+
 
   // Use slice setters directly
   const setIsContactDeletionLoading = editableLeadsGridSetIsContactDeletionLoading;
@@ -112,7 +114,7 @@ export function EditableLeadsGrid() {
           throw new Error('Grid initialization failed');
         }
         
-        // Step 2: Load stored columns with render functions
+        // Step 2: Load stored columns with render functions (only if user is authenticated)
         if (user) {
           const renderNameLink = (value: any, row: any) => (
             <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">

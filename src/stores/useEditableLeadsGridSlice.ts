@@ -754,6 +754,13 @@ export const useEditableLeadsGridSlice: StateCreator<
         console.warn('Failed to load deleted column IDs:', error)
       }
 
+      // Load default columns during initialization
+      const defaultColumns = getDefaultColumns()
+      set(state => {
+        state.columns = defaultColumns
+      })
+      console.log('📋 Loaded default columns during initialization:', defaultColumns.length)
+
       // Initialize timestamp
       set({
         lastSyncAt: new Date().toISOString(),
@@ -910,15 +917,16 @@ export const useEditableLeadsGridSlice: StateCreator<
         storedColumns = await loadColumnsFromSupabase(user)
       }
 
-      // If we found stored columns, use them; otherwise use default columns
+      // If we found stored columns, use them; otherwise use current columns with render functions
       let columnsToUse: Column[]
+      const currentColumns = get().columns
 
       if (storedColumns && storedColumns.length > 0) {
         console.log('✅ Using stored columns:', storedColumns.length)
         columnsToUse = storedColumns
       } else {
-        console.log('📋 No stored columns found, using default columns')
-        columnsToUse = getDefaultColumns()
+        console.log('📋 No stored columns found, adding render functions to current columns')
+        columnsToUse = currentColumns.length > 0 ? currentColumns : getDefaultColumns()
       }
 
       // Filter out deleted columns
@@ -951,6 +959,10 @@ export const useEditableLeadsGridSlice: StateCreator<
       })
 
       console.log('✅ Columns loaded successfully:', columnsWithRenderFunctions.length)
+      console.log(
+        '📋 Loaded columns:',
+        columnsWithRenderFunctions.map(col => ({ id: col.id, title: col.title })),
+      )
     } catch (error) {
       logger.error('Error loading stored columns:', error)
 

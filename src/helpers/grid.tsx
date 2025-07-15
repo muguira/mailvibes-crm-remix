@@ -198,7 +198,7 @@ export const getDefaultColumns = (): Column[] => [
       },
       {
         id: 'status',
-      title: 'Lead Status',
+      title: 'LEAD STATUS',
         type: 'status',
         width: DEFAULT_COLUMN_WIDTH,
         editable: true,
