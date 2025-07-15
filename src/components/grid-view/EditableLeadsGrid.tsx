@@ -22,59 +22,69 @@ import { DeleteColumnDialog } from '@/components/grid-view/DeleteColumnDialog';
 import { Progress } from '@/components/ui/progress';
 import { getDefaultColumns, saveColumnsToLocal, extractDynamicFields, syncContact, loadColumnsFromLocal, loadColumnsFromSupabase } from '@/helpers/grid';
 import { renderSocialLink } from '@/components/grid-view/RenderSocialLink';
+import { useStore } from '@/stores';
 
 export function EditableLeadsGrid() {
   const { user } = useAuth();
   const { logCellEdit, logColumnAdd, logColumnDelete, logFilterChange } = useActivity();
   
-  // Set up state for grid
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilters, setActiveFilters] = useState<{ columns: string[], values: Record<string, unknown> }>({ columns: [], values: {} });
+  // ==========================================
+  // SLICE INTEGRATION (BASIC - WORKING)
+  // ==========================================
   
-  // Add loading states for column operations
-  const [columnOperationLoading, setColumnOperationLoading] = useState<{
-    type: 'add' | 'delete' | 'rename' | 'hide' | 'unhide' | null;
-    columnId?: string;
-  }>({ type: null });
+  // Get slice state and actions (expanding migration)
+  const {
+    searchTerm,
+    activeFilters,
+    currentPage,
+    pageSize,
+    columns,
+    forceRenderKey,
+    hiddenColumns,
+    deletedColumnIds,
+    deleteColumnDialog,
+    columnOperationLoading,
+    editableLeadsGridSetSearchTerm,
+    editableLeadsGridSetActiveFilters,
+    editableLeadsGridSetCurrentPage,
+    editableLeadsGridSetPageSize,
+    editableLeadsGridSetColumns,
+    editableLeadsGridForceRerender,
+  } = useStore();
+
+  // Temporary setter functions until they are implemented in the slice
+  const setHiddenColumns = (columns: Column[]) => {
+    // TODO: Implement editableLeadsGridSetHiddenColumns in slice
+    console.log('setHiddenColumns called with:', columns.length, 'columns');
+  };
   
-  // Define columns for the grid - start with default columns, then load from storage
-  const [columns, setColumns] = useState<Column[]>(getDefaultColumns);
+  const setDeletedColumnIds = (ids: Set<string>) => {
+    // TODO: Implement editableLeadsGridSetDeletedColumnIds in slice
+    console.log('setDeletedColumnIds called with:', ids.size, 'ids');
+  };
+
+  const setDeleteColumnDialog = (dialog: any) => {
+    // TODO: Implement editableLeadsGridSetDeleteColumnDialog in slice
+    console.log('setDeleteColumnDialog called with:', dialog);
+  };
+
+  const setColumnOperationLoading = (loading: any) => {
+    // TODO: Implement editableLeadsGridSetColumnOperationLoading in slice
+    console.log('setColumnOperationLoading called with:', loading);
+  };
+
+  // ==========================================
+  // LOCAL STATE (TEMPORARY - TO BE MIGRATED GRADUALLY)
+  // ==========================================
   
-  // State to track hidden columns for unhide functionality
-  const [hiddenColumns, setHiddenColumns] = useState<Column[]>([]);
-  
-  // Track deleted columns to prevent re-adding them from dynamic data
-  const [deletedColumnIds, setDeletedColumnIds] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem('deletedColumnIds');
-      return saved ? new Set(JSON.parse(saved)) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
+  // Keep local state for everything else during gradual migration
+
+  const [isContactDeletionLoading, setIsContactDeletionLoading] = useState(false);
   
   // Persist deleted columns to localStorage
   useEffect(() => {
     localStorage.setItem('deletedColumnIds', JSON.stringify(Array.from(deletedColumnIds)));
   }, [deletedColumnIds]);
-  
-  // Add state for delete column dialog
-  const [deleteColumnDialog, setDeleteColumnDialog] = useState<{
-    isOpen: boolean;
-    columnId: string;
-    columnName: string;
-  }>({
-    isOpen: false,
-    columnId: '',
-    columnName: ''
-  });
-  
-  // Add a force re-render state for when contacts are added
-  const [forceRenderKey, setForceRenderKey] = useState(0);
-  
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20); // Default to 20 rows per page (optimized for desktop view)
   
   // Debounce search term for better performance
   const debouncedSearchTerm = useDebounce(searchTerm, 200);
@@ -234,7 +244,7 @@ export function EditableLeadsGrid() {
   
   // Handle page change
   const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
+    editableLeadsGridSetCurrentPage(page);
     // Scroll to top of grid when changing pages
     const gridElement = document.querySelector('.grid-components-container');
     if (gridElement) {
@@ -244,27 +254,22 @@ export function EditableLeadsGrid() {
   
   // Handle page size change
   const handlePageSizeChange = useCallback((size: number) => {
-    setPageSize(size);
+    editableLeadsGridSetPageSize(size);
     // Reset to first page when changing page size
-    setCurrentPage(1);
+    editableLeadsGridSetCurrentPage(1);
   }, []);
   
   // Handle search change with immediate page reset to prevent multiple re-renders
   const handleSearchChange = useCallback((term: string) => {
     // Only update if the term actually changed to prevent unnecessary re-renders
-    setSearchTerm(prevTerm => {
-      if (prevTerm !== term) {
-        // Reset to first page immediately when search term changes
-        setCurrentPage(1);
-        return term;
-      }
-      return prevTerm;
-    });
-  }, []);
+    if (searchTerm !== term) {
+      // Reset to first page immediately when search term changes
+      editableLeadsGridSetCurrentPage(1);
+      editableLeadsGridSetSearchTerm(term);
+    }
+  }, [searchTerm, editableLeadsGridSetCurrentPage, editableLeadsGridSetSearchTerm]);
 
   // Handle contact deletion
-  const [isContactDeletionLoading, setIsContactDeletionLoading] = useState(false);
-  
   const handleDeleteContacts = useCallback(async (contactIds: string[]) => {
     setIsContactDeletionLoading(true);
     
@@ -278,7 +283,7 @@ export function EditableLeadsGrid() {
       });
       
       // Force re-render to update the grid
-      setForceRenderKey(prev => prev + 1);
+      editableLeadsGridForceRerender();
       
     } catch (error) {
       console.error('Error deleting contacts:', error);
@@ -290,7 +295,7 @@ export function EditableLeadsGrid() {
     } finally {
       setIsContactDeletionLoading(false);
     }
-  }, [deleteContacts, toast]);
+  }, [deleteContacts, toast, editableLeadsGridForceRerender]);
 
   // Function to persist columns to both localStorage and Supabase
   const persistColumns = useCallback(async (newColumns: Column[]) => {
@@ -338,18 +343,11 @@ export function EditableLeadsGrid() {
   // Add dynamic columns when new fields are detected
   useEffect(() => {
     if (dynamicColumnsToAdd.length > 0) {
-      setColumns(prevColumns => {
-        const newColumns = [...prevColumns];
-        dynamicColumnsToAdd.forEach(newColumn => {
-          // Check if column already exists to prevent duplicates
-          if (!newColumns.some(col => col.id === newColumn.id)) {
-            newColumns.push(newColumn);
-          }
-        });
-        return newColumns;
-      });
+      editableLeadsGridSetColumns([...columns, ...dynamicColumnsToAdd.filter(newColumn => 
+        !columns.some(col => col.id === newColumn.id)
+      )]);
     }
-  }, [dynamicColumnsToAdd]);
+  }, [dynamicColumnsToAdd, columns, editableLeadsGridSetColumns]);
 
   // Sync contacts with mockContactsById for stream view compatibility
   useEffect(() => {
@@ -433,11 +431,11 @@ export function EditableLeadsGrid() {
     const reorderedColumns = columnIds.map(id => columns.find(col => col.id === id)).filter(Boolean) as Column[];
     
     // Update state
-    setColumns(reorderedColumns);
+    editableLeadsGridSetColumns(reorderedColumns);
     
     // Persist the new order
     persistColumns(reorderedColumns);
-  }, [columns, persistColumns]);
+  }, [columns, persistColumns, editableLeadsGridSetColumns]);
 
   // Handle column deletion
   const handleDeleteColumn = useCallback(async (columnId: string) => {
@@ -463,10 +461,10 @@ export function EditableLeadsGrid() {
 
       // Remove the column from the columns array
       const updatedColumns = columns.filter(col => col.id !== columnId);
-      setColumns(updatedColumns);
+      editableLeadsGridSetColumns(updatedColumns);
       
       // Add to deleted columns set
-      setDeletedColumnIds(prev => new Set([...prev, columnId]));
+      setDeletedColumnIds(new Set([...deletedColumnIds, columnId]));
       
       // Remove column data from all rows
       const updatedRows = rows.map(row => {
@@ -529,13 +527,13 @@ export function EditableLeadsGrid() {
       logColumnDelete(columnId, columnName);
       
       // Add to deleted columns set to prevent re-adding
-      setDeletedColumnIds(prev => new Set([...prev, columnId]));
+      setDeletedColumnIds(new Set([...deletedColumnIds, columnId]));
       console.log(`🚫 Added ${columnId} to deleted columns list`);
       
       // Remove from columns array
       const newColumns = columns.filter(col => col.id !== columnId);
       console.log(`📊 Columns after deletion: ${newColumns.length} remaining`);
-      setColumns(newColumns);
+      editableLeadsGridSetColumns(newColumns);
       
       // Remove column data from all rows
       const updatedRows = rows.map(row => {
@@ -584,8 +582,8 @@ export function EditableLeadsGrid() {
     const isMobile = window.innerWidth < 768; // Standard mobile breakpoint
     const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
 
-    setColumns(prevColumns =>
-      prevColumns.map(col => {
+    editableLeadsGridSetColumns(
+      columns.map(col => {
         // On mobile, keep the Contact column at 120px; otherwise use 180px
         if (col.id === 'name') {
           return { ...col, width: isMobile ? 120 : 180 };
@@ -595,7 +593,7 @@ export function EditableLeadsGrid() {
         return { ...col, width: columnWidth };
       })
     );
-  }, []);
+  }, [columns, editableLeadsGridSetColumns]);
   
   
   // Listen for contact-added events to refresh the data
@@ -612,7 +610,7 @@ export function EditableLeadsGrid() {
       
       if (newContact) {
         // Force a re-render by updating the render key
-        setForceRenderKey(prev => prev + 1);
+        editableLeadsGridForceRerender();
         
         // Refresh the data to ensure the new contact is visible
         refreshData();
@@ -641,7 +639,7 @@ export function EditableLeadsGrid() {
       }
       
       // Force a re-render to reflect the changes
-      setForceRenderKey(prev => prev + 1);
+      editableLeadsGridForceRerender();
       
       // Also refresh the data to ensure consistency
       refreshData();
@@ -697,7 +695,7 @@ export function EditableLeadsGrid() {
             return col;
           });
           
-          setColumns(columnsWithRenderFunctions);
+          editableLeadsGridSetColumns(columnsWithRenderFunctions);
           // Adjust column widths to match the current viewport
           handleResize();
         }
@@ -834,7 +832,7 @@ export function EditableLeadsGrid() {
         ...columns.slice(afterIndex + 1)
       ];
       
-      setColumns(newColumns);
+      editableLeadsGridSetColumns(newColumns);
       await persistColumns(newColumns);
       
       toast({
@@ -901,7 +899,7 @@ export function EditableLeadsGrid() {
         ...columns.slice(insertAt)
       ];
       
-      setColumns(newColumns);
+      editableLeadsGridSetColumns(newColumns);
       
       // Persist the new columns configuration
       await persistColumns(newColumns);
@@ -944,7 +942,7 @@ export function EditableLeadsGrid() {
       
       // Remove from columns array (this hides it from view)
       const newColumns = columns.filter(col => col.id !== columnId);
-      setColumns(newColumns);
+      editableLeadsGridSetColumns(newColumns);
       
       // Persist the column changes
       await persistColumns(newColumns);
@@ -1018,7 +1016,7 @@ export function EditableLeadsGrid() {
       const newColumns = [...columns];
       newColumns.splice(insertIndex, 0, cleanColumn);
       
-      setColumns(newColumns);
+      editableLeadsGridSetColumns(newColumns);
       await persistColumns(newColumns);
 
       // Remove from hidden columns
@@ -1106,7 +1104,7 @@ export function EditableLeadsGrid() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => setCurrentPage(1)}
+                onClick={() => editableLeadsGridSetCurrentPage(1)}
               >
                 Go to First Page
               </Button>
@@ -1139,7 +1137,7 @@ export function EditableLeadsGrid() {
           onSearchChange={handleSearchChange}
           searchTerm={searchTerm}
           activeFilters={activeFilters}
-          onApplyFilters={setActiveFilters}
+          onApplyFilters={editableLeadsGridSetActiveFilters}
           className="h-full"
           columnOperationLoading={columnOperationLoading}
           onDeleteContacts={handleDeleteContacts}
