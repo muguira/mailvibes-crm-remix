@@ -70,7 +70,7 @@ export const INITIAL_EDITABLE_LEADS_GRID_STATE = {
 
   // Pagination state
   currentPage: 1,
-  pageSize: 20,
+  pageSize: 25,
 
   // Loading states
   editableLeadsGridLoading: INITIAL_EDITABLE_LEADS_GRID_LOADING_STATE,

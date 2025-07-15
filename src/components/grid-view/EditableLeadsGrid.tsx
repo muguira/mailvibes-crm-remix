@@ -5,7 +5,6 @@ import { useStore } from '@/stores';
 import { GridViewContainer } from '@/components/grid-view/GridViewContainer';
 import { Column } from '@/components/grid-view/types';
 import { GridSkeleton } from '@/components/grid-view/GridSkeleton';
-import { renderSocialLink } from '@/components/grid-view/RenderSocialLink';
 import { GridPagination } from './GridPagination';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth';
@@ -16,8 +15,12 @@ import { toast } from '@/components/ui/use-toast';
 import { useActivity } from "@/contexts/ActivityContext";
 import { DeleteColumnDialog } from '@/components/grid-view/DeleteColumnDialog';
 import { Progress } from '@/components/ui/progress';
-import { logger } from '@/utils/logger';
 import { syncContact } from '@/helpers/grid';
+import { 
+  useEditableGridInitialization,
+  useGridExternalEvents,
+  useGridResize
+} from '@/hooks/grid-view';
 
 /**
  * EditableLeadsGrid Component
@@ -66,7 +69,6 @@ export function EditableLeadsGrid() {
     editableLeadsGridSetIsContactDeletionLoading,
     editableLeadsGridAddDynamicColumns,
     editableLeadsGridPersistColumns,
-    editableLeadsGridLoadStoredColumns,
     editableLeadsGridDeleteColumn,
     editableLeadsGridConfirmDeleteColumn,
     editableLeadsGridAddColumn,
@@ -75,8 +77,6 @@ export function EditableLeadsGrid() {
     editableLeadsGridUnhideColumn,
     editableLeadsGridHandleCellEdit,
     editableLeadsGridDeleteContacts,
-    editableLeadsGridInitialize,
-    editableLeadsGridLoadHiddenColumns,
     editableLeadsGridHandleResize,
     editableLeadsGridGetColumnFilters,
   } = useStore();
@@ -98,66 +98,23 @@ export function EditableLeadsGrid() {
   }, [user, editableLeadsGridPersistColumns]);
 
   /**
-   * Initialize grid component on mount
-   * Handles loading stored columns, hidden columns, and setting up render functions
+   * Render function for contact name column with navigation link
    * 
-   * @effect
+   * @param {any} value - The contact name value
+   * @param {any} row - The full contact row data
+   * @returns {JSX.Element} Link element to contact stream view
    */
-  useEffect(() => {
-    let isMounted = true;
-    
-    /**
-     * Async initialization function to set up grid state
-     * Performs three-step initialization process with error handling
-     */
-    const initializeGrid = async () => {
-      if (!isMounted) return;
-      
-      try {
-        await editableLeadsGridInitialize(user);
-        
-        const { lastInitialization } = useStore.getState();
-        if (!lastInitialization || lastInitialization.status === 'error') {
-          throw new Error('Grid initialization failed');
-        }
-        
-        if (user) {
-          /**
-           * Render function for contact name column with navigation link
-           * 
-           * @param {any} value - The contact name value
-           * @param {any} row - The full contact row data
-           * @returns {JSX.Element} Link element to contact stream view
-           */
-          const renderNameLink = (value: any, row: any) => (
-            <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
-              {value}
-            </Link>
-          );
-          
-          await editableLeadsGridLoadStoredColumns(user, renderSocialLink, renderNameLink);
-        }
-        
-        await editableLeadsGridLoadHiddenColumns(user);
-        
-        console.log('✅ Complete grid initialization process completed');
-        
-      } catch (error) {
-        console.error('❌ Grid initialization process failed:', error);
-        toast({
-          title: "Initialization Error",
-          description: "Failed to initialize grid. Please refresh the page.",
-          variant: "destructive",
-        });
-      }
-    };
-    
-    initializeGrid();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [user, editableLeadsGridInitialize, editableLeadsGridLoadStoredColumns, editableLeadsGridLoadHiddenColumns, toast]);
+  const renderNameLink = useCallback((value: any, row: any) => (
+    <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
+      {value}
+    </Link>
+  ), []);
+
+  /**
+   * Initialize grid component using custom hook
+   * Handles loading stored columns, hidden columns, and setting up render functions
+   */
+  const { isInitialized, initializationError } = useEditableGridInitialization(user, renderNameLink);
 
   /**
    * Persist deleted column IDs to localStorage
@@ -498,87 +455,16 @@ export function EditableLeadsGrid() {
   }, [deleteColumnDialog, columns, rows, updateCell, persistColumns, logColumnDelete, toast, editableLeadsGridConfirmDeleteColumn]);
   
   /**
-   * Listen for external contact events and refresh data accordingly
-   * Handles contact additions and updates from other parts of the application
-   * 
-   * @effect
+   * Handle external contact events using custom hook
+   * Manages contact additions and updates from other parts of the application
    */
-  useEffect(() => {
-    /**
-     * Handle contact added events from other components
-     * 
-     * @param {Event} event - The contact added event
-     */
-    const handleContactAdded = (event: Event) => {
-      logger.log("Contact added event received, clearing cache and refreshing data...");
-      refreshData();
-    };
-
-    /**
-     * Handle immediate contact addition with forced re-render
-     * 
-     * @param {CustomEvent} event - Custom event with contact details
-     */
-    const handleContactAddedImmediate = (event: CustomEvent) => {
-      logger.log("Contact added immediate event received, forcing re-render...");
-      const newContact = event.detail?.contact;
-      
-      if (newContact) {
-        editableLeadsGridForceRerender();
-        refreshData();
-      }
-    };
-
-    /**
-     * Handle contact updates from stream view
-     * 
-     * @param {CustomEvent} event - Custom event with update details
-     */
-    const handleContactUpdated = (event: CustomEvent) => {
-      const { contactId, field, value, oldValue } = event.detail;
-      
-      logger.log(`Contact updated from stream view: ${contactId} - ${field} = ${value}`);
-      
-      try {
-        const { useContactsStore } = require('@/stores/contactsStore');
-        const { updateContact: updateContactInStore } = useContactsStore.getState();
-        
-        if (typeof updateContactInStore === 'function') {
-          const storeUpdate: any = { [field]: value };
-          updateContactInStore(contactId, storeUpdate);
-          logger.log(`Updated contact ${contactId} in contacts store via event`);
-        }
-      } catch (error) {
-        logger.warn('Could not update contacts store:', error);
-      }
-      
-      editableLeadsGridForceRerender();
-      refreshData();
-    };
-
-    document.addEventListener("contact-added", handleContactAdded);
-    document.addEventListener("contact-added-immediate", handleContactAddedImmediate as EventListener);
-    document.addEventListener("mockContactsUpdated", handleContactUpdated as EventListener);
-
-    return () => {
-      document.removeEventListener("contact-added", handleContactAdded);
-      document.removeEventListener("contact-added-immediate", handleContactAddedImmediate as EventListener);
-      document.removeEventListener("mockContactsUpdated", handleContactUpdated as EventListener);
-    };
-  }, [refreshData]);
+  useGridExternalEvents(refreshData, editableLeadsGridForceRerender);
 
   /**
-   * Handle responsive column width adjustments
+   * Handle responsive column width adjustments using custom hook
    * Adjusts column widths based on screen size changes
-   * 
-   * @effect
    */
-  useEffect(() => {
-    editableLeadsGridHandleResize();
-    window.addEventListener('resize', editableLeadsGridHandleResize);
-
-    return () => window.removeEventListener('resize', editableLeadsGridHandleResize);
-  }, []);
+  useGridResize(editableLeadsGridHandleResize);
   
   /**
    * Handle adding a new column after specified column
