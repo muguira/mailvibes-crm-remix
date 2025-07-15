@@ -910,27 +910,47 @@ export const useEditableLeadsGridSlice: StateCreator<
         storedColumns = await loadColumnsFromSupabase(user)
       }
 
-      // If we found stored columns, use them
-      if (storedColumns && storedColumns.length > 0) {
-        // Ensure renderCell functions are preserved for social links
-        const columnsWithRenderFunctions = storedColumns.map(col => {
-          if (['facebook', 'instagram', 'linkedin', 'twitter'].includes(col.id) && renderSocialLink) {
-            return { ...col, renderCell: renderSocialLink }
-          }
-          if (col.id === 'name' && renderNameLink) {
-            return {
-              ...col,
-              renderCell: renderNameLink,
-            }
-          }
-          return col
-        })
+      // If we found stored columns, use them; otherwise use default columns
+      let columnsToUse: Column[]
 
-        // Update the slice state
-        set(state => {
-          state.columns = columnsWithRenderFunctions
-        })
+      if (storedColumns && storedColumns.length > 0) {
+        console.log('✅ Using stored columns:', storedColumns.length)
+        columnsToUse = storedColumns
+      } else {
+        console.log('📋 No stored columns found, using default columns')
+        columnsToUse = getDefaultColumns()
       }
+
+      // Filter out deleted columns
+      const { deletedColumnIds } = get()
+      const filteredColumns = columnsToUse.filter(col => !deletedColumnIds.has(col.id))
+
+      console.log('🗑️ Filtered out deleted columns:', {
+        original: columnsToUse.length,
+        afterFilter: filteredColumns.length,
+        deletedIds: Array.from(deletedColumnIds),
+      })
+
+      // Ensure renderCell functions are preserved for social links
+      const columnsWithRenderFunctions = filteredColumns.map(col => {
+        if (['facebook', 'instagram', 'linkedin', 'twitter'].includes(col.id) && renderSocialLink) {
+          return { ...col, renderCell: renderSocialLink }
+        }
+        if (col.id === 'name' && renderNameLink) {
+          return {
+            ...col,
+            renderCell: renderNameLink,
+          }
+        }
+        return col
+      })
+
+      // Update the slice state
+      set(state => {
+        state.columns = columnsWithRenderFunctions
+      })
+
+      console.log('✅ Columns loaded successfully:', columnsWithRenderFunctions.length)
     } catch (error) {
       logger.error('Error loading stored columns:', error)
 
