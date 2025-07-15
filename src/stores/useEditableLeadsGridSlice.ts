@@ -246,20 +246,10 @@ export const useEditableLeadsGridSlice: StateCreator<
         return
       }
 
-      // If not a default column, set up dialog state and proceed with deletion
-      console.log('✅ Non-default column, setting up dialog state for direct deletion')
-
-      // Set up the dialog state (even though we won't show it)
-      set(state => {
-        state.deleteColumnDialog = {
-          isOpen: true, // We set this to true temporarily
-          columnId,
-          columnName: columnToDelete.title,
-        }
-      })
-
-      // Now proceed with the deletion
-      await get().editableLeadsGridConfirmDeleteColumn()
+      // If not a default column, this shouldn't happen now
+      // Custom columns are handled directly in the component with persistence
+      console.log('⚠️ Non-default column reached slice deletion - this should be handled in component')
+      return
     } catch (error) {
       console.error('Error in column deletion process:', error)
       set(state => ({

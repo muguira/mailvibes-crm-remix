@@ -346,8 +346,88 @@ export function EditableLeadsGrid() {
 
   // Handle column deletion - using slice action
   const handleDeleteColumn = useCallback(async (columnId: string) => {
-    await editableLeadsGridDeleteColumn(columnId);
-  }, [editableLeadsGridDeleteColumn]);
+    // Check if this is a default column that requires confirmation
+    const defaultColumnIds = [
+      'name',
+      'email', 
+      'company',
+      'phone',
+      'status',
+      'owner',
+      'revenue',
+      'source',
+      'created_at',
+      'updated_at',
+    ];
+
+    if (defaultColumnIds.includes(columnId)) {
+      // For default columns, use the slice to open the confirmation dialog
+      await editableLeadsGridDeleteColumn(columnId);
+    } else {
+      // For custom columns, handle deletion directly with persistence
+      console.log('🚀 Handling custom column deletion with persistence:', columnId);
+      
+      const column = columns.find(col => col.id === columnId);
+      if (!column) return;
+
+      try {
+        // First, execute the slice action to update local state
+        useStore.setState(state => ({
+          deleteColumnDialog: {
+            isOpen: true,
+            columnId,
+            columnName: column.title,
+          }
+        }));
+        
+        await editableLeadsGridConfirmDeleteColumn();
+        
+        // Now handle persistence operations that require hooks
+        console.log('🗄️ Persisting column deletion to database...');
+        
+        // Remove column data from all rows in the database
+        let updateErrors = 0;
+        for (const row of rows) {
+          try {
+            await updateCell({ rowId: (row as any).id, columnId, value: undefined });
+          } catch (error) {
+            updateErrors++;
+            console.error(`❌ Failed to update row ${(row as any).id}:`, error);
+          }
+        }
+        
+        if (updateErrors > 0) {
+          console.warn(`⚠️ ${updateErrors} rows failed to update during column deletion`);
+        }
+        
+        // Persist the column configuration
+        const newColumns = columns.filter(col => col.id !== columnId);
+        await persistColumns(newColumns);
+        
+        // Log the column deletion
+        logColumnDelete(columnId, column.title);
+        
+        console.log(`✅ Custom column deletion completed successfully with persistence`);
+        
+        // Show success message
+        toast({
+          title: "Column deleted",
+          description: updateErrors > 0 
+            ? `Column "${column.title}" deleted with ${updateErrors} update errors.`
+            : `Column "${column.title}" deleted successfully.`,
+          variant: updateErrors > 0 ? "destructive" : "default",
+        });
+        
+      } catch (error) {
+        console.error('Error in custom column deletion:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete column. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [editableLeadsGridDeleteColumn, editableLeadsGridConfirmDeleteColumn, columns, rows, updateCell, persistColumns, logColumnDelete, toast]);
 
   // Handle the actual deletion after confirmation - using slice action with row updates
   const handleConfirmDeleteColumn = useCallback(async () => {
