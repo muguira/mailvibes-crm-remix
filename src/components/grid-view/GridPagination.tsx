@@ -3,31 +3,34 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useStore } from "@/stores";
 
 interface GridPaginationProps {
-  currentPage: number;
+  // currentPage, pageSize - now obtained from Zustand slice internally
+  // onPageChange, onPageSizeChange - now obtained from Zustand slice internally
   totalPages: number;
-  pageSize: number;
   totalItems: number;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (size: number) => void;
   loading?: boolean;
   isBackgroundLoading?: boolean;
   loadedCount?: number;
 }
 
 export function GridPagination({
-  currentPage,
   totalPages,
-  pageSize,
   totalItems,
-  onPageChange,
-  onPageSizeChange,
   loading = false,
   isBackgroundLoading = false,
   loadedCount = 0
 }: GridPaginationProps) {
   const isMobile = useIsMobile();
+  
+  // Get pagination state and actions from Zustand slice
+  const {
+    currentPage,
+    pageSize,
+    editableLeadsGridHandlePageChange,
+    editableLeadsGridHandlePageSizeChange
+  } = useStore();
   
   // Calculate the range of items being displayed
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -102,7 +105,7 @@ export function GridPagination({
           )}
           <Select
             value={pageSize.toString()}
-            onValueChange={(value) => onPageSizeChange(parseInt(value))}
+            onValueChange={(value) => editableLeadsGridHandlePageSizeChange(parseInt(value))}
             disabled={loading}
           >
             <SelectTrigger id="page-size" className="page-size-select">
@@ -124,7 +127,7 @@ export function GridPagination({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => onPageChange(1)}
+            onClick={() => editableLeadsGridHandlePageChange(1)}
             disabled={currentPage === 1 || loading}
             className="pagination-button"
             title="First page"
@@ -136,7 +139,7 @@ export function GridPagination({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => onPageChange(currentPage - 1)}
+            onClick={() => editableLeadsGridHandlePageChange(currentPage - 1)}
             disabled={currentPage === 1 || loading}
             className="pagination-button"
             title="Previous page"
@@ -155,7 +158,7 @@ export function GridPagination({
                     <Button
                       variant={currentPage === page ? "default" : "ghost"}
                       size="sm"
-                      onClick={() => onPageChange(page as number)}
+                      onClick={() => editableLeadsGridHandlePageChange(page as number)}
                       disabled={loading}
                       className={`pagination-number ${currentPage === page ? "active" : ""}`}
                     >
@@ -171,7 +174,7 @@ export function GridPagination({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => onPageChange(currentPage + 1)}
+            onClick={() => editableLeadsGridHandlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages || loading}
             className="pagination-button"
             title="Next page"
@@ -183,7 +186,7 @@ export function GridPagination({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => onPageChange(totalPages)}
+            onClick={() => editableLeadsGridHandlePageChange(totalPages)}
             disabled={currentPage === totalPages || loading}
             className="pagination-button"
             title="Last page"

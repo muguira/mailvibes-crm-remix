@@ -693,12 +693,8 @@ export function EditableLeadsGrid() {
         />
       </div>
       <GridPagination
-        currentPage={currentPage}
         totalPages={totalPages}
-        pageSize={pageSize}
         totalItems={totalCount}
-        onPageChange={handlePageChange}
-        onPageSizeChange={handlePageSizeChange}
         loading={loading}
         isBackgroundLoading={isBackgroundLoading}
         loadedCount={loadedCount}
