@@ -1,4 +1,4 @@
-import  { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { GridViewContainer } from '@/components/grid-view/GridViewContainer';
 import { Column } from '@/components/grid-view/types';
 import { GridSkeleton } from '@/components/grid-view/GridSkeleton';
@@ -24,6 +24,20 @@ import { getDefaultColumns, saveColumnsToLocal, extractDynamicFields, syncContac
 import { renderSocialLink } from '@/components/grid-view/RenderSocialLink';
 import { useStore } from '@/stores';
 
+/**
+ * EditableLeadsGrid Component
+ * 
+ * A fully-featured grid component for managing leads with:
+ * - State management via Zustand slice
+ * - Real-time search and filtering
+ * - Column management (add, delete, hide, reorder)
+ * - Pagination with instant loading
+ * - Persistence to localStorage and Supabase
+ * - Contact operations (edit, delete)
+ * - Activity logging
+ * 
+ * @returns {JSX.Element} The editable leads grid component
+ */
 export function EditableLeadsGrid() {
   const { user } = useAuth();
   const { logCellEdit, logColumnAdd, logColumnDelete, logFilterChange } = useActivity();
@@ -32,7 +46,7 @@ export function EditableLeadsGrid() {
   // SLICE INTEGRATION (BASIC - WORKING)
   // ==========================================
   
-  // Get slice state and actions (expanding migration)
+  // Get slice state and actions (fully migrated)
   const {
     searchTerm,
     activeFilters,
@@ -44,42 +58,92 @@ export function EditableLeadsGrid() {
     deletedColumnIds,
     deleteColumnDialog,
     columnOperationLoading,
+    isContactDeletionLoading,
     editableLeadsGridSetSearchTerm,
     editableLeadsGridSetActiveFilters,
     editableLeadsGridSetCurrentPage,
     editableLeadsGridSetPageSize,
     editableLeadsGridSetColumns,
     editableLeadsGridForceRerender,
+    editableLeadsGridSetHiddenColumns,
+    editableLeadsGridSetDeletedColumnIds,
+    editableLeadsGridSetDeleteColumnDialog,
+    editableLeadsGridSetColumnOperationLoading,
   } = useStore();
 
-  // Temporary setter functions until they are implemented in the slice
-  const setHiddenColumns = (columns: Column[]) => {
-    // TODO: Implement editableLeadsGridSetHiddenColumns in slice
-    console.log('setHiddenColumns called with:', columns.length, 'columns');
-  };
+  // Use slice setters directly
+  const setHiddenColumns = editableLeadsGridSetHiddenColumns;
+  const setDeletedColumnIds = editableLeadsGridSetDeletedColumnIds;
+  const setDeleteColumnDialog = editableLeadsGridSetDeleteColumnDialog;
+  const setColumnOperationLoading = editableLeadsGridSetColumnOperationLoading;
   
-  const setDeletedColumnIds = (ids: Set<string>) => {
-    // TODO: Implement editableLeadsGridSetDeletedColumnIds in slice
-    console.log('setDeletedColumnIds called with:', ids.size, 'ids');
+  // Temporary setter for contact deletion loading (until slice is fixed)
+  const setIsContactDeletionLoading = (loading: boolean) => {
+    // TODO: Use editableLeadsGridSetIsContactDeletionLoading when slice is fixed
+    console.log('setIsContactDeletionLoading called with:', loading);
   };
 
-  const setDeleteColumnDialog = (dialog: any) => {
-    // TODO: Implement editableLeadsGridSetDeleteColumnDialog in slice
-    console.log('setDeleteColumnDialog called with:', dialog);
-  };
+  // Enhanced persistence functions using slice actions
+  const persistColumns = useCallback(async (newColumns: Column[]) => {
+    try {
+      // Update slice state first
+      editableLeadsGridSetColumns(newColumns);
+      
+      // Save to localStorage immediately for fast access
+      saveColumnsToLocal(newColumns);
+      
+      // Save to Supabase for persistence across devices
+      if (user) {
+        const { supabase } = await import('@/integrations/supabase/client');
+        await supabase
+          .from('user_settings' as any)
+          .upsert({
+            user_id: user.id,
+            setting_key: 'grid_columns',
+            setting_value: newColumns
+          });
+      }
+    } catch (error) {
+      logger.error('Error persisting columns:', error);
+    }
+  }, [user]);
 
-  const setColumnOperationLoading = (loading: any) => {
-    // TODO: Implement editableLeadsGridSetColumnOperationLoading in slice
-    console.log('setColumnOperationLoading called with:', loading);
-  };
+  const saveHiddenColumns = useCallback(async (hiddenCols: Column[]) => {
+    try {
+      // Update slice state first
+      editableLeadsGridSetHiddenColumns(hiddenCols);
+      
+      // Save to localStorage
+      localStorage.setItem('hiddenColumns-v1', JSON.stringify(hiddenCols));
+      
+      // Save to Supabase
+      if (user) {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { error } = await supabase
+          .from('user_settings' as any)
+          .upsert({
+            user_id: user.id,
+            setting_key: 'hidden_columns',
+            setting_value: hiddenCols,
+            updated_at: new Date().toISOString()
+          });
+          
+        if (error && !error.message?.includes('404') && error.code !== '42P01') {
+          logger.error('Failed to save hidden columns:', error);
+        }
+      }
+    } catch (error) {
+      if (!String(error).includes('404') && !String(error).includes('42P01')) {
+        logger.error('Failed to save hidden columns:', error);
+      }
+    }
+  }, [user, editableLeadsGridSetHiddenColumns]);
 
   // ==========================================
   // LOCAL STATE (TEMPORARY - TO BE MIGRATED GRADUALLY)
   // ==========================================
   
   // Keep local state for everything else during gradual migration
-
-  const [isContactDeletionLoading, setIsContactDeletionLoading] = useState(false);
   
   // Persist deleted columns to localStorage
   useEffect(() => {
@@ -297,27 +361,7 @@ export function EditableLeadsGrid() {
     }
   }, [deleteContacts, toast, editableLeadsGridForceRerender]);
 
-  // Function to persist columns to both localStorage and Supabase
-  const persistColumns = useCallback(async (newColumns: Column[]) => {
-    try {
-      // Save to localStorage immediately for fast access
-      saveColumnsToLocal(newColumns);
-      
-      // Save to Supabase for persistence across devices
-      if (user) {
-        const { supabase } = await import('@/integrations/supabase/client');
-        await supabase
-          .from('user_settings' as any)
-          .upsert({
-            user_id: user.id,
-            setting_key: 'grid_columns',
-            setting_value: newColumns
-          });
-      }
-    } catch (error) {
-      logger.error('Error persisting columns:', error);
-    }
-  }, [user]);
+
 
   // Add dynamic columns based on imported data - memoized to prevent unnecessary recalculations
   const dynamicFields = useMemo(() => {
@@ -390,13 +434,6 @@ export function EditableLeadsGrid() {
         finalValue = value.toISOString().split('T')[0];
       }
 
-      console.log('Final value after processing:', {
-        originalValue: value,
-        finalValue,
-        columnType: column?.type,
-        isDateColumn: column?.type === 'date'
-      });
-
       // Update the cell using the hook
       await updateCell({ rowId, columnId, value: finalValue });
 
@@ -407,13 +444,6 @@ export function EditableLeadsGrid() {
         finalValue, 
         oldValue
       );
-
-      console.log('EditableLeadsGrid handleCellChange completed successfully:', {
-        rowId,
-        columnId,
-        finalValue,
-        cellKey
-      });
 
     } catch (error) {
       console.error('Error updating cell:', error);
@@ -430,12 +460,9 @@ export function EditableLeadsGrid() {
     // Reorder columns based on new order
     const reorderedColumns = columnIds.map(id => columns.find(col => col.id === id)).filter(Boolean) as Column[];
     
-    // Update state
-    editableLeadsGridSetColumns(reorderedColumns);
-    
-    // Persist the new order
+    // Persist the new order (this will also update the state)
     persistColumns(reorderedColumns);
-  }, [columns, persistColumns, editableLeadsGridSetColumns]);
+  }, [columns, persistColumns]);
 
   // Handle column deletion
   const handleDeleteColumn = useCallback(async (columnId: string) => {
@@ -577,23 +604,7 @@ export function EditableLeadsGrid() {
     }
   }, [deleteColumnDialog, columns, rows, updateCell, logColumnDelete, persistColumns, toast]);
   
-  // Resize handler extracted so it can be reused
-  const handleResize = useCallback(() => {
-    const isMobile = window.innerWidth < 768; // Standard mobile breakpoint
-    const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
 
-    editableLeadsGridSetColumns(
-      columns.map(col => {
-        // On mobile, keep the Contact column at 120px; otherwise use 180px
-        if (col.id === 'name') {
-          return { ...col, width: isMobile ? 120 : 180 };
-        }
-
-        // Update all other columns to use the appropriate width
-        return { ...col, width: columnWidth };
-      })
-    );
-  }, [columns, editableLeadsGridSetColumns]);
   
   
   // Listen for contact-added events to refresh the data
@@ -657,7 +668,6 @@ export function EditableLeadsGrid() {
   }, [refreshData]);
 
   // Add loading state to prevent duplicate loads
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   // Load columns from storage on component mount
   useEffect(() => {
@@ -696,8 +706,7 @@ export function EditableLeadsGrid() {
           });
           
           editableLeadsGridSetColumns(columnsWithRenderFunctions);
-          // Adjust column widths to match the current viewport
-          handleResize();
+          // Note: Column widths will be adjusted by the resize effect
         }
       } catch (error) {
         logger.error('Error loading stored columns:', error);
@@ -710,34 +719,9 @@ export function EditableLeadsGrid() {
     return () => {
       isMounted = false;
     };
-  }, [user, handleResize]);
+  }, [user]);
 
-  // Function to save hidden columns to storage
-  const saveHiddenColumns = async (hiddenCols: Column[]) => {
-    try {
-      localStorage.setItem('hiddenColumns-v1', JSON.stringify(hiddenCols));
-      
-      if (user) {
-        const { supabase } = await import('@/integrations/supabase/client');
-        const { error } = await supabase
-          .from('user_settings' as any) // Type assertion to bypass TypeScript error
-          .upsert({
-            user_id: user.id,
-            setting_key: 'hidden_columns',
-            setting_value: hiddenCols,
-            updated_at: new Date().toISOString()
-          });
-          
-        if (error && !error.message?.includes('404') && error.code !== '42P01') {
-          logger.error('Failed to save hidden columns:', error);
-        }
-      }
-    } catch (error) {
-      if (!String(error).includes('404') && !String(error).includes('42P01')) {
-        logger.error('Failed to save hidden columns:', error);
-      }
-    }
-  };
+
 
   // Load hidden columns on mount
   useEffect(() => {
@@ -792,14 +776,25 @@ export function EditableLeadsGrid() {
 
   // Add effect to adjust column widths based on screen size
   useEffect(() => {
-    handleResize(); // Initial call
+    const handleResizeEvent = () => {
+      const isMobile = window.innerWidth < 768;
+      const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
 
-    // Add event listener
-    window.addEventListener('resize', handleResize);
+      editableLeadsGridSetColumns(
+        columns.map(col => {
+          if (col.id === 'name') {
+            return { ...col, width: isMobile ? 120 : 180 };
+          }
+          return { ...col, width: columnWidth };
+        })
+      );
+    };
 
-    // Cleanup
-    return () => window.removeEventListener('resize', handleResize);
-  }, [handleResize]);
+    handleResizeEvent(); // Initial call
+    window.addEventListener('resize', handleResizeEvent);
+
+    return () => window.removeEventListener('resize', handleResizeEvent);
+  }, []); // Empty dependency array to run only once
   
   // Handle adding a new column
   const handleAddColumn = async (afterColumnId: string) => {

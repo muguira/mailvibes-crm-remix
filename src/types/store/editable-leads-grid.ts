@@ -111,8 +111,8 @@ export interface TEditableLeadsGridStore {
   isInitialized: boolean;
   lastSyncAt: string | null;
 
-  // Error states
-  errors: IEditableLeadsGridErrorState;
+  // Error states (renamed to avoid conflict with TTaskStore)
+  editableLeadsGridErrors: IEditableLeadsGridErrorState;
 
   // ==================== ACTIONS ====================
 
@@ -132,6 +132,13 @@ export interface TEditableLeadsGridStore {
 
   // Column management
   editableLeadsGridSetColumns: (columns: Column[]) => void;
+  editableLeadsGridSetHiddenColumns: (columns: Column[]) => void;
+  editableLeadsGridSetDeletedColumnIds: (ids: Set<string>) => void;
+  editableLeadsGridSetDeleteColumnDialog: (dialog: IDeleteColumnDialog) => void;
+  editableLeadsGridSetColumnOperationLoading: (
+    loading: IColumnOperationLoading
+  ) => void;
+  editableLeadsGridSetIsContactDeletionLoading: (loading: boolean) => void;
   editableLeadsGridAddColumn: (afterColumnId: string) => Promise<void>;
   editableLeadsGridInsertColumn: (
     direction: "left" | "right",
@@ -181,6 +188,13 @@ export interface TEditableLeadsGridStore {
     operation: keyof IEditableLeadsGridErrorState
   ) => void;
   editableLeadsGridClearAllErrors: () => void;
+
+  // Cell editing
+  editableLeadsGridHandleCellEdit: (
+    rowId: string,
+    columnId: string,
+    value: any
+  ) => Promise<void>;
 }
 
 /**

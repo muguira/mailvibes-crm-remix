@@ -88,7 +88,7 @@ export const INITIAL_EDITABLE_LEADS_GRID_STATE = {
   lastSyncAt: null,
 
   // Error states
-  errors: INITIAL_EDITABLE_LEADS_GRID_ERROR_STATE,
+  editableLeadsGridErrors: INITIAL_EDITABLE_LEADS_GRID_ERROR_STATE,
 };
 
 /**
