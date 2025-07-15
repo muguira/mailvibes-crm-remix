@@ -681,9 +681,6 @@ export function EditableLeadsGrid() {
           key={gridKey} // Use stable key to prevent unnecessary re-renders
           columns={columns} 
           data={rows}  // Use all rows instead of paginated data
-          listName="All Leads"
-          listType="Lead"
-          listId="leads-grid"
           firstRowIndex={(currentPage - 1) * pageSize}  // Calculate the correct start index for row numbering
           onCellChange={handleCellChange}
           onColumnsReorder={handleColumnsReorder}
@@ -693,7 +690,6 @@ export function EditableLeadsGrid() {
           onHideColumn={handleHideColumn}
           onUnhideColumn={handleUnhideColumn}
           onDeleteContacts={handleDeleteContacts}
-          className="h-full"
         />
       </div>
       <GridPagination

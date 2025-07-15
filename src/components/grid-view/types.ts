@@ -33,10 +33,9 @@ export interface EditingCell {
 export interface GridContainerProps {
   columns: Column[]
   data: GridRow[]
-  listName?: string
-  listType?: string
-  listId?: string
   firstRowIndex?: number
+  // listName, listType, listId - now constants within GridViewContainer
+  // className - now handled internally with fixed styles
   // searchTerm, onSearchChange - now obtained from Zustand slice internally
   // activeFilters, onApplyFilters - now obtained from Zustand slice internally
   // hiddenColumns, onUnhideColumn - now obtained from Zustand slice internally
@@ -57,7 +56,6 @@ export interface GridContainerProps {
   onHideColumn?: (columnId: string) => void
   onUnhideColumn?: (columnId: string) => void
   onDeleteContacts?: (contactIds: string[]) => Promise<void>
-  className?: string
   cellUpdateLoading?: Set<string>
 }
 

@@ -17,9 +17,6 @@ import { useStore } from '@/stores';
 export function GridViewContainer({
   columns,
   data,
-  listName = '',
-  listId = '',
-  listType = '',
   firstRowIndex = 0,
   onCellChange,
   onColumnsReorder,
@@ -28,9 +25,12 @@ export function GridViewContainer({
   onInsertColumn,
   onHideColumn,
   onUnhideColumn,
-  onDeleteContacts,
-  className
+  onDeleteContacts
 }: GridContainerProps) {
+  // Static configuration constants
+  const listName = 'All Leads';
+  const listType = 'Lead';
+  const listId = 'leads-grid';
   // Get state and actions from Zustand slice
   const {
     searchTerm,
@@ -279,7 +279,7 @@ export function GridViewContainer({
   };
 
   return (
-    <div className="grid-view" ref={containerRef}>
+    <div className="grid-view h-full" ref={containerRef}>
       <GridToolbar
         listType={listType}
         searchTerm={searchTerm}
