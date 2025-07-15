@@ -148,7 +148,7 @@ export function GridPagination({
           {!isMobile && (
             <div className="page-numbers">
               {getPageNumbers().map((page, index) => (
-                <React.Fragment key={index}>
+                <div key={index} className="pagination-item">
                   {page === "..." ? (
                     <span className="pagination-ellipsis">...</span>
                   ) : (
@@ -162,7 +162,7 @@ export function GridPagination({
                       {page}
                     </Button>
                   )}
-                </React.Fragment>
+                </div>
               ))}
             </div>
           )}

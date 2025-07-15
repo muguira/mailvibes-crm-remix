@@ -82,6 +82,11 @@
   margin: 0 6px;
 }
 
+.pagination-item {
+  display: inline-flex;
+  align-items: center;
+}
+
 .pagination-number {
   min-width: 24px;
   height: 24px;
