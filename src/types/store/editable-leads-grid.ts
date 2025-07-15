@@ -57,6 +57,35 @@ export interface IEditableLeadsGridErrorState {
 }
 
 /**
+ * Last cell edit information
+ */
+export interface ILastCellEdit {
+  rowId: string
+  columnId: string
+  finalValue: any
+  originalValue: any
+  timestamp: number
+}
+
+/**
+ * Last contact deletion information
+ */
+export interface ILastContactDeletion {
+  contactIds: string[]
+  timestamp: number
+  status: 'processing' | 'success' | 'error'
+}
+
+/**
+ * Last initialization information
+ */
+export interface ILastInitialization {
+  userId: string | null
+  timestamp: number
+  status: 'completed' | 'error'
+}
+
+/**
  * Loading states for the editable leads grid
  */
 export interface IEditableLeadsGridLoadingState {
@@ -99,6 +128,15 @@ export interface TEditableLeadsGridStore {
 
   // Dialog states
   deleteColumnDialog: IDeleteColumnDialog
+
+  // Last cell edit tracking
+  lastCellEdit: ILastCellEdit | null
+
+  // Last contact deletion tracking
+  lastContactDeletion: ILastContactDeletion | null
+
+  // Last initialization tracking
+  lastInitialization: ILastInitialization | null
 
   // Internal state
   forceRenderKey: number
@@ -145,10 +183,10 @@ export interface TEditableLeadsGridStore {
   editableLeadsGridReorderColumns: (columnIds: string[]) => void
 
   // Column persistence
-  editableLeadsGridPersistColumns: (columns: Column[]) => Promise<void>
-  editableLeadsGridLoadStoredColumns: () => Promise<void>
+  editableLeadsGridPersistColumns: (columns: Column[], user?: any) => Promise<void>
+  editableLeadsGridLoadStoredColumns: (user?: any, renderSocialLink?: any, renderNameLink?: any) => Promise<void>
   editableLeadsGridSaveHiddenColumns: (columns: Column[]) => Promise<void>
-  editableLeadsGridLoadHiddenColumns: () => Promise<void>
+  editableLeadsGridLoadHiddenColumns: (user?: any) => Promise<void>
 
   // Contact operations
   editableLeadsGridDeleteContacts: (contactIds: string[]) => Promise<void>

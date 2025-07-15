@@ -78,7 +78,20 @@ export const INITIAL_EDITABLE_LEADS_GRID_STATE = {
   isContactDeletionLoading: false,
 
   // Dialog states
-  deleteColumnDialog: INITIAL_DELETE_COLUMN_DIALOG,
+  deleteColumnDialog: {
+    isOpen: false,
+    columnId: '',
+    columnName: '',
+  },
+
+  // Last cell edit tracking
+  lastCellEdit: null,
+
+  // Last contact deletion tracking
+  lastContactDeletion: null,
+
+  // Last initialization tracking
+  lastInitialization: null,
 
   // Internal state
   forceRenderKey: 0,

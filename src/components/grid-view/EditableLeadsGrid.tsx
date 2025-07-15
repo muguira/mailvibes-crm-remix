@@ -1,15 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { GridViewContainer } from '@/components/grid-view/GridViewContainer';
 import { Column } from '@/components/grid-view/types';
 import { GridSkeleton } from '@/components/grid-view/GridSkeleton';
 import { GridPagination } from './GridPagination';
-import { 
-  DEFAULT_COLUMN_WIDTH,
-  MOBILE_COLUMN_WIDTH,
-} from '@/components/grid-view/grid-constants';
+
 import { Database } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth';
 import { logger } from '@/utils/logger';
@@ -20,7 +16,7 @@ import { toast } from '@/components/ui/use-toast';
 import { useActivity } from "@/contexts/ActivityContext";
 import { DeleteColumnDialog } from '@/components/grid-view/DeleteColumnDialog';
 import { Progress } from '@/components/ui/progress';
-import { getDefaultColumns, saveColumnsToLocal, extractDynamicFields, syncContact, loadColumnsFromLocal, loadColumnsFromSupabase } from '@/helpers/grid';
+import { syncContact } from '@/helpers/grid';
 import { renderSocialLink } from '@/components/grid-view/RenderSocialLink';
 import { useStore } from '@/stores';
 
@@ -62,82 +58,37 @@ export function EditableLeadsGrid() {
     editableLeadsGridSetSearchTerm,
     editableLeadsGridSetActiveFilters,
     editableLeadsGridSetCurrentPage,
-    editableLeadsGridSetPageSize,
-    editableLeadsGridSetColumns,
     editableLeadsGridForceRerender,
-    editableLeadsGridSetHiddenColumns,
-    editableLeadsGridSetDeletedColumnIds,
-    editableLeadsGridSetDeleteColumnDialog,
-    editableLeadsGridSetColumnOperationLoading,
+    editableLeadsGridSetIsContactDeletionLoading,
+    editableLeadsGridHandlePageChange,
+    editableLeadsGridHandlePageSizeChange,
+    editableLeadsGridCloseDeleteColumnDialog,
+    editableLeadsGridReorderColumns,
+    editableLeadsGridAddDynamicColumns,
+    editableLeadsGridPersistColumns,
+    editableLeadsGridLoadStoredColumns,
+    editableLeadsGridDeleteColumn,
+    editableLeadsGridConfirmDeleteColumn,
+    editableLeadsGridAddColumn,
+    editableLeadsGridInsertColumn,
+    editableLeadsGridHideColumn,
+    editableLeadsGridUnhideColumn,
+    editableLeadsGridHandleCellEdit,
+    editableLeadsGridDeleteContacts,
+    editableLeadsGridInitialize,
+    editableLeadsGridLoadHiddenColumns,
+    editableLeadsGridHandleResize,
+    editableLeadsGridGetColumnFilters,
   } = useStore();
 
   // Use slice setters directly
-  const setHiddenColumns = editableLeadsGridSetHiddenColumns;
-  const setDeletedColumnIds = editableLeadsGridSetDeletedColumnIds;
-  const setDeleteColumnDialog = editableLeadsGridSetDeleteColumnDialog;
-  const setColumnOperationLoading = editableLeadsGridSetColumnOperationLoading;
-  
-  // Temporary setter for contact deletion loading (until slice is fixed)
-  const setIsContactDeletionLoading = (loading: boolean) => {
-    // TODO: Use editableLeadsGridSetIsContactDeletionLoading when slice is fixed
-    console.log('setIsContactDeletionLoading called with:', loading);
-  };
+  const setIsContactDeletionLoading = editableLeadsGridSetIsContactDeletionLoading;
 
-  // Enhanced persistence functions using slice actions
+  // Enhanced persistence using slice action
   const persistColumns = useCallback(async (newColumns: Column[]) => {
-    try {
-      // Update slice state first
-      editableLeadsGridSetColumns(newColumns);
-      
-      // Save to localStorage immediately for fast access
-      saveColumnsToLocal(newColumns);
-      
-      // Save to Supabase for persistence across devices
-      if (user) {
-        const { supabase } = await import('@/integrations/supabase/client');
-        await supabase
-          .from('user_settings' as any)
-          .upsert({
-            user_id: user.id,
-            setting_key: 'grid_columns',
-            setting_value: newColumns
-          });
-      }
-    } catch (error) {
-      logger.error('Error persisting columns:', error);
-    }
-  }, [user]);
+    await editableLeadsGridPersistColumns(newColumns, user);
+  }, [user, editableLeadsGridPersistColumns]);
 
-  const saveHiddenColumns = useCallback(async (hiddenCols: Column[]) => {
-    try {
-      // Update slice state first
-      editableLeadsGridSetHiddenColumns(hiddenCols);
-      
-      // Save to localStorage
-      localStorage.setItem('hiddenColumns-v1', JSON.stringify(hiddenCols));
-      
-      // Save to Supabase
-      if (user) {
-        const { supabase } = await import('@/integrations/supabase/client');
-        const { error } = await supabase
-          .from('user_settings' as any)
-          .upsert({
-            user_id: user.id,
-            setting_key: 'hidden_columns',
-            setting_value: hiddenCols,
-            updated_at: new Date().toISOString()
-          });
-          
-        if (error && !error.message?.includes('404') && error.code !== '42P01') {
-          logger.error('Failed to save hidden columns:', error);
-        }
-      }
-    } catch (error) {
-      if (!String(error).includes('404') && !String(error).includes('42P01')) {
-        logger.error('Failed to save hidden columns:', error);
-      }
-    }
-  }, [user, editableLeadsGridSetHiddenColumns]);
 
   // ==========================================
   // LOCAL STATE (TEMPORARY - TO BE MIGRATED GRADUALLY)
@@ -145,6 +96,56 @@ export function EditableLeadsGrid() {
   
   // Keep local state for everything else during gradual migration
   
+  // Initialize grid when component mounts - using slice action
+  useEffect(() => {
+    let isMounted = true;
+    
+    const initializeGrid = async () => {
+      if (!isMounted) return;
+      
+      try {
+        // Step 1: Initialize grid state through slice
+        await editableLeadsGridInitialize(user);
+        
+        // Get initialization result
+        const { lastInitialization } = useStore.getState();
+        if (!lastInitialization || lastInitialization.status === 'error') {
+          throw new Error('Grid initialization failed');
+        }
+        
+        // Step 2: Load stored columns with render functions
+        if (user) {
+          const renderNameLink = (value: any, row: any) => (
+            <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
+              {value}
+            </Link>
+          );
+          
+          await editableLeadsGridLoadStoredColumns(user, renderSocialLink, renderNameLink);
+        }
+        
+        // Step 3: Load hidden columns as part of initialization
+        await editableLeadsGridLoadHiddenColumns(user);
+        
+        console.log('✅ Complete grid initialization process completed');
+        
+      } catch (error) {
+        console.error('❌ Grid initialization process failed:', error);
+        toast({
+          title: "Initialization Error",
+          description: "Failed to initialize grid. Please refresh the page.",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    initializeGrid();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [user, editableLeadsGridInitialize, editableLeadsGridLoadStoredColumns, editableLeadsGridLoadHiddenColumns, toast]);
+
   // Persist deleted columns to localStorage
   useEffect(() => {
     localStorage.setItem('deletedColumnIds', JSON.stringify(Array.from(deletedColumnIds)));
@@ -153,131 +154,10 @@ export function EditableLeadsGrid() {
   // Debounce search term for better performance
   const debouncedSearchTerm = useDebounce(searchTerm, 200);
   
-  // Convert activeFilters to ColumnFilter format for useInstantContacts
+  // Convert activeFilters to ColumnFilter format for useInstantContacts - using slice action
   const columnFilters = useMemo(() => {
-    if (!activeFilters.columns || activeFilters.columns.length === 0) {
-      return [];
-    }
-    
-    return activeFilters.columns.map(columnId => {
-      const filterValue = activeFilters.values[columnId] as any; // Type assertion since it's unknown
-      const column = columns.find(col => col.id === columnId);
-      
-      if (!filterValue || !column) return null;
-      
-      // Convert based on filter type
-      if (filterValue.type === 'text') {
-        if (filterValue.operator === 'is_empty') {
-          return { columnId, value: null, type: 'text', operator: 'is_empty' };
-        } else if (filterValue.operator === 'is_not_empty') {
-          return { columnId, value: null, type: 'text', operator: 'is_not_empty' };
-        } else if (filterValue.text?.trim()) {
-          return { 
-            columnId, 
-            value: filterValue.text.trim(), 
-            type: 'text', 
-            operator: filterValue.operator 
-          };
-        }
-      } else if (filterValue.type === 'dropdown') {
-        // Handle both single-select and multi-select dropdown filters
-        if (filterValue.values && Array.isArray(filterValue.values) && filterValue.values.length > 0) {
-          // Multi-select dropdown
-          return { 
-            columnId, 
-            value: filterValue.values, 
-            type: 'dropdown' 
-          };
-        } else if (filterValue.value && filterValue.value !== '' && filterValue.value !== '__all__') {
-          // Single-select dropdown
-          return { 
-            columnId, 
-            value: filterValue.value, 
-            type: 'dropdown' 
-          };
-        }
-      } else if (filterValue.type === 'status') {
-        if (filterValue.statuses?.length > 0) {
-          return { 
-            columnId, 
-            value: filterValue.statuses, 
-            type: 'status' 
-          };
-        }
-      } else if (filterValue.type === 'date') {
-        console.log('Processing date filter:', {
-          columnId,
-          filterValue,
-          operator: filterValue.operator,
-          startDate: filterValue.startDate,
-          endDate: filterValue.endDate
-        });
-        
-        if (filterValue.operator === 'is_empty') {
-          return { columnId, value: null, type: 'date', operator: 'is_empty' };
-        } else if (filterValue.operator === 'is_not_empty') {
-          return { columnId, value: null, type: 'date', operator: 'is_not_empty' };
-        } else if (filterValue.startDate || filterValue.endDate) {
-          // Convert the filter format to match what useInstantContacts expects
-          const dateFilter: any = { 
-            columnId, 
-            type: 'date',
-            operator: filterValue.operator
-          };
-          
-          if (filterValue.operator === 'between' && filterValue.startDate && filterValue.endDate) {
-            dateFilter.value = {
-              start: filterValue.startDate,
-              end: filterValue.endDate
-            };
-          } else if (filterValue.operator === 'before' && filterValue.startDate) {
-            dateFilter.value = { end: filterValue.startDate };
-          } else if (filterValue.operator === 'after' && filterValue.startDate) {
-            dateFilter.value = { start: filterValue.startDate };
-          } else if (filterValue.operator === 'on' && filterValue.startDate) {
-            dateFilter.value = {
-              start: filterValue.startDate,
-              end: filterValue.startDate
-            };
-          } else {
-            // Fallback for other operators or missing dates
-            console.warn('Date filter missing required dates:', filterValue);
-            return null;
-          }
-          
-          console.log('Created date filter:', dateFilter);
-          return dateFilter;
-        } else {
-          console.warn('Date filter missing startDate/endDate:', filterValue);
-        }
-      } else if (filterValue.type === 'number') {
-        if (filterValue.operator === 'is_empty') {
-          return { columnId, value: null, type: 'number', operator: 'is_empty' };
-        } else if (filterValue.operator === 'is_not_empty') {
-          return { columnId, value: null, type: 'number', operator: 'is_not_empty' };
-        } else if (filterValue.number1 !== undefined) {
-          const numberFilter: any = { 
-            columnId, 
-            type: 'number',
-            operator: filterValue.operator
-          };
-          
-          if (filterValue.operator === 'between') {
-            numberFilter.value = {
-              min: filterValue.number1,
-              max: filterValue.number2
-            };
-          } else {
-            numberFilter.value = filterValue.number1;
-          }
-          
-          return numberFilter;
-        }
-      }
-      
-      return null;
-    }).filter(filter => filter !== null);
-  }, [activeFilters, columns]);
+    return editableLeadsGridGetColumnFilters();
+  }, [activeFilters, columns, editableLeadsGridGetColumnFilters]);
 
   // Use the instant contacts hook with proper filters
   const {
@@ -306,22 +186,11 @@ export function EditableLeadsGrid() {
   // Create stable grid key to prevent unnecessary re-renders
   const gridKey = useMemo(() => `grid-stable-${forceRenderKey}`, [forceRenderKey]);
   
-  // Handle page change
-  const handlePageChange = useCallback((page: number) => {
-    editableLeadsGridSetCurrentPage(page);
-    // Scroll to top of grid when changing pages
-    const gridElement = document.querySelector('.grid-components-container');
-    if (gridElement) {
-      gridElement.scrollTop = 0;
-    }
-  }, []);
+  // Handle page change - using slice action
+  const handlePageChange = editableLeadsGridHandlePageChange;
   
-  // Handle page size change
-  const handlePageSizeChange = useCallback((size: number) => {
-    editableLeadsGridSetPageSize(size);
-    // Reset to first page when changing page size
-    editableLeadsGridSetCurrentPage(1);
-  }, []);
+  // Handle page size change - using slice action
+  const handlePageSizeChange = editableLeadsGridHandlePageSizeChange;
   
   // Handle search change with immediate page reset to prevent multiple re-renders
   const handleSearchChange = useCallback((term: string) => {
@@ -333,12 +202,30 @@ export function EditableLeadsGrid() {
     }
   }, [searchTerm, editableLeadsGridSetCurrentPage, editableLeadsGridSetSearchTerm]);
 
-  // Handle contact deletion
+  // Handle contact deletion - using slice action for state management
   const handleDeleteContacts = useCallback(async (contactIds: string[]) => {
     setIsContactDeletionLoading(true);
     
     try {
+      // Prepare deletion state through slice
+      await editableLeadsGridDeleteContacts(contactIds);
+      
+      // Get the preparation result from slice
+      const { lastContactDeletion } = useStore.getState();
+      if (!lastContactDeletion || lastContactDeletion.status === 'error') {
+        throw new Error('Contact deletion preparation failed');
+      }
+      
+      // Execute the actual deletion using the hook
       await deleteContacts(contactIds);
+      
+      // Update slice with success status
+      useStore.setState(state => ({
+        lastContactDeletion: {
+          ...state.lastContactDeletion!,
+          status: 'success' as const
+        }
+      }));
       
       // Show success message
       toast({
@@ -351,6 +238,15 @@ export function EditableLeadsGrid() {
       
     } catch (error) {
       console.error('Error deleting contacts:', error);
+      
+      // Update slice with error status
+      useStore.setState(state => ({
+        lastContactDeletion: state.lastContactDeletion ? {
+          ...state.lastContactDeletion,
+          status: 'error' as const
+        } : null
+      }));
+      
       toast({
         title: "Error",
         description: "Failed to delete contacts. Please try again.",
@@ -359,39 +255,18 @@ export function EditableLeadsGrid() {
     } finally {
       setIsContactDeletionLoading(false);
     }
-  }, [deleteContacts, toast, editableLeadsGridForceRerender]);
+  }, [deleteContacts, editableLeadsGridDeleteContacts, toast, editableLeadsGridForceRerender]);
 
 
 
-  // Add dynamic columns based on imported data - memoized to prevent unnecessary recalculations
-  const dynamicFields = useMemo(() => {
-    if (rows.length === 0) return new Set<string>();
-    return extractDynamicFields(rows);
-  }, [rows]);
+  // Dynamic columns are now handled entirely by slice actions
 
-  const dynamicColumnsToAdd = useMemo(() => {
-    const fieldsToAdd = Array.from(dynamicFields).filter(field => 
-      !columns.some(col => col.id === field) && 
-      !deletedColumnIds.has(field)
-    );
-    
-    return fieldsToAdd.map(field => ({
-      id: field,
-      title: field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1'),
-      type: 'text' as const,
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    }));
-  }, [dynamicFields, columns, deletedColumnIds]);
-
-  // Add dynamic columns when new fields are detected
+  // Add dynamic columns when new fields are detected - using slice action
   useEffect(() => {
-    if (dynamicColumnsToAdd.length > 0) {
-      editableLeadsGridSetColumns([...columns, ...dynamicColumnsToAdd.filter(newColumn => 
-        !columns.some(col => col.id === newColumn.id)
-      )]);
+    if (rows.length > 0) {
+      editableLeadsGridAddDynamicColumns(rows);
     }
-  }, [dynamicColumnsToAdd, columns, editableLeadsGridSetColumns]);
+  }, [rows, editableLeadsGridAddDynamicColumns]);
 
   // Sync contacts with mockContactsById for stream view compatibility
   useEffect(() => {
@@ -402,7 +277,7 @@ export function EditableLeadsGrid() {
     }
   }, [rows]);
 
-  // Handle cell edit
+  // Handle cell edit - using slice action for processing
   const handleCellChange = useCallback(async (rowId: string, columnId: string, value: any) => {
     console.log('EditableLeadsGrid handleCellChange called:', {
       rowId,
@@ -411,9 +286,18 @@ export function EditableLeadsGrid() {
       timestamp: new Date().toISOString()
     });
     
-    const cellKey = `${rowId}-${columnId}`;
-    
     try {
+      // Process the cell edit through the slice
+      await editableLeadsGridHandleCellEdit(rowId, columnId, value);
+      
+      // Get the processed value from the slice
+      const { lastCellEdit } = useStore.getState();
+      if (!lastCellEdit || lastCellEdit.rowId !== rowId || lastCellEdit.columnId !== columnId) {
+        throw new Error('Cell edit processing failed');
+      }
+      
+      const { finalValue } = lastCellEdit;
+      
       // Find the old value for activity logging
       const row = rows.find(r => r.id === rowId);
       const oldValue = row ? row[columnId] : null;
@@ -423,16 +307,9 @@ export function EditableLeadsGrid() {
         rowFound: !!row,
         rowName: row?.name,
         oldValue,
-        newValue: value,
+        newValue: finalValue,
         columnId
       });
-
-      // Format date values before saving
-      const column = columns.find(c => c.id === columnId);
-      let finalValue = value;
-      if (column && column.type === 'date' && value instanceof Date) {
-        finalValue = value.toISOString().split('T')[0];
-      }
 
       // Update the cell using the hook
       await updateCell({ rowId, columnId, value: finalValue });
@@ -453,125 +330,40 @@ export function EditableLeadsGrid() {
         variant: "destructive",
       });
     }
-  }, [rows, columns, updateCell, logCellEdit]);
+  }, [rows, updateCell, logCellEdit, editableLeadsGridHandleCellEdit, toast]);
 
-  // Handle columns reordering
+  // Handle columns reordering - using slice action
   const handleColumnsReorder = useCallback((columnIds: string[]) => {
-    // Reorder columns based on new order
+    // Reorder columns using slice action
+    editableLeadsGridReorderColumns(columnIds);
+    
+    // Get the reordered columns for persistence
     const reorderedColumns = columnIds.map(id => columns.find(col => col.id === id)).filter(Boolean) as Column[];
     
-    // Persist the new order (this will also update the state)
+    // Persist the new order
     persistColumns(reorderedColumns);
-  }, [columns, persistColumns]);
+  }, [columns, persistColumns, editableLeadsGridReorderColumns]);
 
-  // Handle column deletion
+  // Handle column deletion - using slice action
   const handleDeleteColumn = useCallback(async (columnId: string) => {
-    // Find the column to delete
-    const columnToDelete = columns.find(col => col.id === columnId);
-    if (!columnToDelete) return;
+    await editableLeadsGridDeleteColumn(columnId);
+  }, [editableLeadsGridDeleteColumn]);
 
-    // Set loading state
-    setColumnOperationLoading({ type: 'delete', columnId });
-
-    try {
-      // Check if this is a default column that cannot be deleted
-      const defaultColumnIds = ['name', 'email', 'company', 'phone', 'status', 'owner', 'revenue', 'source', 'created_at', 'updated_at'];
-      
-      if (defaultColumnIds.includes(columnId)) {
-        setDeleteColumnDialog({
-          isOpen: true,
-          columnId,
-          columnName: columnToDelete.title
-        });
-        return;
-      }
-
-      // Remove the column from the columns array
-      const updatedColumns = columns.filter(col => col.id !== columnId);
-      editableLeadsGridSetColumns(updatedColumns);
-      
-      // Add to deleted columns set
-      setDeletedColumnIds(new Set([...deletedColumnIds, columnId]));
-      
-      // Remove column data from all rows
-      const updatedRows = rows.map(row => {
-        const { [columnId]: _, ...rest } = row as any;
-        return rest;
-      });
-      console.log(`📝 Updated ${updatedRows.length} rows to remove column data`);
-      
-      // Update the rows in the database
-      let updateErrors = 0;
-      for (const row of updatedRows) {
-        try {
-          await updateCell({ rowId: (row as any).id, columnId, value: undefined });
-        } catch (error) {
-          updateErrors++;
-          console.error(`Error updating row ${(row as any).id}:`, error);
-        }
-      }
-      
-      // Log the column deletion
-      logColumnDelete(columnId, columnToDelete.title);
-      
-      // Persist the updated columns
-      persistColumns(updatedColumns);
-      
-      // Show success message
-      toast({
-        title: "Column deleted",
-        description: updateErrors > 0 
-          ? `Column "${columnToDelete.title}" deleted with ${updateErrors} update errors.`
-          : `Column "${columnToDelete.title}" deleted successfully.`,
-        variant: updateErrors > 0 ? "destructive" : "default",
-      });
-      
-    } catch (error) {
-      console.error('Error deleting column:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete column. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setColumnOperationLoading({ type: null });
-    }
-  }, [columns, rows, updateCell, logColumnDelete, persistColumns, toast]);
-
-  // Handle the actual deletion after confirmation
+  // Handle the actual deletion after confirmation - using slice action with row updates
   const handleConfirmDeleteColumn = useCallback(async () => {
     const { columnId, columnName } = deleteColumnDialog;
     
-    // Close the dialog
-    setDeleteColumnDialog({ isOpen: false, columnId: '', columnName: '' });
-    
-    // Set loading state
-    setColumnOperationLoading({ type: 'delete', columnId });
-    
     try {
-      // Log the column deletion attempt
-      console.log(`🗑️ Attempting to delete column: ${columnId} (${columnName})`);
-      logColumnDelete(columnId, columnName);
+      // Execute the slice action first (handles state updates)
+      await editableLeadsGridConfirmDeleteColumn();
       
-      // Add to deleted columns set to prevent re-adding
-      setDeletedColumnIds(new Set([...deletedColumnIds, columnId]));
-      console.log(`🚫 Added ${columnId} to deleted columns list`);
+      // Now handle the operations that require hooks (row updates and persistence)
+      const column = columns.find(col => col.id === columnId);
+      if (!column) return;
       
-      // Remove from columns array
-      const newColumns = columns.filter(col => col.id !== columnId);
-      console.log(`📊 Columns after deletion: ${newColumns.length} remaining`);
-      editableLeadsGridSetColumns(newColumns);
-      
-      // Remove column data from all rows
-      const updatedRows = rows.map(row => {
-        const { [columnId]: _, ...rest } = row as any;
-        return rest;
-      });
-      console.log(`📝 Updated ${updatedRows.length} rows to remove column data`);
-      
-      // Update the rows in the database
+      // Remove column data from all rows in the database
       let updateErrors = 0;
-      for (const row of updatedRows) {
+      for (const row of rows) {
         try {
           await updateCell({ rowId: (row as any).id, columnId, value: undefined });
         } catch (error) {
@@ -585,24 +377,32 @@ export function EditableLeadsGrid() {
       }
       
       // Persist the column deletion
+      const newColumns = columns.filter(col => col.id !== columnId);
       await persistColumns(newColumns);
-      console.log(`✅ Column deletion completed successfully`);
       
+      // Log the column deletion
+      logColumnDelete(columnId, columnName);
+      
+      console.log(`✅ Column deletion completed successfully with row updates and persistence`);
+      
+      // Show final success message
       toast({
         title: "Column deleted",
-        description: `Successfully deleted column "${columnName}" and all its data`,
+        description: updateErrors > 0 
+          ? `Column "${columnName}" deleted with ${updateErrors} update errors.`
+          : `Column "${columnName}" deleted successfully.`,
+        variant: updateErrors > 0 ? "destructive" : "default",
       });
+      
     } catch (error) {
-      console.error(`❌ Column deletion failed:`, error);
+      console.error('Error in column deletion process:', error);
       toast({
-        title: "Error deleting column",
-        description: error instanceof Error ? error.message : "Failed to delete the column. Please try again.",
-        variant: "destructive"
+        title: "Error",
+        description: "Failed to delete column. Please try again.",
+        variant: "destructive",
       });
-    } finally {
-      setColumnOperationLoading({ type: null });
     }
-  }, [deleteColumnDialog, columns, rows, updateCell, logColumnDelete, persistColumns, toast]);
+  }, [deleteColumnDialog, columns, rows, updateCell, persistColumns, logColumnDelete, toast, editableLeadsGridConfirmDeleteColumn]);
   
 
   
@@ -667,375 +467,58 @@ export function EditableLeadsGrid() {
     };
   }, [refreshData]);
 
-  // Add loading state to prevent duplicate loads
-
-  // Load columns from storage on component mount
+  // Add effect to adjust column widths based on screen size - using slice action
   useEffect(() => {
-    let isMounted = true;
-    
-    const loadStoredColumns = async () => {
-      if (!isMounted) return;
-      
-      try {
-        // First try localStorage to avoid unnecessary network requests
-        let storedColumns: Column[] | null = loadColumnsFromLocal();
-        
-        // Only try Supabase if no local storage and user is authenticated
-        if (!storedColumns && user) {
-          storedColumns = await loadColumnsFromSupabase(user);
-        }
-        
-        // If we found stored columns, use them
-        if (storedColumns && storedColumns.length > 0 && isMounted) {
-          // Ensure renderCell functions are preserved for social links
-          const columnsWithRenderFunctions = storedColumns.map(col => {
-            if (['facebook', 'instagram', 'linkedin', 'twitter'].includes(col.id)) {
-              return { ...col, renderCell: renderSocialLink };
-            }
-            if (col.id === 'name') {
-              return { 
-                ...col, 
-                renderCell: (value, row) => (
-                  <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
-                    {value}
-                  </Link>
-                )
-              };
-            }
-            return col;
-          });
-          
-          editableLeadsGridSetColumns(columnsWithRenderFunctions);
-          // Note: Column widths will be adjusted by the resize effect
-        }
-      } catch (error) {
-        logger.error('Error loading stored columns:', error);
-        // Keep default columns on error
-      }
-    };
+    editableLeadsGridHandleResize(); // Initial call
+    window.addEventListener('resize', editableLeadsGridHandleResize);
 
-    loadStoredColumns();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [user]);
-
-
-
-  // Load hidden columns on mount
-  useEffect(() => {
-    let isMounted = true;
-    
-    const loadHiddenColumns = async () => {
-      if (!isMounted) return;
-      
-      try {
-        // First try localStorage to avoid unnecessary network requests
-        const savedHidden = localStorage.getItem('hiddenColumns-v1');
-        let storedHiddenColumns: Column[] | null = savedHidden ? JSON.parse(savedHidden) : null;
-        
-        // Only try Supabase if no local storage and user is authenticated
-        if (!storedHiddenColumns && user) {
-          const { supabase } = await import('@/integrations/supabase/client');
-          const { data, error } = await supabase
-            .from('user_settings' as any) // Type assertion to bypass TypeScript error
-            .select('setting_value')
-            .eq('user_id', user.id)
-            .eq('setting_key', 'hidden_columns')
-            .single();
-          
-          if (data && !error) {
-            storedHiddenColumns = (data as any).setting_value as Column[];
-          } else if (error && error.code === '42P01') {
-            // Table doesn't exist - silently fall back to localStorage
-            // This prevents the error from being logged
-          } else if (error && !error.message?.includes('404') && error.code !== 'PGRST116') {
-            logger.error('Error loading hidden columns:', error);
-          }
-        }
-        
-        if (storedHiddenColumns && isMounted) {
-          setHiddenColumns(storedHiddenColumns);
-        }
-      } catch (error) {
-        // Only log errors that aren't related to missing table
-        const errorMessage = String(error);
-        if (!errorMessage.includes('404') && !errorMessage.includes('42P01')) {
-          logger.error('Error loading hidden columns:', error);
-        }
-      }
-    };
-
-    loadHiddenColumns();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [user]);
-
-  // Add effect to adjust column widths based on screen size
-  useEffect(() => {
-    const handleResizeEvent = () => {
-      const isMobile = window.innerWidth < 768;
-      const columnWidth = isMobile ? MOBILE_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH;
-
-      editableLeadsGridSetColumns(
-        columns.map(col => {
-          if (col.id === 'name') {
-            return { ...col, width: isMobile ? 120 : 180 };
-          }
-          return { ...col, width: columnWidth };
-        })
-      );
-    };
-
-    handleResizeEvent(); // Initial call
-    window.addEventListener('resize', handleResizeEvent);
-
-    return () => window.removeEventListener('resize', handleResizeEvent);
+    return () => window.removeEventListener('resize', editableLeadsGridHandleResize);
   }, []); // Empty dependency array to run only once
   
-  // Handle adding a new column
-  const handleAddColumn = async (afterColumnId: string) => {
-    // Set loading state
-    setColumnOperationLoading({ type: 'add' });
+  // Handle adding a new column - using slice action
+  const handleAddColumn = useCallback(async (afterColumnId: string) => {
+    await editableLeadsGridAddColumn(afterColumnId);
     
+    // Log the activity (only operation that requires hooks)
     try {
-      // Create a new unique column ID
-      const columnId = `column-${uuidv4().substring(0, 8)}`;
-      
-      // Create the new column - defaulting to text type
-    const newColumn: Column = {
-        id: columnId,
-        title: `New Column`,
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    };
-    
-      // Find the index where we need to insert
-      const afterIndex = columns.findIndex(col => col.id === afterColumnId);
-      
-      // Log the activity
-      logColumnAdd(newColumn.id, newColumn.title);
-      
-      // Add the column at the right position
-      const newColumns = [
-        ...columns.slice(0, afterIndex + 1),
-        newColumn,
-        ...columns.slice(afterIndex + 1)
-      ];
-      
-      editableLeadsGridSetColumns(newColumns);
-      await persistColumns(newColumns);
-      
-      toast({
-        title: "Column added",
-        description: "Successfully added new column",
-      });
+      logColumnAdd(`column-${Math.random().toString(36).substring(2, 10)}`, 'New Column');
     } catch (error) {
-      toast({
-        title: "Error adding column",
-        description: "Failed to add new column. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setColumnOperationLoading({ type: null });
+      console.warn('Failed to log column addition:', error);
     }
-  };
+  }, [editableLeadsGridAddColumn, logColumnAdd]);
 
-  // Handle inserting a new column with specific direction and header name
-  const handleInsertColumn = async (direction: 'left' | 'right', targetIndex: number, headerName: string, columnType: string, config?: any) => {
-    // Set loading state
-    setColumnOperationLoading({ type: 'add' });
+  // Handle inserting a new column with specific direction and header name - using slice action
+  const handleInsertColumn = useCallback(async (direction: 'left' | 'right', targetIndex: number, headerName: string, columnType: string, config?: any) => {
+    await editableLeadsGridInsertColumn(direction, targetIndex, headerName, columnType, config);
     
+    // Log the activity (only operation that requires hooks)
     try {
-      // Create a new unique column ID
-      const columnId = `column-${uuidv4().substring(0, 8)}`;
-      
-      // Create the new column with the provided header name and type
-      const newColumn: Column = {
-        id: columnId,
-        title: headerName,
-        type: columnType as Column['type'], // Use proper type instead of any
-        width: DEFAULT_COLUMN_WIDTH,
-        editable: true,
-      };
-
-      // Apply configuration based on column type
-      if (columnType === 'currency' && config?.currencyType) {
-        // Store currency type in the column for formatting
-        newColumn.currencyType = config.currencyType;
-      } else if (columnType === 'status' && config?.options && config?.colors) {
-        // Add status options and colors from config
-        newColumn.options = config.options;
-        newColumn.colors = config.colors;
-      } else if (columnType === 'status') {
-        // Default status options if no config provided
-        newColumn.options = ['Option 1', 'Option 2', 'Option 3'];
-        newColumn.colors = {
-          'Option 1': '#E4E5E8',
-          'Option 2': '#DBCDF0', 
-          'Option 3': '#C6DEF1',
-        };
-      }
-      
-      // Calculate insertion index based on direction
-      const insertAt = direction === 'left' ? targetIndex : targetIndex + 1;
-      
-      // Log the activity
-      logColumnAdd(newColumn.id, newColumn.title);
-      
-      // Insert the column at the calculated position
-      const newColumns = [
-        ...columns.slice(0, insertAt),
-      newColumn,
-        ...columns.slice(insertAt)
-      ];
-      
-      editableLeadsGridSetColumns(newColumns);
-      
-      // Persist the new columns configuration
-      await persistColumns(newColumns);
-      
-      toast({
-        title: "Column added",
-        description: `Successfully added column "${headerName}"`,
-      });
+      logColumnAdd(`column-${Math.random().toString(36).substring(2, 10)}`, headerName);
     } catch (error) {
-      toast({
-        title: "Error adding column",
-        description: "Failed to add new column. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setColumnOperationLoading({ type: null });
+      console.warn('Failed to log column insertion:', error);
     }
-  };
+  }, [editableLeadsGridInsertColumn, logColumnAdd]);
 
-  // Handle hiding a column (remove from view but don't delete data)
-  const handleHideColumn = async (columnId: string) => {
-    // Set loading state
-    setColumnOperationLoading({ type: 'hide', columnId });
-    
-    try {
-      // Log the activity
-      const column = columns.find(col => col.id === columnId);
-      if (column) {
+  // Handle hiding a column - using slice action with logging
+  const handleHideColumn = useCallback(async (columnId: string) => {
+    // Log the activity before hiding
+    const column = columns.find(col => col.id === columnId);
+    if (column) {
+      try {
         logFilterChange({ type: 'column_hidden', columnId, columnName: column.title });
-        
-        // Store the current index of the column before hiding
-        const currentIndex = columns.findIndex(col => col.id === columnId);
-        const columnWithIndex = { ...column, originalIndex: currentIndex };
-        
-        // Add to hidden columns list with original index
-        const newHiddenColumns = [...hiddenColumns, columnWithIndex];
-        setHiddenColumns(newHiddenColumns);
-        await saveHiddenColumns(newHiddenColumns);
+      } catch (error) {
+        console.warn('Failed to log column hide:', error);
       }
-      
-      // Remove from columns array (this hides it from view)
-      const newColumns = columns.filter(col => col.id !== columnId);
-      editableLeadsGridSetColumns(newColumns);
-      
-      // Persist the column changes
-      await persistColumns(newColumns);
-      
-      toast({
-        title: "Column hidden",
-        description: `Column "${column?.title}" is now hidden`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error hiding column",
-        description: "Failed to hide the column. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setColumnOperationLoading({ type: null });
     }
-  };
-
-  // Handle unhiding a column
-  const handleUnhideColumn = async (columnId: string) => {
-    // Set loading state
-    setColumnOperationLoading({ type: 'unhide', columnId });
     
-    try {
-      // Find the column in hidden columns
-      const columnToUnhide = hiddenColumns.find(col => col.id === columnId);
-      if (!columnToUnhide) return;
+    // Execute slice action
+    await editableLeadsGridHideColumn(columnId);
+  }, [columns, editableLeadsGridHideColumn, logFilterChange]);
 
-      // Restore render functions for social links and contact column
-      let restoredColumn = { ...columnToUnhide };
-      if (['facebook', 'instagram', 'linkedin', 'twitter'].includes(columnToUnhide.id)) {
-        restoredColumn.renderCell = renderSocialLink;
-      } else if (columnToUnhide.id === 'name') {
-        restoredColumn.renderCell = (value, row) => (
-          <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
-            {value}
-          </Link>
-        );
-      }
-
-      // Remove the originalIndex property as it's not part of the Column interface
-      const { originalIndex, ...cleanColumn } = restoredColumn as any;
-
-      // Calculate where to insert the column based on original index
-      let insertIndex = originalIndex || 0;
-      
-      // Adjust the insert index if columns have been removed since hiding
-      const currentColumnIds = columns.map(col => col.id);
-      const defaultColumnOrder = getDefaultColumns().map(col => col.id);
-      
-      // Count how many columns that should come before this one are currently visible
-      let adjustedIndex = 0;
-      for (let i = 0; i < defaultColumnOrder.length && i < originalIndex; i++) {
-        const colId = defaultColumnOrder[i];
-        if (currentColumnIds.includes(colId)) {
-          adjustedIndex++;
-        }
-      }
-      
-      // Ensure we don't insert beyond the current array length
-      insertIndex = Math.min(adjustedIndex, columns.length);
-      
-      // Always keep lastContacted at the end if it exists
-      const lastContactedIndex = columns.findIndex(col => col.id === 'lastContacted');
-      if (lastContactedIndex !== -1 && insertIndex >= lastContactedIndex) {
-        insertIndex = lastContactedIndex;
-      }
-      
-      // Insert the column at the calculated position
-      const newColumns = [...columns];
-      newColumns.splice(insertIndex, 0, cleanColumn);
-      
-      editableLeadsGridSetColumns(newColumns);
-      await persistColumns(newColumns);
-
-      // Remove from hidden columns
-      const newHiddenColumns = hiddenColumns.filter(col => col.id !== columnId);
-      setHiddenColumns(newHiddenColumns);
-      await saveHiddenColumns(newHiddenColumns);
-
-      // Log the activity
-      logFilterChange({ type: 'column_unhidden', columnId, columnName: cleanColumn.title });
-      
-      toast({
-        title: "Column unhidden",
-        description: `Column "${cleanColumn.title}" is now visible`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error unhiding column",
-        description: "Failed to unhide the column. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setColumnOperationLoading({ type: null });
-    }
-  };
+  // Handle unhiding a column - using slice action
+  const handleUnhideColumn = useCallback(async (columnId: string) => {
+    await editableLeadsGridUnhideColumn(columnId);
+  }, [editableLeadsGridUnhideColumn]);
   
   // Show loading skeleton only when there are no contacts loaded yet
   // This prevents showing skeleton when contacts are preloaded but settings are still loading
@@ -1155,7 +638,7 @@ export function EditableLeadsGrid() {
       <DeleteColumnDialog
         isOpen={deleteColumnDialog.isOpen}
         columnName={deleteColumnDialog.columnName}
-        onClose={() => setDeleteColumnDialog({ isOpen: false, columnId: '', columnName: '' })}
+        onClose={editableLeadsGridCloseDeleteColumnDialog}
         onConfirm={handleConfirmDeleteColumn}
       />
     </div>
