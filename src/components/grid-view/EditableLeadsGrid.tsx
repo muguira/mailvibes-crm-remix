@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import  { useState, useEffect, useCallback, useMemo } from 'react';
 import { GridViewContainer } from '@/components/grid-view/GridViewContainer';
 import { Column, GridRow } from '@/components/grid-view/types';
 import { GridSkeleton } from '@/components/grid-view/GridSkeleton';
@@ -6,15 +6,11 @@ import { GridPagination } from './GridPagination';
 import { 
   DEFAULT_COLUMN_WIDTH,
   MOBILE_COLUMN_WIDTH,
-  ROW_HEIGHT,
-  INDEX_COLUMN_WIDTH
 } from '@/components/grid-view/grid-constants';
 import { Link, useNavigate } from 'react-router-dom';
-import { ExternalLink, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { ExternalLink } from 'lucide-react';
 import { mockContactsById } from '@/components/stream/sample-data';
 import { Button } from '@/components/ui/button';
-import { PAGE_SIZE, LEADS_STORAGE_KEY } from '@/constants/grid';
 import { useAuth } from '@/components/auth';
 import { logger } from '@/utils/logger';
 import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
@@ -22,14 +18,11 @@ import { useInstantContacts } from '@/hooks/use-instant-contacts';
 import { useDebounce } from '@/hooks/use-debounce';
 import { toast } from '@/components/ui/use-toast';
 import { useActivity } from "@/contexts/ActivityContext";
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { DeleteColumnDialog } from '@/components/grid-view/DeleteColumnDialog';
 import { Database } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { v4 as uuidv4 } from 'uuid';
 
-// Constants
-const COLUMNS_STORAGE_KEY = 'gridColumns-v1';
 
 // Save columns to localStorage
 const saveColumnsToLocal = (columns: Column[]): void => {
@@ -53,34 +46,6 @@ const loadColumnsFromLocal = (): Column[] | null => {
   return null;
 };
 
-// Save columns to Supabase
-const saveColumnsToSupabase = async (user: any, columns: Column[]): Promise<void> => {
-  if (!user) return;
-  
-  try {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const { error } = await supabase
-      .from('user_settings' as any) // Type assertion to bypass TypeScript error
-      .upsert({
-        user_id: user.id,
-        setting_key: 'grid_columns',
-        setting_value: columns,
-        updated_at: new Date().toISOString()
-      });
-    
-    if (error) {
-      // Only log error if it's not a 404 (table not found) or 42P01 (relation does not exist)
-      if (!error.message?.includes('404') && error.code !== '42P01') {
-        logger.error('Failed to save columns to Supabase:', error);
-      }
-    }
-  } catch (error) {
-    // Silently fail for 404 errors
-    if (!String(error).includes('404') && !String(error).includes('42P01')) {
-      logger.error('Error saving columns to Supabase:', error);
-    }
-  }
-};
 
 // Load columns from Supabase
 const loadColumnsFromSupabase = async (user: any): Promise<Column[] | null> => {
@@ -363,24 +328,12 @@ const extractDynamicFields = (rows: any[]): Set<string> => {
   return dynamicFields;
 };
 
-// Function to create columns for dynamic fields
-const createDynamicColumns = (fields: Set<string>): Column[] => {
-  return Array.from(fields).map(field => ({
-    id: field,
-    title: field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1').trim(),
-    type: 'text' as const,
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-  }));
-};
 
 export function EditableLeadsGrid() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { logCellEdit, logColumnAdd, logColumnDelete, logFilterChange } = useActivity();
   
   // Set up state for grid
-  const [isGridReady, setIsGridReady] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilters, setActiveFilters] = useState<{ columns: string[], values: Record<string, unknown> }>({ columns: [], values: {} });
   
@@ -575,7 +528,6 @@ export function EditableLeadsGrid() {
   // Keep the original hook for mutations only
   const { 
     updateCell,
-    addContact,
     deleteContacts,
     refreshData
   } = useLeadsRows();
@@ -951,12 +903,6 @@ export function EditableLeadsGrid() {
     );
   }, []);
   
-  // Set grid ready state when data is loaded
-  useEffect(() => {
-    if (!loading) {
-      setIsGridReady(true);
-    }
-  }, [loading]);
   
   // Listen for contact-added events to refresh the data
   useEffect(() => {
@@ -1064,10 +1010,6 @@ export function EditableLeadsGrid() {
       } catch (error) {
         logger.error('Error loading stored columns:', error);
         // Keep default columns on error
-      } finally {
-        if (isMounted) {
-          setIsLoadingSettings(false);
-        }
       }
     };
 
