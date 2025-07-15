@@ -1,14 +1,14 @@
 import { useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { Database } from 'lucide-react';
+import { useStore } from '@/stores';
 import { GridViewContainer } from '@/components/grid-view/GridViewContainer';
 import { Column } from '@/components/grid-view/types';
 import { GridSkeleton } from '@/components/grid-view/GridSkeleton';
+import { renderSocialLink } from '@/components/grid-view/RenderSocialLink';
 import { GridPagination } from './GridPagination';
-
-import { Database } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth';
-import { logger } from '@/utils/logger';
 import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
 import { useInstantContacts } from '@/hooks/use-instant-contacts';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -16,9 +16,8 @@ import { toast } from '@/components/ui/use-toast';
 import { useActivity } from "@/contexts/ActivityContext";
 import { DeleteColumnDialog } from '@/components/grid-view/DeleteColumnDialog';
 import { Progress } from '@/components/ui/progress';
+import { logger } from '@/utils/logger';
 import { syncContact } from '@/helpers/grid';
-import { renderSocialLink } from '@/components/grid-view/RenderSocialLink';
-import { useStore } from '@/stores';
 
 /**
  * EditableLeadsGrid Component
