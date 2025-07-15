@@ -12,6 +12,7 @@ import { DeleteContactsDialog } from './DeleteContactsDialog';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Upload, Mail } from 'lucide-react';
+import { useStore } from '@/stores';
 
 export function GridViewContainer({
   columns,
@@ -20,10 +21,6 @@ export function GridViewContainer({
   listId = '',
   listType = '',
   firstRowIndex = 0,
-  searchTerm: externalSearchTerm,
-  onSearchChange: externalOnSearchChange,
-  activeFilters: externalActiveFilters,
-  onApplyFilters: externalOnApplyFilters,
   onCellChange,
   onColumnsReorder,
   onDeleteColumn,
@@ -32,26 +29,28 @@ export function GridViewContainer({
   onHideColumn,
   onUnhideColumn,
   onDeleteContacts,
-  isContactDeletionLoading,
-  hiddenColumns = []
+  className
 }: GridContainerProps) {
+  // Get state and actions from Zustand slice
+  const {
+    searchTerm,
+    activeFilters,
+    hiddenColumns,
+    isContactDeletionLoading,
+    columnOperationLoading,
+    editableLeadsGridSetSearchTerm,
+    editableLeadsGridSetActiveFilters,
+    editableLeadsGridUnhideColumn
+  } = useStore();
   // Container references for sizing
   const containerRef = useRef<HTMLDivElement>(null);
   const mainGridRef = useRef<any>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
 
-  // Search state - local or external
-  const [localSearchTerm, setLocalSearchTerm] = useState('');
-  const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : localSearchTerm;
-
   // Sync scroll positions between components
   const [scrollTop, setScrollTop] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
-
-  // Filter state - use external if provided, otherwise local
-  const [localActiveFilters, setLocalActiveFilters] = useState<{ columns: string[], values: Record<string, unknown> }>({ columns: [], values: {} });
-  const activeFilters = externalActiveFilters !== undefined ? externalActiveFilters : localActiveFilters;
 
   // Context menu state
   const [contextMenuColumn, setContextMenuColumn] = useState<string | null>(null);
@@ -222,23 +221,15 @@ export function GridViewContainer({
     };
   }, []);
 
-  // Handle search change
+  // Handle search change using slice action
   const handleSearchChange = (term: string) => {
-    if (externalOnSearchChange) {
-      externalOnSearchChange(term);
-    } else {
-      setLocalSearchTerm(term);
-    }
+    editableLeadsGridSetSearchTerm(term);
   };
 
-  // Handle filter changes
+  // Handle filter changes using slice action
   const handleApplyFilters = (filters: { columns: string[], values: Record<string, unknown>, columnFilters?: any[] }) => {
     logger.log("Applying filters:", filters);
-    if (externalOnApplyFilters) {
-      externalOnApplyFilters(filters);
-    } else {
-      setLocalActiveFilters(filters);
-    }
+    editableLeadsGridSetActiveFilters(filters);
   };
 
   // Open context menu for columns
@@ -298,7 +289,7 @@ export function GridViewContainer({
         onApplyFilters={handleApplyFilters}
         activeFilters={activeFilters}
         hiddenColumns={hiddenColumns}
-        onUnhideColumn={onUnhideColumn}
+        onUnhideColumn={editableLeadsGridUnhideColumn}
         frozenColumnIds={frozenColumnIds}
         onTogglePin={toggleFrozenColumn}
         selectedRowIds={selectedRowIds}
@@ -324,7 +315,7 @@ export function GridViewContainer({
       <div className="grid-components-container relative">
         {/* Loading overlay for column operations */}
         <LoadingOverlay
-          show={false}
+          show={columnOperationLoading?.type !== null}
           message="Processing..."
         />
         

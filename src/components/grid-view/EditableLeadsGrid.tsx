@@ -692,15 +692,8 @@ export function EditableLeadsGrid() {
           onDeleteColumn={handleDeleteColumn}
           onHideColumn={handleHideColumn}
           onUnhideColumn={handleUnhideColumn}
-          hiddenColumns={hiddenColumns}
-          onSearchChange={handleSearchChange}
-          searchTerm={searchTerm}
-          activeFilters={activeFilters}
-          onApplyFilters={editableLeadsGridSetActiveFilters}
-          className="h-full"
-          columnOperationLoading={columnOperationLoading}
           onDeleteContacts={handleDeleteContacts}
-          isContactDeletionLoading={isContactDeletionLoading}
+          className="h-full"
         />
       </div>
       <GridPagination
