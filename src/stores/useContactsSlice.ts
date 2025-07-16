@@ -19,7 +19,6 @@ import {
   RESET_CONTACTS_STATE,
   CONTACTS_CONFIG,
   CONTACTS_ERROR_MESSAGES,
-  CONTACTS_SUCCESS_MESSAGES,
 } from '@/constants/store/contacts'
 
 // Store the background loading promise outside of the store
