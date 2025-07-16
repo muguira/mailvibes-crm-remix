@@ -159,10 +159,11 @@ export function EditableLeadsGrid() {
   
   /**
    * Leads rows hook for mutation operations
-   * Provides functions for updating cells and deleting contacts
+   * Provides functions for updating cells, deleting contacts, and bulk column operations
    */
   const { 
     updateCell,
+    bulkDeleteColumnData, // 🆕 New function for efficient column deletion
     deleteContacts,
     refreshData
   } = useLeadsRows();
@@ -360,19 +361,24 @@ export function EditableLeadsGrid() {
         
         console.log('🗄️ Persisting column deletion to database...');
         
-      let updateErrors = 0;
-        for (const row of rows) {
-        try {
-          await updateCell({ rowId: (row as any).id, columnId, value: undefined });
-        } catch (error) {
-          updateErrors++;
-            console.error(`❌ Failed to update row ${(row as any).id}:`, error);
+        // Show loading state during bulk deletion
+        toast({
+          title: "Deleting column...",
+          description: `Removing "${column.title}" from all contacts. This may take a moment.`,
+        });
+        
+        // 🚀 NEW: Use bulk deletion instead of row-by-row updates
+        const bulkResult = await bulkDeleteColumnData(columnId);
+        
+        if (!bulkResult.success) {
+          throw new Error(bulkResult.error || 'Bulk column deletion failed');
         }
-      }
-      
-        if (updateErrors > 0) {
-          console.warn(`⚠️ ${updateErrors} rows failed to update during column deletion`);
-        }
+        
+        console.log(`✅ Bulk deletion completed successfully:`, {
+          columnId,
+          affectedRows: bulkResult.affectedRows,
+          time: 'immediate'
+        });
       
         const newColumns = columns.filter(col => col.id !== columnId);
         await persistColumns(newColumns);
@@ -383,10 +389,8 @@ export function EditableLeadsGrid() {
         
       toast({
         title: "Column deleted",
-        description: updateErrors > 0 
-            ? `Column "${column.title}" deleted with ${updateErrors} update errors.`
-            : `Column "${column.title}" deleted successfully.`,
-        variant: updateErrors > 0 ? "destructive" : "default",
+        description: `Column "${column.title}" deleted successfully. Updated ${bulkResult.affectedRows || 0} contacts.`,
+        variant: "default",
       });
       
     } catch (error) {
@@ -415,19 +419,24 @@ export function EditableLeadsGrid() {
       const column = columns.find(col => col.id === columnId);
       if (!column) return;
       
-      let updateErrors = 0;
-      for (const row of rows) {
-        try {
-          await updateCell({ rowId: (row as any).id, columnId, value: undefined });
-        } catch (error) {
-          updateErrors++;
-          console.error(`❌ Failed to update row ${(row as any).id}:`, error);
-        }
+      // Show loading state during bulk deletion
+      toast({
+        title: "Deleting column...",
+        description: `Removing "${columnName}" from all contacts. This may take a moment.`,
+      });
+      
+      // 🚀 NEW: Use bulk deletion instead of row-by-row updates
+      const bulkResult = await bulkDeleteColumnData(columnId);
+      
+      if (!bulkResult.success) {
+        throw new Error(bulkResult.error || 'Bulk column deletion failed');
       }
       
-      if (updateErrors > 0) {
-        console.warn(`⚠️ ${updateErrors} rows failed to update during column deletion`);
-      }
+      console.log(`✅ Bulk deletion completed successfully:`, {
+        columnId,
+        affectedRows: bulkResult.affectedRows,
+        time: 'immediate'
+      });
       
       const newColumns = columns.filter(col => col.id !== columnId);
       await persistColumns(newColumns);
@@ -438,10 +447,8 @@ export function EditableLeadsGrid() {
       
       toast({
         title: "Column deleted",
-        description: updateErrors > 0 
-          ? `Column "${columnName}" deleted with ${updateErrors} update errors.`
-          : `Column "${columnName}" deleted successfully.`,
-        variant: updateErrors > 0 ? "destructive" : "default",
+        description: `Column "${columnName}" deleted successfully. Updated ${bulkResult.affectedRows || 0} contacts.`,
+        variant: "default",
       });
       
     } catch (error) {

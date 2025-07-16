@@ -547,6 +547,204 @@ export function useLeadsRows() {
     return updatedRow
   }
 
+  /**
+   * Bulk delete column data for all contacts
+   * This is specifically for column deletion operations - NOT for individual cell edits
+   *
+   * @param {string} columnId - The column ID to remove data from
+   * @returns {Promise<{ success: boolean, affectedRows?: number, error?: any }>}
+   */
+  const bulkDeleteColumnData = async (columnId: string) => {
+    if (!user?.id) {
+      logger.error('No user ID available for bulk column deletion')
+      return { success: false, error: 'No user authenticated' }
+    }
+
+    logger.log('🗂️ Starting bulk column deletion:', {
+      columnId,
+      userId: user.id,
+      timestamp: new Date().toISOString(),
+    })
+
+    // List of columns that are directly in the contacts table (same as in updateContact.ts)
+    const DIRECT_COLUMNS = ['id', 'name', 'email', 'phone', 'company', 'status', 'user_id', 'created_at', 'updated_at']
+
+    try {
+      let affectedRows = 0
+
+      if (DIRECT_COLUMNS.includes(columnId)) {
+        // ✅ Handle direct columns: set to null
+        logger.log(`📋 Deleting direct column: ${columnId}`)
+
+        const { data, error, count } = await supabase
+          .from('contacts')
+          .update({ [columnId]: null })
+          .eq('user_id', user.id)
+          .select('id', { count: 'exact' })
+
+        if (error) {
+          logger.error('❌ Direct column deletion failed:', {
+            error,
+            columnId,
+            userId: user.id,
+          })
+          throw error
+        }
+
+        affectedRows = count || 0
+      } else {
+        // ✅ Handle custom columns stored in JSONB data field
+        logger.log(`📦 Deleting custom column from data JSONB: ${columnId}`)
+
+        // Get all contacts that have this column in their data field
+        const { data: contacts, error: fetchError } = await supabase
+          .from('contacts')
+          .select('id, data')
+          .eq('user_id', user.id)
+          .not('data', 'is', null)
+
+        if (fetchError) {
+          logger.error('❌ Failed to fetch contacts for custom column deletion:', {
+            error: fetchError,
+            columnId,
+            userId: user.id,
+          })
+          throw fetchError
+        }
+
+        if (contacts && contacts.length > 0) {
+          // Process contacts to remove the column from their data
+          const updates = contacts
+            .filter(contact => {
+              const data = contact.data
+              return data && typeof data === 'object' && columnId in data
+            })
+            .map(contact => {
+              const newData = { ...contact.data }
+              delete newData[columnId]
+              return {
+                id: contact.id,
+                data: newData,
+              }
+            })
+
+          if (updates.length > 0) {
+            logger.log(`🔄 Updating ${updates.length} contacts to remove custom column: ${columnId}`)
+
+            // Process updates in batches to avoid potential payload size limits
+            const BATCH_SIZE = 100
+            let totalUpdated = 0
+
+            for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+              const batch = updates.slice(i, i + BATCH_SIZE)
+
+              // Use individual updates with WHERE clause for better RLS compatibility
+              for (const update of batch) {
+                const { error: updateError } = await supabase
+                  .from('contacts')
+                  .update({ data: update.data })
+                  .eq('id', update.id)
+                  .eq('user_id', user.id)
+
+                if (updateError) {
+                  logger.error('❌ Custom column update failed for contact:', {
+                    error: updateError,
+                    contactId: update.id,
+                    columnId,
+                    userId: user.id,
+                  })
+                  throw updateError
+                }
+                totalUpdated++
+              }
+
+              logger.log(`✅ Batch ${Math.floor(i / BATCH_SIZE) + 1} completed: ${batch.length} contacts updated`)
+            }
+
+            affectedRows = totalUpdated
+            logger.log(`✅ Successfully removed custom column from ${totalUpdated} contacts`)
+          } else {
+            logger.log(`ℹ️ No contacts found with custom column: ${columnId}`)
+          }
+        }
+      }
+
+      logger.log('✅ Bulk column deletion completed successfully:', {
+        columnId,
+        affectedRows,
+        userId: user.id,
+        columnType: DIRECT_COLUMNS.includes(columnId) ? 'direct' : 'custom',
+        duration: 'immediate',
+      })
+
+      // Update local ContactsStore cache to reflect the changes
+      try {
+        const { cache, updateContactInCache } = useContactsStore.getState()
+        Object.keys(cache).forEach(contactId => {
+          const contact = cache[contactId]
+          if (contact.user_id === user.id) {
+            // Check both direct column and data object
+            const hasDirectColumn = contact[columnId] !== undefined
+            const hasDataColumn = contact.data && typeof contact.data === 'object' && columnId in contact.data
+
+            if (hasDirectColumn || hasDataColumn) {
+              const updateData: any = {}
+
+              if (hasDirectColumn) {
+                updateData[columnId] = null
+              }
+
+              if (hasDataColumn) {
+                const newData = { ...contact.data }
+                delete newData[columnId]
+                updateData.data = newData
+              }
+
+              updateContactInCache(contactId, updateData)
+            }
+          }
+        })
+        logger.log('📦 Updated ContactsStore cache after bulk deletion')
+      } catch (cacheError) {
+        logger.warn('⚠️ Failed to update ContactsStore cache:', cacheError)
+        // Non-critical error - the UI will still work
+      }
+
+      // Update local rows state if any of the current page contacts were affected
+      setRows(prevRows => {
+        const updatedRows = prevRows.map(row => {
+          if (row[columnId] !== undefined) {
+            const updatedRow = { ...row }
+            delete updatedRow[columnId] // Remove the property entirely
+            return updatedRow
+          }
+          return row
+        })
+        return updatedRows
+      })
+
+      // Update mockContactsById for Stream View consistency
+      Object.keys(mockContactsById).forEach(contactId => {
+        if (mockContactsById[contactId][columnId] !== undefined) {
+          const updatedContact = { ...mockContactsById[contactId] }
+          delete updatedContact[columnId]
+          mockContactsById[contactId] = updatedContact
+        }
+      })
+
+      return { success: true, affectedRows }
+    } catch (error) {
+      logger.error('💥 Critical error in bulk column deletion:', {
+        error,
+        columnId,
+        userId: user.id,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      })
+
+      return { success: false, error }
+    }
+  }
+
   // Add a new contact
   const addContact = async (newContact: LeadContact) => {
     try {
@@ -846,6 +1044,7 @@ export function useLeadsRows() {
     setFilter,
     PAGE_SIZE,
     updateCell,
+    bulkDeleteColumnData, // 🆕 New function for efficient column deletion
     addContact,
     deleteContacts,
     refreshData,
