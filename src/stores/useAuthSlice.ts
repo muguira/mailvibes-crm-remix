@@ -1,21 +1,12 @@
-import { StateCreator } from "zustand";
-import { Session, User } from "@supabase/supabase-js";
-import {
-  TSignInInput,
-  TSignUpInput,
-  IAuthErrorState,
-  IAuthRetryConfig,
-} from "@/types/store/auth";
-import { TStore } from "@/types/store/store";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { logger } from "@/utils/logger";
-import {
-  AUTH_ERROR_MESSAGES,
-  AUTH_SUCCESS_MESSAGES,
-  AUTH_VALIDATION_CONFIG,
-} from "@/constants/store/auth";
-import { useContactsStore } from "@/stores/contactsStore";
+import { StateCreator } from 'zustand'
+import { Session, User } from '@supabase/supabase-js'
+import { TSignInInput, TSignUpInput, IAuthErrorState, IAuthRetryConfig } from '@/types/store/auth'
+import { TStore } from '@/types/store/store'
+import { supabase } from '@/integrations/supabase/client'
+import { toast } from '@/hooks/use-toast'
+import { logger } from '@/utils/logger'
+import { AUTH_ERROR_MESSAGES, AUTH_SUCCESS_MESSAGES, AUTH_VALIDATION_CONFIG } from '@/constants/store/auth'
+// Note: useStore import is circular, so we use dynamic import instead
 
 /**
  * Auth slice for Zustand store
@@ -46,44 +37,44 @@ import { useContactsStore } from "@/stores/contactsStore";
  */
 export const useAuthSlice: StateCreator<
   TStore,
-  [["zustand/subscribeWithSelector", never], ["zustand/immer", never]],
+  [['zustand/subscribeWithSelector', never], ['zustand/immer', never]],
   [],
   {
     // Auth state
-    authSession: Session | null;
-    authUser: User | null;
-    authIsInitialized: boolean;
-    authLastSyncAt: string | null;
-    authIsEmailVerified: boolean;
-    authIsPasswordResetRequested: boolean;
+    authSession: Session | null
+    authUser: User | null
+    authIsInitialized: boolean
+    authLastSyncAt: string | null
+    authIsEmailVerified: boolean
+    authIsPasswordResetRequested: boolean
     authLoading: {
-      signingIn: boolean;
-      signingUp: boolean;
-      signingOut: boolean;
-      resettingPassword: boolean;
-      updatingPassword: boolean;
-      initializing: boolean;
-    };
-    authErrors: IAuthErrorState;
-    authRetryConfig: IAuthRetryConfig;
+      signingIn: boolean
+      signingUp: boolean
+      signingOut: boolean
+      resettingPassword: boolean
+      updatingPassword: boolean
+      initializing: boolean
+    }
+    authErrors: IAuthErrorState
+    authRetryConfig: IAuthRetryConfig
 
     // Auth actions
-    authInitialize: () => Promise<void>;
-    authReset: () => void;
-    authSignIn: (credentials: TSignInInput) => Promise<void>;
-    authSignUp: (credentials: TSignUpInput) => Promise<void>;
-    authSignOut: () => Promise<void>;
-    authResetPassword: (email: string) => Promise<void>;
-    authUpdatePassword: (password: string) => Promise<void>;
-    authRefreshSession: () => Promise<void>;
-    authGetSession: () => Promise<Session | null>;
-    authUpdateUserProfile: (updates: Partial<User>) => Promise<void>;
-    authIsAuthenticated: () => boolean;
-    authGetUserRole: () => string | null;
-    authHasPermission: (permission: string) => boolean;
-    authClearError: (operation: keyof IAuthErrorState) => void;
-    authClearAllErrors: () => void;
-    authSetRetryConfig: (config: Partial<IAuthRetryConfig>) => void;
+    authInitialize: () => Promise<void>
+    authReset: () => void
+    authSignIn: (credentials: TSignInInput) => Promise<void>
+    authSignUp: (credentials: TSignUpInput) => Promise<void>
+    authSignOut: () => Promise<void>
+    authResetPassword: (email: string) => Promise<void>
+    authUpdatePassword: (password: string) => Promise<void>
+    authRefreshSession: () => Promise<void>
+    authGetSession: () => Promise<Session | null>
+    authUpdateUserProfile: (updates: Partial<User>) => Promise<void>
+    authIsAuthenticated: () => boolean
+    authGetUserRole: () => string | null
+    authHasPermission: (permission: string) => boolean
+    authClearError: (operation: keyof IAuthErrorState) => void
+    authClearAllErrors: () => void
+    authSetRetryConfig: (config: Partial<IAuthRetryConfig>) => void
   }
 > = (set, get) => ({
   // Auth state
@@ -122,113 +113,112 @@ export const useAuthSlice: StateCreator<
    */
   authInitialize: async () => {
     // Prevent multiple initializations
-    const currentState = get();
+    const currentState = get()
     if (currentState.authIsInitialized) {
-      logger.debug("Auth already initialized, skipping...");
-      return;
+      logger.debug('Auth already initialized, skipping...')
+      return
     }
 
-    set((state) => {
-      state.authLoading.initializing = true;
-      state.authErrors.initialize = null;
-    });
+    set(state => {
+      state.authLoading.initializing = true
+      state.authErrors.initialize = null
+    })
 
     try {
       const {
         data: { session },
         error,
-      } = await supabase.auth.getSession();
+      } = await supabase.auth.getSession()
 
-      if (error) throw error;
+      if (error) throw error
 
       if (session?.user) {
-        set((state) => {
-          state.authSession = session;
-          state.authUser = session.user;
-          state.authIsEmailVerified = session.user.email_confirmed_at !== null;
-          state.authLastSyncAt = new Date().toISOString();
-        });
+        set(state => {
+          state.authSession = session
+          state.authUser = session.user
+          state.authIsEmailVerified = session.user.email_confirmed_at !== null
+          state.authLastSyncAt = new Date().toISOString()
+        })
 
         // Initialize contacts store for authenticated user
-        logger.log("User authenticated, starting contact preloading...");
-        useContactsStore.getState().initialize(session.user.id);
+        logger.log('User authenticated, starting contact preloading...')
+        const { useStore } = await import('@/stores/index')
+        useStore.getState().contactsInitialize(session.user.id)
 
         // Initialize Gmail auth for authenticated user
-        logger.log("User authenticated, initializing Gmail auth...");
-        get().initializeGmailAuth(session.user.id);
+        logger.log('User authenticated, initializing Gmail auth...')
+        get().initializeGmailAuth(session.user.id)
       }
 
       // Set up auth state change listener - only once
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange(async (event, session) => {
-        logger.log("Auth state changed:", event, session?.user?.id);
+        logger.log('Auth state changed:', event, session?.user?.id)
 
         // Skip if it's the initial session event (we already handled it above)
-        if (event === "INITIAL_SESSION") return;
+        if (event === 'INITIAL_SESSION') return
 
         if (session?.user) {
-          set((state) => {
-            state.authSession = session;
-            state.authUser = session.user;
-            state.authIsEmailVerified =
-              session.user.email_confirmed_at !== null;
-            state.authLastSyncAt = new Date().toISOString();
-          });
+          set(state => {
+            state.authSession = session
+            state.authUser = session.user
+            state.authIsEmailVerified = session.user.email_confirmed_at !== null
+            state.authLastSyncAt = new Date().toISOString()
+          })
 
           // Only initialize contacts on sign in, not on every state change
-          if (event === "SIGNED_IN") {
-            logger.log("User signed in, starting contact preloading...");
-            useContactsStore.getState().initialize(session.user.id);
+          if (event === 'SIGNED_IN') {
+            logger.log('User signed in, starting contact preloading...')
+            const { useStore } = await import('@/stores/index')
+            useStore.getState().contactsInitialize(session.user.id)
 
             // Initialize Gmail auth for signed in user
-            logger.log("User signed in, initializing Gmail auth...");
-            get().initializeGmailAuth(session.user.id);
+            logger.log('User signed in, initializing Gmail auth...')
+            get().initializeGmailAuth(session.user.id)
           }
-        } else if (event === "SIGNED_OUT") {
-          set((state) => {
-            state.authSession = null;
-            state.authUser = null;
-            state.authIsEmailVerified = false;
-            state.authLastSyncAt = new Date().toISOString();
-          });
+        } else if (event === 'SIGNED_OUT') {
+          set(state => {
+            state.authSession = null
+            state.authUser = null
+            state.authIsEmailVerified = false
+            state.authLastSyncAt = new Date().toISOString()
+          })
 
           // Clear contacts when user logs out
-          useContactsStore.getState().clear();
+          const { useStore } = await import('@/stores/index')
+          useStore.getState().contactsClear()
 
           // Reset Gmail auth when user logs out
-          logger.log("User signed out, resetting Gmail auth...");
-          get().reset();
+          logger.log('User signed out, resetting Gmail auth...')
+          get().reset()
         }
-      });
+      })
 
       // Store subscription for cleanup if needed
       // You might want to store this in a ref or state for cleanup later
 
       // Marcamos como inicializado después de configurar todo
-      set((state) => {
-        state.authIsInitialized = true;
-        state.authLoading.initializing = false;
-      });
+      set(state => {
+        state.authIsInitialized = true
+        state.authLoading.initializing = false
+      })
     } catch (error) {
-      logger.error("Error initializing auth:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : AUTH_ERROR_MESSAGES.INITIALIZATION_FAILED;
+      logger.error('Error initializing auth:', error)
+      const errorMessage = error instanceof Error ? error.message : AUTH_ERROR_MESSAGES.INITIALIZATION_FAILED
 
       // Incluso en caso de error, marcamos como inicializado para evitar bucles
-      set((state) => {
-        state.authErrors.initialize = errorMessage;
-        state.authIsInitialized = true;
-        state.authLoading.initializing = false;
-      });
+      set(state => {
+        state.authErrors.initialize = errorMessage
+        state.authIsInitialized = true
+        state.authLoading.initializing = false
+      })
 
       toast({
-        title: "Authentication Error",
+        title: 'Authentication Error',
         description: errorMessage,
-        variant: "destructive",
-      });
+        variant: 'destructive',
+      })
     }
   },
 
@@ -237,13 +227,13 @@ export const useAuthSlice: StateCreator<
    * Clears all auth data, errors, and loading states
    */
   authReset: () => {
-    set((state) => {
-      state.authSession = null;
-      state.authUser = null;
-      state.authIsInitialized = false;
-      state.authLastSyncAt = null;
-      state.authIsEmailVerified = false;
-      state.authIsPasswordResetRequested = false;
+    set(state => {
+      state.authSession = null
+      state.authUser = null
+      state.authIsInitialized = false
+      state.authLastSyncAt = null
+      state.authIsEmailVerified = false
+      state.authIsPasswordResetRequested = false
       state.authLoading = {
         signingIn: false,
         signingUp: false,
@@ -251,7 +241,7 @@ export const useAuthSlice: StateCreator<
         resettingPassword: false,
         updatingPassword: false,
         initializing: false,
-      };
+      }
       state.authErrors = {
         signIn: null,
         signUp: null,
@@ -259,8 +249,8 @@ export const useAuthSlice: StateCreator<
         resetPassword: null,
         updatePassword: null,
         initialize: null,
-      };
-    });
+      }
+    })
   },
 
   /**
@@ -269,64 +259,54 @@ export const useAuthSlice: StateCreator<
    * @returns Promise that resolves when sign in is complete
    */
   authSignIn: async (credentials: TSignInInput) => {
-    set((state) => {
-      state.authLoading.signingIn = true;
-      state.authErrors.signIn = null;
-    });
+    set(state => {
+      state.authLoading.signingIn = true
+      state.authErrors.signIn = null
+    })
 
     try {
       // Validate input
       if (!AUTH_VALIDATION_CONFIG.EMAIL_REGEX.test(credentials.email)) {
-        throw new Error("Invalid email format");
+        throw new Error('Invalid email format')
       }
 
-      if (
-        credentials.password.length < AUTH_VALIDATION_CONFIG.MIN_PASSWORD_LENGTH
-      ) {
-        throw new Error(
-          `Password must be at least ${AUTH_VALIDATION_CONFIG.MIN_PASSWORD_LENGTH} characters`
-        );
+      if (credentials.password.length < AUTH_VALIDATION_CONFIG.MIN_PASSWORD_LENGTH) {
+        throw new Error(`Password must be at least ${AUTH_VALIDATION_CONFIG.MIN_PASSWORD_LENGTH} characters`)
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword(
-        credentials
-      );
+      const { data, error } = await supabase.auth.signInWithPassword(credentials)
 
-      if (error) throw error;
+      if (error) throw error
 
       if (data.session?.user) {
-        set((state) => {
-          state.authSession = data.session;
-          state.authUser = data.session.user;
-          state.authIsEmailVerified =
-            data.session.user.email_confirmed_at !== null;
-          state.authLastSyncAt = new Date().toISOString();
-        });
+        set(state => {
+          state.authSession = data.session
+          state.authUser = data.session.user
+          state.authIsEmailVerified = data.session.user.email_confirmed_at !== null
+          state.authLastSyncAt = new Date().toISOString()
+        })
 
         toast({
-          title: "Welcome back",
+          title: 'Welcome back',
           description: AUTH_SUCCESS_MESSAGES.SIGN_IN_SUCCESS,
-        });
+        })
       }
     } catch (error) {
-      logger.error("Error signing in:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : AUTH_ERROR_MESSAGES.SIGN_IN_FAILED;
-      set((state) => {
-        state.authErrors.signIn = errorMessage;
-      });
+      logger.error('Error signing in:', error)
+      const errorMessage = error instanceof Error ? error.message : AUTH_ERROR_MESSAGES.SIGN_IN_FAILED
+      set(state => {
+        state.authErrors.signIn = errorMessage
+      })
       toast({
-        title: "Sign In Error",
+        title: 'Sign In Error',
         description: errorMessage,
-        variant: "destructive",
-      });
-      throw error;
+        variant: 'destructive',
+      })
+      throw error
     } finally {
-      set((state) => {
-        state.authLoading.signingIn = false;
-      });
+      set(state => {
+        state.authLoading.signingIn = false
+      })
     }
   },
 
@@ -336,58 +316,49 @@ export const useAuthSlice: StateCreator<
    * @returns Promise that resolves when sign up is complete
    */
   authSignUp: async (credentials: TSignUpInput) => {
-    set((state) => {
-      state.authLoading.signingUp = true;
-      state.authErrors.signUp = null;
-    });
+    set(state => {
+      state.authLoading.signingUp = true
+      state.authErrors.signUp = null
+    })
 
     try {
       // Validate input
       if (!AUTH_VALIDATION_CONFIG.EMAIL_REGEX.test(credentials.email)) {
-        throw new Error("Invalid email format");
+        throw new Error('Invalid email format')
       }
 
-      if (
-        credentials.password.length < AUTH_VALIDATION_CONFIG.MIN_PASSWORD_LENGTH
-      ) {
-        throw new Error(
-          `Password must be at least ${AUTH_VALIDATION_CONFIG.MIN_PASSWORD_LENGTH} characters`
-        );
+      if (credentials.password.length < AUTH_VALIDATION_CONFIG.MIN_PASSWORD_LENGTH) {
+        throw new Error(`Password must be at least ${AUTH_VALIDATION_CONFIG.MIN_PASSWORD_LENGTH} characters`)
       }
 
       if (!AUTH_VALIDATION_CONFIG.PASSWORD_REGEX.test(credentials.password)) {
-        throw new Error(
-          "Password must contain at least one uppercase letter, one lowercase letter, and one number"
-        );
+        throw new Error('Password must contain at least one uppercase letter, one lowercase letter, and one number')
       }
 
-      const { data, error } = await supabase.auth.signUp(credentials);
+      const { data, error } = await supabase.auth.signUp(credentials)
 
-      if (error) throw error;
+      if (error) throw error
 
       toast({
-        title: "Account created",
+        title: 'Account created',
         description: AUTH_SUCCESS_MESSAGES.SIGN_UP_SUCCESS,
-      });
+      })
     } catch (error) {
-      logger.error("Error signing up:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : AUTH_ERROR_MESSAGES.SIGN_UP_FAILED;
-      set((state) => {
-        state.authErrors.signUp = errorMessage;
-      });
+      logger.error('Error signing up:', error)
+      const errorMessage = error instanceof Error ? error.message : AUTH_ERROR_MESSAGES.SIGN_UP_FAILED
+      set(state => {
+        state.authErrors.signUp = errorMessage
+      })
       toast({
-        title: "Sign Up Error",
+        title: 'Sign Up Error',
         description: errorMessage,
-        variant: "destructive",
-      });
-      throw error;
+        variant: 'destructive',
+      })
+      throw error
     } finally {
-      set((state) => {
-        state.authLoading.signingUp = false;
-      });
+      set(state => {
+        state.authLoading.signingUp = false
+      })
     }
   },
 
@@ -396,46 +367,43 @@ export const useAuthSlice: StateCreator<
    * @returns Promise that resolves when sign out is complete
    */
   authSignOut: async () => {
-    set((state) => {
-      state.authLoading.signingOut = true;
-      state.authErrors.signOut = null;
-    });
+    set(state => {
+      state.authLoading.signingOut = true
+      state.authErrors.signOut = null
+    })
 
     try {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut()
 
-      if (error) throw error;
+      if (error) throw error
 
-      set((state) => {
-        state.authSession = null;
-        state.authUser = null;
-        state.authIsEmailVerified = false;
-        state.authLastSyncAt = new Date().toISOString();
-      });
+      set(state => {
+        state.authSession = null
+        state.authUser = null
+        state.authIsEmailVerified = false
+        state.authLastSyncAt = new Date().toISOString()
+      })
 
       toast({
-        title: "Signed out",
+        title: 'Signed out',
         description: AUTH_SUCCESS_MESSAGES.SIGN_OUT_SUCCESS,
-      });
+      })
     } catch (error) {
-      logger.error("Error signing out:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : AUTH_ERROR_MESSAGES.SIGN_OUT_FAILED;
-      set((state) => {
-        state.authErrors.signOut = errorMessage;
-      });
+      logger.error('Error signing out:', error)
+      const errorMessage = error instanceof Error ? error.message : AUTH_ERROR_MESSAGES.SIGN_OUT_FAILED
+      set(state => {
+        state.authErrors.signOut = errorMessage
+      })
       toast({
-        title: "Sign Out Error",
+        title: 'Sign Out Error',
         description: errorMessage,
-        variant: "destructive",
-      });
-      throw error;
+        variant: 'destructive',
+      })
+      throw error
     } finally {
-      set((state) => {
-        state.authLoading.signingOut = false;
-      });
+      set(state => {
+        state.authLoading.signingOut = false
+      })
     }
   },
 
@@ -445,47 +413,44 @@ export const useAuthSlice: StateCreator<
    * @returns Promise that resolves when reset email is sent
    */
   authResetPassword: async (email: string) => {
-    set((state) => {
-      state.authLoading.resettingPassword = true;
-      state.authErrors.resetPassword = null;
-    });
+    set(state => {
+      state.authLoading.resettingPassword = true
+      state.authErrors.resetPassword = null
+    })
 
     try {
       if (!AUTH_VALIDATION_CONFIG.EMAIL_REGEX.test(email)) {
-        throw new Error("Invalid email format");
+        throw new Error('Invalid email format')
       }
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email)
 
-      if (error) throw error;
+      if (error) throw error
 
-      set((state) => {
-        state.authIsPasswordResetRequested = true;
-      });
+      set(state => {
+        state.authIsPasswordResetRequested = true
+      })
 
       toast({
-        title: "Password reset sent",
+        title: 'Password reset sent',
         description: AUTH_SUCCESS_MESSAGES.PASSWORD_RESET_SENT,
-      });
+      })
     } catch (error) {
-      logger.error("Error resetting password:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : AUTH_ERROR_MESSAGES.PASSWORD_RESET_FAILED;
-      set((state) => {
-        state.authErrors.resetPassword = errorMessage;
-      });
+      logger.error('Error resetting password:', error)
+      const errorMessage = error instanceof Error ? error.message : AUTH_ERROR_MESSAGES.PASSWORD_RESET_FAILED
+      set(state => {
+        state.authErrors.resetPassword = errorMessage
+      })
       toast({
-        title: "Password Reset Error",
+        title: 'Password Reset Error',
         description: errorMessage,
-        variant: "destructive",
-      });
-      throw error;
+        variant: 'destructive',
+      })
+      throw error
     } finally {
-      set((state) => {
-        state.authLoading.resettingPassword = false;
-      });
+      set(state => {
+        state.authLoading.resettingPassword = false
+      })
     }
   },
 
@@ -495,51 +460,44 @@ export const useAuthSlice: StateCreator<
    * @returns Promise that resolves when password is updated
    */
   authUpdatePassword: async (password: string) => {
-    set((state) => {
-      state.authLoading.updatingPassword = true;
-      state.authErrors.updatePassword = null;
-    });
+    set(state => {
+      state.authLoading.updatingPassword = true
+      state.authErrors.updatePassword = null
+    })
 
     try {
       if (password.length < AUTH_VALIDATION_CONFIG.MIN_PASSWORD_LENGTH) {
-        throw new Error(
-          `Password must be at least ${AUTH_VALIDATION_CONFIG.MIN_PASSWORD_LENGTH} characters`
-        );
+        throw new Error(`Password must be at least ${AUTH_VALIDATION_CONFIG.MIN_PASSWORD_LENGTH} characters`)
       }
 
       if (!AUTH_VALIDATION_CONFIG.PASSWORD_REGEX.test(password)) {
-        throw new Error(
-          "Password must contain at least one uppercase letter, one lowercase letter, and one number"
-        );
+        throw new Error('Password must contain at least one uppercase letter, one lowercase letter, and one number')
       }
 
-      const { error } = await supabase.auth.updateUser({ password });
+      const { error } = await supabase.auth.updateUser({ password })
 
-      if (error) throw error;
+      if (error) throw error
 
       toast({
-        title: "Password updated",
+        title: 'Password updated',
         description: AUTH_SUCCESS_MESSAGES.PASSWORD_UPDATED,
-      });
+      })
     } catch (error) {
-      logger.error("Error updating password:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : AUTH_ERROR_MESSAGES.PASSWORD_UPDATE_FAILED;
-      set((state) => {
-        state.authErrors.updatePassword = errorMessage;
-      });
+      logger.error('Error updating password:', error)
+      const errorMessage = error instanceof Error ? error.message : AUTH_ERROR_MESSAGES.PASSWORD_UPDATE_FAILED
+      set(state => {
+        state.authErrors.updatePassword = errorMessage
+      })
       toast({
-        title: "Password Update Error",
+        title: 'Password Update Error',
         description: errorMessage,
-        variant: "destructive",
-      });
-      throw error;
+        variant: 'destructive',
+      })
+      throw error
     } finally {
-      set((state) => {
-        state.authLoading.updatingPassword = false;
-      });
+      set(state => {
+        state.authLoading.updatingPassword = false
+      })
     }
   },
 
@@ -549,22 +507,21 @@ export const useAuthSlice: StateCreator<
    */
   authRefreshSession: async () => {
     try {
-      const { data, error } = await supabase.auth.refreshSession();
+      const { data, error } = await supabase.auth.refreshSession()
 
-      if (error) throw error;
+      if (error) throw error
 
       if (data.session) {
-        set((state) => {
-          state.authSession = data.session;
-          state.authUser = data.session.user;
-          state.authIsEmailVerified =
-            data.session.user.email_confirmed_at !== null;
-          state.authLastSyncAt = new Date().toISOString();
-        });
+        set(state => {
+          state.authSession = data.session
+          state.authUser = data.session.user
+          state.authIsEmailVerified = data.session.user.email_confirmed_at !== null
+          state.authLastSyncAt = new Date().toISOString()
+        })
       }
     } catch (error) {
-      logger.error("Error refreshing session:", error);
-      throw error;
+      logger.error('Error refreshing session:', error)
+      throw error
     }
   },
 
@@ -577,14 +534,14 @@ export const useAuthSlice: StateCreator<
       const {
         data: { session },
         error,
-      } = await supabase.auth.getSession();
+      } = await supabase.auth.getSession()
 
-      if (error) throw error;
+      if (error) throw error
 
-      return session;
+      return session
     } catch (error) {
-      logger.error("Error getting session:", error);
-      throw error;
+      logger.error('Error getting session:', error)
+      throw error
     }
   },
 
@@ -595,19 +552,19 @@ export const useAuthSlice: StateCreator<
    */
   authUpdateUserProfile: async (updates: Partial<User>) => {
     try {
-      const { data, error } = await supabase.auth.updateUser(updates);
+      const { data, error } = await supabase.auth.updateUser(updates)
 
-      if (error) throw error;
+      if (error) throw error
 
       if (data.user) {
-        set((state) => {
-          state.authUser = data.user;
-          state.authLastSyncAt = new Date().toISOString();
-        });
+        set(state => {
+          state.authUser = data.user
+          state.authLastSyncAt = new Date().toISOString()
+        })
       }
     } catch (error) {
-      logger.error("Error updating user profile:", error);
-      throw error;
+      logger.error('Error updating user profile:', error)
+      throw error
     }
   },
 
@@ -616,8 +573,8 @@ export const useAuthSlice: StateCreator<
    * @returns boolean indicating if user is authenticated
    */
   authIsAuthenticated: () => {
-    const state = get();
-    return state.authUser !== null && state.authSession !== null;
+    const state = get()
+    return state.authUser !== null && state.authSession !== null
   },
 
   /**
@@ -625,8 +582,8 @@ export const useAuthSlice: StateCreator<
    * @returns string role or null if not available
    */
   authGetUserRole: () => {
-    const state = get();
-    return state.authUser?.user_metadata?.role || null;
+    const state = get()
+    return state.authUser?.user_metadata?.role || null
   },
 
   /**
@@ -635,9 +592,9 @@ export const useAuthSlice: StateCreator<
    * @returns boolean indicating if user has permission
    */
   authHasPermission: (permission: string) => {
-    const state = get();
-    const userPermissions = state.authUser?.user_metadata?.permissions || [];
-    return userPermissions.includes(permission);
+    const state = get()
+    const userPermissions = state.authUser?.user_metadata?.permissions || []
+    return userPermissions.includes(permission)
   },
 
   /**
@@ -645,9 +602,9 @@ export const useAuthSlice: StateCreator<
    * @param operation - The operation error to clear
    */
   authClearError: (operation: keyof IAuthErrorState) => {
-    set((state) => {
-      state.authErrors[operation] = null;
-    });
+    set(state => {
+      state.authErrors[operation] = null
+    })
   },
 
   /**
@@ -655,7 +612,7 @@ export const useAuthSlice: StateCreator<
    * Resets all operation errors to null
    */
   authClearAllErrors: () => {
-    set((state) => {
+    set(state => {
       state.authErrors = {
         signIn: null,
         signUp: null,
@@ -663,8 +620,8 @@ export const useAuthSlice: StateCreator<
         resetPassword: null,
         updatePassword: null,
         initialize: null,
-      };
-    });
+      }
+    })
   },
 
   /**
@@ -672,8 +629,8 @@ export const useAuthSlice: StateCreator<
    * @param config - Partial retry configuration to merge with existing config
    */
   authSetRetryConfig: (config: Partial<IAuthRetryConfig>) => {
-    set((state) => {
-      Object.assign(state.authRetryConfig, config);
-    });
+    set(state => {
+      Object.assign(state.authRetryConfig, config)
+    })
   },
-});
+})

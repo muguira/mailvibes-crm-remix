@@ -12,7 +12,7 @@ import { mockContactsById } from '@/components/stream/sample-data'
 import { updateContact } from '@/helpers/updateContact'
 import { withRetrySupabase } from '@/utils/supabaseRetry'
 import { logger } from '@/utils/logger'
-import { useContactsStore } from '@/stores/contactsStore'
+import { useStore } from '@/stores/index'
 
 /**
  * Helper function to transform row IDs to database-compatible format
@@ -418,7 +418,7 @@ export function useLeadsRows() {
   // Update a cell value
   const updateCell = async ({ rowId, columnId, value }: { rowId: string; columnId: string; value: any }) => {
     // SOLUCIÓN OPTIMIZADA: Buscar primero en ContactsStore cache (todos los contactos)
-    const { cache } = useContactsStore.getState()
+    const { contactsCache: cache } = useStore.getState()
     let currentRow = cache[rowId]
     let rowIndex = -1 // Inicializar rowIndex
 
@@ -679,7 +679,7 @@ export function useLeadsRows() {
 
       // Update local ContactsStore cache to reflect the changes
       try {
-        const { cache, updateContactInCache } = useContactsStore.getState()
+        const { contactsCache: cache, contactsUpdateContact: updateContactInCache } = useStore.getState()
         Object.keys(cache).forEach(contactId => {
           const contact = cache[contactId]
           if (contact.user_id === user.id) {
@@ -773,7 +773,7 @@ export function useLeadsRows() {
 
         // Also update the contacts store for consistent UI across components
         try {
-          const { addContact } = require('@/stores/contactsStore').useContactsStore.getState()
+          const { contactsAddContact: addContact } = useStore.getState()
           if (typeof addContact === 'function') {
             addContact(contactToSave)
             logger.log('Contact also added to contactsStore for immediate visibility')
@@ -877,14 +877,17 @@ export function useLeadsRows() {
       const dbIds = contactIds.map(transformRowId)
 
       // IMPORTANT: Pause background loading during delete operation
-      const { pauseBackgroundLoading, resumeBackgroundLoading } = useContactsStore.getState()
+      const {
+        contactsPauseBackgroundLoading: pauseBackgroundLoading,
+        contactsResumeBackgroundLoading: resumeBackgroundLoading,
+      } = useStore.getState()
       pauseBackgroundLoading()
 
       const uiUpdateStartTime = performance.now()
       console.log(`⚡ [DELETE TIMING] Starting UI updates at ${uiUpdateStartTime.toFixed(2)}ms`)
 
       // IMPORTANT: Immediately mark contacts as deleted in the store to prevent flickering
-      const { removeContacts } = useContactsStore.getState()
+      const { contactsRemoveContacts: removeContacts } = useStore.getState()
       removeContacts(contactIds)
 
       // Update local state by removing deleted contacts immediately
@@ -959,7 +962,7 @@ export function useLeadsRows() {
           })
 
           // Restore to contacts store
-          const { restoreContacts } = useContactsStore.getState()
+          const { contactsRestoreContacts: restoreContacts } = useStore.getState()
           const contactsToRestore = contactIds.map(id => originalMockContacts[id]).filter(Boolean)
           restoreContacts(contactsToRestore)
 
@@ -985,7 +988,7 @@ export function useLeadsRows() {
           })
 
           // Restore to contacts store
-          const { restoreContacts } = useContactsStore.getState()
+          const { contactsRestoreContacts: restoreContacts } = useStore.getState()
           const contactsToRestore = contactIds.map(id => originalMockContacts[id]).filter(Boolean)
           restoreContacts(contactsToRestore)
 
@@ -1021,7 +1024,7 @@ export function useLeadsRows() {
       console.log(`🏁 [DELETE TIMING] Total operation completed in ${(finalTime - deleteStartTime).toFixed(2)}ms`)
     } catch (error) {
       // Resume background loading even if delete failed
-      const { resumeBackgroundLoading } = useContactsStore.getState()
+      const { contactsResumeBackgroundLoading: resumeBackgroundLoading } = useStore.getState()
       setTimeout(() => {
         resumeBackgroundLoading()
       }, 1000)

@@ -56,12 +56,12 @@ export const useGridExternalEvents = (refreshData: () => void, forceRerender: ()
       logger.log(`Contact updated from stream view: ${contactId} - ${field} = ${value}`)
 
       try {
-        const { useContactsStore } = require('@/stores/contactsStore')
-        const { updateContact: updateContactInStore } = useContactsStore.getState()
+        const { useStore } = require('@/stores')
+        const { contactsUpdateContact } = useStore.getState()
 
-        if (typeof updateContactInStore === 'function') {
+        if (typeof contactsUpdateContact === 'function') {
           const storeUpdate: any = { [field]: value }
-          updateContactInStore(contactId, storeUpdate)
+          contactsUpdateContact(contactId, storeUpdate)
           logger.log(`Updated contact ${contactId} in contacts store via event`)
         }
       } catch (error) {

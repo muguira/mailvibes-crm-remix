@@ -1,9 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { enableMapSet } from 'immer';
 import { startSyncWorker, stopSyncWorker } from '@/workers/emailSyncWorker';
 import App from './App';
 import './index.css';
 import './services/google/tokenDiagnostics';
+
+// Enable Immer MapSet plugin for Set/Map support in Zustand store
+enableMapSet();
 
 /**
  * Check if the current route should have email sync enabled

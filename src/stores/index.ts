@@ -7,6 +7,7 @@ import { useAuthSlice } from './useAuthSlice'
 import { useGmailAuthSlice } from './gmailAuthSlice'
 import { useContactProfileSlice } from './useContactProfileSlice'
 import { useEditableLeadsGridSlice } from './useEditableLeadsGridSlice'
+import { useContactsSlice } from './useContactsSlice'
 
 /**
  * Main store for the application
@@ -27,6 +28,7 @@ export const useStore = create<TStore>()(
       ...useGmailAuthSlice(...a),
       ...useContactProfileSlice(...a),
       ...useEditableLeadsGridSlice(...a),
+      ...useContactsSlice(...a),
     })),
   ),
 )

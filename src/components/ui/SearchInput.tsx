@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X, Database } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useContactsStore } from '@/stores/contactsStore';
+import { useStore } from '@/stores';
 import { toast } from '@/hooks/use-toast';
 
 interface SearchInputProps {
@@ -28,10 +28,13 @@ export const SearchInput: React.FC<SearchInputProps> = React.memo(({
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   // Get contacts loading state
-  const { loading, isBackgroundLoading, firstBatchLoaded } = useContactsStore();
+  const { 
+    contactsLoading: { fetching, initializing, backgroundLoading: isBackgroundLoading },
+    contactsPagination: { firstBatchLoaded }
+  } = useStore();
 
   // Check if contacts are still loading
-  const isContactsLoading = loading || !firstBatchLoaded;
+  const isContactsLoading = fetching || initializing || !firstBatchLoaded;
   
   // Track previous loading state to detect when loading completes
   const [wasLoading, setWasLoading] = useState(isContactsLoading);
