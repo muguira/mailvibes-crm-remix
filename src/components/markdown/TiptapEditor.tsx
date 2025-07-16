@@ -46,7 +46,8 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        // Follow Tiptap's recommended configuration patterns
+        // Completely disable codeBlock from StarterKit to avoid conflicts with CodeBlockLowlight
+        codeBlock: false,
         heading: {
           levels: [1, 2, 3],
         },
@@ -183,13 +184,9 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
   const handleCodeBlockRequest = useCallback((selectedText: string, range: Range) => {
     if (!editor) return;
 
-    const selection = window.getSelection();
-    if (selection && range) {
-      selection.removeAllRanges();
-      selection.addRange(range);
-      
-      const codeBlock = `\`\`\`\n${selectedText}\n\`\`\``;
-      editor.chain().focus().insertContent(codeBlock).run();
+    editor.chain().focus().setCodeBlock().run();
+    if (selectedText) {
+      editor.commands.insertContent(selectedText);
     }
   }, [editor]);
 

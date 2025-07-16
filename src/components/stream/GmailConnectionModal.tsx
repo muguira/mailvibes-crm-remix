@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -50,7 +50,7 @@ interface GmailConnectionModalProps {
   contactEmail?: string;
 }
 
-export function GmailConnectionModal({ children, onRefresh, contactEmail }: GmailConnectionModalProps) {
+export const GmailConnectionModal = forwardRef<HTMLDivElement, GmailConnectionModalProps>(({ children, onRefresh, contactEmail }, ref) => {
   const { authUser } = useStore();
   const [isOpen, setIsOpen] = useState(false);
   const [gmailStatus, setGmailStatus] = useState<GmailConnectionStatus>({
@@ -638,4 +638,6 @@ export function GmailConnectionModal({ children, onRefresh, contactEmail }: Gmai
       </DialogContent>
     </Dialog>
   );
-} 
+});
+
+GmailConnectionModal.displayName = "GmailConnectionModal"; 

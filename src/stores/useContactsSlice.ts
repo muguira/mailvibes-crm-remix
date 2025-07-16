@@ -66,23 +66,26 @@ export const useContactsSlice: StateCreator<
   contactsInitialize: async (userId: string) => {
     // Si hay una inicialización en curso, esperar a que complete
     if (initializationPromise) {
-      logger.log('[ContactsStore] Initialization already in progress, waiting for it to complete')
+      // Only log once, not repeatedly
       return initializationPromise
     }
 
     const state = get()
 
-    logger.log(`Initialize called for user ${userId}. Current state:`, {
-      currentUserId: state.contactsInternal.userId,
-      hasData: state.contactsOrderedIds.length > 0,
-      loadedCount: state.contactsPagination.loadedCount,
-      totalCount: state.contactsPagination.totalCount,
-      hasMore: state.contactsPagination.hasMore,
-      isBackgroundLoading: state.contactsInternal.backgroundLoadingActive,
-      isInitialized: state.contactsPagination.isInitialized,
-      firstBatchLoaded: state.contactsPagination.firstBatchLoaded,
-      allContactsLoaded: state.contactsPagination.allContactsLoaded,
-    })
+    // Only log initialization details in development or when there are actual issues
+    if (process.env.NODE_ENV === 'development') {
+      logger.log(`Initialize called for user ${userId}. Current state:`, {
+        currentUserId: state.contactsInternal.userId,
+        hasData: state.contactsOrderedIds.length > 0,
+        loadedCount: state.contactsPagination.loadedCount,
+        totalCount: state.contactsPagination.totalCount,
+        hasMore: state.contactsPagination.hasMore,
+        isBackgroundLoading: state.contactsInternal.backgroundLoadingActive,
+        isInitialized: state.contactsPagination.isInitialized,
+        firstBatchLoaded: state.contactsPagination.firstBatchLoaded,
+        allContactsLoaded: state.contactsPagination.allContactsLoaded,
+      })
+    }
 
     // Si ya está inicializado para este usuario y tenemos el primer batch, solo reanudar background loading si es necesario
     if (
@@ -90,7 +93,9 @@ export const useContactsSlice: StateCreator<
       state.contactsPagination.isInitialized &&
       state.contactsPagination.firstBatchLoaded
     ) {
-      logger.log('Store already initialized for this user with first batch loaded')
+      if (process.env.NODE_ENV === 'development') {
+        logger.log('Store already initialized for this user with first batch loaded')
+      }
 
       // Si no hemos cargado todos los contacts y no estamos cargando actualmente, reanudar background loading
       if (
@@ -98,12 +103,10 @@ export const useContactsSlice: StateCreator<
         state.contactsPagination.hasMore &&
         !state.contactsInternal.backgroundLoadingActive
       ) {
-        logger.log('Resuming background loading for remaining contacts...')
+        if (process.env.NODE_ENV === 'development') {
+          logger.log('Resuming background loading for remaining contacts...')
+        }
         get().contactsStartBackgroundLoading()
-      } else if (state.contactsPagination.allContactsLoaded) {
-        logger.log('All contacts already loaded, no need to reload')
-      } else if (state.contactsInternal.backgroundLoadingActive) {
-        logger.log('Background loading already active')
       }
       return
     }

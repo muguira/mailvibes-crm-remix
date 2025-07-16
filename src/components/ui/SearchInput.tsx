@@ -49,7 +49,7 @@ export const SearchInput: React.FC<SearchInputProps> = React.memo(({
   // Auto-focus and position cursor when contacts finish loading
   useEffect(() => {
     // Detect when loading transitions from true to false
-    if (wasLoading && !isContactsLoading && inputRef.current) {
+    if (wasLoading && !isContactsLoading && inputRef.current && autoFocus) {
       // Small delay to ensure UI has updated
       setTimeout(() => {
         if (inputRef.current) {
@@ -60,14 +60,17 @@ export const SearchInput: React.FC<SearchInputProps> = React.memo(({
           const length = inputRef.current.value.length;
           inputRef.current.setSelectionRange(length, length);
           
-          console.log(`[SearchInput] Auto-focused after load complete. Cursor positioned after: "${searchValue}"`);
+          // Only log in development
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[SearchInput] Auto-focused after load complete. Cursor positioned after: "${searchValue}"`);
+          }
         }
       }, 50);
     }
     
     // Update the previous loading state
     setWasLoading(isContactsLoading);
-  }, [isContactsLoading, wasLoading, searchValue]);
+  }, [isContactsLoading, wasLoading, searchValue, autoFocus]);
 
   // Initial focus on mount if contacts are already loaded
   useEffect(() => {
