@@ -29,6 +29,7 @@ export function renderStatusPill(value: string, colors: Record<string, string>) 
 export function formatCellValue(value: any, column: Column, row?: GridRow) {
   if (!row) return '';
   if (value === undefined || value === null) return '';
+  
   if (column.renderCell && row) {
     return column.renderCell(value, row);
   }

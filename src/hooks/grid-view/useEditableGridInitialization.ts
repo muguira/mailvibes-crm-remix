@@ -51,8 +51,24 @@ export const useEditableGridInitialization = (
 
       // Check if we need to initialize (user changed or first time)
       const userId = user?.id || null
-      if (hasInitializedRef.current && currentUserIdRef.current === userId) {
-        console.log('🔄 Grid already initialized for this user, skipping...')
+      const needsFullInitialization = !hasInitializedRef.current || currentUserIdRef.current !== userId
+
+      if (!needsFullInitialization) {
+        console.log('🔄 Grid already initialized for this user, but applying render functions...')
+
+        // Still need to apply render functions even if grid is initialized
+        if (renderNameLink && isMounted) {
+          const { columns, editableLeadsGridApplyRenderFunctions } = useStore.getState()
+          if (columns.length > 0) {
+            console.log('🔗 Applying render functions to existing columns (no full init needed)...')
+            editableLeadsGridApplyRenderFunctions(renderSocialLink, renderNameLink)
+          }
+        }
+
+        // Mark as initialized if not already
+        if (!isInitialized) {
+          setIsInitialized(true)
+        }
         return
       }
 
@@ -75,9 +91,19 @@ export const useEditableGridInitialization = (
           throw new Error('Grid initialization failed')
         }
 
-        // Step 2: Load stored columns with render functions (only if user is authenticated)
-        if (user && renderNameLink && isMounted) {
-          await editableLeadsGridLoadStoredColumns(user, renderSocialLink, renderNameLink)
+        // Step 2: Apply render functions to existing columns (always needed)
+        if (renderNameLink && isMounted) {
+          // First, apply renderCell functions to existing columns (from localStorage or default)
+          const { columns, editableLeadsGridApplyRenderFunctions } = useStore.getState()
+          if (columns.length > 0) {
+            console.log('🔗 Applying render functions to existing columns...')
+            editableLeadsGridApplyRenderFunctions(renderSocialLink, renderNameLink)
+          }
+
+          // Then, if user is authenticated, also load from Supabase for sync
+          if (user) {
+            await editableLeadsGridLoadStoredColumns(user, renderSocialLink, renderNameLink)
+          }
         }
 
         if (!isMounted) return

@@ -185,6 +185,7 @@ export interface TEditableLeadsGridStore {
   // Column persistence
   editableLeadsGridPersistColumns: (columns: Column[], user?: any) => Promise<void>
   editableLeadsGridLoadStoredColumns: (user?: any, renderSocialLink?: any, renderNameLink?: any) => Promise<void>
+  editableLeadsGridApplyRenderFunctions: (renderSocialLink?: any, renderNameLink?: any) => void
   editableLeadsGridSaveHiddenColumns: (columns: Column[]) => Promise<void>
   editableLeadsGridLoadHiddenColumns: (user?: any) => Promise<void>
 

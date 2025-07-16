@@ -17,46 +17,8 @@ import { GridRow } from "@/components/grid-view/types";
 import { mockContactsById } from "@/components/stream/sample-data";
 import { renderSocialLink } from "@/components/grid-view/RenderSocialLink";
 
-/**
- * Saves grid column configuration to localStorage for persistence across sessions
- * @param {Column[]} columns - Array of column configurations to save
- * @throws {Error} Logs error if localStorage is not available or save fails
- * @example
- * ```typescript
- * const columns = [{ id: 'name', title: 'Contact', type: 'text', width: 180 }];
- * saveColumnsToLocal(columns);
- * ```
- */
-export const saveColumnsToLocal = (columns: Column[]): void => {
-  try {
-    localStorage.setItem("grid-columns-v1", JSON.stringify(columns));
-  } catch (error) {
-    logger.error("Failed to save columns to localStorage:", error);
-  }
-};
-
-/**
- * Loads grid column configuration from localStorage
- * @returns {Column[] | null} Array of column configurations or null if not found/error
- * @example
- * ```typescript
- * const savedColumns = loadColumnsFromLocal();
- * if (savedColumns) {
- *   setColumns(savedColumns);
- * }
- * ```
- */
-export const loadColumnsFromLocal = (): Column[] | null => {
-  try {
-    const saved = localStorage.getItem("grid-columns-v1");
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch (error) {
-    logger.error("Failed to load columns from localStorage:", error);
-  }
-  return null;
-};
+// Note: Manual localStorage functions removed in favor of Zustand persist middleware
+// Columns are now automatically persisted via the main store's persist configuration
 
 /**
  * Loads grid column configuration from Supabase user settings
