@@ -1,78 +1,77 @@
-import { create } from 'zustand';
-import { supabase } from '@/integrations/supabase/client';
-import { LeadContact } from '@/components/stream/sample-data';
-import { logger } from '@/utils/logger';
+import { create } from 'zustand'
+import { supabase } from '@/integrations/supabase/client'
+import { LeadContact } from '@/components/stream/sample-data'
+import { logger } from '@/utils/logger'
 
 interface ContactsState {
   // Core data
-  cache: Record<string, LeadContact>;    // keyed by id
-  orderedIds: string[];                   // preserve sort order
-  
+  cache: Record<string, LeadContact> // keyed by id
+  orderedIds: string[] // preserve sort order
+
   // Loading states
-  loading: boolean;                       // initial batch loading
-  hasMore: boolean;                       // whether more chunks exist
-  totalCount: number;                     // total contacts in database
-  loadedCount: number;                    // contacts loaded so far
-  isBackgroundLoading: boolean;           // background loading active
-  isInitialized: boolean;                 // whether the store has been initialized
-  firstBatchLoaded: boolean;              // whether first 20 contacts are loaded
-  allContactsLoaded: boolean;             // whether all contacts have been loaded
-  
+  loading: boolean // initial batch loading
+  hasMore: boolean // whether more chunks exist
+  totalCount: number // total contacts in database
+  loadedCount: number // contacts loaded so far
+  isBackgroundLoading: boolean // background loading active
+  isInitialized: boolean // whether the store has been initialized
+  firstBatchLoaded: boolean // whether first 25 contacts are loaded
+  allContactsLoaded: boolean // whether all contacts have been loaded
+
   // Methods
-  fetchNext: () => Promise<void>;         // pulls the next chunk
-  initialize: (userId: string) => Promise<void>; // initial load
-  startBackgroundLoading: () => Promise<void>; // start background loading
-  pauseBackgroundLoading: () => void;     // pause background loading
-  resumeBackgroundLoading: () => void;    // resume background loading
-  clear: () => void;                      // clear cache
-  forceRefresh: () => Promise<void>;      // force refresh the cache
-  removeContacts: (contactIds: string[]) => void; // remove contacts from cache
-  restoreContacts: (contacts: LeadContact[]) => void; // restore contacts to cache
-  addContact: (contact: LeadContact) => void; // add a new contact to the cache
-  updateContact: (contactId: string, updates: Partial<LeadContact>) => void; // update a single contact in the cache
-  forceRefresh: () => Promise<void>; // force refresh - clear cache but keep user and deleted IDs, then reinitialize
-  
+  fetchNext: () => Promise<void> // pulls the next chunk
+  initialize: (userId: string) => Promise<void> // initial load
+  startBackgroundLoading: () => Promise<void> // start background loading
+  pauseBackgroundLoading: () => void // pause background loading
+  resumeBackgroundLoading: () => void // resume background loading
+  clear: () => void // clear cache
+  forceRefresh: () => Promise<void> // force refresh the cache
+  removeContacts: (contactIds: string[]) => void // remove contacts from cache
+  restoreContacts: (contacts: LeadContact[]) => void // restore contacts to cache
+  addContact: (contact: LeadContact) => void // add a new contact to the cache
+  updateContact: (contactId: string, updates: Partial<LeadContact>) => void // update a single contact in the cache
+
   // Internal state
-  _offset: number;                        // current offset for pagination
-  _userId: string | null;                 // current user ID
-  _chunkSize: number;                     // size of each chunk
-  _backgroundLoadingActive: boolean;      // track if background loading is running
-  _backgroundLoadingPaused: boolean;      // track if background loading is paused
-  _deletedContactIds: Set<string>;        // track deleted contacts to prevent re-adding
+  _offset: number // current offset for pagination
+  _userId: string | null // current user ID
+  _chunkSize: number // size of each chunk
+  _backgroundLoadingActive: boolean // track if background loading is running
+  _backgroundLoadingPaused: boolean // track if background loading is paused
+  _deletedContactIds: Set<string> // track deleted contacts to prevent re-adding
 }
 
-const FIRST_BATCH_SIZE = 20; // First batch - load immediately (optimized for one page view)
-const CHUNK_SIZE = 1000; // Background chunks
+const FIRST_BATCH_SIZE = 20 // First batch - load immediately (optimized for one page view)
+const CHUNK_SIZE = 1000 // Background chunks
 
 // Store the background loading promise outside of the store
-let backgroundLoadingPromise: Promise<void> | null = null;
-let initializationPromise: Promise<void> | null = null; // Track ongoing initialization
+let backgroundLoadingPromise: Promise<void> | null = null
+let initializationPromise: Promise<void> | null = null // Track ongoing initialization
 
 // Load deleted IDs from localStorage
 const loadDeletedIds = (): Set<string> => {
   try {
-    const stored = localStorage.getItem('deleted-contact-ids');
+    const stored = localStorage.getItem('deleted-contact-ids')
     if (stored) {
-      const ids = JSON.parse(stored);
-      logger.log(`Loaded ${ids.length} deleted contact IDs from localStorage`);
-      return new Set(ids);
+      const ids = JSON.parse(stored)
+      logger.log(`Loaded ${ids.length} deleted contact IDs from localStorage`)
+      return new Set(ids)
     }
   } catch (error) {
-    logger.error('Failed to load deleted contact IDs:', error);
+    logger.error('Failed to load deleted contact IDs:', error)
   }
-  return new Set<string>();
-};
+  return new Set<string>()
+}
 
 // Save deleted IDs to localStorage
 const saveDeletedIds = (deletedIds: Set<string>) => {
   try {
-    const deletedArray = Array.from(deletedIds);
-    localStorage.setItem('deleted-contact-ids', JSON.stringify(deletedArray));
-    logger.log(`Persisted ${deletedArray.length} deleted contact IDs to localStorage`);
+    const deletedArray = Array.from(deletedIds)
+    localStorage.setItem('deleted-contact-ids', JSON.stringify(deletedArray))
+    logger.log(`Persisted ${deletedArray.length} deleted contact IDs to localStorage`)
   } catch (error) {
-    logger.error('Failed to persist deleted contact IDs:', error);
+    logger.error('Failed to persist deleted contact IDs:', error)
   }
-};
+}
 
 export const useContactsStore = create<ContactsState>((set, get) => ({
   // Initial state
@@ -86,7 +85,7 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   isInitialized: false,
   firstBatchLoaded: false,
   allContactsLoaded: false,
-  
+
   // Internal state
   _offset: 0,
   _userId: null,
@@ -94,15 +93,15 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   _backgroundLoadingActive: false,
   _backgroundLoadingPaused: false,
   _deletedContactIds: loadDeletedIds(), // Load from localStorage
-  
+
   // Clear the cache - only called on logout
   clear: () => {
-    logger.log('[ContactsStore] Clear called - resetting entire store for logout');
-    
+    logger.log('[ContactsStore] Clear called - resetting entire store for logout')
+
     // Cancel any ongoing background loading
-    backgroundLoadingPromise = null;
-    initializationPromise = null;
-    
+    backgroundLoadingPromise = null
+    initializationPromise = null
+
     // Clear all data and reset to initial state
     set({
       cache: {},
@@ -121,23 +120,23 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
       _backgroundLoadingPaused: false,
       // Keep deleted IDs even after logout
       _deletedContactIds: get()._deletedContactIds,
-    });
+    })
   },
-  
+
   // Force refresh - clear cache but keep user and deleted IDs, then reinitialize
   forceRefresh: async () => {
-    const state = get();
-    const userId = state._userId;
-    const deletedIds = state._deletedContactIds;
-    
-    if (!userId) return;
-    
-    logger.log('[ContactsStore] Force refresh - clearing cache and reinitializing');
-    
+    const state = get()
+    const userId = state._userId
+    const deletedIds = state._deletedContactIds
+
+    if (!userId) return
+
+    logger.log('[ContactsStore] Force refresh - clearing cache and reinitializing')
+
     // Cancel any ongoing background loading
-    backgroundLoadingPromise = null;
-    initializationPromise = null;
-    
+    backgroundLoadingPromise = null
+    initializationPromise = null
+
     // Clear cache but keep user and deleted IDs
     set({
       cache: {},
@@ -155,65 +154,65 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
       _backgroundLoadingActive: false,
       _backgroundLoadingPaused: false,
       _deletedContactIds: deletedIds,
-    });
-    
+    })
+
     // Reinitialize with the same user
-    await get().initialize(userId);
+    await get().initialize(userId)
   },
-  
+
   // Remove contacts from cache
   removeContacts: (contactIds: string[]) => {
-    const state = get();
-    const contactIdSet = new Set(contactIds);
-    
-    logger.log(`[removeContacts] Removing ${contactIds.length} contacts from store`);
-    logger.log(`[removeContacts] Contact IDs to remove:`, contactIds);
-    
+    const state = get()
+    const contactIdSet = new Set(contactIds)
+
+    logger.log(`[removeContacts] Removing ${contactIds.length} contacts from store`)
+    logger.log(`[removeContacts] Contact IDs to remove:`, contactIds)
+
     // Create new cache without deleted contacts
-    const newCache = { ...state.cache };
+    const newCache = { ...state.cache }
     contactIds.forEach(id => {
-      delete newCache[id];
-    });
-    
+      delete newCache[id]
+    })
+
     // Filter out deleted contacts from orderedIds
-    const newOrderedIds = state.orderedIds.filter(id => !contactIdSet.has(id));
-    
+    const newOrderedIds = state.orderedIds.filter(id => !contactIdSet.has(id))
+
     // Update counts
-    const deletedCount = state.orderedIds.length - newOrderedIds.length;
-    const newLoadedCount = Math.max(0, state.loadedCount - deletedCount);
-    const newTotalCount = Math.max(0, state.totalCount - deletedCount);
-    
+    const deletedCount = state.orderedIds.length - newOrderedIds.length
+    const newLoadedCount = Math.max(0, state.loadedCount - deletedCount)
+    const newTotalCount = Math.max(0, state.totalCount - deletedCount)
+
     // Add deleted IDs to the tracking set
-    const newDeletedIds = new Set(state._deletedContactIds);
-    contactIds.forEach(id => newDeletedIds.add(id));
-    
-    logger.log(`[removeContacts] Total deleted IDs tracked: ${newDeletedIds.size}`);
-    
+    const newDeletedIds = new Set(state._deletedContactIds)
+    contactIds.forEach(id => newDeletedIds.add(id))
+
+    logger.log(`[removeContacts] Total deleted IDs tracked: ${newDeletedIds.size}`)
+
     // Persist deleted IDs to localStorage
-    saveDeletedIds(newDeletedIds);
-    
+    saveDeletedIds(newDeletedIds)
+
     set({
       cache: newCache,
       orderedIds: newOrderedIds,
       loadedCount: newLoadedCount,
       totalCount: newTotalCount,
-      _deletedContactIds: newDeletedIds
-    });
-    
-    logger.log(`[removeContacts] Successfully removed ${deletedCount} contacts from store`);
-    logger.log(`[removeContacts] New counts - loaded: ${newLoadedCount}, total: ${newTotalCount}`);
+      _deletedContactIds: newDeletedIds,
+    })
+
+    logger.log(`[removeContacts] Successfully removed ${deletedCount} contacts from store`)
+    logger.log(`[removeContacts] New counts - loaded: ${newLoadedCount}, total: ${newTotalCount}`)
   },
-  
+
   // Initialize with first batch of data
   initialize: async (userId: string) => {
     // If there's already an ongoing initialization, return it
     if (initializationPromise) {
-      console.log('[ContactsStore] Initialization already in progress, waiting for it to complete');
-      return initializationPromise;
+      console.log('[ContactsStore] Initialization already in progress, waiting for it to complete')
+      return initializationPromise
     }
-    
-    const state = get();
-    
+
+    const state = get()
+
     logger.log(`Initialize called for user ${userId}. Current state:`, {
       currentUserId: state._userId,
       hasData: state.orderedIds.length > 0,
@@ -223,87 +222,89 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
       isBackgroundLoading: state._backgroundLoadingActive,
       isInitialized: state.isInitialized,
       firstBatchLoaded: state.firstBatchLoaded,
-      allContactsLoaded: state.allContactsLoaded
-    });
-    
+      allContactsLoaded: state.allContactsLoaded,
+    })
+
     // If already initialized for this user and we have the first batch, just resume background loading if needed
     if (state._userId === userId && state.isInitialized && state.firstBatchLoaded) {
-      logger.log('Store already initialized for this user with first batch loaded');
-      
+      logger.log('Store already initialized for this user with first batch loaded')
+
       // If we haven't loaded all contacts yet and not currently loading, resume background loading
       if (!state.allContactsLoaded && state.hasMore && !state._backgroundLoadingActive) {
-        logger.log('Resuming background loading for remaining contacts...');
-        get().startBackgroundLoading();
+        logger.log('Resuming background loading for remaining contacts...')
+        get().startBackgroundLoading()
       } else if (state.allContactsLoaded) {
-        logger.log('All contacts already loaded, no need to reload');
+        logger.log('All contacts already loaded, no need to reload')
       } else if (state._backgroundLoadingActive) {
-        logger.log('Background loading already active');
+        logger.log('Background loading already active')
       }
-      return;
+      return
     }
-    
+
     // If switching users, clear everything
     if (state._userId && state._userId !== userId) {
-      logger.log(`Switching users from ${state._userId} to ${userId}, clearing store`);
-      get().clear();
+      logger.log(`Switching users from ${state._userId} to ${userId}, clearing store`)
+      get().clear()
     }
-    
-    logger.log(`Starting fresh initialization for user ${userId}`);
-    
+
+    logger.log(`Starting fresh initialization for user ${userId}`)
+
     // Create and track the initialization promise
     initializationPromise = (async () => {
-      set({ _userId: userId, loading: true });
-      
+      set({ _userId: userId, loading: true })
+
       // Start timing the initial load
-      const initStartTime = performance.now();
-      logger.log(`[PERF] Starting initial load of first ${FIRST_BATCH_SIZE} contacts...`);
-      
+      const initStartTime = performance.now()
+      logger.log(`[PERF] Starting initial load of first ${FIRST_BATCH_SIZE} contacts...`)
+
       try {
         // Get total count first
-        const countStartTime = performance.now();
+        const countStartTime = performance.now()
         const { count } = await supabase
           .from('contacts')
           .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId);
-        
-        const countEndTime = performance.now();
-        logger.log(`[PERF] Count query completed in ${(countEndTime - countStartTime).toFixed(2)}ms`);
-        logger.log(`Total contacts in database: ${count || 0}`);
-        set({ totalCount: count || 0 });
-        
+          .eq('user_id', userId)
+
+        const countEndTime = performance.now()
+        logger.log(`[PERF] Count query completed in ${(countEndTime - countStartTime).toFixed(2)}ms`)
+        logger.log(`Total contacts in database: ${count || 0}`)
+        set({ totalCount: count || 0 })
+
         // Fetch first batch (100 contacts for faster initial load)
-        const fetchStartTime = performance.now();
+        const fetchStartTime = performance.now()
         const { data, error } = await supabase
           .from('contacts')
-          .select('id, name, email, phone, company, status, data')  // Removed user_id, created_at, updated_at for faster query
+          .select('id, name, email, phone, company, status, data') // Removed user_id, created_at, updated_at for faster query
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
-          .range(0, FIRST_BATCH_SIZE - 1); // First 100 rows
-        
-        const fetchEndTime = performance.now();
-        logger.log(`[PERF] First batch query completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
-        
-        if (error) throw error;
-        
+          .range(0, FIRST_BATCH_SIZE - 1) // First 100 rows
+
+        const fetchEndTime = performance.now()
+        logger.log(`[PERF] First batch query completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`)
+
+        if (error) throw error
+
         if (data && data.length > 0) {
-          const processStartTime = performance.now();
-          const cache: Record<string, LeadContact> = {};
-          const orderedIds: string[] = [];
-          const currentDeletedIds = get()._deletedContactIds;
-          
-          logger.log(`[Initialize] Processing ${data.length} contacts with ${currentDeletedIds.size} deleted IDs to filter`);
-          
-          let skippedCount = 0;
-          
+          const processStartTime = performance.now()
+          const cache: Record<string, LeadContact> = {}
+          const orderedIds: string[] = []
+          const currentDeletedIds = get()._deletedContactIds
+
+          logger.log(
+            `[Initialize] Processing ${data.length} contacts with ${currentDeletedIds.size} deleted IDs to filter`,
+          )
+
+          let skippedCount = 0
+
           // Process contacts
           data.forEach(contact => {
             // Skip if this contact has been deleted
             if (currentDeletedIds.has(contact.id)) {
-              logger.log(`[Initialize] Skipping deleted contact: ${contact.id}`);
-              skippedCount++;
-              return;
+              logger.log(`[Initialize] Skipping deleted contact: ${contact.id}`)
+              skippedCount++
+              return
             }
-            
+
             const leadContact: LeadContact = {
               id: contact.id,
               name: contact.name || '',
@@ -313,20 +314,20 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
               status: contact.status || '',
               importListName: contact.data?.importListName || '',
               importOrder: contact.data?.importOrder,
-              ...(contact.data || {})
-            };
-            
-            cache[contact.id] = leadContact;
-            orderedIds.push(contact.id);
-          });
-          
-          const processEndTime = performance.now();
-          logger.log(`[PERF] Contact processing completed in ${(processEndTime - processStartTime).toFixed(2)}ms`);
-          logger.log(`[Initialize] Loaded ${orderedIds.length} contacts, skipped ${skippedCount} deleted contacts`);
-          
-          const hasMoreContacts = (count || 0) > FIRST_BATCH_SIZE;
-          const allLoaded = !hasMoreContacts;
-          
+              ...(contact.data || {}),
+            }
+
+            cache[contact.id] = leadContact
+            orderedIds.push(contact.id)
+          })
+
+          const processEndTime = performance.now()
+          logger.log(`[PERF] Contact processing completed in ${(processEndTime - processStartTime).toFixed(2)}ms`)
+          logger.log(`[Initialize] Loaded ${orderedIds.length} contacts, skipped ${skippedCount} deleted contacts`)
+
+          const hasMoreContacts = (count || 0) > FIRST_BATCH_SIZE
+          const allLoaded = !hasMoreContacts
+
           set({
             cache,
             orderedIds,
@@ -336,154 +337,167 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
             loading: false,
             isInitialized: true,
             firstBatchLoaded: true,
-            allContactsLoaded: allLoaded
-          });
-          
-          const totalInitTime = performance.now() - initStartTime;
-          logger.log(`[PERF] ✅ Initial load completed in ${totalInitTime.toFixed(2)}ms`);
+            allContactsLoaded: allLoaded,
+          })
+
+          const totalInitTime = performance.now() - initStartTime
+          logger.log(`[PERF] ✅ Initial load completed in ${totalInitTime.toFixed(2)}ms`)
           if (totalInitTime > 400) {
-            logger.warn(`[PERF] ⚠️ Initial load took ${totalInitTime.toFixed(2)}ms - exceeds 400ms target!`);
+            logger.warn(`[PERF] ⚠️ Initial load took ${totalInitTime.toFixed(2)}ms - exceeds 400ms target!`)
           } else {
-            logger.log(`[PERF] 🚀 Initial load met performance target (<400ms)`);
+            logger.log(`[PERF] 🚀 Initial load met performance target (<400ms)`)
           }
-          
-          logger.log(`Loaded first batch: ${orderedIds.length} contacts (after filtering deleted)`);
-          logger.log(`Has more contacts: ${hasMoreContacts}, All loaded: ${allLoaded}`);
-          
+
+          logger.log(`Loaded first batch: ${orderedIds.length} contacts (after filtering deleted)`)
+          logger.log(`Has more contacts: ${hasMoreContacts}, All loaded: ${allLoaded}`)
+
           // Start background loading for remaining contacts if there are more
           if (hasMoreContacts) {
-            logger.log('Starting background loading for remaining contacts (21 onwards)...');
+            logger.log('Starting background loading for remaining contacts (21 onwards)...')
             // Small delay to let UI render first batch
             setTimeout(() => {
-              get().startBackgroundLoading();
-            }, 500);
+              get().startBackgroundLoading()
+            }, 100)
           }
         } else {
-          const totalInitTime = performance.now() - initStartTime;
-          logger.log(`[PERF] No contacts found. Total time: ${totalInitTime.toFixed(2)}ms`);
-          set({ 
-            loading: false, 
-            hasMore: false, 
+          const totalInitTime = performance.now() - initStartTime
+          logger.log(`[PERF] No contacts found. Total time: ${totalInitTime.toFixed(2)}ms`)
+          set({
+            loading: false,
+            hasMore: false,
             isInitialized: true,
             firstBatchLoaded: true,
-            allContactsLoaded: true
-          });
+            allContactsLoaded: true,
+          })
         }
       } catch (error) {
-        const totalInitTime = performance.now() - initStartTime;
-        logger.error(`[PERF] Failed to initialize (${totalInitTime.toFixed(2)}ms):`, error);
-        logger.error('Failed to initialize contacts store:', error);
-        set({ 
-          loading: false, 
-          hasMore: false, 
-          isInitialized: true 
-        });
+        const totalInitTime = performance.now() - initStartTime
+        logger.error(`[PERF] Failed to initialize (${totalInitTime.toFixed(2)}ms):`, error)
+        logger.error('Failed to initialize contacts store:', error)
+        set({
+          loading: false,
+          hasMore: false,
+          isInitialized: true,
+        })
       }
-    })();
-    
+    })()
+
     // Wait for initialization to complete and then clear the promise
     try {
-      await initializationPromise;
+      await initializationPromise
     } finally {
-      initializationPromise = null;
+      initializationPromise = null
     }
   },
-  
+
   // Start background loading process
   startBackgroundLoading: async () => {
-    const state = get();
-    
+    const state = get()
+
     // Don't start if already loaded all contacts
     if (state.allContactsLoaded) {
-      logger.log('All contacts already loaded, skipping background loading');
-      return;
+      logger.log('All contacts already loaded, skipping background loading')
+      return
     }
-    
+
     // If paused, background loading is disabled, or already loading, return
     if (state._backgroundLoadingPaused || state._backgroundLoadingActive || !state.hasMore || !state._userId) {
-      return backgroundLoadingPromise || Promise.resolve();
+      return backgroundLoadingPromise || Promise.resolve()
     }
-    
+
     // If we already have a background loading promise, return it
     if (backgroundLoadingPromise) {
-      return backgroundLoadingPromise;
+      return backgroundLoadingPromise
     }
-    
-    set({ _backgroundLoadingActive: true, isBackgroundLoading: true });
-    
+
+    set({ _backgroundLoadingActive: true, isBackgroundLoading: true })
+
     // Create the background loading promise
     backgroundLoadingPromise = (async () => {
       try {
-        logger.log('Starting background loading of remaining contacts...');
-        
+        logger.log('Starting background loading of remaining contacts...')
+
         // Keep loading while there's more data and not paused
-        while (get().hasMore && get()._userId === state._userId && !get()._backgroundLoadingPaused && !get().allContactsLoaded) {
-          await get().fetchNext();
-          
+        while (
+          get().hasMore &&
+          get()._userId === state._userId &&
+          !get()._backgroundLoadingPaused &&
+          !get().allContactsLoaded
+        ) {
+          await get().fetchNext()
+
           // Small delay between chunks to keep UI responsive
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 100))
         }
-        
-        const finalState = get();
+
+        const finalState = get()
         if (!finalState.hasMore) {
-          set({ allContactsLoaded: true });
-          logger.log(`Background loading complete! All ${finalState.loadedCount} contacts loaded.`);
+          set({ allContactsLoaded: true })
+          logger.log(`Background loading complete! All ${finalState.loadedCount} contacts loaded.`)
         } else {
-          logger.log('Background loading paused or stopped');
+          logger.log('Background loading paused or stopped')
         }
       } catch (error) {
-        logger.error('Background loading error:', error);
+        logger.error('Background loading error:', error)
       } finally {
-        set({ _backgroundLoadingActive: false, isBackgroundLoading: false });
-        backgroundLoadingPromise = null;
+        set({ _backgroundLoadingActive: false, isBackgroundLoading: false })
+        backgroundLoadingPromise = null
       }
-    })();
-    
-    return backgroundLoadingPromise;
+    })()
+
+    return backgroundLoadingPromise
   },
-  
+
   // Fetch next chunk of data
   fetchNext: async () => {
-    const state = get();
-    
+    const state = get()
+
     // Check if paused or other conditions that should stop loading
-    if (state._backgroundLoadingPaused || state.loading || !state.hasMore || !state._userId || state.allContactsLoaded) {
-      return;
+    if (
+      state._backgroundLoadingPaused ||
+      state.loading ||
+      !state.hasMore ||
+      !state._userId ||
+      state.allContactsLoaded
+    ) {
+      return
     }
-    
-    set({ loading: true });
-    
+
+    set({ loading: true })
+
     try {
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, name, email, phone, company, status, data')  // Match the fields from initial load
+        .select('id, name, email, phone, company, status, data') // Match the fields from initial load
         .eq('user_id', state._userId)
         .order('created_at', { ascending: false })
-        .range(state._offset, state._offset + state._chunkSize - 1);
-      
-      if (error) throw error;
-      
+        .range(state._offset, state._offset + state._chunkSize - 1)
+
+      if (error) throw error
+
       if (data && data.length > 0) {
         // IMPORTANT: Get the latest state to ensure we have the most recent deleted IDs
-        const latestState = get();
-        const newCache = { ...latestState.cache };
-        const newOrderedIds = [...latestState.orderedIds];
-        const currentDeletedIds = latestState._deletedContactIds;
-        
-        logger.log(`[Background Load] Processing ${data.length} contacts, ${currentDeletedIds.size} deleted IDs tracked`);
-        
-        let addedCount = 0;
-        let skippedCount = 0;
-        
+        const latestState = get()
+        const newCache = { ...latestState.cache }
+        const newOrderedIds = [...latestState.orderedIds]
+        const currentDeletedIds = latestState._deletedContactIds
+
+        logger.log(
+          `[Background Load] Processing ${data.length} contacts, ${currentDeletedIds.size} deleted IDs tracked`,
+        )
+
+        let addedCount = 0
+        let skippedCount = 0
+
         // Process new contacts
         data.forEach(contact => {
           // Skip if this contact has been deleted
           if (currentDeletedIds.has(contact.id)) {
-            logger.log(`[Background Load] Skipping deleted contact: ${contact.id}`);
-            skippedCount++;
-            return;
+            logger.log(`[Background Load] Skipping deleted contact: ${contact.id}`)
+            skippedCount++
+            return
           }
-          
+
           const leadContact: LeadContact = {
             id: contact.id,
             name: contact.name || '',
@@ -493,20 +507,20 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
             status: contact.status || '',
             importListName: contact.data?.importListName || '',
             importOrder: contact.data?.importOrder,
-            ...(contact.data || {})
-          };
-          
+            ...(contact.data || {}),
+          }
+
           // Only add if not already in cache
           if (!newCache[contact.id]) {
-            newCache[contact.id] = leadContact;
-            newOrderedIds.push(contact.id);
-            addedCount++;
+            newCache[contact.id] = leadContact
+            newOrderedIds.push(contact.id)
+            addedCount++
           }
-        });
-        
-        const newLoadedCount = latestState.loadedCount + addedCount;
-        const hasMore = data.length === state._chunkSize && newLoadedCount < latestState.totalCount;
-        
+        })
+
+        const newLoadedCount = latestState.loadedCount + addedCount
+        const hasMore = data.length === state._chunkSize && newLoadedCount < latestState.totalCount
+
         set({
           cache: newCache,
           orderedIds: newOrderedIds,
@@ -514,200 +528,164 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
           _offset: state._offset + state._chunkSize,
           hasMore,
           loading: false,
-          allContactsLoaded: !hasMore
-        });
-        
-        logger.log(`[Background Load] Loaded chunk: ${addedCount} new contacts, ${skippedCount} skipped (total: ${newLoadedCount}/${latestState.totalCount})`);
+          allContactsLoaded: !hasMore,
+        })
+
+        logger.log(
+          `[Background Load] Loaded chunk: ${addedCount} new contacts, ${skippedCount} skipped (total: ${newLoadedCount}/${latestState.totalCount})`,
+        )
       } else {
-        set({ 
-          hasMore: false, 
+        set({
+          hasMore: false,
           loading: false,
-          allContactsLoaded: true 
-        });
-        logger.log('No more contacts to load');
+          allContactsLoaded: true,
+        })
+        logger.log('No more contacts to load')
       }
     } catch (error) {
-      logger.error('Failed to fetch next chunk:', error);
-      
+      logger.error('Failed to fetch next chunk:', error)
+
       // If it's a timeout error, adjust strategy
       if (error.code === '57014' || error.message?.includes('timeout')) {
-        logger.log('Database timeout detected, adjusting strategy');
-        
+        logger.log('Database timeout detected, adjusting strategy')
+
         // Only reduce chunk size if it's still large
-        const currentChunkSize = state._chunkSize;
+        const currentChunkSize = state._chunkSize
         if (currentChunkSize > 500) {
-          const newChunkSize = Math.max(500, Math.floor(currentChunkSize * 0.75)); // Reduce by 25%, minimum 500
-          set({ 
+          const newChunkSize = Math.max(500, Math.floor(currentChunkSize * 0.75)) // Reduce by 25%, minimum 500
+          set({
             _chunkSize: newChunkSize,
-            loading: false
-          });
-          logger.log(`Reduced chunk size from ${currentChunkSize} to ${newChunkSize}`);
+            loading: false,
+          })
+          logger.log(`Reduced chunk size from ${currentChunkSize} to ${newChunkSize}`)
         } else {
           // If chunk size is already small, just pause briefly
-          set({ loading: false });
+          set({ loading: false })
         }
-        
+
         // Add a small delay before next attempt
-        await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
-        
+        await new Promise(resolve => setTimeout(resolve, 2000)) // 2 second delay
       } else {
-        set({ loading: false });
+        set({ loading: false })
       }
     }
   },
-  
+
   // Restore contacts to cache (used when database operation fails)
   restoreContacts: (contacts: LeadContact[]) => {
-    const state = get();
-    const newCache = { ...state.cache };
-    const newOrderedIds = [...state.orderedIds];
-    const newDeletedIds = new Set(state._deletedContactIds);
-    
+    const state = get()
+    const newCache = { ...state.cache }
+    const newOrderedIds = [...state.orderedIds]
+    const newDeletedIds = new Set(state._deletedContactIds)
+
     contacts.forEach(contact => {
       // Add contact back to cache
-      newCache[contact.id] = contact;
-      
+      newCache[contact.id] = contact
+
       // Add back to ordered IDs if not already present
       if (!newOrderedIds.includes(contact.id)) {
-        newOrderedIds.unshift(contact.id); // Add to beginning
+        newOrderedIds.unshift(contact.id) // Add to beginning
       }
-      
+
       // Remove from deleted tracking set
-      newDeletedIds.delete(contact.id);
-    });
-    
+      newDeletedIds.delete(contact.id)
+    })
+
     // Update deleted IDs in localStorage
-    saveDeletedIds(newDeletedIds);
-    
+    saveDeletedIds(newDeletedIds)
+
     set({
       cache: newCache,
       orderedIds: newOrderedIds,
       loadedCount: state.loadedCount + contacts.length,
       totalCount: state.totalCount + contacts.length,
-      _deletedContactIds: newDeletedIds
-    });
-    
-    logger.log(`Restored ${contacts.length} contacts to store`);
+      _deletedContactIds: newDeletedIds,
+    })
+
+    logger.log(`Restored ${contacts.length} contacts to store`)
   },
-  
+
   // Add a new contact to the cache
   addContact: (contact: LeadContact) => {
-    const state = get();
-    
+    const state = get()
+
     // Skip if this contact ID is in the deleted set
     if (state._deletedContactIds.has(contact.id)) {
-      logger.warn(`[addContact] Contact ${contact.id} is in deleted set, not adding`);
-      return;
+      logger.warn(`[addContact] Contact ${contact.id} is in deleted set, not adding`)
+      return
     }
-    
+
     // Skip if this contact is already in the cache
     if (state.cache[contact.id]) {
-      logger.warn(`[addContact] Contact ${contact.id} already exists in cache, not adding duplicate`);
-      return;
+      logger.warn(`[addContact] Contact ${contact.id} already exists in cache, not adding duplicate`)
+      return
     }
-    
-    logger.log(`[addContact] Adding new contact: ${contact.name} (${contact.id})`);
-    
+
+    logger.log(`[addContact] Adding new contact: ${contact.name} (${contact.id})`)
+
     // Create new cache and ordered IDs with the new contact at the beginning
-    const newCache = { ...state.cache, [contact.id]: contact };
-    const newOrderedIds = [contact.id, ...state.orderedIds];
-    
+    const newCache = { ...state.cache, [contact.id]: contact }
+    const newOrderedIds = [contact.id, ...state.orderedIds]
+
     set({
       cache: newCache,
       orderedIds: newOrderedIds,
       loadedCount: state.loadedCount + 1,
-      totalCount: state.totalCount + 1
-    });
-    
-    logger.log(`[addContact] Successfully added contact to store. New count: ${state.loadedCount + 1}`);
+      totalCount: state.totalCount + 1,
+    })
+
+    logger.log(`[addContact] Successfully added contact to store. New count: ${state.loadedCount + 1}`)
   },
 
   // Update a single contact in the cache
   updateContact: (contactId: string, updates: Partial<LeadContact>) => {
-    const state = get();
-    
+    const state = get()
+
     // Skip if this contact ID is in the deleted set
     if (state._deletedContactIds.has(contactId)) {
-      logger.warn(`[updateContact] Contact ${contactId} is in deleted set, not updating`);
-      return;
+      logger.warn(`[updateContact] Contact ${contactId} is in deleted set, not updating`)
+      return
     }
-    
+
     // Skip if this contact is not in the cache
     if (!state.cache[contactId]) {
-      logger.warn(`[updateContact] Contact ${contactId} not found in cache, cannot update`);
-      return;
+      logger.warn(`[updateContact] Contact ${contactId} not found in cache, cannot update`)
+      return
     }
-    
-    logger.log(`[updateContact] Updating contact: ${contactId}`, updates);
-    
+
+    logger.log(`[updateContact] Updating contact: ${contactId}`, updates)
+
     // Create new cache with the updated contact
-    const newCache = { 
-      ...state.cache, 
-      [contactId]: { 
-        ...state.cache[contactId], 
-        ...updates 
-      } 
-    };
-    
+    const newCache = {
+      ...state.cache,
+      [contactId]: {
+        ...state.cache[contactId],
+        ...updates,
+      },
+    }
+
     set({
-      cache: newCache
-    });
-    
-    logger.log(`[updateContact] Successfully updated contact in store`);
+      cache: newCache,
+    })
+
+    logger.log(`[updateContact] Successfully updated contact in store`)
   },
-  
+
   // Pause background loading
   pauseBackgroundLoading: () => {
-    logger.log('[ContactsStore] Pausing background loading');
-    set({ _backgroundLoadingPaused: true });
+    logger.log('[ContactsStore] Pausing background loading')
+    set({ _backgroundLoadingPaused: true })
   },
-  
+
   // Resume background loading
   resumeBackgroundLoading: () => {
-    const state = get();
-    logger.log('[ContactsStore] Resuming background loading');
-    set({ _backgroundLoadingPaused: false });
-    
+    const state = get()
+    logger.log('[ContactsStore] Resuming background loading')
+    set({ _backgroundLoadingPaused: false })
+
     // If we have more to load and not currently loading, restart background loading
     if (state.hasMore && !state._backgroundLoadingActive && state._userId && !state.allContactsLoaded) {
-      get().startBackgroundLoading();
+      get().startBackgroundLoading()
     }
   },
-  
-  // Force refresh - clear cache but keep user and deleted IDs, then reinitialize
-  forceRefresh: async () => {
-    const state = get();
-    const userId = state._userId;
-    const deletedIds = state._deletedContactIds;
-    
-    if (!userId) return;
-    
-    logger.log('[ContactsStore] Force refresh - clearing cache and reinitializing');
-    
-    // Cancel any ongoing background loading
-    backgroundLoadingPromise = null;
-    initializationPromise = null;
-    
-    // Clear cache but keep user and deleted IDs
-    set({
-      cache: {},
-      orderedIds: [],
-      loading: false,
-      hasMore: true,
-      totalCount: 0,
-      loadedCount: 0,
-      isBackgroundLoading: false,
-      isInitialized: false,
-      firstBatchLoaded: false,
-      allContactsLoaded: false,
-      _offset: 0,
-      _userId: userId,
-      _backgroundLoadingActive: false,
-      _backgroundLoadingPaused: false,
-      _deletedContactIds: deletedIds,
-    });
-    
-    // Reinitialize with the same user
-    await get().initialize(userId);
-  }
-})); 
+}))

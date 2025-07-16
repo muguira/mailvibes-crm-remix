@@ -10,6 +10,7 @@ import {
 import { TAuthStore } from "./auth";
 import { TGmailAuthStore } from "./gmail";
 import { TContactProfileStore } from "./contact-profile";
+import { TEditableLeadsGridStore } from "./editable-leads-grid";
 
 // =============================================
 // STORE PRINCIPAL DE LA APLICACIÓN
@@ -18,7 +19,8 @@ import { TContactProfileStore } from "./contact-profile";
 export type TStore = TTaskStore &
   TAuthStore &
   TGmailAuthStore &
-  TContactProfileStore;
+  TContactProfileStore &
+  TEditableLeadsGridStore;
 
 export interface ITask {
   id: string;
