@@ -60,29 +60,30 @@ export function DeleteColumnDialog({
             </div>
             <AlertDialogTitle className="text-xl">Delete Column</AlertDialogTitle>
           </div>
-          <AlertDialogDescription className="mt-4 space-y-3">
-            <p>
-              Are you sure you want to delete the column <strong>"{columnName}"</strong>?
-            </p>
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-              <p className="font-semibold mb-1">⚠️ This action is permanent and cannot be undone.</p>
-              <p>All data in this column will be permanently deleted.</p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium">
-                To confirm, type <span className="font-mono bg-gray-100 px-1 py-0.5 rounded">DELETE</span> below:
-              </p>
-              <Input
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type DELETE to confirm"
-                className="font-mono"
-                autoFocus
-              />
-            </div>
+          <AlertDialogDescription className="mt-4">
+            Are you sure you want to delete the column <strong>"{columnName}"</strong>?
           </AlertDialogDescription>
         </AlertDialogHeader>
+        
+        <div className="space-y-3 pb-4">
+          <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+            <div className="font-semibold mb-1">⚠️ This action is permanent and cannot be undone.</div>
+            <div>All data in this column will be permanently deleted.</div>
+          </div>
+          <div className="space-y-2">
+            <div className="text-sm font-medium">
+              To confirm, type <span className="font-mono bg-gray-100 px-1 py-0.5 rounded">DELETE</span> below:
+            </div>
+            <Input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type DELETE to confirm"
+              className="font-mono"
+              autoFocus
+            />
+          </div>
+        </div>
         <AlertDialogFooter>
           <Button variant="outline" onClick={handleClose}>
             Cancel
