@@ -41,7 +41,7 @@ export const useStore = create<TStore>()(
           // Persist EditableLeadsGrid state
           columns: state.columns,
           activeFilters: state.activeFilters,
-          deletedColumnIds: state.deletedColumnIds,
+          deletedColumnIds: Array.from(state.deletedColumnIds || new Set()), // Convert Set to Array for JSON serialization
           searchTerm: state.searchTerm,
           hiddenColumns: state.hiddenColumns,
 
@@ -54,6 +54,7 @@ export const useStore = create<TStore>()(
           columnsCount: persistedState.columns.length,
           columnIds: persistedState.columns.map(c => c.id),
           activeFilters: persistedState.activeFilters,
+          deletedColumnIds: persistedState.deletedColumnIds,
         })
 
         return persistedState
@@ -83,9 +84,22 @@ export const useStore = create<TStore>()(
           if (error) {
             console.error('🚨 Zustand persist - rehydration failed:', error)
           } else {
+            // Convert deletedColumnIds array back to Set after rehydration
+            if (state && state.deletedColumnIds) {
+              if (Array.isArray(state.deletedColumnIds)) {
+                state.deletedColumnIds = new Set(state.deletedColumnIds)
+              } else if (!(state.deletedColumnIds instanceof Set)) {
+                // Handle any other cases where it might not be a Set
+                state.deletedColumnIds = new Set()
+              }
+            } else if (state) {
+              state.deletedColumnIds = new Set()
+            }
+
             console.log('✅ Zustand persist - rehydration completed:', {
               columnsCount: state?.columns?.length || 0,
               columnIds: state?.columns?.map(c => c.id) || [],
+              deletedColumnIds: state?.deletedColumnIds ? Array.from(state.deletedColumnIds) : [],
               fullState: !!state,
             })
           }
