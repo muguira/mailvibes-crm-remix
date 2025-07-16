@@ -24,7 +24,7 @@ import type {
 } from '@/types/store/editable-leads-grid'
 import { Column } from '@/components/grid-view/types'
 import { INITIAL_EDITABLE_LEADS_GRID_STATE } from '@/constants/store/editable-leads-grid'
-import { getDefaultColumns, saveColumnsToLocal, loadColumnsFromLocal, loadColumnsFromSupabase } from '@/helpers/grid'
+import { getDefaultColumns, loadColumnsFromSupabase } from '@/helpers/grid'
 import { logger } from '@/utils/logger'
 import { DEFAULT_COLUMN_WIDTH, MOBILE_COLUMN_WIDTH } from '@/components/grid-view/grid-constants'
 
@@ -754,12 +754,17 @@ export const useEditableLeadsGridSlice: StateCreator<
         console.warn('Failed to load deleted column IDs:', error)
       }
 
-      // Load default columns during initialization
-      const defaultColumns = getDefaultColumns()
-      set(state => {
-        state.columns = defaultColumns
-      })
-      console.log('📋 Loaded default columns during initialization:', defaultColumns.length)
+      // Load default columns only if no columns exist (respect persisted columns)
+      const currentColumns = get().columns
+      if (currentColumns.length === 0) {
+        const defaultColumns = getDefaultColumns()
+        set(state => {
+          state.columns = defaultColumns
+        })
+        console.log('📋 Loaded default columns during initialization:', defaultColumns.length)
+      } else {
+        console.log('✅ Keeping existing persisted columns during initialization:', currentColumns.length)
+      }
 
       // Initialize timestamp
       set({
@@ -877,17 +882,28 @@ export const useEditableLeadsGridSlice: StateCreator<
         state.columns = newColumns
       })
 
-      // Save to localStorage immediately for fast access
-      saveColumnsToLocal(newColumns)
+      // Note: localStorage persistence is now handled automatically by Zustand persist middleware
 
       // Save to Supabase for persistence across devices
       if (user) {
         const { supabase } = await import('@/integrations/supabase/client')
-        await supabase.from('user_settings' as any).upsert({
-          user_id: user.id,
-          setting_key: 'grid_columns',
-          setting_value: newColumns,
-        })
+        const { error } = await supabase.from('user_settings' as any).upsert(
+          {
+            user_id: user.id,
+            setting_key: 'grid_columns',
+            setting_value: newColumns,
+          },
+          {
+            onConflict: 'user_id,setting_key',
+          },
+        )
+
+        if (error) {
+          logger.error('Supabase upsert error:', error)
+          throw new Error(`Supabase sync failed: ${error.message}`)
+        } else {
+          logger.log('✅ Columns synced to Supabase successfully')
+        }
       }
     } catch (error) {
       logger.error('Error persisting columns:', error)
@@ -909,24 +925,37 @@ export const useEditableLeadsGridSlice: StateCreator<
    */
   editableLeadsGridLoadStoredColumns: async (user?: any, renderSocialLink?: any, renderNameLink?: any) => {
     try {
-      // First try localStorage to avoid unnecessary network requests
-      let storedColumns: Column[] | null = loadColumnsFromLocal()
+      // Note: localStorage is now handled automatically by Zustand persist middleware
+      // We only need to load from Supabase for cross-device synchronization
+      let storedColumns: Column[] | null = null
 
-      // Only try Supabase if no local storage and user is authenticated
-      if (!storedColumns && user) {
+      // Try Supabase if user is authenticated
+      if (user) {
         storedColumns = await loadColumnsFromSupabase(user)
       }
 
-      // If we found stored columns, use them; otherwise use current columns with render functions
+      // Smart priority logic: Compare localStorage vs Supabase
       let columnsToUse: Column[]
       const currentColumns = get().columns
+      const hasPersistedColumns = currentColumns.length > 0
+      const hasSupabaseColumns = storedColumns && storedColumns.length > 0
 
-      if (storedColumns && storedColumns.length > 0) {
-        console.log('✅ Using stored columns:', storedColumns.length)
+      if (hasPersistedColumns && hasSupabaseColumns) {
+        // Both exist - for now, prefer Supabase (could add timestamp comparison later)
+        console.log(
+          '🔄 Both localStorage and Supabase have columns, using Supabase for consistency:',
+          storedColumns.length,
+        )
+        columnsToUse = storedColumns
+      } else if (hasPersistedColumns) {
+        console.log('✅ Using persisted columns from localStorage (via Zustand persist):', currentColumns.length)
+        columnsToUse = currentColumns
+      } else if (hasSupabaseColumns) {
+        console.log('✅ Using Supabase stored columns:', storedColumns.length)
         columnsToUse = storedColumns
       } else {
-        console.log('📋 No stored columns found, adding render functions to current columns')
-        columnsToUse = currentColumns.length > 0 ? currentColumns : getDefaultColumns()
+        console.log('📋 No stored columns found, using default columns')
+        columnsToUse = getDefaultColumns()
       }
 
       // Filter out deleted columns
@@ -939,17 +968,24 @@ export const useEditableLeadsGridSlice: StateCreator<
         deletedIds: Array.from(deletedColumnIds),
       })
 
-      // Ensure renderCell functions are preserved for social links
+      // ALWAYS ensure renderCell functions are applied (critical for links to work)
+      // This fixes the issue where Supabase columns lose renderCell functions during serialization
       const columnsWithRenderFunctions = filteredColumns.map(col => {
+        // Apply social link renderer for social media columns
         if (['facebook', 'instagram', 'linkedin', 'twitter'].includes(col.id) && renderSocialLink) {
+          console.log(`🔗 Applying renderSocialLink to column: ${col.id}`)
           return { ...col, renderCell: renderSocialLink }
         }
+
+        // Apply name link renderer for contact name column (CRITICAL FIX)
         if (col.id === 'name' && renderNameLink) {
+          console.log('🔗 Applying renderNameLink to name column - this enables contact links')
           return {
             ...col,
             renderCell: renderNameLink,
           }
         }
+
         return col
       })
 
@@ -961,8 +997,19 @@ export const useEditableLeadsGridSlice: StateCreator<
       console.log('✅ Columns loaded successfully:', columnsWithRenderFunctions.length)
       console.log(
         '📋 Loaded columns:',
-        columnsWithRenderFunctions.map(col => ({ id: col.id, title: col.title })),
+        columnsWithRenderFunctions.map(col => ({ id: col.id, title: col.title, hasRenderCell: !!col.renderCell })),
       )
+
+      // Verify that the name column has renderCell function
+      const nameColumn = columnsWithRenderFunctions.find(col => col.id === 'name')
+      if (nameColumn) {
+        console.log('🔍 Name column verification:', {
+          id: nameColumn.id,
+          title: nameColumn.title,
+          hasRenderCell: !!nameColumn.renderCell,
+          renderCellType: typeof nameColumn.renderCell,
+        })
+      }
     } catch (error) {
       logger.error('Error loading stored columns:', error)
 
@@ -974,6 +1021,64 @@ export const useEditableLeadsGridSlice: StateCreator<
 
       // Keep default columns on error - don't throw so the app continues working
     }
+  },
+
+  /**
+   * Apply render functions to existing columns
+   * Used when columns are already loaded (from localStorage) but need render functions applied
+   */
+  editableLeadsGridApplyRenderFunctions: (
+    renderSocialLink?: (value: any, row: any) => React.ReactElement,
+    renderNameLink?: (value: any, row: any) => React.ReactElement,
+  ) => {
+    const currentColumns = get().columns
+    if (currentColumns.length === 0) {
+      console.log('⚠️ No columns to apply render functions to')
+      return
+    }
+
+    console.log('🔗 Applying render functions to existing columns...', {
+      totalColumns: currentColumns.length,
+      hasSocialLink: !!renderSocialLink,
+      hasNameLink: !!renderNameLink,
+    })
+
+    // Apply render functions to existing columns
+    const columnsWithRenderFunctions = currentColumns.map(col => {
+      // Apply social links render function
+      if (['facebook', 'instagram', 'linkedin', 'twitter'].includes(col.id) && renderSocialLink) {
+        console.log(`🔗 Applying renderSocialLink to column: ${col.id}`)
+        return { ...col, renderCell: renderSocialLink }
+      }
+      // Apply name link render function
+      if (col.id === 'name' && renderNameLink) {
+        console.log('🔗 Applying renderNameLink to name column - this enables contact links!')
+        return {
+          ...col,
+          renderCell: renderNameLink,
+        }
+      }
+      return col
+    })
+
+    // Update the slice state
+    set(state => {
+      state.columns = columnsWithRenderFunctions
+    })
+
+    // Verify that the name column has renderCell function
+    const nameColumn = columnsWithRenderFunctions.find(col => col.id === 'name')
+    if (nameColumn) {
+      console.log('✅ Name column render function applied successfully:', {
+        id: nameColumn.id,
+        hasRenderCell: !!nameColumn.renderCell,
+        renderCellType: typeof nameColumn.renderCell,
+      })
+    } else {
+      console.log('⚠️ Name column not found during render function application')
+    }
+
+    console.log('✅ Render functions applied to all columns')
   },
 
   // 21. Save hidden columns - Persist hidden columns to localStorage and Supabase

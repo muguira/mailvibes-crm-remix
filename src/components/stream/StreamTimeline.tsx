@@ -62,15 +62,15 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
   }, []);
 
   // Debug logging
-  console.log('StreamTimeline Debug:', {
-    contactId,
-    contactEmail,
-    activitiesCount: activities.length,
-    emailsCount,
-    internalCount,
-    loading,
-    error
-  });
+  // console.log('StreamTimeline Debug:', {
+  //   contactId,
+  //   contactEmail,
+  //   activitiesCount: activities.length,
+  //   emailsCount,
+  //   internalCount,
+  //   loading,
+  //   error
+  // });
 
   // Get user name for activities
   const getUserName = (activity: any) => {

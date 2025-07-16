@@ -262,12 +262,21 @@ export function GridViewContainer({
 
     const finalColumnIds = newColumns.map(col => col.id);
     
-    // Update slice state
+    // Update slice state (localStorage persistence handled automatically by Zustand persist middleware)
     editableLeadsGridReorderColumns(finalColumnIds);
     
-    // Persist to database and localStorage
-    const reorderedColumns = finalColumnIds.map(id => columns.find(col => col.id === id)).filter(Boolean);
-    await editableLeadsGridPersistColumns(reorderedColumns, user);
+    // Optionally sync to Supabase for cross-device persistence (debounced to avoid conflicts)
+    if (user) {
+      // Add small delay to avoid rapid successive calls
+      setTimeout(async () => {
+        try {
+          await editableLeadsGridPersistColumns(newColumns, user);
+        } catch (error) {
+          // Supabase sync failed, but localStorage persistence still works via persist middleware
+          console.warn('Supabase column sync failed:', error);
+        }
+      }, 500); // 500ms delay
+    }
   }, [editableLeadsGridReorderColumns, editableLeadsGridPersistColumns, columns, contactColumn, user]);
 
   // Memoized callback for MainGridView onColumnsReorder

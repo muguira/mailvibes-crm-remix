@@ -21,6 +21,7 @@ import {
   useGridExternalEvents,
   useGridResize
 } from '@/hooks/grid-view';
+import { useFilterCacheInvalidation } from '@/hooks/supabase/use-filter-cache-invalidation';
 
 /**
  * EditableLeadsGrid Component
@@ -115,6 +116,11 @@ export function EditableLeadsGrid() {
    * Handles loading stored columns, hidden columns, and setting up render functions
    */
   const { isInitialized, initializationError } = useEditableGridInitialization(user, renderNameLink);
+
+  /**
+   * Setup automatic filter cache invalidation when columns change
+   */
+  useFilterCacheInvalidation();
 
   /**
    * Persist deleted column IDs to localStorage

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X, Database } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useContactsStore } from '@/stores/contactsStore';
+import { useStore } from '@/stores';
 import { toast } from '@/hooks/use-toast';
 
 interface SearchInputProps {
@@ -28,10 +28,13 @@ export const SearchInput: React.FC<SearchInputProps> = React.memo(({
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   // Get contacts loading state
-  const { loading, isBackgroundLoading, firstBatchLoaded } = useContactsStore();
+  const { 
+    contactsLoading: { fetching, initializing, backgroundLoading: isBackgroundLoading },
+    contactsPagination: { firstBatchLoaded }
+  } = useStore();
 
   // Check if contacts are still loading
-  const isContactsLoading = loading || !firstBatchLoaded;
+  const isContactsLoading = fetching || initializing || !firstBatchLoaded;
   
   // Track previous loading state to detect when loading completes
   const [wasLoading, setWasLoading] = useState(isContactsLoading);
@@ -46,7 +49,7 @@ export const SearchInput: React.FC<SearchInputProps> = React.memo(({
   // Auto-focus and position cursor when contacts finish loading
   useEffect(() => {
     // Detect when loading transitions from true to false
-    if (wasLoading && !isContactsLoading && inputRef.current) {
+    if (wasLoading && !isContactsLoading && inputRef.current && autoFocus) {
       // Small delay to ensure UI has updated
       setTimeout(() => {
         if (inputRef.current) {
@@ -57,14 +60,17 @@ export const SearchInput: React.FC<SearchInputProps> = React.memo(({
           const length = inputRef.current.value.length;
           inputRef.current.setSelectionRange(length, length);
           
-          console.log(`[SearchInput] Auto-focused after load complete. Cursor positioned after: "${searchValue}"`);
+          // Only log in development
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[SearchInput] Auto-focused after load complete. Cursor positioned after: "${searchValue}"`);
+          }
         }
       }, 50);
     }
     
     // Update the previous loading state
     setWasLoading(isContactsLoading);
-  }, [isContactsLoading, wasLoading, searchValue]);
+  }, [isContactsLoading, wasLoading, searchValue, autoFocus]);
 
   // Initial focus on mount if contacts are already loaded
   useEffect(() => {

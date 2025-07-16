@@ -6,10 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, X } from 'lucide-react';
+import { CalendarIcon, X, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { FilterColumn } from '@/components/ui/FilterPopupBase';
+import { useColumnFilterValues } from '@/hooks/supabase/use-column-filter-values';
 
 interface FilterValueSelectorProps {
   column: FilterColumn;
@@ -411,8 +412,15 @@ export function DropdownFilterSelector({ column, value, onChange, data }: Filter
     isMultiSelect ? (value?.values || []) : (value?.value ? [value.value] : [])
   );
 
-  // Extract unique values from the data for this column
-  const uniqueValues = useMemo(() => {
+  // Use the new hook to get all unique values for this column
+  const { values: hookValues, isLoading: isLoadingValues, error: valuesError } = useColumnFilterValues({
+    columnId: column.id,
+    enabled: true,
+    maxValues: 200
+  });
+
+  // Fallback to local data if hook fails or has no data
+  const localUniqueValues = useMemo(() => {
     if (!data || data.length === 0) return [];
     
     const values = new Set<string>();
@@ -425,6 +433,23 @@ export function DropdownFilterSelector({ column, value, onChange, data }: Filter
     
     return Array.from(values).sort();
   }, [data, column.id]);
+
+  // Use hook values if available, otherwise fallback to local data
+  const uniqueValues = useMemo(() => {
+    console.log(`[FilterSelector] ${column.id} - Values comparison:`, {
+      hookValues: hookValues?.length || 0,
+      localValues: localUniqueValues.length,
+      hookSample: hookValues?.slice(0, 3).map(v => v.value),
+      localSample: localUniqueValues.slice(0, 3),
+    });
+    
+    if (hookValues && hookValues.length > 0) {
+      console.log(`[FilterSelector] ${column.id} - Using hook values (${hookValues.length} total)`);
+      return hookValues.map(v => v.value);
+    }
+    console.log(`[FilterSelector] ${column.id} - Using local values (${localUniqueValues.length} total)`);
+    return localUniqueValues;
+  }, [hookValues, localUniqueValues, column.id]);
 
   useEffect(() => {
     if (isMultiSelect) {
@@ -460,7 +485,17 @@ export function DropdownFilterSelector({ column, value, onChange, data }: Filter
         <div>
           <Label className="text-xs font-medium text-gray-600 mb-2 block">
             Select {column.title} Values
+            {isLoadingValues && (
+              <Loader2 className="inline-block w-3 h-3 ml-1 animate-spin" />
+            )}
           </Label>
+          
+          {valuesError && (
+            <p className="text-xs text-orange-600 mb-2">
+              Using local data - some values may be missing
+            </p>
+          )}
+          
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {uniqueValues.map((val) => (
               <div key={val} className="flex items-center space-x-2">
@@ -480,9 +515,15 @@ export function DropdownFilterSelector({ column, value, onChange, data }: Filter
             ))}
           </div>
           
-          {uniqueValues.length === 0 && (
+          {uniqueValues.length === 0 && !isLoadingValues && (
             <p className="text-sm text-gray-500 py-2">
               No values found for this column
+            </p>
+          )}
+          
+          {hookValues && hookValues.length > 0 && (
+            <p className="text-xs text-green-600 mt-1">
+              Showing all {hookValues.length} unique values
             </p>
           )}
         </div>
@@ -516,7 +557,19 @@ export function DropdownFilterSelector({ column, value, onChange, data }: Filter
     return (
       <div className="space-y-3">
         <div>
-          <Label className="text-xs font-medium text-gray-600">Select {column.title}</Label>
+          <Label className="text-xs font-medium text-gray-600">
+            Select {column.title}
+            {isLoadingValues && (
+              <Loader2 className="inline-block w-3 h-3 ml-1 animate-spin" />
+            )}
+          </Label>
+          
+          {valuesError && (
+            <p className="text-xs text-orange-600 mb-2">
+              Using local data - some values may be missing
+            </p>
+          )}
+          
           <Select value={selectedValues.length > 0 ? selectedValues[0] : '__all__'} onValueChange={(val) => setSelectedValues(val === '__all__' ? [] : [val])}>
             <SelectTrigger className="w-full mt-1">
               <SelectValue placeholder={`Choose ${column.title.toLowerCase()}...`} />
@@ -531,9 +584,15 @@ export function DropdownFilterSelector({ column, value, onChange, data }: Filter
             </SelectContent>
           </Select>
           
-          {uniqueValues.length === 0 && (
+          {uniqueValues.length === 0 && !isLoadingValues && (
             <p className="text-sm text-gray-500 py-2 mt-1">
               No values found for this column
+            </p>
+          )}
+          
+          {hookValues && hookValues.length > 0 && (
+            <p className="text-xs text-green-600 mt-1">
+              Showing all {hookValues.length} unique values
             </p>
           )}
         </div>

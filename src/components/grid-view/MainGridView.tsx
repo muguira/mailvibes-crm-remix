@@ -24,7 +24,7 @@ import { GridCell } from './GridCell';
 import { NewColumnModal } from './NewColumnModal';
 import { logger } from '@/utils/logger';
 import { cn } from '@/lib/utils';
-import { useContactsStore } from '@/stores/contactsStore';
+import { useStore } from '@/stores';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from '@/hooks/use-toast';
 
@@ -687,10 +687,13 @@ export const MainGridView = forwardRef(function MainGridView({
   }, [editingCell, onCellChange]);
 
   // Get contacts loading state
-  const { loading, isBackgroundLoading, firstBatchLoaded } = useContactsStore();
+  const { 
+    contactsLoading: { fetching, initializing, backgroundLoading: isBackgroundLoading },
+    contactsPagination: { firstBatchLoaded }
+  } = useStore();
 
   // Check if contacts are still loading
-  const isContactsLoading = loading || !firstBatchLoaded;
+  const isContactsLoading = fetching || initializing || !firstBatchLoaded;
 
   // Show loading toast when user tries to interact while loading
   const showLoadingToast = () => {

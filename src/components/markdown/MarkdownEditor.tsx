@@ -39,6 +39,8 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
+        // Disable codeBlock from StarterKit to avoid conflicts with CodeBlockLowlight
+        codeBlock: false,
         // Configure extensions to match current behavior
         heading: {
           levels: [1, 2, 3],
@@ -207,10 +209,9 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   };
 
   // Handle link requests
-  const handleLinkRequest = (linkText: string, range: Range) => {
+  const handleLinkRequest = (url: string, linkText: string) => {
     if (!editor) return;
     
-    const url = linkText;
     if (url) {
       editor.chain().focus().setLink({ href: url }).run();
     }
@@ -412,16 +413,18 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         }} />
       </div>
 
-      {/* Formatting Toolbar - Keep exact same structure */}
+      {/* Internal Formatting Toolbar */}
       {showToolbar && (
-        <MarkdownToolbar
-          activeFormats={activeHeadingMode ? new Set([...activeFormats, activeHeadingMode]) : activeFormats}
-          onFormat={handleFormat}
-          onLinkRequest={handleLinkRequest}
-          onCodeBlockRequest={handleCodeBlockRequest}
-          isCompact={isCompact}
-          className={isCompact ? 'p-2' : 'p-3'}
-        />
+        <div className="relative overflow-visible">
+          <MarkdownToolbar
+            editor={editor}
+            onFormat={handleFormat}
+            onLinkRequest={handleLinkRequest}
+            onCodeBlockRequest={handleCodeBlockRequest}
+            isCompact={isCompact}
+            className={isCompact ? 'p-2' : 'p-3'}
+          />
+        </div>
       )}
     </div>
   );
