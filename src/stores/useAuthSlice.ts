@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { toast } from '@/hooks/use-toast'
 import { logger } from '@/utils/logger'
 import { AUTH_ERROR_MESSAGES, AUTH_SUCCESS_MESSAGES, AUTH_VALIDATION_CONFIG } from '@/constants/store/auth'
+// RESTORED: Gmail store with fixed selectors
 import { useGmailStore } from '@/stores/gmail/gmailStore'
 // Note: useStore import is circular, so we use dynamic import instead
 
@@ -146,15 +147,8 @@ export const useAuthSlice: StateCreator<
         const { useStore } = await import('@/stores/index')
         useStore.getState().contactsInitialize(session.user.id)
 
-        // Initialize Gmail auth for authenticated user
-        logger.log('User authenticated, initializing Gmail auth...')
-        try {
-          await useGmailStore.getState().initializeService(session.user.id)
-          // Load accounts after service initialization
-          await useGmailStore.getState().loadAccounts()
-        } catch (error) {
-          logger.error('Error initializing auth:', error)
-        }
+        // NOTE: Gmail initialization removed from here to prevent duplicate initialization
+        // Gmail will be initialized by the auth state change listener on SIGNED_IN event
       }
 
       // Set up auth state change listener - only once
@@ -180,15 +174,20 @@ export const useAuthSlice: StateCreator<
             const { useStore } = await import('@/stores/index')
             useStore.getState().contactsInitialize(session.user.id)
 
-            // Initialize Gmail auth for signed in user
-            logger.log('User signed in, initializing Gmail auth...')
-            try {
-              await useGmailStore.getState().initializeService(session.user.id)
-              // Load accounts after service initialization
-              await useGmailStore.getState().loadAccounts()
-            } catch (error) {
-              logger.error('Error initializing auth:', error)
-            }
+            // RESTORED: Auto-initialization with granular selectors (safe with timeout)
+            // Initialize Gmail auth for signed in user with delay to avoid conflicts
+            logger.log('User signed in, scheduling Gmail initialization...')
+            setTimeout(async () => {
+              try {
+                logger.log('Initializing Gmail service...')
+                await useGmailStore.getState().initializeService(session.user.id)
+                // Load accounts after service initialization
+                await useGmailStore.getState().loadAccounts()
+                logger.log('Gmail initialization completed successfully')
+              } catch (error) {
+                logger.error('Error initializing Gmail auth:', error)
+              }
+            }, 1000) // 1 second delay to let the UI settle
           }
         } else if (event === 'SIGNED_OUT') {
           set(state => {
@@ -202,9 +201,10 @@ export const useAuthSlice: StateCreator<
           const { useStore } = await import('@/stores/index')
           useStore.getState().contactsClear()
 
+          // RESTORED: Gmail reset with fixed selectors
           // Reset Gmail auth when user logs out
           logger.log('User signed out, resetting Gmail auth...')
-          get().reset()
+          useGmailStore.getState().reset()
         }
       })
 

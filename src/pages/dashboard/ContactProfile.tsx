@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { logger } from '@/utils/logger';
 import { triggerContactSync } from "@/workers/emailSyncWorker";
 import { useStore } from "@/stores";
+// RESTORED: Use granular Gmail selectors (fixed infinite loop issue)
 import { useGmailAccounts } from "@/stores/gmail/selectors";
 import { 
   useContactProfileStore, 
@@ -30,6 +31,7 @@ export default function ContactProfile() {
   
   // Gmail integration
   const { authUser } = useStore();
+  // RESTORED: Use granular Gmail selectors (fixed infinite loop issue)
   const connectedAccounts = useGmailAccounts() || [];
   
   // Get primary field accessors from the store

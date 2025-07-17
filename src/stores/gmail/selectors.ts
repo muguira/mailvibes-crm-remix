@@ -1,7 +1,8 @@
 import { useGmailStore } from './gmailStore'
 import type { GmailAccount, SyncResult, ImportResult } from '@/services/gmail'
 import type { GmailEmail } from '@/services/google/gmailApi'
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 // =============================================================================
 // BASIC SELECTORS (commonly used state) - Use primitives to avoid loops
@@ -25,19 +26,13 @@ export const useGmailImporting = () => useGmailStore(state => state.importing)
  * Use individual selectors above for better performance
  */
 export const useGmailLoading = () => {
-  const loading = useGmailMainLoading()
-  const connecting = useGmailConnecting()
-  const syncing = useGmailSyncing()
-  const importing = useGmailImporting()
-
-  return useMemo(
-    () => ({
-      loading,
-      connecting,
-      syncing,
-      importing,
-    }),
-    [loading, connecting, syncing, importing],
+  return useGmailStore(
+    useShallow(state => ({
+      loading: state.loading,
+      connecting: state.connecting,
+      syncing: state.syncing,
+      importing: state.importing,
+    })),
   )
 }
 
@@ -126,65 +121,96 @@ export const useContactEmailCount = (contactEmail: string) =>
 /**
  * Get service management actions
  */
-export const useGmailServiceActions = () =>
-  useGmailStore(state => ({
-    initializeService: state.initializeService,
-    disposeService: state.disposeService,
-    healthCheck: state.healthCheck,
-    reset: state.reset,
-  }))
+export const useGmailServiceActions = () => {
+  return useGmailStore(
+    useShallow(state => ({
+      initializeService: state.initializeService,
+      disposeService: state.disposeService,
+      healthCheck: state.healthCheck,
+      reset: state.reset,
+    })),
+  )
+}
 
 /**
- * Get account management actions
+ * Get account management actions (granular selectors to avoid infinite loops)
  */
-export const useGmailAccountActions = () =>
-  useGmailStore(state => ({
-    loadAccounts: state.loadAccounts,
-    connectAccount: state.connectAccount,
-    handleOAuthCallback: state.handleOAuthCallback,
-    disconnectAccount: state.disconnectAccount,
-    refreshAccounts: state.refreshAccounts,
-    refreshConnection: state.refreshConnection,
-  }))
+export const useGmailLoadAccounts = () => useGmailStore(state => state.loadAccounts)
+export const useGmailConnectAccount = () => useGmailStore(state => state.connectAccount)
+export const useGmailHandleOAuthCallback = () => useGmailStore(state => state.handleOAuthCallback)
+export const useGmailDisconnectAccount = () => useGmailStore(state => state.disconnectAccount)
+export const useGmailRefreshAccounts = () => useGmailStore(state => state.refreshAccounts)
+export const useGmailRefreshConnection = () => useGmailStore(state => state.refreshConnection)
+export const useGmailHealthCheck = () => useGmailStore(state => state.healthCheck)
+export const useGmailInitializeService = () => useGmailStore(state => state.initializeService)
+
+/**
+ * Get account management actions (DEPRECATED - use individual selectors above)
+ * @deprecated Use individual action selectors to avoid infinite loops
+ */
+export const useGmailAccountActions = () => {
+  return useGmailStore(
+    useShallow(state => ({
+      loadAccounts: state.loadAccounts,
+      connectAccount: state.connectAccount,
+      handleOAuthCallback: state.handleOAuthCallback,
+      disconnectAccount: state.disconnectAccount,
+      refreshAccounts: state.refreshAccounts,
+      refreshConnection: state.refreshConnection,
+    })),
+  )
+}
 
 /**
  * Get email operation actions
  */
-export const useGmailEmailActions = () =>
-  useGmailStore(state => ({
-    syncContactEmails: state.syncContactEmails,
-    getContactEmails: state.getContactEmails,
-    searchEmails: state.searchEmails,
-    markEmailAsRead: state.markEmailAsRead,
-    deleteEmail: state.deleteEmail,
-  }))
+export const useGmailEmailActions = () => {
+  return useGmailStore(
+    useShallow(state => ({
+      syncContactEmails: state.syncContactEmails,
+      getContactEmails: state.getContactEmails,
+      searchEmails: state.searchEmails,
+      markEmailAsRead: state.markEmailAsRead,
+      deleteEmail: state.deleteEmail,
+    })),
+  )
+}
 
 /**
  * Get contact operation actions
  */
-export const useGmailContactActions = () =>
-  useGmailStore(state => ({
-    importContacts: state.importContacts,
-  }))
+export const useGmailContactActions = () => {
+  return useGmailStore(
+    useShallow(state => ({
+      importContacts: state.importContacts,
+    })),
+  )
+}
 
 /**
  * Get cache management actions
  */
-export const useGmailCacheActions = () =>
-  useGmailStore(state => ({
-    clearContactEmails: state.clearContactEmails,
-    clearSyncResults: state.clearSyncResults,
-    clearAllCache: state.clearAllCache,
-  }))
+export const useGmailCacheActions = () => {
+  return useGmailStore(
+    useShallow(state => ({
+      clearContactEmails: state.clearContactEmails,
+      clearSyncResults: state.clearSyncResults,
+      clearAllCache: state.clearAllCache,
+    })),
+  )
+}
 
 /**
  * Get error handling actions
  */
-export const useGmailErrorActions = () =>
-  useGmailStore(state => ({
-    clearError: state.clearError,
-    setError: state.setError,
-  }))
+export const useGmailErrorActions = () => {
+  return useGmailStore(
+    useShallow(state => ({
+      clearError: state.clearError,
+      setError: state.setError,
+    })),
+  )
+}
 
 // =============================================================================
 // COMPOSITE SELECTORS (for complex UI needs)
@@ -193,54 +219,63 @@ export const useGmailErrorActions = () =>
 /**
  * Get everything needed for account management UI
  */
-export const useGmailAccountsView = () =>
-  useGmailStore(state => ({
-    accounts: state.accounts,
-    loading: state.loading,
-    connecting: state.connecting,
-    error: state.error,
-    connectionStatus: state.connectionStatus,
-    // Actions
-    loadAccounts: state.loadAccounts,
-    connectAccount: state.connectAccount,
-    disconnectAccount: state.disconnectAccount,
-    refreshAccounts: state.refreshAccounts,
-    clearError: state.clearError,
-  }))
+export const useGmailAccountsView = () => {
+  return useGmailStore(
+    useShallow(state => ({
+      accounts: state.accounts,
+      loading: state.loading,
+      connecting: state.connecting,
+      error: state.error,
+      connectionStatus: state.connectionStatus,
+      // Actions
+      loadAccounts: state.loadAccounts,
+      connectAccount: state.connectAccount,
+      disconnectAccount: state.disconnectAccount,
+      refreshAccounts: state.refreshAccounts,
+      clearError: state.clearError,
+    })),
+  )
+}
 
 /**
  * Get everything needed for email sync UI
  */
-export const useGmailEmailsView = () =>
-  useGmailStore(state => ({
-    syncing: state.syncing,
-    loading: state.loading,
-    error: state.error,
-    lastSync: state.lastSync,
-    contactEmails: state.contactEmails,
-    syncResults: state.syncResults,
-    // Actions
-    syncContactEmails: state.syncContactEmails,
-    getContactEmails: state.getContactEmails,
-    searchEmails: state.searchEmails,
-    clearContactEmails: state.clearContactEmails,
-    clearError: state.clearError,
-  }))
+export const useGmailEmailsView = () => {
+  return useGmailStore(
+    useShallow(state => ({
+      syncing: state.syncing,
+      loading: state.loading,
+      error: state.error,
+      lastSync: state.lastSync,
+      contactEmails: state.contactEmails,
+      syncResults: state.syncResults,
+      // Actions
+      syncContactEmails: state.syncContactEmails,
+      getContactEmails: state.getContactEmails,
+      searchEmails: state.searchEmails,
+      clearContactEmails: state.clearContactEmails,
+      clearError: state.clearError,
+    })),
+  )
+}
 
 /**
  * Get everything needed for contact import UI
  */
-export const useGmailImportView = () =>
-  useGmailStore(state => ({
-    importing: state.importing,
-    loading: state.loading,
-    error: state.error,
-    importResults: state.importResults,
-    accounts: state.accounts,
-    // Actions
-    importContacts: state.importContacts,
-    clearError: state.clearError,
-  }))
+export const useGmailImportView = () => {
+  return useGmailStore(
+    useShallow(state => ({
+      importing: state.importing,
+      loading: state.loading,
+      error: state.error,
+      importResults: state.importResults,
+      accounts: state.accounts,
+      // Actions
+      importContacts: state.importContacts,
+      clearError: state.clearError,
+    })),
+  )
+}
 
 // =============================================================================
 // CONDITIONAL SELECTORS (with filters)

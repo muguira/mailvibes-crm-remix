@@ -9,9 +9,11 @@ import { GmailConnectDialog } from "@/components/integrations/gmail";
 import { useGmail } from "@/hooks/gmail";
 import { useAuth } from "@/components/auth";
 import { getContactsCount } from "@/services/google/peopleApi";
+import { getValidToken } from "@/services/google/tokenService";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { logger } from "@/utils/logger";
+import { needsContactsPermission, generateScopeMessage } from "@/services/google/scopeDetection";
 
 interface GmailAccountSelectStepProps {
   selectedAccountId: string | null;
@@ -91,27 +93,40 @@ export function GmailAccountSelectStep({
           continue;
         }
         
-        // Skip if account has a sync error (likely invalid token)
-        if (account.last_sync_error?.includes('Invalid refresh token')) {
-          setContactsCounts(prev => ({ ...prev, [account.id]: -1 })); // -1 indicates error
-          continue;
-        }
+        // Skip if account has a sync error (likely invalid token) 
+        // TODO: Check account sync error status
+        // if (account.last_sync_error?.includes('Invalid refresh token')) {
+        //   setContactsCounts(prev => ({ ...prev, [account.id]: -1 })); // -1 indicates error
+        //   continue;
+        // }
         
         loadedAccountIdsRef.current.add(account.id);
         setLoadingCounts(prev => ({ ...prev, [account.id]: true }));
         
         try {
-          const token = await getAccessToken(user.id, account.email);
+          const token = await getValidToken(user.id, account.email);
           if (token) {
             const count = await getContactsCount(token);
             setContactsCounts(prev => ({ ...prev, [account.id]: count }));
           } else {
-            // Token is null, don't retry
-            setContactsCounts(prev => ({ ...prev, [account.id]: -1 }));
+            // Token is null, mark as needs reconnection
+            setContactsCounts(prev => ({ ...prev, [account.id]: -2 })); // -2 = no token
           }
         } catch (error) {
           console.error(`Error loading contacts count for ${account.email}:`, error);
-          setContactsCounts(prev => ({ ...prev, [account.id]: -1 }));
+          
+          // Handle specific error types
+          if (error instanceof Error) {
+            if (error.message.includes('CONTACTS_PERMISSION_DENIED')) {
+              setContactsCounts(prev => ({ ...prev, [account.id]: -1 })); // -1 = permission denied
+            } else if (error.message.includes('CONTACTS_TOKEN_INVALID')) {
+              setContactsCounts(prev => ({ ...prev, [account.id]: -2 })); // -2 = invalid token
+            } else {
+              setContactsCounts(prev => ({ ...prev, [account.id]: -3 })); // -3 = other error
+            }
+          } else {
+            setContactsCounts(prev => ({ ...prev, [account.id]: -3 })); // -3 = unknown error
+          }
         } finally {
           setLoadingCounts(prev => ({ ...prev, [account.id]: false }));
         }
@@ -240,7 +255,7 @@ export function GmailAccountSelectStep({
                           htmlFor={account.id} 
                           className="font-medium cursor-pointer text-sm"
                         >
-                          {account.user_info?.name || account.email}
+                          {(account as any).user_info?.name || account.email}
                         </Label>
                         {account.sync_enabled ? (
                           <CheckCircle className="w-3.5 h-3.5 text-green-500" />
@@ -258,9 +273,14 @@ export function GmailAccountSelectStep({
                             <RefreshCw className="w-3 h-3 animate-spin" />
                             <span>Loading contacts...</span>
                           </>
-                        ) : contactsCounts[account.id] === -1 ? (
+                        ) : contactsCounts[account.id] < 0 ? (
                           <span className="text-red-500">
-                            Unable to load contacts - please reconnect
+                            {contactsCounts[account.id] === -1 
+                              ? "Missing contacts permission - please reconnect" 
+                              : contactsCounts[account.id] === -2
+                              ? "Invalid token - please reconnect"
+                              : "Unable to load contacts - please reconnect"
+                            }
                           </span>
                         ) : (
                           <span>

@@ -22,12 +22,15 @@ import { MultipleRowsActionModal } from "@/components/csv-import/MultipleRowsAct
 // Import Gmail specific components
 import { GmailAccountSelectStep } from "./GmailAccountSelectStep";
 import { ImportSuccessStep } from "./ImportSuccessStep";
+import { ScopeDetectionAlert } from "./ScopeDetectionAlert";
+import { ContactsErrorAlert } from "./ContactsErrorAlert";
 
 // Import services
 import { 
   getAllContactsWithPagination, 
   transformGoogleContactsToCsvFormat 
 } from "@/services/google/peopleApi";
+import { getValidToken } from "@/services/google/tokenService";
 import { importCsvData, validateImportData } from "@/services/csvImportService";
 
 // Import types
@@ -63,7 +66,7 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Use the new Gmail hook instead of legacy store
+  // Use the new Gmail hook with auto-initialization
   const {
     accounts,
     primaryAccount,
@@ -71,8 +74,9 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
     loading,
     error
   } = useGmail({ 
-    enableLogging: false,    // Disable to prevent console spam
-    autoInitialize: false   // Disable to prevent conflicts
+    userId: user?.id,        // Pass user ID for auto-initialization
+    enableLogging: true,     // Enable logging to debug issues
+    autoInitialize: true     // Enable auto-init for service availability
   });
   
   // Wizard state
@@ -113,9 +117,9 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
   // Track if we've already fetched contacts for current account
   const fetchedForAccountRef = useRef<string | null>(null);
 
-  // Use the new contact import service when moving to contact props step
+  // Fetch actual Google contacts data when moving to contact props step
   useEffect(() => {
-    const useServiceLayerImport = async () => {
+    const fetchGoogleContacts = async () => {
       // Skip if we've already fetched for this account
       if (fetchedForAccountRef.current === selectedAccountEmail) {
         return;
@@ -127,40 +131,36 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
         fetchedForAccountRef.current = selectedAccountEmail;
         
         try {
-          logger.info(`[GmailImportWizard] Using service layer to import contacts`);
+          logger.info(`[GmailImportWizard] Fetching Google contacts directly from API`);
           
-          // Use the new service layer for importing
-          const result = await importContacts({
-            maxContacts: 1000,
-            skipDuplicates: false
+          // Get access token for the selected account
+          const token = await getValidToken(user.id, selectedAccountEmail);
+          if (!token) {
+            throw new Error('Unable to get valid access token for the selected account');
+          }
+
+          // Fetch contacts directly from Google People API
+          const contacts = await getAllContactsWithPagination(token, (current, total) => {
+            const progress = Math.round((current / total) * 100);
+            setFetchProgress(current);
+            logger.debug(`[GmailImportWizard] Fetching progress: ${current}/${total} contacts`);
           });
 
-          if (result.success) {
-            // For now, we'll create mock CSV data from the successful import
-            // This is a temporary approach until we can access the raw Google contacts
-            const mockRows = Array.from({ length: result.contactsImported }, (_, i) => ({
-              name: `Contact ${i + 1}`,
-              email: `contact${i + 1}@example.com`,
-              phone: `+1-555-000${i.toString().padStart(4, '0')}`,
-              company: `Company ${Math.floor(i / 10) + 1}`
-            }));
-
-            const mockCsvData: ParsedCsvResult = {
-              headers: ['name', 'email', 'phone', 'company'],
-              rows: mockRows,
-              delimiter: ','
-            };
-
-            setParsedData(mockCsvData);
-            setGoogleContacts([]); // We don't have access to raw contacts in the service layer
-            
-            logger.info(`[GmailImportWizard] Service layer imported ${result.contactsImported} contacts`);
-            toast.success(`Successfully processed ${result.contactsImported} contacts from Gmail`);
-          } else {
-            throw new Error(result.error || 'Failed to import contacts');
+          if (contacts.length === 0) {
+            throw new Error('No contacts found in this Google account');
           }
+
+          // Transform Google contacts to CSV format for the wizard
+          const csvData = transformGoogleContactsToCsvFormat(contacts);
+          
+          setParsedData(csvData);
+          setGoogleContacts(contacts);
+          
+          logger.info(`[GmailImportWizard] Successfully fetched ${contacts.length} contacts from Google`);
+          toast.success(`Successfully loaded ${contacts.length} contacts from Gmail`);
+          
         } catch (error) {
-          logger.error("Error importing contacts via service layer:", error);
+          logger.error("Error fetching Google contacts:", error);
           toast.error("Failed to fetch contacts", {
             description: error instanceof Error ? error.message : "Unknown error occurred",
           });
@@ -175,8 +175,8 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
       }
     };
 
-    useServiceLayerImport();
-  }, [currentStep, selectedAccountId, selectedAccountEmail, parsedData, user, importContacts]);
+    fetchGoogleContacts();
+  }, [currentStep, selectedAccountId, selectedAccountEmail, parsedData, user]);
 
   const handleAccountSelect = (accountId: string, email: string) => {
     setSelectedAccountId(accountId);
@@ -315,14 +315,14 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
         ) : (
           <div className="flex flex-col items-center justify-center py-12 space-y-4">
             <Mail className="w-12 h-12 text-gray-400 animate-pulse" />
-            <p className="text-gray-500">Importing contacts from Gmail via service layer...</p>
+            <p className="text-gray-500">Fetching contacts from Google Contacts...</p>
             <div className="w-64 bg-gray-200 rounded-full h-2">
               <div 
                 className="bg-[#62BFAA] h-2 rounded-full transition-all"
-                style={{ width: `${fetchProgress}%` }}
+                style={{ width: fetchProgress > 0 ? `${Math.min((fetchProgress / 1000) * 100, 100)}%` : '10%' }}
               />
             </div>
-            <p className="text-sm text-gray-400">{fetchProgress} contacts processed</p>
+            <p className="text-sm text-gray-400">{fetchProgress} contacts loaded</p>
           </div>
         );
 
@@ -402,12 +402,21 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
             <h2 className="text-2xl font-semibold text-gray-900 mb-2">
               Gmail Service Error
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-4">
               {error}
             </p>
+            {error.includes('Service not initialized') && (
+              <p className="text-sm text-gray-500 mb-6">
+                This usually happens when your Gmail account needs to be reconnected with the proper permissions.
+                Please try connecting or reconnecting your Gmail account in the Settings → Integrations page.
+              </p>
+            )}
             <div className="flex gap-4 justify-center">
               <Button onClick={() => window.location.reload()}>
                 Retry
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/settings/integrations')}>
+                Go to Integrations
               </Button>
               <Button variant="outline" onClick={() => navigate('/settings/imports')}>
                 Back to Imports
@@ -476,6 +485,48 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
             currentStep={currentStep}
           />
         </div>
+
+        {/* Scope Detection Alert - Temporarily disabled to fix scope detection issues */}
+        {/* {user?.id && selectedAccountEmail && (
+          <ScopeDetectionAlert 
+            userId={user.id}
+            email={selectedAccountEmail}
+            onReconnectSuccess={() => {
+              // Refresh the accounts list and reset wizard state
+              setSelectedAccountId(null)
+              setSelectedAccountEmail("")
+              setTimeout(() => {
+                window.location.reload()
+              }, 1000)
+            }}
+            className="mb-6"
+          />
+        )} */}
+
+        {/* Contacts Error Alert - Show specific errors for contacts loading */}
+        {error && error.includes('CONTACTS_PERMISSION_DENIED') && selectedAccountEmail && (
+          <ContactsErrorAlert 
+            errorCode={-1}
+            accountEmail={selectedAccountEmail}
+            onReconnectSuccess={() => {
+              setSelectedAccountId(null)
+              setSelectedAccountEmail("")
+              setTimeout(() => window.location.reload(), 1000)
+            }}
+          />
+        )}
+        
+        {error && error.includes('CONTACTS_TOKEN_INVALID') && selectedAccountEmail && (
+          <ContactsErrorAlert 
+            errorCode={-2}
+            accountEmail={selectedAccountEmail}
+            onReconnectSuccess={() => {
+              setSelectedAccountId(null)
+              setSelectedAccountEmail("")
+              setTimeout(() => window.location.reload(), 1000)
+            }}
+          />
+        )}
 
         {/* Main Content */}
         <Card>

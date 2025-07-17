@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useMemo } from 'react'
 import {
   useGmailStore,
   useGmailAccountsView,
@@ -304,46 +304,77 @@ export function useGmail(options: UseGmailOptions = {}): UseGmailReturn {
   const primaryAccount = accounts.find(account => account.is_connected)
   const isBusy = loading.accounts || loading.connecting || loading.syncing || loading.importing
 
-  return {
-    // Estado
-    accounts,
-    loading,
-    error,
-    lastSync,
-    connectionStatus,
-    isReady,
+  return useMemo(
+    () => ({
+      // Estado
+      accounts,
+      loading,
+      error,
+      lastSync,
+      connectionStatus,
+      isReady,
 
-    // Acciones de cuenta
-    loadAccounts,
-    connectAccount,
-    handleOAuthCallback,
-    disconnectAccount,
-    refreshAccounts,
-    refreshConnection,
+      // Acciones de cuenta
+      loadAccounts,
+      connectAccount,
+      handleOAuthCallback,
+      disconnectAccount,
+      refreshAccounts,
+      refreshConnection,
 
-    // Acciones de email
-    syncContactEmails,
-    getContactEmails,
-    searchEmails,
-    markEmailAsRead,
-    deleteEmail,
+      // Acciones de email
+      syncContactEmails,
+      getContactEmails,
+      searchEmails,
+      markEmailAsRead,
+      deleteEmail,
 
-    // Acciones de contactos
-    importContacts,
+      // Acciones de contactos
+      importContacts,
 
-    // Gestión de cache y errores
-    clearContactEmails,
-    clearAllCache,
-    clearError,
+      // Gestión de cache y errores
+      clearContactEmails,
+      clearAllCache,
+      clearError,
 
-    // Utilidades
-    healthCheck,
-    reset,
-    dispose,
+      // Utilidades
+      healthCheck,
+      reset,
+      dispose,
 
-    // Helpers
-    hasConnectedAccounts,
-    primaryAccount,
-    isBusy,
-  }
+      // Helpers
+      hasConnectedAccounts,
+      primaryAccount,
+      isBusy,
+    }),
+    [
+      accounts,
+      loading,
+      error,
+      lastSync,
+      connectionStatus,
+      isReady,
+      loadAccounts,
+      connectAccount,
+      handleOAuthCallback,
+      disconnectAccount,
+      refreshAccounts,
+      refreshConnection,
+      syncContactEmails,
+      getContactEmails,
+      searchEmails,
+      markEmailAsRead,
+      deleteEmail,
+      importContacts,
+      clearContactEmails,
+      clearAllCache,
+      clearError,
+      healthCheck,
+      reset,
+      dispose,
+      hasConnectedAccounts,
+      primaryAccount,
+      isBusy,
+    ],
+  )
 }

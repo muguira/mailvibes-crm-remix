@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import {
   useGmailAccounts as useAccountsSelector,
   useGmailAccountActions,
@@ -248,33 +248,55 @@ export function useGmailAccounts(options: UseGmailAccountsOptions = {}): UseGmai
     [getAccountByEmail],
   )
 
-  return {
-    // Estado de cuentas
-    accounts,
-    connectedAccounts,
-    primaryAccount,
-    hasAccounts,
+  return useMemo(
+    () => ({
+      // Estado de cuentas
+      accounts,
+      connectedAccounts,
+      primaryAccount,
+      hasAccounts,
 
-    // Estado de UI
-    loading: {
-      accounts: loading,
+      // Estado de UI
+      loading: {
+        accounts: loading,
+        connecting,
+      },
+      error,
+      connectionStatus,
+
+      // Acciones principales
+      loadAccounts,
+      connectAccount,
+      handleOAuthCallback,
+      disconnectAccount,
+      refreshAccounts,
+      refreshConnection,
+
+      // Utilidades
+      clearError,
+      getAccountByEmail,
+      isAccountConnected,
+      getAccountStatus,
+    }),
+    [
+      accounts,
+      connectedAccounts,
+      primaryAccount,
+      hasAccounts,
+      loading,
       connecting,
-    },
-    error,
-    connectionStatus,
-
-    // Acciones principales
-    loadAccounts,
-    connectAccount,
-    handleOAuthCallback,
-    disconnectAccount,
-    refreshAccounts,
-    refreshConnection,
-
-    // Utilidades
-    clearError,
-    getAccountByEmail,
-    isAccountConnected,
-    getAccountStatus,
-  }
+      error,
+      connectionStatus,
+      loadAccounts,
+      connectAccount,
+      handleOAuthCallback,
+      disconnectAccount,
+      refreshAccounts,
+      refreshConnection,
+      clearError,
+      getAccountByEmail,
+      isAccountConnected,
+      getAccountStatus,
+    ],
+  )
 }

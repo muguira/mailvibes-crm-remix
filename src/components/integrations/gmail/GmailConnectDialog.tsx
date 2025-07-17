@@ -21,7 +21,7 @@ export function GmailConnectDialog({ children, onSuccess }: GmailConnectDialogPr
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
   
-  // Use the new Gmail hook instead of legacy store
+  // Use the new Gmail hook with auto-initialization for reconnection
   const {
     accounts: connectedAccounts,
     loading,
@@ -30,8 +30,9 @@ export function GmailConnectDialog({ children, onSuccess }: GmailConnectDialogPr
     handleOAuthCallback,
     refreshAccounts
   } = useGmail({ 
-    enableLogging: false,    // Disable to prevent console spam
-    autoInitialize: false   // Disable to prevent conflicts
+    userId: user?.id,        // Pass user ID for auto-initialization
+    enableLogging: true,     // Enable logging to debug connection issues
+    autoInitialize: true     // Enable auto-init for service availability
   });
 
   const isConnecting = loading.connecting;

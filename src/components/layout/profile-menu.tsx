@@ -8,10 +8,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
+import { useRadixPointerEventsFix } from "@/hooks/use-radix-pointer-events-fix";
 
 export function ProfileMenu() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  
+  // Fix for Radix UI pointer-events bug that can cause infinite loops
+  const { forceCleanup } = useRadixPointerEventsFix();
 
   const handleLogout = async () => {
     await signOut();
@@ -36,7 +40,12 @@ export function ProfileMenu() {
   const userInitials = user.email ? user.email.substring(0, 2).toUpperCase() : "U";
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(open) => {
+      // Force cleanup when dropdown closes to prevent pointer-events: none bug
+      if (!open) {
+        setTimeout(() => forceCleanup(), 50);
+      }
+    }}>
       <DropdownMenuTrigger asChild>
         <button className="p-2 rounded-full bg-navy-deep text-white hover:bg-navy-light flex items-center justify-center h-9 w-9">
           {userInitials}

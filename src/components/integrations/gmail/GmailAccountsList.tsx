@@ -6,7 +6,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Mail, Trash2, RefreshCw, Clock, CheckCircle, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { useAuth } from "@/components/auth";
-import { useGmail } from "@/hooks/gmail";
+// FIXED: Use granular selectors instead of useGmail hook to avoid infinite loops
+import { 
+  useGmailAccounts, 
+  useGmailMainLoading, 
+  useGmailError, 
+  useGmailDisconnectAccount, 
+  useGmailRefreshAccounts,
+  useGmailHealthCheck,
+  useGmailInitializeService,
+  useGmailLoadAccounts
+} from "@/stores/gmail/selectors";
 import { format } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import GmailLogo from "@/components/svgs/integrations-images/gmail-logo.svg";
@@ -18,27 +28,57 @@ interface GmailAccountsListProps {
 export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListProps) {
   const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [hasAutoExpanded, setHasAutoExpanded] = useState(false);
   const { toast } = useToast();
 
-  // Use the new Gmail hook instead of legacy store
-  const {
-    accounts,
-    loading,
-    error,
-    disconnectAccount,
-    refreshAccounts,
-    healthCheck
-  } = useGmail({ 
-    enableLogging: false,    // Disable to prevent console spam
-    autoInitialize: false   // Disable to prevent conflicts
-  });
+  // FIXED: Use granular selectors instead of useGmail hook to avoid infinite loops
+  const accounts = useGmailAccounts() || [];
+  const loading = { accounts: useGmailMainLoading() }; // Convert to object for compatibility
+  const error = useGmailError();
+  const disconnectAccount = useGmailDisconnectAccount();
+  const refreshAccounts = useGmailRefreshAccounts();
+  const healthCheck = useGmailHealthCheck();
+  const initializeService = useGmailInitializeService();
+  const loadAccounts = useGmailLoadAccounts();
 
-  // Auto-expand when accounts are available
+  // Auto-expand when accounts are available (only once)
   useEffect(() => {
-    if (accounts.length > 0 && !isExpanded) {
+    if (accounts.length > 0 && !hasAutoExpanded) {
       setIsExpanded(true);
+      setHasAutoExpanded(true);
     }
-  }, [accounts.length, isExpanded]);
+  }, [accounts.length, hasAutoExpanded]);
+
+  // Custom retry function that initializes service and loads accounts
+  const handleRetry = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User not authenticated",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // First initialize the service
+      await initializeService(user.id);
+      // Then load accounts
+      await loadAccounts();
+      
+      toast({
+        title: "Success",
+        description: "Gmail service initialized successfully",
+      });
+    } catch (error) {
+      console.error('Error initializing Gmail service:', error);
+      toast({
+        title: "Error", 
+        description: `Failed to initialize Gmail service: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleDisconnect = async (email: string) => {
     if (!user) return;
@@ -131,7 +171,7 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
         <p className="text-xs text-muted-foreground mb-3">
           {error}
         </p>
-        <Button variant="outline" size="sm" onClick={refreshAccounts}>
+        <Button variant="outline" size="sm" onClick={handleRetry}>
           <RefreshCw className="h-4 w-4 mr-2" />
           Retry
         </Button>
