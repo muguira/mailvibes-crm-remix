@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useInstantContacts } from './use-instant-contacts'
 import { useStore } from '@/stores'
@@ -8,12 +8,25 @@ vi.mock('@/components/auth', () => ({
   useAuth: () => ({ user: { id: 'test-user-id' } }),
 }))
 
+// Mock the performance monitor hook
+vi.mock('./use-performance-monitor', () => ({
+  usePerformanceMonitor: () => ({
+    logSummary: vi.fn(),
+    renderCount: 0,
+  }),
+}))
+
 vi.mock('@/stores')
 vi.mock('@/components/stream/sample-data', () => ({
   mockContactsById: {},
 }))
 
 describe('useInstantContacts', () => {
+  beforeEach(() => {
+    // Clear caches between tests
+    vi.clearAllMocks()
+  })
+
   it('should filter contacts by name (case-insensitive)', () => {
     // Mock the store state
     const mockCache = {
@@ -46,21 +59,16 @@ describe('useInstantContacts', () => {
       contactsCache: mockCache,
       contactsOrderedIds: mockOrderedIds,
       contactsLoading: {
-        loading: false,
-        firstBatchLoaded: true,
+        fetching: false,
+        initializing: false,
+        backgroundLoading: false,
       },
       contactsPagination: {
         totalCount: 3,
         loadedCount: 3,
-        hasMore: false,
-        allContactsLoaded: true,
         isInitialized: true,
       },
-      contactsInternal: {
-        backgroundLoadingActive: false,
-      },
       contactsInitialize: vi.fn(),
-      contactsFetchNext: vi.fn(),
     })
 
     const { result } = renderHook(() =>
@@ -105,16 +113,20 @@ describe('useInstantContacts', () => {
 
     const mockOrderedIds = ['1', '2', '3']
 
-    ;(useContactsStore as any).mockReturnValue({
-      cache: mockCache,
-      orderedIds: mockOrderedIds,
-      loading: false,
-      hasMore: false,
-      totalCount: 3,
-      loadedCount: 3,
-      isBackgroundLoading: false,
-      fetchNext: vi.fn(),
-      initialize: vi.fn(),
+    ;(useStore as any).mockReturnValue({
+      contactsCache: mockCache,
+      contactsOrderedIds: mockOrderedIds,
+      contactsLoading: {
+        fetching: false,
+        initializing: false,
+        backgroundLoading: false,
+      },
+      contactsPagination: {
+        totalCount: 3,
+        loadedCount: 3,
+        isInitialized: true,
+      },
+      contactsInitialize: vi.fn(),
     })
 
     const { result } = renderHook(() =>
@@ -147,16 +159,20 @@ describe('useInstantContacts', () => {
       mockOrderedIds.push(id)
     }
 
-    ;(useContactsStore as any).mockReturnValue({
-      cache: mockCache,
-      orderedIds: mockOrderedIds,
-      loading: false,
-      hasMore: false,
-      totalCount: 25,
-      loadedCount: 25,
-      isBackgroundLoading: false,
-      fetchNext: vi.fn(),
-      initialize: vi.fn(),
+    ;(useStore as any).mockReturnValue({
+      contactsCache: mockCache,
+      contactsOrderedIds: mockOrderedIds,
+      contactsLoading: {
+        fetching: false,
+        initializing: false,
+        backgroundLoading: false,
+      },
+      contactsPagination: {
+        totalCount: 25,
+        loadedCount: 25,
+        isInitialized: true,
+      },
+      contactsInitialize: vi.fn(),
     })
 
     // First page with page size 10
@@ -199,16 +215,20 @@ describe('useInstantContacts', () => {
 
     const mockOrderedIds = ['1']
 
-    ;(useContactsStore as any).mockReturnValue({
-      cache: mockCache,
-      orderedIds: mockOrderedIds,
-      loading: true,
-      hasMore: true,
-      totalCount: 100,
-      loadedCount: 1,
-      isBackgroundLoading: true,
-      fetchNext: vi.fn(),
-      initialize: vi.fn(),
+    ;(useStore as any).mockReturnValue({
+      contactsCache: mockCache,
+      contactsOrderedIds: mockOrderedIds,
+      contactsLoading: {
+        fetching: true,
+        initializing: false,
+        backgroundLoading: true,
+      },
+      contactsPagination: {
+        totalCount: 100,
+        loadedCount: 1,
+        isInitialized: true,
+      },
+      contactsInitialize: vi.fn(),
     })
 
     const { result } = renderHook(() =>
@@ -221,5 +241,62 @@ describe('useInstantContacts', () => {
 
     expect(result.current.isBackgroundLoading).toBe(true)
     expect(result.current.loading).toBe(false) // Initial loading is false since we have some data
+  })
+
+  it('should handle column filters efficiently', () => {
+    const mockCache = {
+      '1': {
+        id: '1',
+        name: 'Active Contact',
+        email: 'active@example.com',
+        status: 'active',
+        company: 'ABC Corp',
+      },
+      '2': {
+        id: '2',
+        name: 'Inactive Contact',
+        email: 'inactive@example.com',
+        status: 'inactive',
+        company: 'XYZ Inc',
+      },
+    }
+
+    const mockOrderedIds = ['1', '2']
+
+    ;(useStore as any).mockReturnValue({
+      contactsCache: mockCache,
+      contactsOrderedIds: mockOrderedIds,
+      contactsLoading: {
+        fetching: false,
+        initializing: false,
+        backgroundLoading: false,
+      },
+      contactsPagination: {
+        totalCount: 2,
+        loadedCount: 2,
+        isInitialized: true,
+      },
+      contactsInitialize: vi.fn(),
+    })
+
+    const { result } = renderHook(() =>
+      useInstantContacts({
+        searchTerm: '',
+        pageSize: 10,
+        currentPage: 1,
+        columnFilters: [
+          {
+            columnId: 'status',
+            value: ['active'],
+            type: 'status',
+          },
+        ],
+      }),
+    )
+
+    // Should only return active contacts
+    expect(result.current.rows).toHaveLength(1)
+    expect(result.current.rows[0].name).toBe('Active Contact')
+    expect(result.current.totalCount).toBe(1)
   })
 })

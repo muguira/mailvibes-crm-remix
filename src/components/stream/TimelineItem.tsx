@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { 
   MessageCircle, 
   ThumbsUp, 
@@ -292,7 +292,7 @@ const formatEmailRecipients = (to?: Array<{name?: string; email: string}>, conta
   );
 };
 
-export default function TimelineItem({ 
+const TimelineItem = React.memo(function TimelineItem({ 
   activity, 
   activityIcon, 
   activityColor, 
@@ -310,19 +310,43 @@ export default function TimelineItem({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editor, setEditor] = useState<any>(null);
   
-  const Icon = getActivityIcon(activityIcon, activity.type);
-  const colorClass = activityColor || getActivityColor(activity.type);
-  const userNameColor = getUserNameColor(activity.type);
-  const relativeTime = formatRelativeTime(activity.timestamp);
-  const fullTimestamp = formatFullTimestamp(activity.timestamp);
-  
-  // Get content to display - for emails, show snippet or subject
-  const displayContent = activity.source === 'gmail' && activity.subject 
-    ? activity.snippet || activity.subject
-    : activity.content;
-  
-  // Get user name - use the passed prop or default to User
-  const userName = activityUserName || 'User';
+  // OPTIMIZED: Memoize expensive calculations
+  const activityProps = useMemo(() => {
+    const Icon = getActivityIcon(activityIcon, activity.type);
+    const colorClass = activityColor || getActivityColor(activity.type);
+    const userNameColor = getUserNameColor(activity.type);
+    const relativeTime = formatRelativeTime(activity.timestamp);
+    const fullTimestamp = formatFullTimestamp(activity.timestamp);
+    
+    // Get content to display - for emails, show snippet or subject
+    const displayContent = activity.source === 'gmail' && activity.subject 
+      ? activity.snippet || activity.subject
+      : activity.content;
+    
+    // Get user name - use the passed prop or default to User
+    const userName = activityUserName || 'User';
+    
+    return {
+      Icon,
+      colorClass,
+      userNameColor,
+      relativeTime,
+      fullTimestamp,
+      displayContent,
+      userName
+    };
+  }, [activity, activityIcon, activityColor, activityUserName]);
+
+  // OPTIMIZED: Memoize permissions
+  const permissions = useMemo(() => {
+    // Only show edit/delete for internal activities (user-created notes)
+    const canEditDelete = activity.source === 'internal' && activity.type === 'note';
+    
+    // Allow pinning for both internal activities and Gmail emails
+    const canPin = activity.source === 'internal' || (activity.source === 'gmail' && activity.type === 'email');
+    
+    return { canEditDelete, canPin };
+  }, [activity.source, activity.type]);
   
   // Update optimistic state when activity changes
   React.useEffect(() => {
@@ -334,53 +358,55 @@ export default function TimelineItem({
     setEditContent(activity.content || '');
   }, [activity.content]);
 
-  // Close dropdown when clicking outside
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showDropdown && !(event.target as Element).closest('.dropdown-menu')) {
-        setShowDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+  // OPTIMIZED: Memoize click outside handler
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (showDropdown && !(event.target as Element).closest('.dropdown-menu')) {
+      setShowDropdown(false);
+    }
   }, [showDropdown]);
 
-  const handlePinClick = () => {
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [handleClickOutside]);
+
+  // OPTIMIZED: Memoize event handlers
+  const handlePinClick = useCallback(() => {
     const newPinState = !optimisticPinState;
     setOptimisticPinState(newPinState);
     onTogglePin?.(activity.id, newPinState);
     setShowDropdown(false);
-  };
+  }, [optimisticPinState, onTogglePin, activity.id]);
 
-  const handleEditClick = () => {
+  const handleEditClick = useCallback(() => {
     setIsEditing(true);
     setShowDropdown(false);
-  };
+  }, []);
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = useCallback(() => {
     onEditActivity?.(activity.id, editContent);
     setIsEditing(false);
-  };
+  }, [onEditActivity, activity.id, editContent]);
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = useCallback(() => {
     setEditContent(activity.content || '');
     setIsEditing(false);
-  };
+  }, [activity.content]);
 
-  const handleRemoveClick = () => {
+  const handleRemoveClick = useCallback(() => {
     setShowDeleteConfirm(true);
     setShowDropdown(false);
-  };
+  }, []);
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = useCallback(() => {
     onDeleteActivity?.(activity.id);
     setShowDeleteConfirm(false);
-  };
+  }, [onDeleteActivity, activity.id]);
 
-  const handleCancelDelete = () => {
+  const handleCancelDelete = useCallback(() => {
     setShowDeleteConfirm(false);
-  };
+  }, []);
 
   // Handle formatting commands for the editor
   const handleFormat = useCallback((format: string) => {
@@ -447,12 +473,6 @@ export default function TimelineItem({
     }
   }, [editor]);
 
-  // Only show edit/delete for internal activities (user-created notes)
-  const canEditDelete = activity.source === 'internal' && activity.type === 'note';
-  
-  // Allow pinning for both internal activities and Gmail emails
-  const canPin = activity.source === 'internal' || (activity.source === 'gmail' && activity.type === 'email');
-  
   return (
     <li className="relative pl-12 pb-8  last:pb-0 mb-5">
       {/* Timeline line - more prominent and continuous */}
@@ -463,22 +483,22 @@ export default function TimelineItem({
         className="absolute top-[15px] text-xs text-gray-500 font-medium text-right"
         style={{
           right: 'calc(100% - 5px)', // Position relative to the timeline dot
-          minWidth: relativeTime.length <= 2 ? '24px' : relativeTime.length <= 4 ? '32px' : '48px'
+          minWidth: activityProps.relativeTime.length <= 2 ? '24px' : activityProps.relativeTime.length <= 4 ? '32px' : '48px'
         }}
       >
-        {relativeTime}
+        {activityProps.relativeTime}
       </div>
       
       {/* Timeline dot with activity icon */}
-      <div className={cn("absolute left-[5px] top-[8px] w-8 h-8 rounded-full flex items-center justify-center z-10", colorClass)}>
-        <Icon className="h-5 w-5" />
+      <div className={cn("absolute left-[5px] top-[8px] w-8 h-8 rounded-full flex items-center justify-center z-10", activityProps.colorClass)}>
+        <activityProps.Icon className="h-5 w-5" />
       </div>
       
       {/* Activity card with white background */}
       <div className="relative bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200 w-[calc(100%-20px)]">
         {/* Dropdown menu */}
         <div className="absolute top-2 right-2">
-          {(canEditDelete || canPin) && (
+          {(permissions.canEditDelete || permissions.canPin) && (
             <button
               onClick={() => setShowDropdown(!showDropdown)}
               className="w-6 h-6 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors dropdown-menu"
@@ -487,9 +507,9 @@ export default function TimelineItem({
             </button>
           )}
           
-          {showDropdown && (canEditDelete || canPin) && (
+          {showDropdown && (permissions.canEditDelete || permissions.canPin) && (
             <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-20 min-w-[120px] dropdown-menu">
-              {canPin && (
+              {permissions.canPin && (
                 <button
                   onClick={handlePinClick}
                   className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
@@ -499,7 +519,7 @@ export default function TimelineItem({
                 </button>
               )}
               
-              {canEditDelete && (
+              {permissions.canEditDelete && (
                 <>
                   <button
                     onClick={handleEditClick}
@@ -535,12 +555,12 @@ export default function TimelineItem({
           optimisticPinState ? 'mt-6' : ''
         }`}>
           {/* Activity type icon */}
-          <div className={cn("w-5 h-5 rounded-full flex items-center justify-center mr-2", colorClass)}>
-            <Icon className="h-3 w-3" />
+          <div className={cn("w-5 h-5 rounded-full flex items-center justify-center mr-2", activityProps.colorClass)}>
+            <activityProps.Icon className="h-3 w-3" />
           </div>
           
-          <span className={cn("font-medium", userNameColor)}>
-            {userName}
+          <span className={cn("font-medium", activityProps.userNameColor)}>
+            {activityProps.userName}
           </span>
           <span className="text-gray-500 ml-1">
             {activity.type === 'email' ? 'emailed' : 
@@ -571,11 +591,11 @@ export default function TimelineItem({
         
         {/* Timestamp details */}
         <div className="text-xs text-gray-400 mb-3 pl-7">
-          {fullTimestamp}
+          {activityProps.fullTimestamp}
         </div>
         
         {/* Activity content */}
-        {displayContent && (
+        {activityProps.displayContent && (
           <div className="mb-3 pl-7">
             {isEditing ? (
               /* Edit mode */
@@ -633,7 +653,7 @@ export default function TimelineItem({
               ) : (
                 <div 
                   className="text-sm text-gray-800 leading-relaxed timeline-content"
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(displayContent) }}
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(activityProps.displayContent) }}
                 />
               )
             )}
@@ -739,4 +759,6 @@ export default function TimelineItem({
       }} />
     </li>
   );
-}
+});
+
+export default TimelineItem;

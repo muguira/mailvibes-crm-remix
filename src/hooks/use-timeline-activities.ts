@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import { useActivities, Activity } from '@/hooks/supabase/use-activities'
 import { useHybridContactEmails } from '@/hooks/use-hybrid-contact-emails'
 import { usePinnedEmails } from '@/hooks/supabase/use-pinned-emails'
 import { useGmailAccounts, useGmailMainLoading, useGmailError } from '@/stores/gmail'
 import { GmailEmail } from '@/services/google/gmailApi'
 import { logger } from '@/utils/logger'
+import { usePerformanceMonitor } from './use-performance-monitor'
 
 export interface TimelineActivity {
   id: string
@@ -62,8 +63,46 @@ interface UseTimelineActivitiesReturn {
   triggerSync: () => Promise<void>
 }
 
+// OPTIMIZED: Cache for parsed timestamps to avoid repeated Date parsing
+const TIMESTAMP_CACHE = new Map<string, number>()
+const ACTIVITY_TRANSFORM_CACHE = new Map<string, TimelineActivity>()
+
+// OPTIMIZED: Cached timestamp parsing function
+const getCachedTimestamp = (timestamp: string): number => {
+  if (TIMESTAMP_CACHE.has(timestamp)) {
+    return TIMESTAMP_CACHE.get(timestamp)!
+  }
+
+  const parsed = new Date(timestamp).getTime()
+  TIMESTAMP_CACHE.set(timestamp, parsed)
+
+  // Clear cache if it gets too large
+  if (TIMESTAMP_CACHE.size > 500) {
+    TIMESTAMP_CACHE.clear()
+  }
+
+  return parsed
+}
+
+// OPTIMIZED: Memoized sorting function for activities
+const sortActivitiesByPriorityAndDate = (activities: TimelineActivity[]): TimelineActivity[] => {
+  return activities.sort((a, b) => {
+    // 1. Pinned activities go first
+    if (a.is_pinned && !b.is_pinned) return -1
+    if (!a.is_pinned && b.is_pinned) return 1
+
+    // 2. Within each group, sort by date (most recent first) using cached timestamps
+    const timestampA = getCachedTimestamp(a.timestamp)
+    const timestampB = getCachedTimestamp(b.timestamp)
+    return timestampB - timestampA
+  })
+}
+
 export function useTimelineActivities(options: UseTimelineActivitiesOptions = {}): UseTimelineActivitiesReturn {
   const { contactId, contactEmail, includeEmails = true, maxEmails = 20 } = options
+
+  // Performance monitoring for optimization tracking
+  const { logSummary, renderCount } = usePerformanceMonitor('useTimelineActivities')
 
   // Use new Gmail store selectors
   const connectedAccounts = useGmailAccounts()
@@ -93,121 +132,153 @@ export function useTimelineActivities(options: UseTimelineActivitiesOptions = {}
     autoFetch: includeEmails && hasGmailAccounts,
   })
 
-  // Get pinned emails
+  // Get pinned emails - memoize the function to prevent recreation
   const { isEmailPinned } = usePinnedEmails(contactEmail)
 
-  // Convert internal activities to timeline format
+  // OPTIMIZED: Memoize internal activity transformation with caching
   const timelineInternalActivities: TimelineActivity[] = useMemo(() => {
-    return (internalActivities || []).map((activity: Activity) => ({
-      id: activity.id,
-      type: activity.type as TimelineActivity['type'],
-      content: activity.content,
-      timestamp: activity.timestamp,
-      source: 'internal' as const,
-      is_pinned: activity.is_pinned || false,
-    }))
+    if (!internalActivities) return []
+
+    return internalActivities.map((activity: Activity) => {
+      const cacheKey = `internal-${activity.id}-${activity.timestamp}-${activity.is_pinned}`
+
+      if (ACTIVITY_TRANSFORM_CACHE.has(cacheKey)) {
+        return ACTIVITY_TRANSFORM_CACHE.get(cacheKey)!
+      }
+
+      const transformed: TimelineActivity = {
+        id: activity.id,
+        type: activity.type as TimelineActivity['type'],
+        content: activity.content,
+        timestamp: activity.timestamp,
+        source: 'internal' as const,
+        is_pinned: activity.is_pinned || false,
+      }
+
+      ACTIVITY_TRANSFORM_CACHE.set(cacheKey, transformed)
+
+      // Clear cache if it gets too large
+      if (ACTIVITY_TRANSFORM_CACHE.size > 1000) {
+        ACTIVITY_TRANSFORM_CACHE.clear()
+      }
+
+      return transformed
+    })
   }, [internalActivities])
 
-  // Convert emails to timeline format
+  // OPTIMIZED: Memoize email activity transformation with efficient pinned checks
   const timelineEmailActivities: TimelineActivity[] = useMemo(() => {
-    if (!includeEmails || !hasGmailAccounts) {
+    if (!includeEmails || !hasGmailAccounts || !emails.length) {
       return []
     }
 
-    return emails.map((email: GmailEmail) => ({
-      id: `email-${email.id}`,
-      type: 'email' as const,
-      content: email.snippet,
-      timestamp: email.date,
-      source: 'gmail' as const,
-      is_pinned: isEmailPinned(email.id), // Check if email is pinned
-      subject: email.subject,
-      from: email.from,
-      to: email.to,
-      cc: email.cc,
-      bcc: email.bcc,
-      snippet: email.snippet,
-      isRead: email.isRead,
-      isImportant: email.isImportant,
-      bodyText: email.bodyText,
-      bodyHtml: email.bodyHtml,
-      labels: email.labels,
-      attachments: email.attachments,
-    }))
-  }, [emails, includeEmails, hasGmailAccounts, isEmailPinned])
+    // Batch check for pinned emails to reduce function calls
+    const emailIds = emails.map(email => email.id)
+    const pinnedStatusMap = new Map<string, boolean>()
 
-  // Combine and sort activities chronologically
-  const allActivities: TimelineActivity[] = useMemo(() => {
-    // Safeguard: ensure both arrays exist before combining
-    const safeInternalActivities = timelineInternalActivities || []
-    const safeEmailActivities = timelineEmailActivities || []
-
-    const combined = [...safeInternalActivities, ...safeEmailActivities]
-
-    const sorted = combined.sort((a, b) => {
-      // 1. Pinned activities go first
-      if (a.is_pinned && !b.is_pinned) return -1
-      if (!a.is_pinned && b.is_pinned) return 1
-
-      // 2. Within each group (pinned/unpinned), sort by date (most recent first)
-      const dateA = new Date(a.timestamp)
-      const dateB = new Date(b.timestamp)
-      return dateB.getTime() - dateA.getTime()
+    emailIds.forEach(id => {
+      pinnedStatusMap.set(id, isEmailPinned(id))
     })
 
-    // Debug logging for sorting
-    const pinnedCount = sorted.filter(a => a.is_pinned).length
-    const unpinnedCount = sorted.filter(a => !a.is_pinned).length
+    return emails.map((email: GmailEmail) => {
+      const cacheKey = `email-${email.id}-${email.date}-${pinnedStatusMap.get(email.id)}`
 
-    if (pinnedCount > 0) {
-      console.log('🔄 Timeline sorting result:', {
-        totalActivities: sorted.length,
-        pinnedCount,
-        unpinnedCount,
-        firstThreeActivities: sorted.slice(0, 3).map(a => ({
-          id: a.id,
-          type: a.type,
-          source: a.source,
-          is_pinned: a.is_pinned,
-          timestamp: a.timestamp,
-        })),
-      })
+      if (ACTIVITY_TRANSFORM_CACHE.has(cacheKey)) {
+        return ACTIVITY_TRANSFORM_CACHE.get(cacheKey)!
+      }
+
+      const transformed: TimelineActivity = {
+        id: `email-${email.id}`,
+        type: 'email' as const,
+        content: email.snippet,
+        timestamp: email.date,
+        source: 'gmail' as const,
+        is_pinned: pinnedStatusMap.get(email.id) || false,
+        subject: email.subject,
+        from: email.from,
+        to: email.to,
+        cc: email.cc,
+        bcc: email.bcc,
+        snippet: email.snippet,
+        isRead: email.isRead,
+        isImportant: email.isImportant,
+        bodyText: email.bodyText,
+        bodyHtml: email.bodyHtml,
+        labels: email.labels,
+        attachments: email.attachments,
+      }
+
+      ACTIVITY_TRANSFORM_CACHE.set(cacheKey, transformed)
+      return transformed
+    })
+  }, [emails, includeEmails, hasGmailAccounts, isEmailPinned])
+
+  // OPTIMIZED: Highly efficient activity combination and sorting
+  const allActivities: TimelineActivity[] = useMemo(() => {
+    // Early return for empty arrays
+    if (timelineInternalActivities.length === 0 && timelineEmailActivities.length === 0) {
+      return []
+    }
+
+    // Use more efficient array concatenation
+    const combined =
+      timelineInternalActivities.length === 0
+        ? timelineEmailActivities
+        : timelineEmailActivities.length === 0
+          ? timelineInternalActivities
+          : [...timelineInternalActivities, ...timelineEmailActivities]
+
+    // Use optimized sorting function
+    const sorted = sortActivitiesByPriorityAndDate(combined)
+
+    // Only log in development and when there are pinned items
+    if (process.env.NODE_ENV === 'development') {
+      const pinnedCount = sorted.filter(a => a.is_pinned).length
+      if (pinnedCount > 0) {
+        logger.debug('Timeline sorting completed:', {
+          totalActivities: sorted.length,
+          pinnedCount,
+          unpinnedCount: sorted.length - pinnedCount,
+        })
+      }
     }
 
     return sorted
   }, [timelineInternalActivities, timelineEmailActivities])
 
-  // Calculate loading state
-  const loading = internalLoading || (includeEmails && hasGmailAccounts && emailsLoading)
+  // OPTIMIZED: Memoize loading and error states
+  const loadingState = useMemo(() => {
+    return internalLoading || (includeEmails && hasGmailAccounts && emailsLoading)
+  }, [internalLoading, includeEmails, hasGmailAccounts, emailsLoading])
 
-  // Calculate error state
-  const error =
-    (internalError ? 'Failed to load activities' : null) || (includeEmails && hasGmailAccounts ? emailsError : null)
+  const errorState = useMemo(() => {
+    return (
+      (internalError ? 'Failed to load activities' : null) || (includeEmails && hasGmailAccounts ? emailsError : null)
+    )
+  }, [internalError, includeEmails, hasGmailAccounts, emailsError])
 
-  // Log activity counts for debugging
-  const emailsCount = timelineEmailActivities.length
-  const internalCount = timelineInternalActivities.length
+  // OPTIMIZED: Memoize counts to prevent recalculation
+  const activityCounts = useMemo(
+    () => ({
+      emailsCount: timelineEmailActivities.length,
+      internalCount: timelineInternalActivities.length,
+    }),
+    [timelineEmailActivities.length, timelineInternalActivities.length],
+  )
 
-  // Only log in development or when there are issues
-  if (process.env.NODE_ENV === 'development' && (error || loading)) {
-    logger.debug('Timeline activities summary:', {
-      contactId,
-      contactEmail,
-      internalCount,
-      emailsCount,
-      totalActivities: allActivities.length,
-      hasGmailAccounts,
-      emailSource,
-      includeEmails,
-    })
-  }
+  // Log performance summary periodically for monitoring
+  useMemo(() => {
+    if (renderCount > 0 && renderCount % 15 === 0) {
+      logSummary()
+    }
+  }, [renderCount, logSummary])
 
   return {
-    activities: allActivities || [], // Safeguard: always return array
-    loading,
-    error,
-    emailsCount,
-    internalCount,
+    activities: allActivities,
+    loading: loadingState,
+    error: errorState,
+    emailsCount: activityCounts.emailsCount,
+    internalCount: activityCounts.internalCount,
     hasGmailAccounts,
     emailSource,
     lastSyncAt,
@@ -217,67 +288,130 @@ export function useTimelineActivities(options: UseTimelineActivitiesOptions = {}
   }
 }
 
-// Helper functions for UI components
+// OPTIMIZED: Memoized helper functions for UI components with caching
+const ACTIVITY_ICON_CACHE = new Map<string, string>()
+const ACTIVITY_COLOR_CACHE = new Map<string, string>()
+
 export const getActivityIcon = (activity: TimelineActivity): string => {
+  const cacheKey = `${activity.type}-${activity.isImportant}`
+
+  if (ACTIVITY_ICON_CACHE.has(cacheKey)) {
+    return ACTIVITY_ICON_CACHE.get(cacheKey)!
+  }
+
+  let icon: string
   switch (activity.type) {
     case 'email':
-      return activity.isImportant ? 'mail-priority' : 'mail'
+      icon = activity.isImportant ? 'mail-priority' : 'mail'
+      break
     case 'call':
-      return 'phone'
+      icon = 'phone'
+      break
     case 'meeting':
-      return 'calendar'
+      icon = 'calendar'
+      break
     case 'task':
-      return 'check-square'
+      icon = 'check-square'
+      break
     case 'note':
-      return 'file-text'
+      icon = 'file-text'
+      break
     case 'system':
-      return 'settings'
+      icon = 'settings'
+      break
     default:
-      return 'circle'
+      icon = 'circle'
   }
+
+  ACTIVITY_ICON_CACHE.set(cacheKey, icon)
+
+  // Clear cache if it gets too large
+  if (ACTIVITY_ICON_CACHE.size > 50) {
+    ACTIVITY_ICON_CACHE.clear()
+  }
+
+  return icon
 }
 
 export const getActivityColor = (activity: TimelineActivity): string => {
-  if (activity.source === 'gmail') {
-    return activity.isImportant ? 'text-red-600' : 'text-blue-600'
+  const cacheKey = `${activity.source}-${activity.type}-${activity.isImportant}`
+
+  if (ACTIVITY_COLOR_CACHE.has(cacheKey)) {
+    return ACTIVITY_COLOR_CACHE.get(cacheKey)!
   }
 
-  switch (activity.type) {
-    case 'call':
-      return 'text-green-600'
-    case 'meeting':
-      return 'text-purple-600'
-    case 'task':
-      return 'text-orange-600'
-    case 'note':
-      return 'text-gray-600'
-    case 'system':
-      return 'text-gray-500'
-    default:
-      return 'text-gray-600'
+  let color: string
+  if (activity.source === 'gmail') {
+    color = activity.isImportant ? 'text-red-600' : 'text-blue-600'
+  } else {
+    switch (activity.type) {
+      case 'call':
+        color = 'text-green-600'
+        break
+      case 'meeting':
+        color = 'text-purple-600'
+        break
+      case 'task':
+        color = 'text-orange-600'
+        break
+      case 'note':
+        color = 'text-gray-600'
+        break
+      case 'system':
+        color = 'text-gray-500'
+        break
+      default:
+        color = 'text-gray-600'
+    }
   }
+
+  ACTIVITY_COLOR_CACHE.set(cacheKey, color)
+
+  // Clear cache if it gets too large
+  if (ACTIVITY_COLOR_CACHE.size > 50) {
+    ACTIVITY_COLOR_CACHE.clear()
+  }
+
+  return color
 }
 
+// OPTIMIZED: Cached timestamp formatting with Map-based cache
+const TIMESTAMP_FORMAT_CACHE = new Map<string, string>()
+
 export const formatActivityTimestamp = (timestamp: string): string => {
+  if (TIMESTAMP_FORMAT_CACHE.has(timestamp)) {
+    return TIMESTAMP_FORMAT_CACHE.get(timestamp)!
+  }
+
   const date = new Date(timestamp)
   const now = new Date()
   const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
 
+  let formatted: string
   if (diffInMinutes < 1) {
-    return 'Just now'
+    formatted = 'Just now'
   } else if (diffInMinutes < 60) {
-    return `${diffInMinutes}m ago`
+    formatted = `${diffInMinutes}m ago`
   } else if (diffInMinutes < 1440) {
     const hours = Math.floor(diffInMinutes / 60)
-    return `${hours}h ago`
+    formatted = `${hours}h ago`
   } else {
     const days = Math.floor(diffInMinutes / 1440)
     if (days === 1) {
-      return 'Yesterday'
+      formatted = 'Yesterday'
     } else if (days < 7) {
-      return `${days}d ago`
+      formatted = `${days}d ago`
     } else {
-      return date.toLocaleDateString()
+      formatted = date.toLocaleDateString()
     }
   }
+
+  TIMESTAMP_FORMAT_CACHE.set(timestamp, formatted)
+
+  // Clear cache if it gets too large
+  if (TIMESTAMP_FORMAT_CACHE.size > 200) {
+    TIMESTAMP_FORMAT_CACHE.clear()
+  }
+
+  return formatted
 }

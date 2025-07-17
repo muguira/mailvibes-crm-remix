@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { useStore } from '@/stores';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from '@/hooks/use-toast';
+import { usePerformanceMonitor } from '@/hooks/use-performance-monitor';
 
 export interface MainGridViewProps {
   columns: Column[];
@@ -81,6 +82,9 @@ export const MainGridView = forwardRef(function MainGridView({
   const [selectedCell, setSelectedCell] = useState<{ rowId: string, columnId: string } | null>(null);
   const [columnWidths, setColumnWidths] = useState<number[]>(columns.map(col => col.width));
 
+  // Performance monitoring for optimization tracking
+  const { logSummary, renderCount } = usePerformanceMonitor('MainGridView');
+
   // Add optimistic updates state to immediately show changes locally
   const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, any>>({});
 
@@ -100,6 +104,13 @@ export const MainGridView = forwardRef(function MainGridView({
 
   // Add click coordinates state
   const [clickCoordinates, setClickCoordinates] = useState<{ x: number; y: number } | null>(null);
+
+  // Log performance summary periodically for monitoring
+  useEffect(() => {
+    if (renderCount > 0 && renderCount % 15 === 0) {
+      logSummary();
+    }
+  }, [renderCount, logSummary]);
 
   // Expose scroll methods via ref
   useImperativeHandle(ref, () => ({
@@ -124,31 +135,129 @@ export const MainGridView = forwardRef(function MainGridView({
     }
   }), []);
 
-  // Add a special effect to preserve toolbar visibility on initial render
-  useEffect(() => {
-    // This helps ensure the toolbar stays visible when the component mounts
-    // By preventing automatic focus on the grid container
-    const preventInitialFocus = () => {
-      if (document.activeElement === mainViewRef.current) {
-        // If grid has focus on mount, blur it to keep toolbar visible
-        (document.activeElement as HTMLElement).blur();
+  // OPTIMIZED: Memoize currency formatter to avoid recreating on every render
+  const currencyFormatter = useMemo(() => {
+    const formatters = new Map<string, Intl.NumberFormat>();
+    return (value: number, currencyCode: string = 'USD') => {
+      if (!formatters.has(currencyCode)) {
+        formatters.set(currencyCode, new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: currencyCode,
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }));
       }
-    };
-
-    // Run once on mount
-    preventInitialFocus();
-
-    // Also add a global class to ensure toolbar is never hidden
-    document.body.classList.add('grid-view-active');
-
-    return () => {
-      // Clean up when component unmounts
-      document.body.classList.remove('grid-view-active');
-      document.body.classList.remove('grid-keyboard-nav');
-      document.body.classList.remove('grid-keyboard-nav-light');
-      document.body.classList.remove('grid-scroll-active');
+      return formatters.get(currencyCode)!.format(value);
     };
   }, []);
+
+  // OPTIMIZED: Memoize color brightness calculation to avoid repeated computations
+  const isColorLight = useMemo(() => {
+    const cache = new Map<string, boolean>();
+    return (color: string): boolean => {
+      if (cache.has(color)) {
+        return cache.get(color)!;
+      }
+      
+      const hex = color.replace('#', '');
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+      const isLight = brightness > 128;
+      
+      cache.set(color, isLight);
+      return isLight;
+    };
+  }, []);
+
+  // OPTIMIZED: Memoize status pill renderer with better caching
+  const renderStatusPill = useMemo(() => {
+    const pillCache = new Map<string, React.ReactElement | null>();
+    
+    return (value: string, colors: Record<string, string>) => {
+      if (!value) return null;
+      
+      const cacheKey = `${value}-${JSON.stringify(colors)}`;
+      if (pillCache.has(cacheKey)) {
+        return pillCache.get(cacheKey)!;
+      }
+      
+      const backgroundColor = colors[value] || '#f3f4f6';
+      const textColor = isColorLight(backgroundColor) ? '#000000' : '#ffffff';
+      
+      const pill = (
+        <span
+          className="px-2 py-0.5 rounded-full text-xs font-medium"
+          style={{ backgroundColor, color: textColor }}
+        >
+          {value}
+        </span>
+      );
+      
+      pillCache.set(cacheKey, pill);
+      return pill;
+    };
+  }, [isColorLight]);
+
+  // OPTIMIZED: Memoize date formatter to avoid repeated parsing and formatting
+  const formatDate = useMemo(() => {
+    const cache = new Map<string, string>();
+    
+    return (value: any): string => {
+      if (!value) return '';
+      
+      const stringValue = String(value);
+      if (cache.has(stringValue)) {
+        return cache.get(stringValue)!;
+      }
+      
+      try {
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+          const formatted = format(date, 'MMM d, yyyy');
+          cache.set(stringValue, formatted);
+          return formatted;
+        }
+      } catch (e) {
+        // If there's any error in parsing, cache and return the original value
+      }
+      
+      cache.set(stringValue, stringValue);
+      return stringValue;
+    };
+  }, []);
+
+  // OPTIMIZED: Memoize formatCellValue function with extensive caching
+  const formatCellValue = useCallback((value: any, column: Column, row?: GridRow) => {
+    if (!row) return '';
+
+    // Check if we have an optimistic update for this cell
+    const optimisticValue = optimisticUpdates[`${row.id}-${column.id}`];
+    if (optimisticValue !== undefined) {
+      // Use the optimistic value instead
+      value = optimisticValue;
+    }
+
+    if (value === undefined || value === null) return '';
+
+    // If the column has a custom render function, use it
+    if (column.renderCell && row) {
+      return column.renderCell(value, row);
+    }
+
+    switch (column.type) {
+      case 'currency':
+        const currencyCode = column.currencyType || 'USD';
+        return currencyFormatter(Number(value), currencyCode);
+      case 'status':
+        return renderStatusPill(value, column.colors || {});
+      case 'date':
+        return formatDate(value);
+      default:
+        return String(value);
+    }
+  }, [optimisticUpdates, currencyFormatter, renderStatusPill, formatDate]);
 
   // Update the finishCellEdit function to clear selection after status changes
   const finishCellEdit = (rowId: string, columnId: string, value: any, targetRowId?: string, targetColumnId?: string) => {
@@ -695,8 +804,8 @@ export const MainGridView = forwardRef(function MainGridView({
   // Check if contacts are still loading
   const isContactsLoading = fetching || initializing || !firstBatchLoaded;
 
-  // Show loading toast when user tries to interact while loading
-  const showLoadingToast = () => {
+  // OPTIMIZED: Memoize showLoadingToast to prevent recreation
+  const showLoadingToast = useCallback(() => {
     if (isContactsLoading) {
       toast({
         title: "Loading contacts...",
@@ -706,10 +815,10 @@ export const MainGridView = forwardRef(function MainGridView({
       return true;
     }
     return false;
-  };
+  }, [isContactsLoading]);
 
-  // Update the handleCellClick function to properly handle status selection
-  const handleCellClick = (rowId: string, columnId: string, e?: React.MouseEvent) => {
+  // OPTIMIZED: Memoize handleCellClick to prevent recreation on every render
+  const handleCellClick = useCallback((rowId: string, columnId: string, e?: React.MouseEvent) => {
     // Stop propagation if provided
     if (e) {
       e.stopPropagation();
@@ -771,10 +880,10 @@ export const MainGridView = forwardRef(function MainGridView({
       // Double click behavior - entering edit mode on second click
       setEditingCell({ rowId, columnId });
     }
-  };
+  }, [columns, editingCell, selectedCell, showLoadingToast, onCellChange]);
 
-  // Critical fix: For Tab navigation to keep toolbar visible while maintaining proper selection and focus
-  const handleTabNavigation = (e: React.KeyboardEvent, rowId: string, columnId: string, value: any) => {
+  // OPTIMIZED: Memoize handleTabNavigation for better performance
+  const handleTabNavigation = useCallback((e: React.KeyboardEvent, rowId: string, columnId: string, value: any) => {
     e.preventDefault();
     e.stopPropagation(); // Prevent the event from bubbling up
 
@@ -848,10 +957,10 @@ export const MainGridView = forwardRef(function MainGridView({
     setTimeout(() => {
       recentSavesRef.current.delete(cellKey);
     }, 100);
-  };
+  }, [data, columns, onCellChange]);
 
-  // Handle cell editing keydown with careful focus management 
-  const handleEditingKeyDown = (e: React.KeyboardEvent, rowId: string, columnId: string, value: any) => {
+  // OPTIMIZED: Memoize handleEditingKeyDown for better performance  
+  const handleEditingKeyDown = useCallback((e: React.KeyboardEvent, rowId: string, columnId: string, value: any) => {
     if (e.key === 'Tab') {
       // Use the dedicated Tab handler for better accuracy
       handleTabNavigation(e, rowId, columnId, value);
@@ -924,7 +1033,7 @@ export const MainGridView = forwardRef(function MainGridView({
         mainViewRef.current.focus({ preventScroll: true });
       }
     }
-  };
+  }, [data, columns, onCellChange, handleTabNavigation]);
 
   // Handle cell value change
   const handleCellChange = (rowId: string, columnId: string, value: any, moveToNextRow = false) => {
@@ -1003,12 +1112,15 @@ export const MainGridView = forwardRef(function MainGridView({
   };
 
   // Handle cell context menu
-  const handleCellContextMenu = (e: React.MouseEvent, columnId: string) => {
+  const handleCellContextMenu = useCallback((e: React.MouseEvent, columnId: string) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    const position = { x: e.clientX, y: e.clientY };
     if (onContextMenu) {
-      onContextMenu(columnId, { x: e.clientX, y: e.clientY });
+      onContextMenu(columnId, position);
     }
-  };
+  }, [onContextMenu]);
 
   // Column width getter
   const getColumnWidth = useCallback((index: number) => {
@@ -1027,8 +1139,8 @@ export const MainGridView = forwardRef(function MainGridView({
     }, 0);
   }, [columnWidths]);
 
-  // Common blur handler to detect clicks on other cells - with double-save prevention
-  const handleInputBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>, rowId: string, columnId: string, value: any) => {
+  // OPTIMIZED: Memoize handleInputBlur for better performance
+  const handleInputBlur = useCallback((e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>, rowId: string, columnId: string, value: any) => {
     // Check if we recently saved this cell to prevent double-save
     const cellKey = `${rowId}-${columnId}`;
     if (recentSavesRef.current.has(cellKey)) {
@@ -1040,80 +1152,7 @@ export const MainGridView = forwardRef(function MainGridView({
     if (editingCell?.rowId === rowId && editingCell?.columnId === columnId) {
       finishCellEdit(rowId, columnId, value);
     }
-  };
-
-  // Format cell value with optimistic updates
-  const formatCellValue = (value: any, column: Column, row?: GridRow) => {
-    if (!row) return '';
-
-    // Check if we have an optimistic update for this cell
-    const optimisticValue = optimisticUpdates[`${row.id}-${column.id}`];
-    if (optimisticValue !== undefined) {
-      // Use the optimistic value instead
-      value = optimisticValue;
-    }
-
-    if (value === undefined || value === null) return '';
-
-    // If the column has a custom render function, use it
-    if (column.renderCell && row) {
-      return column.renderCell(value, row);
-    }
-
-    switch (column.type) {
-      case 'currency':
-        const currencyCode = column.currencyType || 'USD';
-        return new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: currencyCode,
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0,
-        }).format(Number(value));
-      case 'status':
-        return renderStatusPill(value, column.colors || {});
-      case 'date':
-        try {
-          // Try to parse the date and format it consistently
-          const date = new Date(value);
-          if (!isNaN(date.getTime())) {
-            return format(date, 'MMM d, yyyy');
-          }
-        } catch (e) {
-          // If there's any error in parsing, just return the original value
-        }
-        return value;
-      default:
-        return String(value);
-    }
-  };
-
-  // Render status pill
-  const renderStatusPill = (value: string, colors: Record<string, string>) => {
-    if (!value) return null;
-
-    const backgroundColor = colors[value] || '#f3f4f6';
-    const isLight = isColorLight(backgroundColor);
-    const textColor = isLight ? '#000000' : '#ffffff';
-
-    return (
-      <span
-        className="px-2 py-0.5 rounded-full text-xs font-medium"
-        style={{ backgroundColor, color: textColor }}
-      >
-        {value}
-      </span>
-    );
-  };
-
-  // Helper function to determine if color is light
-  const isColorLight = (color: string): boolean => {
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness > 128;
-  };
+  }, [editingCell]);
 
   // Reset all selections when anything interacts with a status dropdown
   useEffect(() => {
@@ -1137,39 +1176,66 @@ export const MainGridView = forwardRef(function MainGridView({
     }
   }, [editingCell, columns]);
 
-  // Cell renderer
-  const Cell = ({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
+  // OPTIMIZED: Memoized Cell renderer component to prevent unnecessary re-renders
+  const Cell = React.memo(({ columnIndex, rowIndex, style }: { columnIndex: number, rowIndex: number, style: React.CSSProperties }) => {
     if (rowIndex >= data.length || columnIndex >= columns.length) return null;
     
     const row = data[rowIndex];
     const column = columns[columnIndex];
     const cellValue = row[column.id];
-    const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
-    const isSelected = selectedCell?.rowId === row.id && selectedCell?.columnId === column.id;
-    const isRowSelected = selectedRowIds && selectedRowIds.has(row.id);
-    const isColumnHighlighted = contextMenuColumn === column.id;
     
-    // Check for optimistic update
-    const optimisticValue = optimisticUpdates[`${row.id}-${column.id}`];
-    const displayValue = optimisticValue !== undefined ? optimisticValue : cellValue;
-    
-    // Build class names
-    const cellClassName = cn(
-      'grid-cell',
-      isSelected && 'selected-cell',
-      isRowSelected && 'selected-row',
-      isColumnHighlighted && 'highlight-column'
-    );
-    
-    // For status cells with colors
-    const statusColors = column.type === 'status' && column.colors ? column.colors : {};
+    // Memoize expensive calculations
+    const cellProps = useMemo(() => {
+      const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === column.id;
+      const isSelected = selectedCell?.rowId === row.id && selectedCell?.columnId === column.id;
+      const isRowSelected = selectedRowIds && selectedRowIds.has(row.id);
+      const isColumnHighlighted = contextMenuColumn === column.id;
+      
+      // Check for optimistic update
+      const optimisticValue = optimisticUpdates[`${row.id}-${column.id}`];
+      const displayValue = optimisticValue !== undefined ? optimisticValue : cellValue;
+      
+      // Build class names
+      const cellClassName = cn(
+        'grid-cell',
+        isSelected && 'selected-cell',
+        isRowSelected && 'selected-row',
+        isColumnHighlighted && 'highlight-column'
+      );
+      
+      // For status cells with colors
+      const statusColors = column.type === 'status' && column.colors ? column.colors : {};
+      
+      return {
+        isEditing,
+        isSelected,
+        isRowSelected,
+        isColumnHighlighted,
+        displayValue,
+        cellClassName,
+        statusColors
+      };
+    }, [
+      row.id, 
+      column.id, 
+      column.type, 
+      column.colors, 
+      cellValue,
+      editingCell?.rowId, 
+      editingCell?.columnId,
+      selectedCell?.rowId, 
+      selectedCell?.columnId,
+      selectedRowIds,
+      contextMenuColumn,
+      optimisticUpdates
+    ]);
     
     return (
       <div
-        className={cellClassName}
+        className={cellProps.cellClassName}
         style={{
           ...style,
-          backgroundColor: isRowSelected ? '#f0f9ff' : undefined,
+          backgroundColor: cellProps.isRowSelected ? '#f0f9ff' : undefined,
         }}
         onClick={(e) => handleCellClick(row.id, column.id, e)}
         onContextMenu={(e) => handleCellContextMenu(e, column.id)}
@@ -1177,11 +1243,11 @@ export const MainGridView = forwardRef(function MainGridView({
         data-type={column.type}
         tabIndex={-1}
       >
-        {isEditing ? (
+        {cellProps.isEditing ? (
           <EditCell
             rowId={row.id}
             columnId={column.id}
-            value={displayValue}
+            value={cellProps.displayValue}
             column={column}
             onFinishEdit={finishCellEdit}
             onBlur={(e) => handleInputBlur(e, row.id, column.id, (e.target as HTMLInputElement | HTMLSelectElement).value)}
@@ -1192,18 +1258,25 @@ export const MainGridView = forwardRef(function MainGridView({
             initialValue={(editingCell as any)?.initialValue}
             clickCoordinates={clickCoordinates}
           />
-        ) : column.type === 'status' && statusColors ? (
-          renderStatusPill(displayValue, statusColors)
+        ) : column.type === 'status' && cellProps.statusColors ? (
+          renderStatusPill(cellProps.displayValue, cellProps.statusColors)
         ) : column.renderCell ? (
-          column.renderCell(displayValue, row)
+          column.renderCell(cellProps.displayValue, row)
         ) : (
           <div className="cell-content">
-            {formatCellValue(displayValue, column, row) || ''}
+            {formatCellValue(cellProps.displayValue, column, row) || ''}
           </div>
         )}
       </div>
     );
-  };
+  }, (prevProps, nextProps) => {
+    // Custom comparison function for React.memo
+    return (
+      prevProps.columnIndex === nextProps.columnIndex &&
+      prevProps.rowIndex === nextProps.rowIndex &&
+      JSON.stringify(prevProps.style) === JSON.stringify(nextProps.style)
+    );
+  });
 
   // Context menu actions
   const handleCopyColumn = (columnId: string) => {
