@@ -425,7 +425,116 @@ src/stores/
 
 ---
 
-## 📊 **Métricas de Éxito**
+## 🛠️ **FASE 8: Post-Refactoring Bug Fixes & UX Improvements**
+
+**Duración**: Enero 31, 2025 (Post-refactoring)  
+**Status**: ✅ **COMPLETED**
+
+### **8.1 OAuth Token Constraint Fix** ✅
+
+**Problema Identificado:**
+
+- Error en `saveTokens`: "there is no unique or exclusion constraint matching the ON CONFLICT specification"
+- Constraint de base de datos `UNIQUE(email_account_id)` vs código usando `onConflict: 'user_id,email_account_id'`
+
+**Solución Implementada:**
+
+- [x] ✅ Identificada inconsistencia entre schema de BD y código
+- [x] ✅ Corregido `onConflict` en `tokenService.ts` de `'user_id,email_account_id'` a `'email_account_id'`
+- [x] ✅ Verificado que Edge Function ya tenía el constraint correcto
+- [x] ✅ OAuth flow funcionando sin errores de base de datos
+
+**Archivos Modificados:**
+
+- `src/services/google/tokenService.ts` - Línea 67: Fixed onConflict clause
+
+### **8.2 GmailAccountSelectStep Property Mismatches** ✅
+
+**Problema Identificado:**
+
+- Error: `ReferenceError: isStoreLoading is not defined`
+- Incompatibilidad entre tipos de `GmailAccount` en diferentes partes del código
+- Función `disconnectAccount` con argumentos incorrectos
+
+**Solución Implementada:**
+
+- [x] ✅ Corregido `isStoreLoading` a `loading.accounts` en GmailAccountSelectStep
+- [x] ✅ Agregado `loadAccounts` al hook useGmail destructuring
+- [x] ✅ Corregido `disconnectAccount(user.id, account.email)` a `disconnectAccount(account.email)`
+- [x] ✅ Actualizado propiedades de `GmailAccount`: `account.user_info?.picture` → `account.picture`
+- [x] ✅ Añadido type casting temporal para `last_sync_error` property
+
+**Archivos Modificados:**
+
+- `src/components/gmail-import/GmailAccountSelectStep.tsx` - Multiple property fixes
+
+### **8.3 Service Initialization Improvements** ✅
+
+**Problema Identificado:**
+
+- "Service not initialized" error en GmailImportWizard
+- Servicio funcionaba solo después de hacer clic en "Retry"
+- Timing issues en auto-inicialización del servicio
+
+**Solución Implementada:**
+
+- [x] ✅ **Auto-retry automático**: Detecta error "Service not initialized" y reintenta automáticamente
+- [x] ✅ **Inicialización forzada**: Si usuario disponible pero sin cuentas, fuerza loadAccounts()
+- [x] ✅ **Hook useGmail robusto**: Delays y retry logic en auto-inicialización
+- [x] ✅ **Mejor debugging**: Logging comprehensivo de estados de inicialización
+- [x] ✅ **Función retry mejorada**: Reset + reinicialización inteligente
+
+**Archivos Modificados:**
+
+- `src/components/gmail-import/GmailImportWizard.tsx` - Auto-retry logic
+- `src/hooks/gmail/useGmail.ts` - Robust initialization with delays
+
+### **8.4 Loading State UX Enhancement** ✅
+
+**Problema Identificado:**
+
+- "Flash" del error screen antes de que se inicialice el servicio
+- Mala experiencia de usuario al mostrar error momentáneamente
+
+**Solución Implementada:**
+
+- [x] ✅ **Estado de inicialización**: `isInitializing` state para controlar loading
+- [x] ✅ **Placeholder de carga**: Loading screen profesional con spinner
+- [x] ✅ **Timeout inteligente**: 3 segundos de gracia antes de mostrar errores
+- [x] ✅ **Transición suave**: Elimina flash del error, experiencia fluida
+- [x] ✅ **Diseño consistente**: Loading placeholder matching app design
+
+**Características del Loading Placeholder:**
+
+```
+┌─────────────────────────────┐
+│     [📧 Icono Gmail]        │
+│                             │
+│   Initializing Gmail Service │
+│                             │
+│ Setting up your Gmail       │
+│    integration...           │
+│                             │
+│  [🔄] This may take a few   │
+│       seconds               │
+└─────────────────────────────┘
+```
+
+**Archivos Modificados:**
+
+- `src/components/gmail-import/GmailImportWizard.tsx` - Loading state & placeholder
+
+### **🎯 Checkpoint Fase 8:**
+
+- [x] **OAuth errors resueltos** - Token saving funciona correctamente
+- [x] **Property mismatches corregidos** - No más undefined reference errors
+- [x] **Service initialization robusto** - Auto-retry y inicialización mejorada
+- [x] **UX loading mejorado** - Sin flash de error, transición suave
+- [x] **Sistema más resiliente** - Mejor handling de edge cases y timing issues
+
+---
+
+## 📊 **Métricas de Éxito Actualizadas**
 
 ### **Antes del Refactoring:** ❌
 
@@ -435,60 +544,78 @@ src/stores/
 - [x] ~~Difícil de testear y debuggear~~ → **RESUELTO**
 - [x] ~~Duplicación entre `gmailAuthSlice.ts` y `use-gmail-auth.ts`~~ → **RESUELTO**
 
-### **Después del Refactoring:** ✅
+### **Después del Refactoring + Bug Fixes:** ✅
 
 - [x] ✅ **4 services especializados + 1 store limpio** - Arquitectura clara
 - [x] ✅ **1 sola fuente de verdad** para cada operación
 - [x] ✅ **Estado encapsulado** por instancia de servicio
 - [x] ✅ **Validación manual extensiva** completada exitosamente
 - [x] ✅ **Zero duplicación** de lógica
+- [x] ✅ **OAuth flow estable** sin errores de base de datos
+- [x] ✅ **Service initialization resiliente** con auto-retry
+- [x] ✅ **UX loading fluido** sin flash errors
+- [x] ✅ **Property consistency** entre tipos y componentes
 
 ---
 
-## 🎯 **Cronograma Realizado**
+## 🎯 **Cronograma Realizado Actualizado**
 
-| Día       | Fase                           | Actividades                                                                                   | Entregables                                  | Status |
-| --------- | ------------------------------ | --------------------------------------------------------------------------------------------- | -------------------------------------------- | ------ |
-| **Día 1** | Service Layer Completo + Store | types.ts, AuthService.ts, EmailService.ts, ContactsService.ts, GmailService.ts, gmailStore.ts | Service layer completo + Store refactorizado | ✅     |
-| **Día 1** | Hooks + Migración Completa     | useGmail.ts, useGmailAccounts.ts + Migración de todos los componentes                         | Hooks + Componentes migrados                 | ✅     |
-| **Día 1** | Cleanup + Testing + Validation | Eliminar obsoletos + Testing manual extensivo + Optimizaciones                                | Sistema completo y validado                  | ✅     |
+| Día                  | Fase                           | Actividades                                                                                   | Entregables                                  | Status |
+| -------------------- | ------------------------------ | --------------------------------------------------------------------------------------------- | -------------------------------------------- | ------ |
+| **Día 1**            | Service Layer Completo + Store | types.ts, AuthService.ts, EmailService.ts, ContactsService.ts, GmailService.ts, gmailStore.ts | Service layer completo + Store refactorizado | ✅     |
+| **Día 1**            | Hooks + Migración Completa     | useGmail.ts, useGmailAccounts.ts + Migración de todos los componentes                         | Hooks + Componentes migrados                 | ✅     |
+| **Día 1**            | Cleanup + Testing + Validation | Eliminar obsoletos + Testing manual extensivo + Optimizaciones                                | Sistema completo y validado                  | ✅     |
+| **Post-Refactoring** | Bug Fixes & UX Improvements    | OAuth constraint fix, Service init improvements, Loading state enhancement                    | Sistema robusto y pulido                     | ✅     |
 
-**🚀 RESULTADO: Completado en 1 día en lugar de 4 días estimados**
-
----
-
-## ⚠️ **Riesgos y Mitigaciones - RESUELTO**
-
-### **Riesgos que se Materializaron y Fueron Resueltos:**
-
-- [x] ✅ **Breaking changes**: Componentes dejaron de funcionar → **RESUELTO** con migración sistemática
-- [x] ✅ **Integration issues**: Infinite loops y crashes → **RESUELTO** con selectors optimizados
-- [x] ✅ **Lost functionality**: Correos no aparecían → **RESUELTO** con carga automática de cuentas
-
-### **Mitigaciones Exitosas:**
-
-- [x] ✅ **Testing incremental**: Cada fase validada antes de continuar
-- [x] ✅ **Systematic migration**: Hook por hook, componente por componente
-- [x] ✅ **Progressive fixes**: Problemas identificados y resueltos inmediatamente
-- [x] ✅ **Manual validation**: Funcionalidad verificada end-to-end
+**🚀 RESULTADO: Sistema completo, robusto y con excelente UX**
 
 ---
 
-## 📝 **Notas y Decisiones Finales**
+## 🔧 **Bug Fixes Summary**
 
-### **Decisiones Arquitecturales Implementadas:**
+### **Critical Fixes Implemented:**
 
-- [x] ✅ **Service instances** por configuración de usuario
-- [x] ✅ **Factory functions** para easy instantiation
-- [x] ✅ **Zustand store** mantiene solo UI state, services manejan business logic
-- [x] ✅ **Error handling** distribuido pero consistente en cada service
+1. **OAuth Database Constraint** ✅
+   - **Issue**: Token saving failed due to incorrect constraint reference
+   - **Impact**: Gmail account connection completely broken
+   - **Fix**: Corrected `onConflict` clause to match actual DB schema
+   - **Result**: OAuth flow works perfectly
 
-### **Optimizaciones Realizadas:**
+2. **Service Initialization Timing** ✅
+   - **Issue**: Service not initialized on first load, required manual retry
+   - **Impact**: Poor user experience, extra clicks needed
+   - **Fix**: Auto-retry logic + robust initialization in useGmail hook
+   - **Result**: Service initializes automatically and reliably
 
-- [x] ✅ **Selector optimization**: Primitivos + compuestos para evitar loops
-- [x] ✅ **Hook memoization**: useCallback y useMemo estratégicos
-- [x] ✅ **State management**: Carga automática de cuentas tras inicialización
-- [x] ✅ **Validation layers**: Array.isArray() y nullish checks comprehensivos
+3. **Loading State Flash** ✅
+   - **Issue**: Brief flash of error screen before service loads
+   - **Impact**: Confusing UX, looks like system is broken
+   - **Fix**: Initial loading state with professional placeholder
+   - **Result**: Smooth, professional loading experience
+
+4. **Property Type Mismatches** ✅
+   - **Issue**: Various property reference errors and type mismatches
+   - **Impact**: Console errors and potential runtime issues
+   - **Fix**: Consistent property usage and type casting where needed
+   - **Result**: Clean console, no undefined reference errors
+
+---
+
+## 📝 **Notas y Decisiones Finales Actualizadas**
+
+### **Post-Refactoring Learnings:**
+
+- [x] ✅ **Database schema validation**: Always verify DB constraints match code expectations
+- [x] ✅ **Service initialization patterns**: Auto-retry and timeout strategies essential for reliable UX
+- [x] ✅ **Loading state importance**: Initial loading states prevent user confusion and perceived bugs
+- [x] ✅ **Type consistency**: Centralized type definitions prevent property mismatch issues
+
+### **Future Maintenance Notes:**
+
+- [x] ✅ **Monitor OAuth flow**: Watch for token-related errors in production
+- [x] ✅ **Service init monitoring**: Track initialization success rates
+- [x] ✅ **UX feedback loops**: Collect user feedback on loading experiences
+- [x] ✅ **Type system evolution**: Keep types synchronized across service boundaries
 
 ---
 
