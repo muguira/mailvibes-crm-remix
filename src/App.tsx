@@ -26,6 +26,8 @@ import Import from "@/pages/Import";
 import GmailImport from "@/pages/dashboard/GmailImport";
 import DeletedContacts from "@/pages/dashboard/DeletedContacts";
 import { useRadixPointerEventsFix } from "@/hooks/use-radix-pointer-events-fix";
+import PerformanceTestingDashboard from "@/components/debug/PerformanceTestingDashboard";
+import { useEffect, useState } from "react";
 // Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,6 +41,22 @@ const queryClient = new QueryClient({
 function App() {
   // Fix for Radix UI pointer-events: none bug in production
   useRadixPointerEventsFix();
+
+  // Performance dashboard state
+  const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false);
+
+  // Global keyboard shortcut for performance dashboard
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        setShowPerformanceDashboard(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <ErrorBoundary sectionName="Application">
@@ -88,6 +106,14 @@ function App() {
             </Router>
           </ActivityProvider>
         </AuthProvider>
+        
+        {/* Performance Testing Dashboard - Global access via Ctrl+Shift+P */}
+        {showPerformanceDashboard && (
+          <PerformanceTestingDashboard 
+            isVisible={showPerformanceDashboard}
+            onClose={() => setShowPerformanceDashboard(false)}
+          />
+        )}
       </QueryClientProvider>
     </ErrorBoundary>
   );
