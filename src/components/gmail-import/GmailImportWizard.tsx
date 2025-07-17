@@ -5,7 +5,7 @@ import { Stepper, Step } from "@/components/ui/stepper";
 import { ArrowRight, ArrowLeft, Check, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth";
-import { useStore } from "@/stores";
+import { useGmail } from "@/hooks/gmail";
 import { toast } from "sonner";
 import { logger } from '@/utils/logger';
 import { LoadingOverlay } from "@/components/ui/loading-spinner";
@@ -22,12 +22,15 @@ import { MultipleRowsActionModal } from "@/components/csv-import/MultipleRowsAct
 // Import Gmail specific components
 import { GmailAccountSelectStep } from "./GmailAccountSelectStep";
 import { ImportSuccessStep } from "./ImportSuccessStep";
+import { ScopeDetectionAlert } from "./ScopeDetectionAlert";
+import { ContactsErrorAlert } from "./ContactsErrorAlert";
 
 // Import services
 import { 
   getAllContactsWithPagination, 
   transformGoogleContactsToCsvFormat 
 } from "@/services/google/peopleApi";
+import { getValidToken } from "@/services/google/tokenService";
 import { importCsvData, validateImportData } from "@/services/csvImportService";
 
 // Import types
@@ -45,10 +48,6 @@ const WIZARD_STEPS: Step[] = [
   { id: "import-complete", title: "Import Complete" },
 ];
 
-export interface GmailImportWizardProps {
-  onComplete?: (data: ImportData, listId: string | null) => void;
-}
-
 export interface ImportData {
   accountEmail: string;
   listName: string;
@@ -59,10 +58,125 @@ export interface ImportData {
   listFieldDefinitions: ListFieldDefinition[];
 }
 
+export interface GmailImportWizardProps {
+  onComplete?: (data: ImportData, listId: string | null) => void;
+}
+
 export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
   const { user } = useAuth();
-  const { getAccessToken } = useStore();
   const navigate = useNavigate();
+  
+  // Track initial loading state to prevent flash of error screen
+  const [isInitializing, setIsInitializing] = useState(true);
+  const hasTriedInitRef = useRef(false);
+  
+  // Use the new Gmail hook with auto-initialization
+  const {
+    accounts,
+    primaryAccount,
+    importContacts,
+    loading,
+    error,
+    loadAccounts,
+    reset
+  } = useGmail({ 
+    userId: user?.id,        // Pass user ID for auto-initialization
+    enableLogging: true,     // Enable logging to debug issues
+    autoInitialize: true     // Enable auto-init for service availability
+  });
+
+  // Manual retry function for service initialization
+  const handleRetryService = useCallback(async () => {
+    if (!user?.id) {
+      logger.error('[GmailImportWizard] Cannot retry: User not authenticated');
+      return;
+    }
+
+    logger.info('[GmailImportWizard] Manually retrying service initialization...', { userId: user.id });
+    
+    try {
+      // Reset the current state first
+      reset();
+      
+      // Wait a bit for the reset to take effect
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Force re-initialization by calling loadAccounts which should trigger service init
+      await loadAccounts();
+      
+      logger.info('[GmailImportWizard] Manual service retry successful');
+    } catch (error) {
+      logger.error('[GmailImportWizard] Manual service retry failed:', error);
+    }
+  }, [user?.id, reset, loadAccounts]);
+
+  // Add debugging info about the current state
+  useEffect(() => {
+    logger.info('[GmailImportWizard] State update:', {
+      hasUser: !!user?.id,
+      userId: user?.id,
+      error,
+      accountsCount: accounts?.length || 0,
+      loading,
+      isInitializing
+    });
+  }, [user?.id, error, accounts?.length, loading, isInitializing]);
+
+  // Manage initial loading state - give service time to initialize
+  useEffect(() => {
+    if (!user?.id) return; // Wait for user to be available
+
+    if (!hasTriedInitRef.current) {
+      hasTriedInitRef.current = true;
+      
+      // Give the service 3 seconds to initialize before showing any errors
+      const initTimeoutId = setTimeout(() => {
+        setIsInitializing(false);
+      }, 3000);
+
+      return () => clearTimeout(initTimeoutId);
+    }
+  }, [user?.id]);
+
+  // End initialization state once we have accounts or a non-initialization error
+  useEffect(() => {
+    if (accounts.length > 0) {
+      setIsInitializing(false);
+    } else if (error && !error.includes('Service not initialized') && !loading.accounts) {
+      setIsInitializing(false);
+    }
+  }, [accounts.length, error, loading.accounts]);
+
+  // Auto-retry service initialization if needed
+  useEffect(() => {
+    if (user?.id && error?.includes('Service not initialized')) {
+      logger.info('[GmailImportWizard] Auto-retrying due to service initialization error...');
+      
+      // Retry after a short delay
+      const timeoutId = setTimeout(() => {
+        handleRetryService();
+      }, 1000);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [user?.id, error, handleRetryService]);
+
+  // Force service initialization when user becomes available
+  useEffect(() => {
+    if (user?.id && !loading.accounts && !error && accounts.length === 0) {
+      logger.info('[GmailImportWizard] User available but no accounts loaded, forcing initialization...');
+      
+      const timeoutId = setTimeout(async () => {
+        try {
+          await loadAccounts();
+        } catch (err) {
+          logger.error('[GmailImportWizard] Failed to load accounts on user available:', err);
+        }
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [user?.id, loading.accounts, error, accounts.length, loadAccounts]);
   
   // Wizard state
   const [currentStep, setCurrentStep] = useState(0);
@@ -102,9 +216,9 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
   // Track if we've already fetched contacts for current account
   const fetchedForAccountRef = useRef<string | null>(null);
 
-  // Fetch contacts when account is selected and moving to contact props step
+  // Fetch actual Google contacts data when moving to contact props step
   useEffect(() => {
-    const fetchContactsIfNeeded = async () => {
+    const fetchGoogleContacts = async () => {
       // Skip if we've already fetched for this account
       if (fetchedForAccountRef.current === selectedAccountEmail) {
         return;
@@ -116,29 +230,36 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
         fetchedForAccountRef.current = selectedAccountEmail;
         
         try {
-          // Get access token
-          const token = await getAccessToken(user.id, selectedAccountEmail);
+          logger.info(`[GmailImportWizard] Fetching Google contacts directly from API`);
+          
+          // Get access token for the selected account
+          const token = await getValidToken(user.id, selectedAccountEmail);
           if (!token) {
-            throw new Error("Unable to get access token for selected account");
+            throw new Error('Unable to get valid access token for the selected account');
           }
 
-          // Fetch contacts with progress
-          const contacts = await getAllContactsWithPagination(
-            token,
-            (current, total) => {
-              const progress = Math.round((current / total) * 100);
-              setFetchProgress(progress);
-            }
-          );
+          // Fetch contacts directly from Google People API
+          const contacts = await getAllContactsWithPagination(token, (current, total) => {
+            const progress = Math.round((current / total) * 100);
+            setFetchProgress(current);
+            logger.debug(`[GmailImportWizard] Fetching progress: ${current}/${total} contacts`);
+          });
 
-          // Transform to CSV format
+          if (contacts.length === 0) {
+            throw new Error('No contacts found in this Google account');
+          }
+
+          // Transform Google contacts to CSV format for the wizard
           const csvData = transformGoogleContactsToCsvFormat(contacts);
+          
           setParsedData(csvData);
           setGoogleContacts(contacts);
           
-          logger.info(`Fetched ${contacts.length} contacts from Gmail`);
+          logger.info(`[GmailImportWizard] Successfully fetched ${contacts.length} contacts from Google`);
+          toast.success(`Successfully loaded ${contacts.length} contacts from Gmail`);
+          
         } catch (error) {
-          logger.error("Error fetching contacts:", error);
+          logger.error("Error fetching Google contacts:", error);
           toast.error("Failed to fetch contacts", {
             description: error instanceof Error ? error.message : "Unknown error occurred",
           });
@@ -153,8 +274,8 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
       }
     };
 
-    fetchContactsIfNeeded();
-  }, [currentStep, selectedAccountId, selectedAccountEmail, parsedData, user]); // Remove getAccessToken from dependencies
+    fetchGoogleContacts();
+  }, [currentStep, selectedAccountId, selectedAccountEmail, parsedData, user]);
 
   const handleAccountSelect = (accountId: string, email: string) => {
     setSelectedAccountId(accountId);
@@ -293,14 +414,14 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
         ) : (
           <div className="flex flex-col items-center justify-center py-12 space-y-4">
             <Mail className="w-12 h-12 text-gray-400 animate-pulse" />
-            <p className="text-gray-500">Loading contacts from Gmail...</p>
+            <p className="text-gray-500">Fetching contacts from Google Contacts...</p>
             <div className="w-64 bg-gray-200 rounded-full h-2">
               <div 
                 className="bg-[#62BFAA] h-2 rounded-full transition-all"
-                style={{ width: `${fetchProgress}%` }}
+                style={{ width: fetchProgress > 0 ? `${Math.min((fetchProgress / 1000) * 100, 100)}%` : '10%' }}
               />
             </div>
-            <p className="text-sm text-gray-400">{fetchProgress}%</p>
+            <p className="text-sm text-gray-400">{fetchProgress} contacts loaded</p>
           </div>
         );
 
@@ -370,6 +491,66 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
     return currentStep === 1 || currentStep === 2;
   };
 
+  // Show loading state during initial service initialization
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto">
+          <Card className="p-8 text-center">
+            <LoadingOverlay show={true} />
+            <Mail className="w-16 h-16 mx-auto text-blue-400 mb-4" />
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+              Initializing Gmail Service
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Setting up your Gmail integration...
+            </p>
+            <div className="flex items-center justify-center text-sm text-gray-500">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+              This may take a few seconds
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if Gmail service has issues
+  if (error && !isInitializing) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto">
+          <Card className="p-8 text-center">
+            <Mail className="w-16 h-16 mx-auto text-red-400 mb-4" />
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+              Gmail Service Error
+            </h2>
+            <p className="text-gray-600 mb-4">
+              {error}
+            </p>
+            {error.includes('Service not initialized') && (
+              <p className="text-sm text-gray-500 mb-6">
+                This usually happens when your Gmail account needs to be reconnected with the proper permissions.
+                Please try connecting or reconnecting your Gmail account in the Settings → Integrations page.
+              </p>
+            )}
+            <div className="flex gap-4 justify-center">
+              <Button onClick={handleRetryService}>
+                Retry
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/settings/integrations')}>
+                Go to Integrations
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/settings/imports')}>
+                Back to Imports
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   // Breadcrumb items
   const breadcrumbItems: BreadcrumbItem[] = [
     {
@@ -387,119 +568,140 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6">
-      <div className="max-w-7xl mx-auto px-4">
-      <div className="mb-6 bg-white p-4 rounded-lg">
-          <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-3">
-            <Mail className="w-6 h-6 text-[#62BFAA]" />
-            Gmail Import
-          </h1>
-
-          <div className="mt-4">
-            <Breadcrumb items={breadcrumbItems} />
-          </div>
-        </div>
-
-        {/* Breadcrumb */}
-     
-        
-       
-        <div className="grid grid-cols-12 gap-6">
-          {/* Left sidebar with stepper */}
-          <div className="col-span-2">
-            <Card>
-              <div className="bg-[#62BFAA] text-white px-4 py-3 rounded-t-lg">
-                <h2 className="text-base font-medium">
-                  {currentStep === 5 ? "Import Complete" : WIZARD_STEPS[currentStep]?.title || ""}
-                </h2>
-              </div>
-              <CardContent className="p-4">
-                <Stepper
-                  steps={WIZARD_STEPS}
-                  currentStep={currentStep}
-                  orientation="vertical"
-                />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main content area */}
-          <div className="col-span-10">
-            <Card className="relative">
-              {/* Loading overlay for import process */}
-              <LoadingOverlay
-                show={isProcessing && currentStep === 4}
-                message={`Importing data... ${importProgress}%`}
-              />
-              
-              <CardContent className="p-6">
-                {renderStepContent()}
-
-                {/* Navigation buttons */}
-                {currentStep < 5 && (
-                  <div className="mt-6 flex justify-between">
-                    <Button
-                      variant="outline"
-                      onClick={handleBack}
-                      disabled={currentStep === 0 || isProcessing}
-                      className={cn(currentStep === 0 && "invisible")}
-                    >
-                      <ArrowLeft className="w-4 h-4 mr-2" />
-                      Back
-                    </Button>
-                    
-                    <div className="flex gap-2">
-                      {shouldShowSkipButton() && (  
-                        <Button
-                          variant="outline"
-                          onClick={handleNext}
-                          disabled={isProcessing}
-                          className="bg-[#62BFAA] hover:bg-[#52AF9A] text-white"
-                        >
-                          Skip
-                        </Button>
-                      )}
-                      
-                      <Button
-                        onClick={handleNext}
-                        disabled={!canProceedToNext() || isProcessing}
-                        className="bg-[#62BFAA] hover:bg-[#52AF9A] text-white"
-                      >
-                        {isProcessing && currentStep === 4 ? (
-                          <>
-                            Importing... {importProgress}%
-                          </>
-                        ) : currentStep === 4 ? (
-                          <>
-                            Complete Import
-                            <Check className="w-4 h-4 ml-2" />
-                          </>
-                        ) : (
-                          <>
-                            Next
-                            <ArrowRight className="w-4 h-4 ml-2" />
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-
-      {/* Multiple Rows Action Modal */}
-      <MultipleRowsActionModal
-        isOpen={showMultipleRowsModal}
-        onClose={() => setShowMultipleRowsModal(false)}
-        onConfirm={async (action) => {
-          setMultipleRowsAction(action);
-          setShowMultipleRowsModal(false);
-          await handleCompleteImport();
-        }}
+    <div className="min-h-screen bg-gray-50">
+      <LoadingOverlay 
+        show={isProcessing}
+        message={
+          currentStep === 1 
+            ? "Importing contacts from Gmail..." 
+            : "Processing import..."
+        }
       />
+      
+      {/* Multiple Rows Modal */}
+      {showMultipleRowsModal && (
+        <MultipleRowsActionModal
+          isOpen={showMultipleRowsModal}
+          onClose={() => setShowMultipleRowsModal(false)}
+          onConfirm={(action) => {
+            setMultipleRowsAction(action);
+            setShowMultipleRowsModal(false);
+            handleCompleteImport();
+          }}
+        />
+      )}
+
+      <div className="max-w-6xl mx-auto py-8 px-6">
+        {/* Header */}
+        <div className="mb-8">
+          <Breadcrumb items={breadcrumbItems} />
+          <h1 className="text-3xl font-bold text-gray-900 mt-4">Gmail Import</h1>
+          <p className="text-gray-600 mt-2">
+            Import contacts from your Gmail account and organize them into lists
+          </p>
+        </div>
+
+        {/* Stepper */}
+        <div className="mb-8">
+          <Stepper 
+            steps={WIZARD_STEPS} 
+            currentStep={currentStep}
+          />
+        </div>
+
+        {/* Scope Detection Alert - Temporarily disabled to fix scope detection issues */}
+        {/* {user?.id && selectedAccountEmail && (
+          <ScopeDetectionAlert 
+            userId={user.id}
+            email={selectedAccountEmail}
+            onReconnectSuccess={() => {
+              // Refresh the accounts list and reset wizard state
+              setSelectedAccountId(null)
+              setSelectedAccountEmail("")
+              setTimeout(() => {
+                window.location.reload()
+              }, 1000)
+            }}
+            className="mb-6"
+          />
+        )} */}
+
+        {/* Contacts Error Alert - Show specific errors for contacts loading */}
+        {error && error.includes('CONTACTS_PERMISSION_DENIED') && selectedAccountEmail && (
+          <ContactsErrorAlert 
+            errorCode={-1}
+            accountEmail={selectedAccountEmail}
+            onReconnectSuccess={() => {
+              setSelectedAccountId(null)
+              setSelectedAccountEmail("")
+              setTimeout(() => window.location.reload(), 1000)
+            }}
+          />
+        )}
+        
+        {error && error.includes('CONTACTS_TOKEN_INVALID') && selectedAccountEmail && (
+          <ContactsErrorAlert 
+            errorCode={-2}
+            accountEmail={selectedAccountEmail}
+            onReconnectSuccess={() => {
+              setSelectedAccountId(null)
+              setSelectedAccountEmail("")
+              setTimeout(() => window.location.reload(), 1000)
+            }}
+          />
+        )}
+
+        {/* Main Content */}
+        <Card>
+          <CardContent className="p-8">
+            {renderStepContent()}
+
+            {/* Navigation */}
+            <div className="flex justify-between items-center mt-8 pt-6 border-t">
+              <Button
+                variant="outline"
+                onClick={handleBack}
+                disabled={currentStep === 0 || isProcessing}
+                className={cn(currentStep === 0 && "invisible")}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+
+              <div className="flex items-center gap-3">
+                {shouldShowSkipButton() && (
+                  <Button
+                    variant="ghost"
+                    onClick={handleNext}
+                    disabled={isProcessing}
+                  >
+                    Skip
+                  </Button>
+                )}
+                
+                {currentStep < WIZARD_STEPS.length - 1 && (
+                  <Button
+                    onClick={handleNext}
+                    disabled={!canProceedToNext() || isProcessing}
+                  >
+                    {currentStep === 4 ? (
+                      <>
+                        <Check className="w-4 h-4 mr-2" />
+                        Complete Import
+                      </>
+                    ) : (
+                      <>
+                        Next
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 } 

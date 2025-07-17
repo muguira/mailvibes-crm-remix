@@ -120,7 +120,7 @@ export function TopNavbar({ className }: TopNavbarProps) {
           </button>
           )}
 
-          {/* Profile menu - always positioned at the far right */}
+          {/* Profile menu - RE-ENABLED WITH RADIX FIX */}
           <ProfileMenu />
         </div>
       </div>

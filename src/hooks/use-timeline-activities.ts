@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useActivities, Activity } from '@/hooks/supabase/use-activities'
 import { useHybridContactEmails } from '@/hooks/use-hybrid-contact-emails'
 import { usePinnedEmails } from '@/hooks/supabase/use-pinned-emails'
-import { useStore } from '@/stores'
+import { useGmailAccounts, useGmailMainLoading, useGmailError } from '@/stores/gmail'
 import { GmailEmail } from '@/services/google/gmailApi'
 import { logger } from '@/utils/logger'
 
@@ -65,7 +65,9 @@ interface UseTimelineActivitiesReturn {
 export function useTimelineActivities(options: UseTimelineActivitiesOptions = {}): UseTimelineActivitiesReturn {
   const { contactId, contactEmail, includeEmails = true, maxEmails = 20 } = options
 
-  const { connectedAccounts, isLoading: gmailLoading, authError: gmailError } = useStore()
+  // Use new Gmail store selectors
+  const connectedAccounts = useGmailAccounts()
+  const gmailLoading = useGmailMainLoading()
   const hasGmailAccounts = connectedAccounts.length > 0
 
   // Get internal activities
@@ -136,7 +138,11 @@ export function useTimelineActivities(options: UseTimelineActivitiesOptions = {}
 
   // Combine and sort activities chronologically
   const allActivities: TimelineActivity[] = useMemo(() => {
-    const combined = [...timelineInternalActivities, ...timelineEmailActivities]
+    // Safeguard: ensure both arrays exist before combining
+    const safeInternalActivities = timelineInternalActivities || []
+    const safeEmailActivities = timelineEmailActivities || []
+
+    const combined = [...safeInternalActivities, ...safeEmailActivities]
 
     const sorted = combined.sort((a, b) => {
       // 1. Pinned activities go first
@@ -197,7 +203,7 @@ export function useTimelineActivities(options: UseTimelineActivitiesOptions = {}
   }
 
   return {
-    activities: allActivities,
+    activities: allActivities || [], // Safeguard: always return array
     loading,
     error,
     emailsCount,

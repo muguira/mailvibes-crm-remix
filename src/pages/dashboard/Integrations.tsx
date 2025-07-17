@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth';
 import { Card } from '../../components/ui/card';
 import { TopNavbar } from '../../components/layout/top-navbar';
@@ -6,6 +6,8 @@ import { Pencil, Trash2, Mail, Plus, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useStore } from '@/stores';
+// TESTING: Use granular selectors instead of object selectors to avoid infinite loops
+import { useGmailAccounts, useGmailLoadAccounts, useGmailInitializeService } from '@/stores/gmail/selectors';
 import { isOAuthCallback } from '@/services/google/authService';
 
 // Import integration images
@@ -34,46 +36,81 @@ interface IntegrationOption {
 const Integrations = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const { connectedAccounts, loadAccounts } = useStore();
+    // TESTING: Use granular selectors instead of object selectors
+    const connectedAccounts = useGmailAccounts() || [];
+    const loadAccounts = useGmailLoadAccounts();
+    const initializeService = useGmailInitializeService();
     const [existingIntegrations] = useState<Integration[]>([]);
     
-    const hasGmailConnected = connectedAccounts.length > 0;
+    console.log('[Integrations] Current state:', {
+        user: user?.id,
+        connectedAccountsCount: connectedAccounts.length,
+        connectedAccounts: connectedAccounts.map(acc => ({ 
+            id: acc.id, 
+            email: acc.email, 
+            sync_enabled: acc.sync_enabled, 
+            is_connected: acc.is_connected 
+        }))
+    });
+    
+    const hasGmailConnected = Array.isArray(connectedAccounts) && connectedAccounts.length > 0;
 
     const handleGmailAccountConnected = async (email: string) => {
-        console.log('Gmail account connected:', email);
+        console.log('[Integrations] Gmail account connected:', email);
+        console.log('[Integrations] About to reload accounts...');
+        
         // Reload accounts to ensure the UI is updated
         if (user) {
-            await loadAccounts(user.id);
+            try {
+                await loadAccounts();
+                console.log('[Integrations] Accounts reloaded successfully');
+            } catch (error) {
+                console.error('[Integrations] Error reloading accounts:', error);
+            }
         }
     };
 
     const handleGmailAccountDisconnected = (email: string) => {
         // The store will automatically update the accounts list
-        console.log('Gmail account disconnected:', email);
+        console.log('[Integrations] Gmail account disconnected:', email);
     };
 
-    // Load accounts on mount and check for OAuth callback
-    useEffect(() => {
-        if (user) {
-            // Always load accounts on mount
-            loadAccounts(user.id);
-            
-            // If we're returning from OAuth callback, reload after a delay
-            if (isOAuthCallback()) {
-                // Wait a bit for the OAuth process to complete
-                setTimeout(() => {
-                    loadAccounts(user.id);
-                }, 2000);
-            }
+    // TESTING: Auto-initialize Gmail service on page load with granular selectors
+    const memoizedInitializeAndLoad = useCallback(async () => {
+        if (!user?.id) return;
+        
+        try {
+            // First initialize the service
+            await initializeService(user.id);
+            // Then load accounts
+            await loadAccounts();
+        } catch (error) {
+            console.error('Error initializing Gmail on page load:', error);
         }
-    }, [user]);
+    }, [user?.id, initializeService, loadAccounts]);
+
+    // Auto-initialize on mount and check for OAuth callback
+    useEffect(() => {
+        // Add a small delay to let the page settle
+        const timeoutId = setTimeout(() => {
+            memoizedInitializeAndLoad();
+        }, 500);
+        
+        // If we're returning from OAuth callback, reload after a delay
+        if (isOAuthCallback()) {
+            // Wait a bit for the OAuth process to complete
+            setTimeout(() => {
+                memoizedInitializeAndLoad();
+            }, 2000);
+        }
+
+        return () => clearTimeout(timeoutId);
+    }, [memoizedInitializeAndLoad]);
 
     // Listen for gmail account connected events
     useEffect(() => {
         const handleGmailConnected = () => {
-            if (user) {
-                loadAccounts(user.id);
-            }
+            memoizedInitializeAndLoad();
         };
 
         window.addEventListener('gmail-account-connected', handleGmailConnected);
@@ -81,7 +118,7 @@ const Integrations = () => {
         return () => {
             window.removeEventListener('gmail-account-connected', handleGmailConnected);
         };
-    }, [user, loadAccounts]);
+    }, [memoizedInitializeAndLoad]);
 
     const integrationOptions: IntegrationOption[] = [
         {

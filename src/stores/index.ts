@@ -5,7 +5,6 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { TStore } from '@/types/store/store'
 import { useTasksSlice } from './useTasksSlice'
 import { useAuthSlice } from './useAuthSlice'
-import { useGmailAuthSlice } from './gmailAuthSlice'
 import { useContactProfileSlice } from './useContactProfileSlice'
 import { useEditableLeadsGridSlice } from './useEditableLeadsGridSlice'
 import { useContactsSlice } from './useContactsSlice'
@@ -15,10 +14,17 @@ import { useContactsSlice } from './useContactsSlice'
  *
  * Combines all slices and provides a single point of access to the application state
  *
+ * NOTE: Gmail state is now managed separately via src/stores/gmail/gmailStore.ts
+ * Use src/hooks/gmail/ for Gmail functionality instead of this store.
+ *
  * @example
  * ```typescript
  * // Usage in component
  * const { tasks, createTask, fetchTasks, user, signIn, signOut } = useStore();
+ *
+ * // For Gmail functionality, use the new hooks:
+ * import { useGmail } from '@/hooks/gmail';
+ * const gmail = useGmail();
  * ```
  */
 export const useStore = create<TStore>()(
@@ -27,10 +33,9 @@ export const useStore = create<TStore>()(
       immer((...a) => ({
         ...useTasksSlice(...a),
         ...useAuthSlice(...a),
-        ...useGmailAuthSlice(...a),
-        ...useContactsSlice(...a),
         ...useContactProfileSlice(...a),
         ...useEditableLeadsGridSlice(...a),
+        ...useContactsSlice(...a),
       })),
     ),
     {

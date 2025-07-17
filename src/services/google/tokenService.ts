@@ -64,7 +64,7 @@ export async function saveTokens(userId: string, email: string, tokens: TokenDat
         updated_at: new Date().toISOString(),
       },
       {
-        onConflict: 'user_id,email_account_id',
+        onConflict: 'email_account_id',
       },
     )
 

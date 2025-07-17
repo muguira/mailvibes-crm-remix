@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { logger } from '@/utils/logger';
+import { useGmailStore } from '@/stores/gmail/gmailStore';
 
 export default function StreamView() {
   const isMobile = useIsMobile();
@@ -17,9 +18,32 @@ export default function StreamView() {
   const { user } = useAuth();
   const [contact, setContact] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  
+  const gmailStore = useGmailStore();
+
+  // Initialize Gmail service once when user is available  
   useEffect(() => {
-    const fetchContact = async () => {
+    // Fully restored: Gmail service with autoInitialize for seamless experience
+    const initializeGmailService = async () => {
+      if (user?.id && !gmailStore.service) {
+        logger.info(`[StreamView] Initializing Gmail service for user: ${user.id}`);
+        try {
+          await gmailStore.initializeService(user.id, { 
+            enableLogging: false // Keep logging minimal for production
+          });
+          // Load accounts after service initialization
+          await gmailStore.loadAccounts();
+        } catch (error) {
+          logger.error('[StreamView] Error initializing Gmail service:', error);
+        }
+      }
+    };
+    
+    initializeGmailService();
+  }, [user?.id]); // Stable dependencies
+
+  // Load contact data
+  useEffect(() => {
+    const loadContact = async () => {
       if (!id || !user) {
         setLoading(false);
         return;
@@ -69,7 +93,7 @@ export default function StreamView() {
       }
     };
     
-    fetchContact();
+    loadContact();
   }, [id, user]);
   
   if (loading) {

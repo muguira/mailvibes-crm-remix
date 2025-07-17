@@ -6,12 +6,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Mail, CheckCircle, AlertCircle, Users, RefreshCw } from "lucide-react";
 import { GmailConnectDialog } from "@/components/integrations/gmail";
-import { useStore } from "@/stores";
+import { useGmail } from "@/hooks/gmail";
 import { useAuth } from "@/components/auth";
 import { getContactsCount } from "@/services/google/peopleApi";
+import { getValidToken } from "@/services/google/tokenService";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { logger } from "@/utils/logger";
+import { needsContactsPermission, generateScopeMessage } from "@/services/google/scopeDetection";
 
 interface GmailAccountSelectStepProps {
   selectedAccountId: string | null;
@@ -34,12 +36,19 @@ export function GmailAccountSelectStep({
   onRelationTypeChange,
 }: GmailAccountSelectStepProps) {
   const { user } = useAuth();
-  // Only select the specific properties we need from the store to prevent unnecessary re-renders
-  const connectedAccounts = useStore((state) => state.connectedAccounts);
-  const loadAccounts = useStore((state) => state.loadAccounts);
-  const getAccessToken = useStore((state) => state.getAccessToken);
-  const disconnectAccount = useStore((state) => state.disconnectAccount);
-  const isStoreLoading = useStore((state) => state.isLoading);
+  
+  // Use the new Gmail hook instead of legacy store
+  const {
+    accounts: connectedAccounts,
+    loading,
+    loadAccounts,
+    refreshAccounts,
+    disconnectAccount
+  } = useGmail({ 
+    userId: user?.id,
+    enableLogging: true,
+    autoInitialize: true 
+  });
   
   const [contactsCounts, setContactsCounts] = useState<Record<string, number>>({});
   const [loadingCounts, setLoadingCounts] = useState<Record<string, boolean>>({});
@@ -52,13 +61,13 @@ export function GmailAccountSelectStep({
   // Load accounts when component mounts - only once
   useEffect(() => {
     const loadAccountsOnce = async () => {
-      if (user && !hasLoadedAccountsRef.current && !globalLoadingAccounts && !isStoreLoading) {
+      if (user && !hasLoadedAccountsRef.current && !globalLoadingAccounts && !loading.accounts) {
         hasLoadedAccountsRef.current = true;
         globalLoadingAccounts = true;
         logger.debug(`[GmailAccountSelectStep-${componentId.current}] Loading accounts...`);
         
         try {
-          await loadAccounts(user.id);
+          await loadAccounts();
         } finally {
           globalLoadingAccounts = false;
         }
@@ -86,27 +95,40 @@ export function GmailAccountSelectStep({
           continue;
         }
         
-        // Skip if account has a sync error (likely invalid token)
-        if (account.last_sync_error?.includes('Invalid refresh token')) {
-          setContactsCounts(prev => ({ ...prev, [account.id]: -1 })); // -1 indicates error
-          continue;
-        }
+        // Skip if account has a sync error (likely invalid token) 
+        // TODO: Check account sync error status
+        // if (account.last_sync_error?.includes('Invalid refresh token')) {
+        //   setContactsCounts(prev => ({ ...prev, [account.id]: -1 })); // -1 indicates error
+        //   continue;
+        // }
         
         loadedAccountIdsRef.current.add(account.id);
         setLoadingCounts(prev => ({ ...prev, [account.id]: true }));
         
         try {
-          const token = await getAccessToken(user.id, account.email);
+          const token = await getValidToken(user.id, account.email);
           if (token) {
             const count = await getContactsCount(token);
             setContactsCounts(prev => ({ ...prev, [account.id]: count }));
           } else {
-            // Token is null, don't retry
-            setContactsCounts(prev => ({ ...prev, [account.id]: -1 }));
+            // Token is null, mark as needs reconnection
+            setContactsCounts(prev => ({ ...prev, [account.id]: -2 })); // -2 = no token
           }
         } catch (error) {
           console.error(`Error loading contacts count for ${account.email}:`, error);
-          setContactsCounts(prev => ({ ...prev, [account.id]: -1 }));
+          
+          // Handle specific error types
+          if (error instanceof Error) {
+            if (error.message.includes('CONTACTS_PERMISSION_DENIED')) {
+              setContactsCounts(prev => ({ ...prev, [account.id]: -1 })); // -1 = permission denied
+            } else if (error.message.includes('CONTACTS_TOKEN_INVALID')) {
+              setContactsCounts(prev => ({ ...prev, [account.id]: -2 })); // -2 = invalid token
+            } else {
+              setContactsCounts(prev => ({ ...prev, [account.id]: -3 })); // -3 = other error
+            }
+          } else {
+            setContactsCounts(prev => ({ ...prev, [account.id]: -3 })); // -3 = unknown error
+          }
         } finally {
           setLoadingCounts(prev => ({ ...prev, [account.id]: false }));
         }
@@ -148,7 +170,7 @@ export function GmailAccountSelectStep({
       // First disconnect the existing account
       if (user) {
         logger.debug(`[GmailAccountSelectStep] Disconnecting account: ${account.email}`);
-        await disconnectAccount(user.id, account.email);
+        await disconnectAccount(account.email);
         
         // Wait a bit for the state to update
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -218,9 +240,9 @@ export function GmailAccountSelectStep({
                     <RadioGroupItem value={account.id} id={account.id} />
                     
                     <Avatar className="h-8 w-8">
-                      {account.user_info?.picture ? (
+                      {account.picture ? (
                         <AvatarImage 
-                          src={account.user_info.picture} 
+                          src={account.picture} 
                           alt={account.email} 
                         />
                       ) : null}
@@ -235,7 +257,7 @@ export function GmailAccountSelectStep({
                           htmlFor={account.id} 
                           className="font-medium cursor-pointer text-sm"
                         >
-                          {account.user_info?.name || account.email}
+                          {(account as any).user_info?.name || account.email}
                         </Label>
                         {account.sync_enabled ? (
                           <CheckCircle className="w-3.5 h-3.5 text-green-500" />
@@ -253,9 +275,14 @@ export function GmailAccountSelectStep({
                             <RefreshCw className="w-3 h-3 animate-spin" />
                             <span>Loading contacts...</span>
                           </>
-                        ) : contactsCounts[account.id] === -1 ? (
+                        ) : contactsCounts[account.id] < 0 ? (
                           <span className="text-red-500">
-                            Unable to load contacts - please reconnect
+                            {contactsCounts[account.id] === -1 
+                              ? "Missing contacts permission - please reconnect" 
+                              : contactsCounts[account.id] === -2
+                              ? "Invalid token - please reconnect"
+                              : "Unable to load contacts - please reconnect"
+                            }
                           </span>
                         ) : (
                           <span>
@@ -265,7 +292,7 @@ export function GmailAccountSelectStep({
                       </div>
                       
                       {/* Show reconnect button if token is invalid */}
-                      {(contactsCounts[account.id] === -1 || account.last_sync_error?.includes('Invalid refresh token')) && (
+                      {(contactsCounts[account.id] === -1 || (account as any).last_sync_error?.includes('Invalid refresh token')) && (
                         <div className="mt-1">
                           <Button 
                             variant="outline" 

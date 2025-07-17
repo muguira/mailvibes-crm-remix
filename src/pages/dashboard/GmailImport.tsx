@@ -4,9 +4,15 @@ import { ImportData } from "@/components/gmail-import/GmailImportWizard";
 import { useNavigate } from "react-router-dom";
 import { logger } from "@/utils/logger";
 import { toast } from "sonner";
+import { useAuth } from "@/components/auth";
+import { useGmail } from "@/hooks/gmail";
+import { ScopeDetectionAlert } from "@/components/gmail-import/ScopeDetectionAlert";
+import { ContactsErrorAlert } from "@/components/gmail-import/ContactsErrorAlert";
 
 const GmailImport = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { primaryAccount } = useGmail({ autoInitialize: true });
 
   const handleImportComplete = (data: ImportData, listId: string | null) => {
     logger.debug('[GmailImport] Import completed, navigating to contacts view');
@@ -30,6 +36,19 @@ const GmailImport = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Global Scope Detection Alert - Shows before wizard if needed */}
+      {user?.id && primaryAccount && (
+        <div className="max-w-6xl mx-auto py-4 px-6">
+          <ScopeDetectionAlert 
+            userId={user.id}
+            email={primaryAccount.email}
+            onReconnectSuccess={() => {
+              toast.success("Cuenta reconectada exitosamente. Todos los permisos están disponibles.")
+            }}
+          />
+        </div>
+      )}
+      
       <GmailImportWizard onComplete={handleImportComplete} />
     </div>
   );
