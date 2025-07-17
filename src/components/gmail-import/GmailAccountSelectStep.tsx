@@ -6,7 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Mail, CheckCircle, AlertCircle, Users, RefreshCw } from "lucide-react";
 import { GmailConnectDialog } from "@/components/integrations/gmail";
-import { useStore } from "@/stores";
+import { useGmail } from "@/hooks/gmail";
 import { useAuth } from "@/components/auth";
 import { getContactsCount } from "@/services/google/peopleApi";
 import { toast } from "sonner";
@@ -34,12 +34,17 @@ export function GmailAccountSelectStep({
   onRelationTypeChange,
 }: GmailAccountSelectStepProps) {
   const { user } = useAuth();
-  // Only select the specific properties we need from the store to prevent unnecessary re-renders
-  const connectedAccounts = useStore((state) => state.connectedAccounts);
-  const loadAccounts = useStore((state) => state.loadAccounts);
-  const getAccessToken = useStore((state) => state.getAccessToken);
-  const disconnectAccount = useStore((state) => state.disconnectAccount);
-  const isStoreLoading = useStore((state) => state.isLoading);
+  
+  // Use the new Gmail hook instead of legacy store
+  const {
+    accounts: connectedAccounts,
+    loading,
+    refreshAccounts,
+    disconnectAccount
+  } = useGmail({ 
+    enableLogging: true,
+    autoInitialize: true 
+  });
   
   const [contactsCounts, setContactsCounts] = useState<Record<string, number>>({});
   const [loadingCounts, setLoadingCounts] = useState<Record<string, boolean>>({});

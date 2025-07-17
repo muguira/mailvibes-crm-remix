@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Mail, AlertCircle } from "lucide-react";
 import { useAuth } from "@/components/auth";
-import { useStore } from "@/stores";
+import { useGmail } from "@/hooks/gmail";
 import { isOAuthCallback } from "@/services/google/authService";
 import { logger } from "@/utils/logger";
 
@@ -20,22 +20,31 @@ let globalOAuthHandling = false;
 export function GmailConnectDialog({ children, onSuccess }: GmailConnectDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
-  const { 
-    isConnecting, 
-    authError: error, 
+  
+  // Use the new Gmail hook instead of legacy store
+  const {
+    accounts: connectedAccounts,
+    loading,
+    error,
     connectAccount,
     handleOAuthCallback,
-    connectedAccounts
-  } = useStore();
+    refreshAccounts
+  } = useGmail({ 
+    enableLogging: false,    // Disable to prevent console spam
+    autoInitialize: false   // Disable to prevent conflicts
+  });
+
+  const isConnecting = loading.connecting;
+
   const hasCheckedCallbackRef = useRef(false);
   const componentId = useRef(Math.random().toString(36).substring(7));
   const previousAccountsCountRef = useRef(connectedAccounts.length);
 
-  // Handle OAuth callback if we're returning from Google - only check once globally
+  // Handle OAuth callback if we're returning from Google - simplified logic
   useEffect(() => {
-    if (hasCheckedCallbackRef.current || globalOAuthHandling) return;
+    if (hasCheckedCallbackRef.current || globalOAuthHandling || !user) return;
     
-    if (isOAuthCallback() && user) {
+    if (isOAuthCallback()) {
       hasCheckedCallbackRef.current = true;
       globalOAuthHandling = true;
       
@@ -48,22 +57,31 @@ export function GmailConnectDialog({ children, onSuccess }: GmailConnectDialogPr
       if (handledUrl !== currentUrl) {
         sessionStorage.setItem('gmail_oauth_callback_url', currentUrl);
         
-        handleOAuthCallback(user.id).finally(() => {
-          // Clean up after handling
-          setTimeout(() => {
-            sessionStorage.removeItem('gmail_oauth_callback_url');
-            globalOAuthHandling = false;
-            // Also clean the URL parameters
-            const url = new URL(window.location.href);
-            url.searchParams.delete('code');
-            url.searchParams.delete('state');
-            url.searchParams.delete('scope');
-            url.searchParams.delete('authuser');
-            url.searchParams.delete('hd');
-            url.searchParams.delete('prompt');
-            window.history.replaceState({}, document.title, url.toString());
-          }, 1000);
-        });
+        // Extract OAuth parameters from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        
+        if (code && state) {
+          handleOAuthCallback(code, state).finally(() => {
+            // Clean up after handling
+            setTimeout(() => {
+              sessionStorage.removeItem('gmail_oauth_callback_url');
+              globalOAuthHandling = false;
+              // Clean the URL parameters
+              const url = new URL(window.location.href);
+              url.searchParams.delete('code');
+              url.searchParams.delete('state');
+              url.searchParams.delete('scope');
+              url.searchParams.delete('authuser');
+              url.searchParams.delete('hd');
+              url.searchParams.delete('prompt');
+              window.history.replaceState({}, document.title, url.toString());
+            }, 1000);
+          });
+        } else {
+          globalOAuthHandling = false;
+        }
       } else {
         globalOAuthHandling = false;
       }
@@ -75,9 +93,9 @@ export function GmailConnectDialog({ children, onSuccess }: GmailConnectDialogPr
         globalOAuthHandling = false;
       }
     };
-  }, [user]); // Remove handleOAuthCallback from dependencies to prevent loops
+  }, [user, handleOAuthCallback]);
 
-  // Watch for NEW accounts being added (not just existing accounts)
+  // Watch for NEW accounts being added
   useEffect(() => {
     // Only trigger if dialog is open and we have more accounts than before
     if (isOpen && connectedAccounts.length > previousAccountsCountRef.current) {
@@ -92,8 +110,24 @@ export function GmailConnectDialog({ children, onSuccess }: GmailConnectDialogPr
   }, [connectedAccounts, onSuccess, isOpen]);
 
   const handleConnect = async () => {
-    if (!user) return;
-    await connectAccount(user.id);
+    if (!user) {
+      logger.error('[GmailConnectDialog] No user available for connection');
+      return;
+    }
+
+    try {
+      logger.debug(`[GmailConnectDialog] Initiating connection for user: ${user.id}`);
+      const result = await connectAccount();
+      
+      if (result.success && result.redirectUrl) {
+        // Redirect to Google OAuth
+        window.location.href = result.redirectUrl;
+      } else {
+        logger.error('[GmailConnectDialog] Connection failed:', result.error);
+      }
+    } catch (error) {
+      logger.error('[GmailConnectDialog] Connection error:', error);
+    }
   };
 
   return (

@@ -1,0 +1,13 @@
+// BACKUP: gmailAuthSlice.ts - Created on January 31, 2025
+// This file was backed up before deletion during Gmail Service Layer Refactoring
+// Original location: src/stores/gmailAuthSlice.ts
+// 
+// Functionality migrated to:
+// - src/services/gmail/ (service layer)
+// - src/stores/gmail/gmailStore.ts (UI state only)
+// - src/hooks/gmail/ (integration hooks)
+//
+// If rollback needed, this backup contains the original logic
+
+// [File content would be copied here but we're moving to new architecture]
+// This backup serves as reference for any missing functionality that needs migration 

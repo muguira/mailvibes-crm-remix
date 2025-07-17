@@ -67,6 +67,9 @@ function App() {
                   <Route path="/settings/imports" element={<PrivateRoute><Imports /></PrivateRoute>} />
                   <Route path="/settings/account-properties" element={<PrivateRoute><AccountProperties /></PrivateRoute>} />
                   <Route path="/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
+                  
+                  {/* Temporary test route removed - Gmail hooks are now stable */}
+                  
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 <Toaster />

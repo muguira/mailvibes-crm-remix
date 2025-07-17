@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,25 +6,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Mail, Trash2, RefreshCw, Clock, CheckCircle, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { useAuth } from "@/components/auth";
-import { useStore } from "@/stores";
+import { useGmail } from "@/hooks/gmail";
 import { format } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import GmailLogo from "@/components/svgs/integrations-images/gmail-logo.svg";
-
-interface GmailAccount {
-  id: string;
-  email: string;
-  user_info?: {
-    name?: string;
-    picture?: string;
-  };
-  sync_enabled: boolean;
-  last_sync_at?: string;
-  last_sync_status?: string;
-  last_sync_error?: string;
-  created_at: string;
-}
 
 interface GmailAccountsListProps {
   onAccountDisconnected?: (email: string) => void;
@@ -32,85 +17,64 @@ interface GmailAccountsListProps {
 
 export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListProps) {
   const { user } = useAuth();
-  const { 
-    connectedAccounts: accounts, 
-    isLoading: loading, 
-    loadAccounts,
-    disconnectAccount
-  } = useStore();
-  const [accountsState, setAccountsState] = useState<GmailAccount[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const { toast } = useToast();
-  const hasLoadedRef = useRef(false);
-  const previousAccountsCountRef = useRef(0);
 
-  // Load accounts on mount
+  // Use the new Gmail hook instead of legacy store
+  const {
+    accounts,
+    loading,
+    error,
+    disconnectAccount,
+    refreshAccounts,
+    healthCheck
+  } = useGmail({ 
+    enableLogging: false,    // Disable to prevent console spam
+    autoInitialize: false   // Disable to prevent conflicts
+  });
+
+  // Auto-expand when accounts are available
   useEffect(() => {
-    if (user && !hasLoadedRef.current) {
-      hasLoadedRef.current = true;
-      loadAccounts(user.id);
-    }
-  }, [user]);
-
-  // Listen for gmail account connected events
-  useEffect(() => {
-    const handleGmailConnected = () => {
-      if (user) {
-        console.log('[GmailAccountsList] Gmail account connected event received, reloading accounts...');
-        loadAccounts(user.id);
-      }
-    };
-
-    window.addEventListener('gmail-account-connected', handleGmailConnected);
-    
-    return () => {
-      window.removeEventListener('gmail-account-connected', handleGmailConnected);
-    };
-  }, [user, loadAccounts]);
-
-  // Auto-expand when new accounts are added
-  useEffect(() => {
-    if (accounts.length > previousAccountsCountRef.current) {
-      console.log('[GmailAccountsList] New account detected, expanding list...');
+    if (accounts.length > 0 && !isExpanded) {
       setIsExpanded(true);
     }
-    previousAccountsCountRef.current = accounts.length;
-  }, [accounts]);
-
-  // Force re-render when accounts change
-  useEffect(() => {
-    console.log('[GmailAccountsList] Accounts updated:', accounts.length, 'accounts');
-  }, [accounts]);
+  }, [accounts.length, isExpanded]);
 
   const handleDisconnect = async (email: string) => {
     if (!user) return;
 
     try {
-      await disconnectAccount(user.id, email);
+      await disconnectAccount(email);
       onAccountDisconnected?.(email);
+      toast({
+        title: "Account Disconnected",
+        description: `Gmail account ${email} has been disconnected.`,
+      });
     } catch (error) {
       console.error('Error disconnecting Gmail account:', error);
+      toast({
+        title: "Error",
+        description: "Failed to disconnect Gmail account. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
-  const getSyncStatusBadge = (account: GmailAccount) => {
+  const getSyncStatusBadge = (account: any) => {
     if (!account.sync_enabled) {
       return <Badge variant="secondary">Disabled</Badge>;
     }
 
-    switch (account.last_sync_status) {
-      case 'completed':
-        return <Badge variant="default" className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Synced</Badge>;
-      case 'failed':
-        return <Badge variant="destructive"><AlertCircle className="w-3 h-3 mr-1" />Failed</Badge>;
-      case 'started':
-        return <Badge variant="secondary"><RefreshCw className="w-3 h-3 mr-1 animate-spin" />Syncing</Badge>;
-      default:
-        return <Badge variant="outline"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+    // Note: last_sync_status may not be available in new service layer yet
+    // This is temporary until full sync implementation
+    if (account.is_connected) {
+      return <Badge variant="default" className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Connected</Badge>;
+    } else {
+      return <Badge variant="outline"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
     }
   };
 
-  const getLastSyncText = (account: GmailAccount) => {
+  const getLastSyncText = (account: any) => {
     if (!account.last_sync_at) return 'Never synced';
     
     try {
@@ -120,40 +84,27 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
     }
   };
 
-  const checkConnectionStatus = async () => {
+  const handleHealthCheck = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log("No user authenticated");
-        return;
-      }
-
-      // Check email_accounts table
-      const { data: emailAccounts, error: emailError } = await supabase
-        .from("email_accounts")
-        .select("*")
-        .eq("user_id", user.id);
-
-      console.log("Email Accounts:", emailAccounts, emailError);
-
-      // Check oauth_tokens table
-      const { data: oauthTokens, error: tokenError } = await supabase
-        .from("oauth_tokens")
-        .select("*")
-        .eq("user_id", user.id);
-
-      console.log("OAuth Tokens:", oauthTokens, tokenError);
-
+      const isHealthy = await healthCheck();
       toast({
-        title: "Connection Status",
-        description: `Found ${emailAccounts?.length || 0} email accounts and ${oauthTokens?.length || 0} tokens. Check console for details.`,
+        title: "Health Check",
+        description: isHealthy 
+          ? "Gmail service is healthy and ready"
+          : "Gmail service issues detected. Check console for details.",
+        variant: isHealthy ? "default" : "destructive",
       });
     } catch (error) {
-      console.error("Error checking connection status:", error);
+      console.error("Error during health check:", error);
+      toast({
+        title: "Health Check Failed",
+        description: "Unable to perform health check. Check console for details.",
+        variant: "destructive",
+      });
     }
   };
 
-  if (loading) {
+  if (loading.accounts) {
     return (
       <div className="space-y-3">
         {[1, 2].map((i) => (
@@ -166,6 +117,24 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
             <div className="w-16 h-6 bg-gray-200 rounded"></div>
           </div>
         ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-6">
+        <AlertCircle className="h-12 w-12 mx-auto text-red-400 mb-3" />
+        <p className="text-sm text-red-600 mb-2">
+          Error loading Gmail accounts
+        </p>
+        <p className="text-xs text-muted-foreground mb-3">
+          {error}
+        </p>
+        <Button variant="outline" size="sm" onClick={refreshAccounts}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Retry
+        </Button>
       </div>
     );
   }
@@ -200,66 +169,44 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
           <img src={GmailLogo} alt="Gmail" className="h-5 w-5" />
           <h3 className="text-lg font-medium">Gmail Accounts ({accounts.length})</h3>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={checkConnectionStatus}
-        >
-          Check Status
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refreshAccounts}
+            disabled={loading.accounts}
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${loading.accounts ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleHealthCheck}
+          >
+            Health Check
+          </Button>
+        </div>
       </div>
       
       {isExpanded && (
         <div className="space-y-3 ml-6">
-          {accounts.map((account) => {
-            console.log('Account data:', account);
-            console.log('User info:', account.user_info);
-            console.log('Picture URL:', account.user_info?.picture);
-            
-            return (
+          {accounts.map((account) => (
             <div key={account.id} className="flex items-center gap-3 p-3 border rounded-lg">
-              <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full">
-                {account.user_info?.picture ? (
-                  <>
-                    <img
-                      src={account.user_info.picture}
-                      alt={account.user_info?.name || account.email}
-                      className="absolute inset-0 w-full object-cover"
-                      crossOrigin="anonymous"
-                      onLoad={(e) => {
-                        console.log('Image loaded successfully!');
-                        console.log('Image dimensions:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight);
-                      }}
-                      onError={(e) => {
-                        console.error('Failed to load avatar image:', account.user_info?.picture);
-                        console.error('Error details:', e);
-                        // Hide the image and show fallback
-                        e.currentTarget.style.display = 'none';
-                        const fallback = e.currentTarget.parentElement?.querySelector('.avatar-fallback');
-                        if (fallback) {
-                          (fallback as HTMLElement).style.display = 'flex';
-                        }
-                      }}
-                    />
-                    <div 
-                      className="avatar-fallback absolute inset-0 hidden items-center justify-center rounded-full bg-blue-500 text-white font-semibold text-sm"
-                    >
-                      {account.email.charAt(0).toUpperCase()}
-                    </div>
-                  </>
-                ) : (
-                  <div 
-                    className="absolute inset-0 flex items-center justify-center rounded-full bg-blue-500 text-white font-semibold text-sm"
-                  >
-                    {account.email.charAt(0).toUpperCase()}
-                  </div>
-                )}
-              </div>
+              <Avatar className="h-10 w-10">
+                <AvatarImage 
+                  src={account.picture} 
+                  alt={account.name || account.email}
+                />
+                <AvatarFallback className="bg-blue-500 text-white">
+                  {account.email.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
               
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <p className="font-medium truncate">
-                    {account.user_info?.name || account.email}
+                    {account.name || account.email}
                   </p>
                   {getSyncStatusBadge(account)}
                 </div>
@@ -269,11 +216,7 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
                 <p className="text-xs text-muted-foreground">
                   {getLastSyncText(account)}
                 </p>
-                {account.last_sync_error && (
-                  <p className="text-xs text-red-500 mt-1">
-                    Error: {account.last_sync_error}
-                  </p>
-                )}
+                {/* Note: last_sync_error may not be available in current service layer */}
               </div>
 
               <div className="flex items-center gap-2">
@@ -282,9 +225,9 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
                     <Button 
                       variant="outline" 
                       size="sm"
-                      disabled={loading}
+                      disabled={loading.accounts}
                     >
-                      {loading ? (
+                      {loading.accounts ? (
                         <RefreshCw className="h-4 w-4 animate-spin" />
                       ) : (
                         <Trash2 className="h-4 w-4" />
@@ -312,8 +255,7 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
                 </AlertDialog>
               </div>
             </div>
-          );
-        })}
+          ))}
         </div>
       )}
     </div>

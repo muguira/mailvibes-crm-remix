@@ -8,7 +8,7 @@ import {
   TTaskStore,
 } from './task'
 import { TAuthStore } from './auth'
-import { TGmailAuthStore } from './gmail'
+// import { TGmailAuthStore } from './gmail' // REMOVED: Gmail now has dedicated store
 import { TContactProfileStore } from './contact-profile'
 import { TEditableLeadsGridStore } from './editable-leads-grid'
 import { TContactsStore } from './contacts'
@@ -17,9 +17,15 @@ import { TContactsStore } from './contacts'
 // STORE PRINCIPAL DE LA APLICACIÓN
 // =============================================
 
+/**
+ * Main application store type
+ *
+ * NOTE: Gmail functionality has been moved to a dedicated store.
+ * See src/stores/gmail/gmailStore.ts and src/hooks/gmail/ for Gmail operations.
+ */
 export type TStore = TTaskStore &
   TAuthStore &
-  TGmailAuthStore &
+  // TGmailAuthStore & // REMOVED: Gmail now managed separately
   TContactProfileStore &
   TEditableLeadsGridStore &
   TContactsStore

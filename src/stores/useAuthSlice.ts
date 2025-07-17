@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { toast } from '@/hooks/use-toast'
 import { logger } from '@/utils/logger'
 import { AUTH_ERROR_MESSAGES, AUTH_SUCCESS_MESSAGES, AUTH_VALIDATION_CONFIG } from '@/constants/store/auth'
+import { useGmailStore } from '@/stores/gmail/gmailStore'
 // Note: useStore import is circular, so we use dynamic import instead
 
 /**
@@ -147,7 +148,13 @@ export const useAuthSlice: StateCreator<
 
         // Initialize Gmail auth for authenticated user
         logger.log('User authenticated, initializing Gmail auth...')
-        get().initializeGmailAuth(session.user.id)
+        try {
+          await useGmailStore.getState().initializeService(session.user.id)
+          // Load accounts after service initialization
+          await useGmailStore.getState().loadAccounts()
+        } catch (error) {
+          logger.error('Error initializing auth:', error)
+        }
       }
 
       // Set up auth state change listener - only once
@@ -175,7 +182,13 @@ export const useAuthSlice: StateCreator<
 
             // Initialize Gmail auth for signed in user
             logger.log('User signed in, initializing Gmail auth...')
-            get().initializeGmailAuth(session.user.id)
+            try {
+              await useGmailStore.getState().initializeService(session.user.id)
+              // Load accounts after service initialization
+              await useGmailStore.getState().loadAccounts()
+            } catch (error) {
+              logger.error('Error initializing auth:', error)
+            }
           }
         } else if (event === 'SIGNED_OUT') {
           set(state => {

@@ -6,6 +6,7 @@ import { Pencil, Trash2, Mail, Plus, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useStore } from '@/stores';
+import { useGmailAccounts, useGmailAccountActions } from '@/stores/gmail/selectors';
 import { isOAuthCallback } from '@/services/google/authService';
 
 // Import integration images
@@ -34,16 +35,17 @@ interface IntegrationOption {
 const Integrations = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const { connectedAccounts, loadAccounts } = useStore();
+    const connectedAccounts = useGmailAccounts() || [];
+    const { loadAccounts } = useGmailAccountActions();
     const [existingIntegrations] = useState<Integration[]>([]);
     
-    const hasGmailConnected = connectedAccounts.length > 0;
+    const hasGmailConnected = Array.isArray(connectedAccounts) && connectedAccounts.length > 0;
 
     const handleGmailAccountConnected = async (email: string) => {
         console.log('Gmail account connected:', email);
         // Reload accounts to ensure the UI is updated
         if (user) {
-            await loadAccounts(user.id);
+            await loadAccounts();
         }
     };
 
@@ -56,13 +58,13 @@ const Integrations = () => {
     useEffect(() => {
         if (user) {
             // Always load accounts on mount
-            loadAccounts(user.id);
+            loadAccounts();
             
             // If we're returning from OAuth callback, reload after a delay
             if (isOAuthCallback()) {
                 // Wait a bit for the OAuth process to complete
                 setTimeout(() => {
-                    loadAccounts(user.id);
+                    loadAccounts();
                 }, 2000);
             }
         }
@@ -72,7 +74,7 @@ const Integrations = () => {
     useEffect(() => {
         const handleGmailConnected = () => {
             if (user) {
-                loadAccounts(user.id);
+                loadAccounts();
             }
         };
 
