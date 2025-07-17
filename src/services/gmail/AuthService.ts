@@ -80,8 +80,44 @@ export class AuthService {
     this.updateActivity()
 
     try {
-      // Use existing authService logic for handling callback
-      const tokenResponse = await exchangeCodeForTokens(code, '', getRedirectUri())
+      if (this.config.enableLogging) {
+        logger.info('[AuthService] Starting OAuth callback handling', {
+          userId: this.userId,
+          code: code.substring(0, 10) + '...',
+          state,
+        })
+      }
+
+      // ✅ CRITICAL FIX: Get the actual PKCE parameters instead of using empty string
+      // Import the functions we need to retrieve PKCE params
+      const { retrievePKCEParams, validateState, clearPKCEParams } = await import('@/services/google/pkceService')
+      const { getRedirectUri } = await import('@/services/google/authService')
+
+      // Validate state parameter and get PKCE params
+      const pkceParams = retrievePKCEParams()
+      if (!pkceParams || !validateState(state, pkceParams.state)) {
+        throw new Error('Invalid state parameter - possible CSRF attack')
+      }
+
+      if (this.config.enableLogging) {
+        logger.info('[AuthService] ✅ PKCE params validated, code_verifier available')
+      }
+
+      // Use existing authService logic for handling callback with REAL code_verifier
+      const tokenResponse = await exchangeCodeForTokens(code, pkceParams.code_verifier, getRedirectUri())
+
+      // Clear PKCE params after successful exchange
+      clearPKCEParams()
+
+      if (this.config.enableLogging) {
+        logger.info('[AuthService] exchangeCodeForTokens response:', {
+          hasAccessToken: !!tokenResponse.access_token,
+          hasRefreshToken: !!tokenResponse.refresh_token,
+          email: tokenResponse.email,
+          scope: tokenResponse.scope,
+          expiresIn: tokenResponse.expires_in,
+        })
+      }
 
       // Convert TokenResponse to TokenData
       const tokenData: TokenData = {
@@ -93,11 +129,40 @@ export class AuthService {
         user_info: tokenResponse.user_info,
       }
 
+      // ✅ CRITICAL: Manually save tokens because Edge Function might not be doing it properly
+      if (tokenData.email && this.userId) {
+        if (this.config.enableLogging) {
+          logger.info('[AuthService] Manually saving tokens to ensure they are stored', {
+            userId: this.userId,
+            email: tokenData.email,
+          })
+        }
+
+        try {
+          // Import saveTokens dynamically to avoid circular import
+          const { saveTokens } = await import('@/services/google/tokenService')
+          await saveTokens(this.userId, tokenData.email, tokenData)
+
+          if (this.config.enableLogging) {
+            logger.info('[AuthService] ✅ Tokens saved successfully to database')
+          }
+        } catch (saveError) {
+          logger.error('[AuthService] ❌ Failed to save tokens:', saveError)
+          throw saveError
+        }
+      } else {
+        logger.error('[AuthService] ❌ Missing email or userId for token saving', {
+          email: tokenData.email,
+          userId: this.userId,
+        })
+        throw new Error('Missing email or userId for token saving')
+      }
+
       // Clean up URL parameters
       cleanupCallbackUrl()
 
       if (this.config.enableLogging) {
-        logger.info(`[AuthService] OAuth callback handled successfully for user: ${this.userId}`)
+        logger.info(`[AuthService] ✅ OAuth callback handled successfully for user: ${this.userId}`)
       }
 
       return tokenData

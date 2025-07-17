@@ -42,19 +42,37 @@ const Integrations = () => {
     const initializeService = useGmailInitializeService();
     const [existingIntegrations] = useState<Integration[]>([]);
     
+    console.log('[Integrations] Current state:', {
+        user: user?.id,
+        connectedAccountsCount: connectedAccounts.length,
+        connectedAccounts: connectedAccounts.map(acc => ({ 
+            id: acc.id, 
+            email: acc.email, 
+            sync_enabled: acc.sync_enabled, 
+            is_connected: acc.is_connected 
+        }))
+    });
+    
     const hasGmailConnected = Array.isArray(connectedAccounts) && connectedAccounts.length > 0;
 
     const handleGmailAccountConnected = async (email: string) => {
-        console.log('Gmail account connected:', email);
+        console.log('[Integrations] Gmail account connected:', email);
+        console.log('[Integrations] About to reload accounts...');
+        
         // Reload accounts to ensure the UI is updated
         if (user) {
-            await loadAccounts();
+            try {
+                await loadAccounts();
+                console.log('[Integrations] Accounts reloaded successfully');
+            } catch (error) {
+                console.error('[Integrations] Error reloading accounts:', error);
+            }
         }
     };
 
     const handleGmailAccountDisconnected = (email: string) => {
         // The store will automatically update the accounts list
-        console.log('Gmail account disconnected:', email);
+        console.log('[Integrations] Gmail account disconnected:', email);
     };
 
     // TESTING: Auto-initialize Gmail service on page load with granular selectors

@@ -66,18 +66,117 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   
+  // Track initial loading state to prevent flash of error screen
+  const [isInitializing, setIsInitializing] = useState(true);
+  const hasTriedInitRef = useRef(false);
+  
   // Use the new Gmail hook with auto-initialization
   const {
     accounts,
     primaryAccount,
     importContacts,
     loading,
-    error
+    error,
+    loadAccounts,
+    reset
   } = useGmail({ 
     userId: user?.id,        // Pass user ID for auto-initialization
     enableLogging: true,     // Enable logging to debug issues
     autoInitialize: true     // Enable auto-init for service availability
   });
+
+  // Manual retry function for service initialization
+  const handleRetryService = useCallback(async () => {
+    if (!user?.id) {
+      logger.error('[GmailImportWizard] Cannot retry: User not authenticated');
+      return;
+    }
+
+    logger.info('[GmailImportWizard] Manually retrying service initialization...', { userId: user.id });
+    
+    try {
+      // Reset the current state first
+      reset();
+      
+      // Wait a bit for the reset to take effect
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Force re-initialization by calling loadAccounts which should trigger service init
+      await loadAccounts();
+      
+      logger.info('[GmailImportWizard] Manual service retry successful');
+    } catch (error) {
+      logger.error('[GmailImportWizard] Manual service retry failed:', error);
+    }
+  }, [user?.id, reset, loadAccounts]);
+
+  // Add debugging info about the current state
+  useEffect(() => {
+    logger.info('[GmailImportWizard] State update:', {
+      hasUser: !!user?.id,
+      userId: user?.id,
+      error,
+      accountsCount: accounts?.length || 0,
+      loading,
+      isInitializing
+    });
+  }, [user?.id, error, accounts?.length, loading, isInitializing]);
+
+  // Manage initial loading state - give service time to initialize
+  useEffect(() => {
+    if (!user?.id) return; // Wait for user to be available
+
+    if (!hasTriedInitRef.current) {
+      hasTriedInitRef.current = true;
+      
+      // Give the service 3 seconds to initialize before showing any errors
+      const initTimeoutId = setTimeout(() => {
+        setIsInitializing(false);
+      }, 3000);
+
+      return () => clearTimeout(initTimeoutId);
+    }
+  }, [user?.id]);
+
+  // End initialization state once we have accounts or a non-initialization error
+  useEffect(() => {
+    if (accounts.length > 0) {
+      setIsInitializing(false);
+    } else if (error && !error.includes('Service not initialized') && !loading.accounts) {
+      setIsInitializing(false);
+    }
+  }, [accounts.length, error, loading.accounts]);
+
+  // Auto-retry service initialization if needed
+  useEffect(() => {
+    if (user?.id && error?.includes('Service not initialized')) {
+      logger.info('[GmailImportWizard] Auto-retrying due to service initialization error...');
+      
+      // Retry after a short delay
+      const timeoutId = setTimeout(() => {
+        handleRetryService();
+      }, 1000);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [user?.id, error, handleRetryService]);
+
+  // Force service initialization when user becomes available
+  useEffect(() => {
+    if (user?.id && !loading.accounts && !error && accounts.length === 0) {
+      logger.info('[GmailImportWizard] User available but no accounts loaded, forcing initialization...');
+      
+      const timeoutId = setTimeout(async () => {
+        try {
+          await loadAccounts();
+        } catch (err) {
+          logger.error('[GmailImportWizard] Failed to load accounts on user available:', err);
+        }
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [user?.id, loading.accounts, error, accounts.length, loadAccounts]);
   
   // Wizard state
   const [currentStep, setCurrentStep] = useState(0);
@@ -392,8 +491,32 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
     return currentStep === 1 || currentStep === 2;
   };
 
+  // Show loading state during initial service initialization
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto">
+          <Card className="p-8 text-center">
+            <LoadingOverlay show={true} />
+            <Mail className="w-16 h-16 mx-auto text-blue-400 mb-4" />
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+              Initializing Gmail Service
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Setting up your Gmail integration...
+            </p>
+            <div className="flex items-center justify-center text-sm text-gray-500">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+              This may take a few seconds
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   // Show error state if Gmail service has issues
-  if (error) {
+  if (error && !isInitializing) {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-4xl mx-auto">
@@ -412,7 +535,7 @@ export function GmailImportWizard({ onComplete }: GmailImportWizardProps) {
               </p>
             )}
             <div className="flex gap-4 justify-center">
-              <Button onClick={() => window.location.reload()}>
+              <Button onClick={handleRetryService}>
                 Retry
               </Button>
               <Button variant="outline" onClick={() => navigate('/settings/integrations')}>

@@ -268,14 +268,79 @@ export const useGmailStore = create<GmailStore>()(
       },
 
       async handleOAuthCallback(code: string, state: string) {
-        const { service } = get()
+        logger.info('[GmailStore] 🔄 Starting OAuth callback handling', {
+          hasCode: !!code,
+          hasState: !!state,
+          codeLength: code?.length,
+          stateLength: state?.length,
+        })
+
+        let { service } = get()
+
+        // ✅ CRITICAL FIX: Initialize service if not available during OAuth callback
         if (!service) {
-          const error = 'Service not initialized'
-          set(store => {
-            store.error = error
-          })
-          return { success: false, error }
+          logger.warn('[GmailStore] ⚠️ Service not initialized during OAuth callback - auto-initializing...')
+
+          // Get userId from browser URL or other sources
+          const urlParams = new URLSearchParams(window.location.search)
+          const currentUrl = window.location.pathname
+
+          // Try to get user from auth context or current state
+          let userId: string | null = null
+
+          // Method 1: Check if there's a user in the current app state
+          try {
+            const { useAuth } = await import('@/components/auth')
+            const authContext = useAuth()
+            userId = authContext?.user?.id || null
+          } catch (error) {
+            logger.warn('[GmailStore] Could not get user from auth context:', error)
+          }
+
+          // Method 2: Try to get user from Supabase session
+          if (!userId) {
+            try {
+              const { supabase } = await import('@/integrations/supabase/client')
+              const {
+                data: { session },
+              } = await supabase.auth.getSession()
+              userId = session?.user?.id || null
+            } catch (error) {
+              logger.warn('[GmailStore] Could not get user from Supabase session:', error)
+            }
+          }
+
+          if (!userId) {
+            const error = 'Cannot initialize service: User ID not available during OAuth callback'
+            logger.error('[GmailStore] ❌', error)
+            set(store => {
+              store.error = error
+            })
+            return { success: false, error }
+          }
+
+          logger.info('[GmailStore] 🔄 Auto-initializing service for OAuth callback', { userId })
+
+          try {
+            await get().initializeService(userId, { enableLogging: true })
+            service = get().service // Get the newly initialized service
+
+            if (!service) {
+              throw new Error('Service initialization failed')
+            }
+
+            logger.info('[GmailStore] ✅ Service auto-initialized successfully for OAuth callback')
+          } catch (initError) {
+            const error = `Failed to auto-initialize service: ${initError instanceof Error ? initError.message : 'Unknown error'}`
+            logger.error('[GmailStore] ❌', error)
+            set(store => {
+              store.error = error
+            })
+            return { success: false, error }
+          }
         }
+
+        logger.info('[GmailStore] ✅ Service is available, proceeding with callback')
 
         set(store => {
           store.connecting = true
@@ -283,17 +348,26 @@ export const useGmailStore = create<GmailStore>()(
         })
 
         try {
+          logger.info('[GmailStore] 🔄 Calling service.handleOAuthCallback')
           const result = await service.handleOAuthCallback(code, state)
+
+          logger.info('[GmailStore] 📦 Service handleOAuthCallback result:', {
+            success: result.success,
+            hasAccount: !!result.account,
+            error: result.error,
+          })
 
           set(store => {
             store.connecting = false
           })
 
           if (result.success) {
+            logger.info('[GmailStore] ✅ OAuth callback successful, reloading accounts')
             // Reload accounts to reflect the new connection
             await get().loadAccounts()
-            logger.info('[GmailStore] OAuth callback handled successfully')
+            logger.info('[GmailStore] ✅ OAuth callback handled successfully')
           } else {
+            logger.error('[GmailStore] ❌ OAuth callback failed:', result.error)
             set(store => {
               store.error = result.error || 'Failed to handle OAuth callback'
               store.connectionStatus = 'error'
@@ -303,6 +377,7 @@ export const useGmailStore = create<GmailStore>()(
           return result
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to handle OAuth callback'
+          logger.error('[GmailStore] ❌ Exception in OAuth callback:', error)
           set(store => {
             store.connecting = false
             store.error = errorMessage

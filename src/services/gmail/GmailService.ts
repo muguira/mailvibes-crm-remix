@@ -95,8 +95,28 @@ export class GmailService {
     this.ensureNotDisposed()
     this.updateActivity()
 
+    if (this.config.enableLogging) {
+      logger.info('[GmailService] 🔄 Starting OAuth callback handling', {
+        userId: this.config.userId,
+        hasCode: !!code,
+        hasState: !!state,
+      })
+    }
+
     try {
+      if (this.config.enableLogging) {
+        logger.info('[GmailService] 🔄 Calling authService.handleCallback')
+      }
+
       const tokenData = await this.authService.handleCallback(code, state)
+
+      if (this.config.enableLogging) {
+        logger.info('[GmailService] ✅ authService.handleCallback successful', {
+          hasEmail: !!tokenData.email,
+          email: tokenData.email,
+          hasTokens: !!tokenData.access_token,
+        })
+      }
 
       return {
         success: true,
@@ -112,6 +132,9 @@ export class GmailService {
         },
       }
     } catch (error) {
+      if (this.config.enableLogging) {
+        logger.error('[GmailService] ❌ OAuth callback failed:', error)
+      }
       this.handleError('Failed to handle OAuth callback', error)
       return {
         success: false,

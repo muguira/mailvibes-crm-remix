@@ -109,9 +109,41 @@ export function useGmail(options: UseGmailOptions = {}): UseGmailReturn {
       if (enableLogging) {
         logger.info(`[useGmail] Auto-initializing Gmail service for user: ${userId}`)
       }
-      store.initializeService(userId, { enableLogging })
+
+      // Add a small delay to ensure the component is fully mounted
+      const initTimeoutId = setTimeout(() => {
+        store.initializeService(userId, { enableLogging }).catch(error => {
+          if (enableLogging) {
+            logger.error(`[useGmail] Auto-initialization failed for user ${userId}:`, error)
+          }
+        })
+      }, 100)
+
+      return () => clearTimeout(initTimeoutId)
     }
   }, [autoInitialize, userId, enableLogging]) // Include all used variables
+
+  // Retry initialization if service failed to initialize
+  useEffect(() => {
+    if (autoInitialize && userId && !store.service && !store.loading && store.error) {
+      if (enableLogging) {
+        logger.warn(`[useGmail] Service initialization failed, retrying in 2 seconds...`, { error: store.error })
+      }
+
+      const retryTimeoutId = setTimeout(() => {
+        if (enableLogging) {
+          logger.info(`[useGmail] Retrying service initialization for user: ${userId}`)
+        }
+        store.initializeService(userId, { enableLogging }).catch(error => {
+          if (enableLogging) {
+            logger.error(`[useGmail] Retry initialization failed for user ${userId}:`, error)
+          }
+        })
+      }, 2000)
+
+      return () => clearTimeout(retryTimeoutId)
+    }
+  }, [autoInitialize, userId, enableLogging, store.service, store.loading, store.error])
 
   // =============================================================================
   // ESTADO CONSOLIDADO - Removed redundant assignments

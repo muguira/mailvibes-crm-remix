@@ -20,7 +20,7 @@ import {
 import { format } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import GmailLogo from "@/components/svgs/integrations-images/gmail-logo.svg";
-import { setSyncEnabled } from "@/services/google/tokenService";
+
 
 interface GmailAccountsListProps {
   onAccountDisconnected?: (email: string) => void;
@@ -96,29 +96,6 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
       toast({
         title: "Error",
         description: "Failed to disconnect Gmail account. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleEnableSync = async (email: string) => {
-    if (!user?.id) return;
-
-    try {
-      await setSyncEnabled(user.id, email, true);
-      
-      // Refresh accounts to show updated status
-      await loadAccounts();
-      
-      toast({
-        title: "Sync Enabled",
-        description: `Gmail sync has been enabled for ${email}.`,
-      });
-    } catch (error) {
-      console.error('Error enabling Gmail sync:', error);
-      toast({
-        title: "Error",
-        description: "Failed to enable Gmail sync. Please try again.",
         variant: "destructive",
       });
     }
@@ -250,6 +227,7 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
           >
             Health Check
           </Button>
+
         </div>
       </div>
       
@@ -284,26 +262,6 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Enable Sync button for disabled accounts */}
-                {!account.sync_enabled && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleEnableSync(account.email)}
-                    disabled={loading.accounts}
-                    className="text-green-600 border-green-300 hover:bg-green-50"
-                  >
-                    {loading.accounts ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Enable Sync
-                      </>
-                    )}
-                  </Button>
-                )}
-                
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button 

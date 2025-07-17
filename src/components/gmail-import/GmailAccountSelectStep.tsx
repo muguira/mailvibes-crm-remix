@@ -41,9 +41,11 @@ export function GmailAccountSelectStep({
   const {
     accounts: connectedAccounts,
     loading,
+    loadAccounts,
     refreshAccounts,
     disconnectAccount
   } = useGmail({ 
+    userId: user?.id,
     enableLogging: true,
     autoInitialize: true 
   });
@@ -59,13 +61,13 @@ export function GmailAccountSelectStep({
   // Load accounts when component mounts - only once
   useEffect(() => {
     const loadAccountsOnce = async () => {
-      if (user && !hasLoadedAccountsRef.current && !globalLoadingAccounts && !isStoreLoading) {
+      if (user && !hasLoadedAccountsRef.current && !globalLoadingAccounts && !loading.accounts) {
         hasLoadedAccountsRef.current = true;
         globalLoadingAccounts = true;
         logger.debug(`[GmailAccountSelectStep-${componentId.current}] Loading accounts...`);
         
         try {
-          await loadAccounts(user.id);
+          await loadAccounts();
         } finally {
           globalLoadingAccounts = false;
         }
@@ -168,7 +170,7 @@ export function GmailAccountSelectStep({
       // First disconnect the existing account
       if (user) {
         logger.debug(`[GmailAccountSelectStep] Disconnecting account: ${account.email}`);
-        await disconnectAccount(user.id, account.email);
+        await disconnectAccount(account.email);
         
         // Wait a bit for the state to update
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -238,9 +240,9 @@ export function GmailAccountSelectStep({
                     <RadioGroupItem value={account.id} id={account.id} />
                     
                     <Avatar className="h-8 w-8">
-                      {account.user_info?.picture ? (
+                      {account.picture ? (
                         <AvatarImage 
-                          src={account.user_info.picture} 
+                          src={account.picture} 
                           alt={account.email} 
                         />
                       ) : null}
@@ -290,7 +292,7 @@ export function GmailAccountSelectStep({
                       </div>
                       
                       {/* Show reconnect button if token is invalid */}
-                      {(contactsCounts[account.id] === -1 || account.last_sync_error?.includes('Invalid refresh token')) && (
+                      {(contactsCounts[account.id] === -1 || (account as any).last_sync_error?.includes('Invalid refresh token')) && (
                         <div className="mt-1">
                           <Button 
                             variant="outline" 
