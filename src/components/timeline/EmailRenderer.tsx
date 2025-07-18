@@ -1,25 +1,23 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import DOMPurify from 'dompurify';
-import { supabase } from '@/integrations/supabase/client';
 import './email-renderer.css';
 
 interface EmailRendererProps {
   bodyHtml?: string;
   bodyText?: string;
   subject?: string;
-  emailId?: string; // Gmail ID for fetching attachments
+  emailId?: string;
+  attachments?: Array<{
+    id: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+    inline?: boolean;
+    contentId?: string;
+  }>;
 }
 
-interface EmailAttachment {
-  id: string;
-  content_id: string | null;
-  filename: string;
-  mime_type: string | null;
-  inline: boolean | null;
-  gmail_attachment_id: string | null;
-}
-
-// Simplified sanitization config - less aggressive processing
+// Simple and permissive sanitization config - optimized for email signatures
 const sanitizeConfig = {
   ALLOWED_TAGS: [
     'p', 'div', 'span', 'br', 'strong', 'b', 'em', 'i', 'u', 
@@ -30,160 +28,148 @@ const sanitizeConfig = {
   ALLOWED_ATTR: [
     'href', 'target', 'rel', 'class', 'style', 'id', 'title', 'alt', 'src',
     'width', 'height', 'border', 'cellpadding', 'cellspacing', 'align', 'valign',
-    'bgcolor', 'color', 'size', 'face'
+    'bgcolor', 'color', 'size', 'face', 'hspace', 'vspace', 'loading', 'crossorigin'
   ],
+  // More permissive URL regex that allows most external images including Google services
   ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+  ALLOW_UNKNOWN_PROTOCOLS: true,
+  ALLOW_DATA_ATTR: true,
   ADD_ATTR: ['target'],
   FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input', 'button', 'iframe'],
-  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout', 'onfocus', 'onblur']
+  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout', 'onfocus', 'onblur'],
+  // Don't be too strict about URIs
+  SANITIZE_DOM: false,
+  KEEP_CONTENT: true
 };
 
-const EmailRenderer: React.FC<EmailRendererProps> = ({ bodyHtml, bodyText, subject, emailId }) => {
-  const [attachments, setAttachments] = useState<EmailAttachment[]>([]);
-  const [attachmentsLoaded, setAttachmentsLoaded] = useState(false);
+// Clean up HTML to remove excessive spacing (conservative approach)
+const cleanupEmailHtml = (html: string): string => {
+  return html
+    // Only remove clearly empty elements - be very conservative
+    .replace(/<div[^>]*>\s*<\/div>/gi, '')
+    .replace(/<p[^>]*>\s*<\/p>/gi, '')
+    
+    // Replace multiple consecutive <br> tags with maximum of 2
+    .replace(/(<br[^>]*>\s*){4,}/gi, '<br><br>')
+    
+    // Remove only obviously problematic inline styles for spacing
+    .replace(/style="[^"]*margin-top:\s*[0-9]+px[^"]*"/gi, '')
+    .replace(/style="[^"]*margin-bottom:\s*[0-9]+px[^"]*"/gi, '')
+    
+    // Keep all other content as-is to preserve encoding
+    .trim();
+};
 
-  // Fetch email attachments for CID resolution
-  useEffect(() => {
-    if (!emailId) {
-      setAttachmentsLoaded(true);
-      return;
-    }
-
-    const fetchAttachments = async () => {
-      try {
-        // First, find the email in our database using the Gmail ID
-        const { data: emailData, error: emailError } = await supabase
-          .from('emails')
-          .select('id')
-          .eq('gmail_id', emailId)
-          .single();
-
-        if (emailError || !emailData) {
-          console.warn('Email not found for ID:', emailId);
-          setAttachmentsLoaded(true);
-          return;
-        }
-
-        // Now fetch the attachments for this email
-        const { data: attachmentData, error: attachmentError } = await supabase
-          .from('email_attachments')
-          .select('id, content_id, filename, mime_type, inline, gmail_attachment_id')
-          .eq('email_id', emailData.id);
-
-        if (attachmentError) {
-          console.error('Error fetching attachments:', attachmentError);
-          setAttachmentsLoaded(true);
-          return;
-        }
-
-        setAttachments(attachmentData || []);
-        setAttachmentsLoaded(true);
-      } catch (error) {
-        console.error('Error fetching email attachments:', error);
-        setAttachmentsLoaded(true);
-      }
-    };
-
-    fetchAttachments();
-  }, [emailId]);
-
+const EmailRenderer: React.FC<EmailRendererProps> = ({ 
+  bodyHtml, 
+  bodyText, 
+  subject, 
+  emailId, 
+  attachments = [] 
+}) => {
   const processedContent = useMemo(() => {
-    // Wait for attachments to load before processing
-    if (!attachmentsLoaded) {
-      return null;
-    }
-
     // Try to render HTML first if available
     if (bodyHtml && bodyHtml.trim()) {
       try {
-        // Minimal processing - just sanitize and make safe
-        let sanitizedHtml = DOMPurify.sanitize(bodyHtml, sanitizeConfig);
+        // First clean up the HTML to remove spacing issues
+        let cleanedHtml = cleanupEmailHtml(bodyHtml);
         
-        // Resolve CID references to placeholder images or broken image handling
+        // Simple sanitization without aggressive transformations
+        let sanitizedHtml = DOMPurify.sanitize(cleanedHtml, sanitizeConfig);
+        
+        // Only handle CID references for inline attachments (minimal processing)
         if (attachments.length > 0) {
-          // Create a map of content-id to attachment info
-          const cidMap = new Map<string, EmailAttachment>();
+          const cidMap = new Map<string, any>();
           attachments.forEach(attachment => {
-            if (attachment.content_id && attachment.inline) {
-              // Gmail content-ids sometimes have < > brackets, normalize them
-              const normalizedCid = attachment.content_id.replace(/[<>]/g, '');
+            if (attachment.contentId && attachment.inline) {
+              const normalizedCid = attachment.contentId.replace(/[<>]/g, '');
               cidMap.set(normalizedCid, attachment);
             }
           });
 
-          // Replace cid: references with placeholder or broken image handling
-          sanitizedHtml = sanitizedHtml.replace(
-            /src="cid:([^"]+)"/gi,
-            (match, contentId) => {
-              const attachment = cidMap.get(contentId);
+          // Replace CID references with simple placeholders
+          sanitizedHtml = sanitizedHtml.replace(/src="cid:([^"]+)"/gi, (match, contentId) => {
+            const attachment = cidMap.get(contentId);
+            if (attachment) {
+              const isGif = attachment.filename.toLowerCase().endsWith('.gif');
+              const icon = isGif ? '🎬' : '🖼️';
               
-              if (attachment) {
-                // For now, we'll use a placeholder since we don't have Gmail attachment fetching implemented
-                // In a full implementation, you'd fetch the actual attachment data from Gmail API
-                return `src="data:image/svg+xml;base64,${btoa(`
-                  <svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">
-                    <rect width="200" height="100" fill="#f3f4f6" stroke="#d1d5db"/>
-                    <text x="100" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">
-                      📎 ${attachment.filename}
-                    </text>
-                    <text x="100" y="65" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#9ca3af">
-                      (Inline Image)
-                    </text>
-                  </svg>
-                `)}" title="${attachment.filename}" alt="${attachment.filename}"`;
-              } else {
-                // CID not found in attachments - show broken image placeholder
-                return `src="data:image/svg+xml;base64,${btoa(`
-                  <svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">
-                    <rect width="200" height="100" fill="#fef2f2" stroke="#fecaca"/>
-                    <text x="100" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#dc2626">
-                      🖼️ Image not available
-                    </text>
-                    <text x="100" y="65" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ef4444">
-                      (cid:${contentId})
-                    </text>
-                  </svg>
-                `)}" title="Missing inline image" alt="Missing inline image"`;
-              }
+              return `src="data:image/svg+xml;base64,${btoa(`
+                <svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">
+                  <rect width="120" height="80" fill="#f9fafb" stroke="#e5e7eb" stroke-width="1" rx="4"/>
+                  <text x="60" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#6b7280">${icon}</text>
+                  <text x="60" y="50" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#9ca3af">${attachment.filename}</text>
+                  <text x="60" y="65" text-anchor="middle" font-family="Arial, sans-serif" font-size="6" fill="#d1d5db">${attachment.mimeType || 'image'}</text>
+                </svg>
+              `)}"`;
             }
+            
+            // Generic placeholder for unknown CID
+            return `src="data:image/svg+xml;base64,${btoa(`
+              <svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">
+                <rect width="120" height="80" fill="#f9fafb" stroke="#e5e7eb" stroke-width="1" rx="4"/>
+                <text x="60" y="35" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#9ca3af">📎 Attachment</text>
+                <text x="60" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="6" fill="#d1d5db">Content ID: ${contentId}</text>
+              </svg>
+            `)}"`;
+          });
+
+          // Add simple attachment gallery if we have image attachments
+          const imageAttachments = attachments.filter(att => 
+            att.filename && (
+              att.filename.toLowerCase().includes('.gif') ||
+              att.filename.toLowerCase().includes('.png') ||
+              att.filename.toLowerCase().includes('.jpg') ||
+              att.filename.toLowerCase().includes('.jpeg') ||
+              att.filename.toLowerCase().includes('.webp') ||
+              (att.mimeType && att.mimeType.startsWith('image/'))
+            )
           );
+          
+          if (imageAttachments.length > 0) {
+            const simpleGallery = imageAttachments.map(att => {
+              const isGif = att.filename.toLowerCase().endsWith('.gif');
+              const icon = isGif ? '🎬' : '🖼️';
+              const sizeText = att.size ? `${Math.round(att.size / 1024)}KB` : '';
+              
+              return `
+                <div style="display: inline-block; margin: 8px; padding: 12px; border: 1px dashed #d1d5db; border-radius: 6px; background: #f9fafb; text-align: center; min-width: 120px;">
+                  <div style="font-size: 24px; margin-bottom: 4px;">${icon}</div>
+                  <div style="font-size: 11px; color: #374151; word-break: break-word; margin-bottom: 2px;">${att.filename}</div>
+                  <div style="font-size: 9px; color: #6b7280;">${att.mimeType || 'image'} ${sizeText}</div>
+                  <div style="font-size: 8px; color: #9ca3af; margin-top: 2px;">${att.inline ? 'Inline' : 'Attachment'}</div>
+                </div>
+              `;
+            }).join('');
+            
+            sanitizedHtml += `
+              <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">📎 Email Images (${imageAttachments.length}):</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                  ${simpleGallery}
+                </div>
+              </div>
+            `;
+          }
         }
-        
-        // Only do essential fixes - don't be aggressive
-        sanitizedHtml = sanitizedHtml
-          // Make images responsive (but don't override existing styles)
-          .replace(/<img(?![^>]*style=)([^>]*)>/gi, '<img$1 style="max-width: 100%; height: auto;">')
-          // Ensure links open in new tab
-          .replace(/<a(?![^>]*target=)([^>]*?)href=/gi, '<a$1target="_blank" rel="noopener noreferrer" href=');
-        
-        if (sanitizedHtml && sanitizedHtml.trim() !== '') {
-          return { content: sanitizedHtml, isPlainText: false };
-        }
+
+        return { content: sanitizedHtml, isPlainText: false };
       } catch (error) {
         console.warn('Error sanitizing email HTML:', error);
       }
     }
 
-    // Fallback to plain text with minimal formatting
+    // Fallback to plain text with simple formatting
     if (bodyText && bodyText.trim()) {
-      // Simple text processing - just convert line breaks
-      const formattedText = bodyText.replace(/\n/g, '<br>');
+      const formattedText = bodyText
+        .replace(/\n/g, '<br>')
+        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+      
       return { content: formattedText, isPlainText: true };
     }
 
     return null;
-  }, [bodyHtml, bodyText, attachments, attachmentsLoaded]);
-
-  // Show loading state while fetching attachments
-  if (!attachmentsLoaded) {
-    return (
-      <div className="email-renderer">
-        <div className="email-no-content">
-          <em>Loading email content...</em>
-        </div>
-      </div>
-    );
-  }
+  }, [bodyHtml, bodyText, attachments]);
 
   if (!processedContent) {
     return (

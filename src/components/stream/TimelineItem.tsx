@@ -747,6 +747,7 @@ const TimelineItem = React.memo(function TimelineItem({
                       bodyText={activity.bodyText}
                       subject={activity.subject}
                       emailId={activity.id}
+                      attachments={activity.attachments}
                     />
                   ) : (
                     <div 
