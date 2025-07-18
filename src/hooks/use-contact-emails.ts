@@ -23,7 +23,7 @@ interface UseContactEmailsReturn {
 }
 
 export function useContactEmails(options: UseContactEmailsOptions = {}): UseContactEmailsReturn {
-  const { contactEmail, maxResults = 20, autoFetch = true } = options
+  const { contactEmail, maxResults = 5000, autoFetch = true } = options // High limit for complete history
 
   const [emails, setEmails] = useState<GmailEmail[]>([])
   const [loading, setLoading] = useState(false)
@@ -66,7 +66,7 @@ export function useContactEmails(options: UseContactEmailsOptions = {}): UseCont
         throw new Error('Unable to get valid Gmail token')
       }
 
-      const response: GmailApiResponse = await getRecentContactEmails(token, contactEmail, maxResults)
+      const response: GmailApiResponse = await getRecentContactEmails(token, contactEmail, maxResults, false) // Limited sync for hook calls
 
       setEmails(response.emails)
       setHasMore(!!response.nextPageToken)
@@ -187,7 +187,7 @@ export function useMultipleContactEmails(contactEmails: string[], maxResults: nu
       // Fetch emails for all contacts in parallel
       const emailPromises = contactEmails.map(async contactEmail => {
         try {
-          const response = await getRecentContactEmails(token, contactEmail, maxResults)
+          const response = await getRecentContactEmails(token, contactEmail, maxResults, false) // Limited sync for bulk calls
           return { contactEmail, emails: response.emails }
         } catch (err) {
           logger.error(`Error fetching emails for ${contactEmail}:`, err)

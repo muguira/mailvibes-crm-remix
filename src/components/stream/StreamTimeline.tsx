@@ -1,8 +1,8 @@
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import TimelineItem from './TimelineItem';
 import TimelineComposer from './TimelineComposer';
-import { useTimelineActivities } from "@/hooks/use-timeline-activities";
+import { useTimelineActivitiesV2 } from "@/hooks/use-timeline-activities-v2";
 import { useActivities } from "@/hooks/supabase/use-activities";
 import { usePinnedEmails } from "@/hooks/supabase/use-pinned-emails";
 import { useAuth } from "@/components/auth";
@@ -29,14 +29,21 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
   const {
     activities,
     loading,
+    loadingMore,
     error,
     emailsCount,
     internalCount,
-  } = useTimelineActivities({
+    hasMoreEmails,
+    syncStatus,
+    oldestEmailDate,
+    loadMoreEmails,
+    syncEmailHistory,
+    refreshEmails,
+  } = useTimelineActivitiesV2({
     contactId,
     contactEmail,
     includeEmails: true,
-    maxEmails: 20,
+    autoInitialize: true,
   });
 
   // Get toggle pin function from activities hook
@@ -45,21 +52,31 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
   // Get email pin functions
   const { toggleEmailPin } = usePinnedEmails(contactEmail);
 
-  // Handle scroll to make composer compact
-  useEffect(() => {
-    const handleScroll = () => {
-      if (timelineRef.current) {
-        const scrollTop = timelineRef.current.scrollTop;
-        setIsCompact(scrollTop > 50); // Make compact after 50px scroll
+  // Handle infinite scroll and composer compact state
+  const handleScroll = useCallback(() => {
+    if (timelineRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = timelineRef.current;
+      
+      // Make composer compact after 50px scroll
+      setIsCompact(scrollTop > 50);
+      
+      // Load more emails when near bottom (100px before end)
+      const nearBottom = scrollTop + clientHeight >= scrollHeight - 100;
+      
+      if (nearBottom && hasMoreEmails && !loadingMore) {
+        console.log('📜 Near bottom, loading more emails...');
+        loadMoreEmails();
       }
-    };
+    }
+  }, [hasMoreEmails, loadingMore, loadMoreEmails]);
 
+  useEffect(() => {
     const timelineElement = timelineRef.current;
     if (timelineElement) {
       timelineElement.addEventListener('scroll', handleScroll);
       return () => timelineElement.removeEventListener('scroll', handleScroll);
     }
-  }, []);
+  }, [handleScroll]);
 
   // Debug logging
   // console.log('StreamTimeline Debug:', {
@@ -80,11 +97,16 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     return user?.email?.split('@')[0] || 'User';
   };
 
-  // Get the first interaction date
+  // Get the first interaction date (dynamic based on loaded emails)
   const getFirstInteractionDate = () => {
     if (activities.length === 0) return null;
     
-    // Sort activities by timestamp to get the oldest one
+    // Use oldestEmailDate if available (from database), otherwise calculate from loaded activities
+    if (oldestEmailDate) {
+      return oldestEmailDate;
+    }
+    
+    // Fallback: Sort activities by timestamp to get the oldest one
     const sortedActivities = [...activities].sort((a, b) => 
       new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     );
@@ -187,8 +209,13 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
       <div className="flex-shrink-0 p-4 pt-0">
         <TimelineComposer 
           contactId={contactId}
+          contactEmail={contactEmail}
           isCompact={isCompact}
           onExpand={handleExpandComposer}
+          onSyncEmailHistory={syncEmailHistory}
+          syncStatus={syncStatus}
+          emailsCount={emailsCount}
+          hasMoreEmails={hasMoreEmails}
         />
       </div>
 
@@ -246,37 +273,67 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
                 );
               })}
               
-              {/* Conversation start indicator */}
+              {/* Conversation start indicator with dynamic info */}
               {getFirstInteractionDate() && (
                 <li className="relative pl-10 pb-6 pb-[150px]">
-                  {/* Timeline line end */}
-                  
-                  {/* Conversation start indicator */}
                   <div className="flex items-center justify-center">
-                    <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm text-gray-600">
-                      <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
-                        <Users className="w-3 h-3 text-gray-500" />
+                    <div className="flex flex-col items-center gap-2">
+                      {/* Main relationship indicator */}
+                      <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm text-gray-600">
+                        <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
+                          <Users className="w-3 h-3 text-gray-500" />
+                        </div>
+                        <span className="font-medium">
+                          {formatFirstInteractionDate(getFirstInteractionDate()!)}
+                        </span>
+                        <div className="text-xs text-gray-400">
+                          {new Date(getFirstInteractionDate()!).toLocaleDateString('en-US', {
+                            day: 'numeric',
+                            month: 'long', 
+                            year: 'numeric'
+                          })}
+                        </div>
                       </div>
-                      <span className="font-medium">
-                        {formatFirstInteractionDate(getFirstInteractionDate()!)}
-                      </span>
-                      <div className="text-xs text-gray-400">
-                        {new Date(getFirstInteractionDate()!).toLocaleDateString('en-US', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric'
-                        })}
-                      </div>
+                      
+                      {/* Additional info for more emails or sync status */}
+                      {hasMoreEmails && (
+                        <div className="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
+                          📜 Scroll down for more emails
+                        </div>
+                      )}
+                      
+                      {syncStatus === 'syncing' && (
+                        <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-3 py-1 flex items-center gap-1">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Syncing email history...
+                        </div>
+                      )}
+                      
+                      {syncStatus === 'completed' && !hasMoreEmails && (
+                        <div className="text-xs text-green-600 bg-green-50 border border-green-200 rounded-full px-3 py-1">
+                          ✅ All email history synced
+                        </div>
+                      )}
                     </div>
                   </div>
                 </li>
               )}
             </ul>
             
-            {loading && activities.length > 0 && (
+            {/* Loading more emails indicator */}
+            {loadingMore && (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                <span className="text-sm text-gray-500">load  more...</span>
+                <span className="text-sm text-gray-500">Loading more emails...</span>
+              </div>
+            )}
+            
+            {/* End of emails indicator */}
+            {!hasMoreEmails && activities.length > 0 && emailsCount > 0 && (
+              <div className="flex items-center justify-center py-4">
+                <div className="text-xs text-gray-400 bg-gray-50 px-3 py-1 rounded-full">
+                  All emails loaded • {emailsCount} total emails
+                </div>
               </div>
             )}
           </>

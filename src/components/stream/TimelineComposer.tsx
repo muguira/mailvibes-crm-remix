@@ -6,7 +6,9 @@ import {
   MessageCircle,
   Calendar,
   CalendarDays,
-  AlertCircle
+  AlertCircle,
+  Download,
+  RefreshCw
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -16,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { useActivities } from '@/hooks/supabase/use-activities';
 import { useGmailConnection } from '@/hooks/use-gmail-auth';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useContactEmails } from '@/hooks/use-contact-emails-v2';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GmailConnectionModal } from '@/components/stream/GmailConnectionModal';
 import { TiptapEditor, MarkdownToolbar } from '@/components/markdown';
@@ -32,6 +35,11 @@ interface TimelineComposerProps {
   isCompact?: boolean;
   onExpand?: () => void;
   onCreateActivity?: (activity: { type: string; content: string; timestamp: string }) => void;
+  contactEmail?: string;
+  onSyncEmailHistory?: () => Promise<void>;
+  syncStatus?: 'idle' | 'syncing' | 'completed' | 'failed';
+  emailsCount?: number;
+  hasMoreEmails?: boolean;
 }
 
 // Custom DateTime picker component
@@ -145,7 +153,17 @@ const DateTimePicker = ({
   );
 };
 
-export default function TimelineComposer({ contactId, isCompact = false, onExpand, onCreateActivity }: TimelineComposerProps) {
+export default function TimelineComposer({ 
+  contactId, 
+  isCompact = false, 
+  onExpand, 
+  onCreateActivity, 
+  contactEmail,
+  onSyncEmailHistory,
+  syncStatus = 'idle',
+  emailsCount = 0,
+  hasMoreEmails = false
+}: TimelineComposerProps) {
   const [text, setText] = useState("");
   const [selectedActivityType, setSelectedActivityType] = useState('note');
   const [activityDate, setActivityDate] = useState(new Date());
@@ -161,6 +179,28 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
   const { createActivity } = useActivities(effectiveContactId);
   const { isConnected: isGmailConnected } = useGmailConnection();
   const isMobile = useIsMobile();
+  
+  // Use provided contactEmail (we'll assume it's passed from parent)
+  const effectiveContactEmail = contactEmail;
+  
+  // Use modern emails hook to get email info and sync capabilities
+  const {
+    emails,
+    loading,
+    hasMore,
+    syncStatus: internalSyncStatus,
+    syncEmailHistory
+  } = useContactEmails({
+    contactEmail: effectiveContactEmail,
+    autoFetch: true,
+  });
+  
+  // Show sync button if we have emails but there are more available (incomplete history)
+  const shouldShowSyncButton = isGmailConnected && 
+                               effectiveContactEmail && 
+                               emails && 
+                               emails.length > 0 && 
+                               (hasMore || emails.length < 200);
 
   const handleSend = () => {
     if (text.trim() && effectiveContactId) {
@@ -255,6 +295,16 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
   const handleTimeChange = (newTime: string) => {
     setActivityTime(newTime);
     setIsDateTimeManuallySet(true);
+  };
+
+  // Handle sync historical emails
+  const handleSyncHistoricalEmails = async () => {
+    // Use prop function if provided (from StreamTimeline), otherwise use hook function
+    if (onSyncEmailHistory) {
+      await onSyncEmailHistory();
+    } else if (syncEmailHistory) {
+      await syncEmailHistory();
+    }
   };
 
   // Handle formatting commands for the editor
@@ -366,6 +416,8 @@ export default function TimelineComposer({ contactId, isCompact = false, onExpan
           isCompact={isCompact}
         />
       </div>
+
+
 
       {/* Rich Text Editor */}
       <div className={`outline-none transition-all duration-300 ease-in-out ${

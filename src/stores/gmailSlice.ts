@@ -439,7 +439,7 @@ export const useGmailSlice: StateCreator<
 
     try {
       const emails = await gmailService.getContactEmails(contactEmail, {
-        maxResults: options.maxResults || 50,
+        maxResults: options.maxResults || 500,
         preferDatabase: options.preferDatabase !== false,
       })
 
@@ -477,7 +477,7 @@ export const useGmailSlice: StateCreator<
 
     try {
       const emails = await gmailService.searchEmails(query, {
-        maxResults: options.maxResults || 50,
+        maxResults: options.maxResults || 500,
       })
 
       set(state => {

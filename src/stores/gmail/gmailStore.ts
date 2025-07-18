@@ -542,7 +542,7 @@ export const useGmailStore = create<GmailStore>()(
 
         try {
           const emails = await service.getContactEmails(contactEmail, {
-            maxResults: options.maxResults || 50,
+            maxResults: options.maxResults || 500,
             preferDatabase: options.preferDatabase !== false,
           })
 
@@ -580,7 +580,7 @@ export const useGmailStore = create<GmailStore>()(
 
         try {
           const emails = await service.searchEmails(query, {
-            maxResults: options.maxResults || 50,
+            maxResults: options.maxResults || 500,
           })
 
           set(state => {

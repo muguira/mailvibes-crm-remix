@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Mail, Trash2, RefreshCw, Clock, CheckCircle, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { useAuth } from "@/components/auth";
+import { useNavigate } from "react-router-dom";
 // FIXED: Use granular selectors instead of useGmail hook to avoid infinite loops
 import { 
   useGmailAccounts, 
@@ -17,7 +18,7 @@ import {
   useGmailInitializeService,
   useGmailLoadAccounts
 } from "@/stores/gmail/selectors";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import GmailLogo from "@/components/svgs/integrations-images/gmail-logo.svg";
 
@@ -28,6 +29,7 @@ interface GmailAccountsListProps {
 
 export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasAutoExpanded, setHasAutoExpanded] = useState(false);
   const { toast } = useToast();
@@ -101,15 +103,63 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
     }
   };
 
+  const handleAccountClick = (email: string) => {
+    navigate('/settings/integrations/gmail-dashboard');
+  };
+
+  const getAccountInitials = (account: any) => {
+    const email = account.email || '';
+    const name = (account as any).name || (account as any).display_name || '';
+    
+    if (name) {
+      // If we have a name, get initials from the name
+      const nameParts = name.trim().split(' ');
+      if (nameParts.length >= 2) {
+        return (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase();
+      } else {
+        return nameParts[0].charAt(0).toUpperCase();
+      }
+    } else {
+      // If no name, get initials from email
+      const emailPart = email.split('@')[0];
+      if (emailPart.includes('.')) {
+        const emailParts = emailPart.split('.');
+        return (emailParts[0].charAt(0) + emailParts[1].charAt(0)).toUpperCase();
+      } else {
+        return emailPart.charAt(0).toUpperCase();
+      }
+    }
+  };
+
   const getSyncStatusBadge = (account: any) => {
     if (!account.sync_enabled) {
-      return <Badge variant="secondary">Disabled</Badge>;
+      return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Paused</Badge>;
     }
 
-    // Note: last_sync_status may not be available in new service layer yet
-    // This is temporary until full sync implementation
-    if (account.is_connected) {
-      return <Badge variant="default" className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Connected</Badge>;
+    // Check for sync errors
+    if (account.last_sync_error) {
+      return <Badge variant="destructive"><AlertCircle className="w-3 h-3 mr-1" />Failed</Badge>;
+    }
+
+    // Check if we have recent sync activity (within last hour) as Active
+    if (account.last_sync_at) {
+      const lastSyncTime = new Date(account.last_sync_at);
+      const now = new Date();
+      const timeDiffInMinutes = (now.getTime() - lastSyncTime.getTime()) / (1000 * 60);
+      
+      // If synced within last hour and no errors, consider Active
+      if (timeDiffInMinutes <= 60 && !account.last_sync_error) {
+        return <Badge variant="default" className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Active</Badge>;
+      }
+    }
+
+    // Check last sync status
+    if (account.last_sync_status === 'completed' && account.is_connected) {
+      return <Badge variant="default" className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Active</Badge>;
+    } else if (account.last_sync_status === 'in_progress' || account.last_sync_status === 'started') {
+      return <Badge variant="secondary"><RefreshCw className="w-3 h-3 mr-1 animate-spin" />Syncing</Badge>;
+    } else if (account.is_connected) {
+      return <Badge variant="outline"><CheckCircle className="w-3 h-3 mr-1" />Connected</Badge>;
     } else {
       return <Badge variant="outline"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
     }
@@ -119,7 +169,16 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
     if (!account.last_sync_at) return 'Never synced';
     
     try {
-      return `Last sync: ${format(new Date(account.last_sync_at), 'MMM d, yyyy h:mm a')}`;
+      const lastSyncDate = new Date(account.last_sync_at);
+      const timeAgo = formatDistanceToNow(lastSyncDate, { addSuffix: true });
+      
+      // Show error message if there was a sync error
+      if (account.last_sync_error) {
+        return `Sync failed ${timeAgo}: ${account.last_sync_error.slice(0, 50)}${account.last_sync_error.length > 50 ? '...' : ''}`;
+      }
+      
+      // Show last successful sync
+      return `Last sync: ${timeAgo}`;
     } catch {
       return 'Last sync: Invalid date';
     }
@@ -235,33 +294,39 @@ export function GmailAccountsList({ onAccountDisconnected }: GmailAccountsListPr
         <div className="space-y-3 ml-6">
           {accounts.map((account) => (
             <div key={account.id} className="flex items-center gap-3 p-3 border rounded-lg">
-              <Avatar className="h-10 w-10">
-                <AvatarImage 
-                  src={account.picture} 
-                  alt={account.name || account.email}
-                />
-                <AvatarFallback className="bg-blue-500 text-white">
-                  {account.email.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium truncate">
-                    {account.name || account.email}
+              {/* Clickeable area for navigation */}
+              <div 
+                className="flex items-center gap-3 flex-1 cursor-pointer hover:bg-gray-50 rounded-lg p-1 -m-1"
+                onClick={() => handleAccountClick(account.email)}
+              >
+                <Avatar className="h-10 w-10">
+                  <AvatarImage 
+                    src={(account as any).picture || (account as any).avatar_url || (account as any).photo} 
+                    alt={(account as any).name || (account as any).display_name || account.email}
+                  />
+                  <AvatarFallback className="bg-blue-500 text-white font-medium">
+                    {getAccountInitials(account)}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-medium truncate">
+                      {(account as any).name || (account as any).display_name || account.email.split('@')[0]}
+                    </p>
+                    {getSyncStatusBadge(account)}
+                  </div>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {account.email}
                   </p>
-                  {getSyncStatusBadge(account)}
+                  <p className="text-xs text-muted-foreground">
+                    {getLastSyncText(account)}
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground truncate">
-                  {account.email}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {getLastSyncText(account)}
-                </p>
-                {/* Note: last_sync_error may not be available in current service layer */}
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Delete button - separate from clickeable area */}
+              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button 
