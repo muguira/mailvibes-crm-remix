@@ -2,6 +2,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import TimelineItem from './TimelineItem';
 import TimelineComposer from './TimelineComposer';
+// Note: Timeline debug utilities are loaded globally in main.tsx
 import { useTimelineActivitiesV2 } from "@/hooks/use-timeline-activities-v2";
 import { useActivities } from "@/hooks/supabase/use-activities";
 import { usePinnedEmails } from "@/hooks/supabase/use-pinned-emails";
@@ -159,9 +160,8 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
       // Handle internal activity pin
       togglePin({ activityId, isPinned: newPinState });
     } else if (activity.source === 'gmail' && activity.type === 'email') {
-      // Handle Gmail email pin
-      const emailId = activityId.replace('email-', ''); // Remove 'email-' prefix
-      toggleEmailPin({ emailId, isPinned: newPinState });
+      // Handle Gmail email pin - activityId is already the Gmail ID
+      toggleEmailPin({ emailId: activityId, isPinned: newPinState });
     } else {
       console.error('Cannot pin this type of activity:', activity);
     }

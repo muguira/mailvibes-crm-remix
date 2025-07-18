@@ -27,6 +27,15 @@ interface DatabaseEmail {
   attachment_count: number
   created_at: string
   updated_at: string
+  email_attachments?: Array<{
+    id: string
+    gmail_attachment_id?: string
+    filename: string
+    mime_type?: string
+    size_bytes?: number
+    inline?: boolean
+    content_id?: string
+  }>
 }
 
 interface ContactEmailsState {
@@ -152,6 +161,17 @@ const useEmailsStore = create<EmailsStore>()(
         const bccEmails = parseJsonField(dbEmail.bcc_emails)
         const labels = parseJsonField(dbEmail.labels)
 
+        // Convert email_attachments to Gmail format
+        const attachments =
+          dbEmail.email_attachments?.map((att: any) => ({
+            id: att.gmail_attachment_id || att.id,
+            filename: att.filename,
+            mimeType: att.mime_type,
+            size: att.size_bytes || 0,
+            inline: att.inline || false,
+            contentId: att.content_id,
+          })) || []
+
         return {
           id: dbEmail.gmail_id,
           threadId: '',
@@ -170,7 +190,7 @@ const useEmailsStore = create<EmailsStore>()(
           isRead: dbEmail.is_read,
           isImportant: dbEmail.is_important,
           labels: labels,
-          attachments: dbEmail.has_attachments ? [] : undefined,
+          attachments: attachments.length > 0 ? attachments : undefined,
         }
       },
 
@@ -184,6 +204,7 @@ const useEmailsStore = create<EmailsStore>()(
         }
 
         try {
+          // Query emails with their attachments
           const { data, error, count } = await supabase
             .from('emails')
             .select(
@@ -191,7 +212,11 @@ const useEmailsStore = create<EmailsStore>()(
               id, gmail_id, subject, snippet, body_text, body_html,
               from_email, from_name, to_emails, cc_emails, bcc_emails,
               date, is_read, is_important, labels, has_attachments,
-              attachment_count, created_at, updated_at
+              attachment_count, created_at, updated_at,
+              email_attachments (
+                id, gmail_attachment_id, filename, mime_type, 
+                size_bytes, inline, content_id
+              )
             `,
               { count: 'exact' },
             )

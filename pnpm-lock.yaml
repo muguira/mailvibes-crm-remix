@@ -184,6 +184,9 @@ dependencies:
   react-hook-form:
     specifier: ^7.53.0
     version: 7.53.0(react@18.3.1)
+  react-letter:
+    specifier: ^0.4.0
+    version: 0.4.0(react@18.3.1)
   react-resizable-panels:
     specifier: ^2.1.3
     version: 2.1.3(react-dom@18.3.1)(react@18.3.1)
@@ -5355,6 +5358,10 @@ packages:
     resolution: {integrity: sha512-y+SqErxb8h7nE/fiEX07jsbuhrpO9lL8eca7/Y1nuWV2moNlXhyd59iDGcRf6moVyDMbmTNzL40SUyrFU/yDpg==}
     dev: false
 
+  /lettersanitizer@1.0.7:
+    resolution: {integrity: sha512-r+P8T0WxmoKmm5F96tPAyYFT4ef5YDXTVmWtZjHD9FA/T8dtYM+Rb2uIxb4IerwrDxG/toYN2SQXFo4RUy4mxQ==}
+    dev: false
+
   /levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
@@ -6133,6 +6140,16 @@ packages:
   /react-is@18.3.1:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
     dev: true
+
+  /react-letter@0.4.0(react@18.3.1):
+    resolution: {integrity: sha512-OFjh9kjMSN7uUxOCI40tB9zdD8nEmyM3L33bL5AvlLfvXvkhjmHcIXj6dbS2x70PDFo/TPRq/RWwNxaiKVIVEQ==}
+    engines: {node: '>=10'}
+    peerDependencies:
+      react: '>=16'
+    dependencies:
+      lettersanitizer: 1.0.7
+      react: 18.3.1
+    dev: false
 
   /react-promise-suspense@0.3.4:
     resolution: {integrity: sha512-I42jl7L3Ze6kZaq+7zXWSunBa3b1on5yfvUW6Eo/3fFOj6dZ5Bqmcd264nJbTK/gn1HjjILAjSwnZbV4RpSaNQ==}

@@ -1,4 +1,5 @@
-/* Email Renderer Styles - Simplified for better Gmail compatibility */
+/* Email Renderer Styles - Simplified for better compatibility */
+
 .email-renderer {
   max-width: 100%;
   overflow: hidden;
@@ -12,10 +13,12 @@
 
 .email-subject {
   margin-bottom: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
+  font-size: 15px;
+  font-weight: 400;
+  border-bottom: 1px solid #eeeff0;
+  color: #374151;
   line-height: 1.4;
+  padding-bottom: 4px;
 }
 
 .email-body {
@@ -33,7 +36,7 @@
   padding: 20px 0;
 }
 
-/* Minimal content styling - let Gmail's original styles show through */
+/* Minimal content styling - let original email styles show through */
 .email-html-content,
 .email-text-content {
   max-width: 100%;
@@ -41,10 +44,96 @@
   word-wrap: break-word;
 }
 
-/* Only essential overrides for safety */
+/* Force tables to be visible and properly styled */
+.email-html-content table {
+  display: table !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: auto !important;
+  border-collapse: collapse;
+  margin: 8px 0;
+  background-color: transparent;
+}
+
+.email-html-content tbody {
+  display: table-row-group !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.email-html-content tr {
+  display: table-row !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.email-html-content td,
+.email-html-content th {
+  display: table-cell !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  padding: 2px 4px;
+  border: 1px solid #e5e7eb;
+  vertical-align: top;
+  background-color: transparent;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* Ensure table content is readable */
+.email-html-content table td {
+  color: #333 !important;
+  background-color: #fff !important;
+  min-height: 16px;
+  line-height: 1.4;
+}
+
+/* Force overflow to be visible for table content */
+.email-html-content table,
+.email-html-content tbody,
+.email-html-content tr,
+.email-html-content td {
+  overflow: visible !important;
+}
+
+/* Enhanced image handling for signatures and external content */
 .email-html-content img {
   max-width: 100%;
   height: auto;
+  display: inline-block;
+  vertical-align: middle;
+  /* Force images to load with proper referrer policy */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Ensure images don't get blocked */
+  crossorigin: anonymous;
+}
+
+/* Specific handling for signature images */
+.email-html-content img[src*="googleusercontent.com"],
+.email-html-content img[src*="drive.google.com"],
+.email-html-content img[src*="docs.google.com"],
+.email-html-content img[src*="gmail.com"],
+.email-html-content img[src*="gstatic.com"] {
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  max-width: 300px;
+  height: auto;
+  border: none;
+  background-color: transparent;
+}
+
+/* Gmail signature container styling */
+.email-html-content div[class*="gmail_signature"],
+.email-html-content div[class*="signature"] {
+  margin: 16px 0;
+  padding: 8px 0;
+  border-top: 1px solid #e5e7eb;
+  display: block !important;
+  visibility: visible !important;
 }
 
 .email-html-content a {
@@ -56,6 +145,14 @@
   text-decoration: underline;
 }
 
+/* Hide 1x1 tracking pixels */
+.email-html-content img[width="1"],
+.email-html-content img[height="1"],
+.email-html-content img[style*="width:1px"],
+.email-html-content img[style*="height:1px"] {
+  display: none !important;
+}
+
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
   .email-renderer {
@@ -64,5 +161,11 @@
   
   .email-subject {
     font-size: 15px;
+  }
+  
+  /* Make signature images more mobile friendly */
+  .email-html-content img[src*="googleusercontent.com"],
+  .email-html-content img[src*="drive.google.com"] {
+    max-width: 200px;
   }
 } 

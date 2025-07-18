@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/components/auth";
 import { ActivityProvider } from "@/contexts/ActivityContext";
 import { PrivateRoute } from "@/components/PrivateRoute";
@@ -62,9 +63,10 @@ function App() {
   return (
     <ErrorBoundary sectionName="Application">
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <ActivityProvider>
-            <Router>
+        <TooltipProvider delayDuration={300}>
+          <AuthProvider>
+            <ActivityProvider>
+              <Router>
               <div className="h-screen w-full font-proxima">
                 <Routes>
                   <Route path="/auth" element={<AuthenticatedRedirect><Auth /></AuthenticatedRedirect>} />
@@ -116,6 +118,7 @@ function App() {
             onClose={() => setShowPerformanceDashboard(false)}
           />
         )}
+        </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );
