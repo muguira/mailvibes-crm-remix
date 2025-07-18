@@ -531,9 +531,9 @@ const TimelineItem = React.memo(function TimelineItem({
       <Tooltip>
         <TooltipTrigger asChild>
           <div 
-            className="absolute top-[15px] text-xs text-gray-500 font-medium text-right cursor-help hover:text-gray-700 transition-colors"
+            className="absolute top-[15px] left-[-40px] text-xs text-gray-500 font-medium text-right cursor-help hover:text-gray-700 transition-colors"
             style={{
-              right: 'calc(100% - 5px)', // Position relative to the timeline dot
+              right: 'calc(100% - 0px)', // Position relative to the timeline dot
               minWidth: activityProps.relativeTime.length <= 2 ? '24px' : activityProps.relativeTime.length <= 4 ? '32px' : '48px'
             }}
           >
@@ -609,12 +609,7 @@ const TimelineItem = React.memo(function TimelineItem({
         <div className={`flex items-center text-sm mb-2 ${
           optimisticPinState ? 'mt-6' : ''
         }`}>
-          {/* Activity type icon */}
-          <div className={cn("w-5 h-5 rounded-full flex items-center justify-center mr-2", activityProps.colorClass)}>
-            <activityProps.Icon className="h-3 w-3" />
-          </div>
-          
-          <span className={cn("font-medium", activityProps.userNameColor)}>
+          <span className={cn("ml-7 font-medium", activityProps.userNameColor)}>
             {activityProps.userName}
           </span>
           <span className="text-gray-500 ml-1">
