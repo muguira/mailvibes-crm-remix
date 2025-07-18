@@ -2,7 +2,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import TimelineItem from './TimelineItem';
 import TimelineComposer from './TimelineComposer';
-import '@/utils/timelineDebug'; // Load debug utilities
+// Note: Timeline debug utilities are loaded globally in main.tsx
 import { useTimelineActivitiesV2 } from "@/hooks/use-timeline-activities-v2";
 import { useActivities } from "@/hooks/supabase/use-activities";
 import { usePinnedEmails } from "@/hooks/supabase/use-pinned-emails";

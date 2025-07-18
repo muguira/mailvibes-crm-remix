@@ -6,6 +6,7 @@ import App from './App';
 import './index.css';
 import './services/google/tokenDiagnostics';
 import './utils/debug-emails'; // Make debug function available globally
+import './utils/timelineDebug'; // Make timeline debug functions available globally
 
 // Enable Immer MapSet plugin for Set/Map support in Zustand store
 enableMapSet();

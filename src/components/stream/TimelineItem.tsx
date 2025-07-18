@@ -327,8 +327,8 @@ const TimelineItem = React.memo(function TimelineItem({
   const [showExpandButton, setShowExpandButton] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   
-  // Timeline viewport tracking
-  const { elementRef: timelineRef, isViewed } = useTimelineViewport(activity.id);
+  // Timeline viewport tracking with progressive visibility
+  const { elementRef: timelineRef, isViewed, visibilityPercentage, maxVisibilityReached } = useTimelineViewport(activity.id);
   
   // OPTIMIZED: Memoize expensive calculations
   const activityProps = useMemo(() => {
@@ -505,11 +505,19 @@ const TimelineItem = React.memo(function TimelineItem({
 
   return (
     <li ref={timelineRef} className="relative pl-12 pb-8 last:pb-0 mb-[50px]">
-      {/* Timeline line - changes color when viewed */}
-      <div className={cn(
-        "absolute left-[22px] top-[20px] bottom-[-60px] w-[1px] transition-all duration-500 ease-out",
-        isViewed ? "bg-teal-500" : "bg-gray-200"
-      )}></div>
+      {/* Timeline line - progressive filling effect */}
+      <div 
+        className="absolute left-[22px] top-[20px] bottom-[-60px] w-[1px] transition-all duration-300 ease-out"
+        style={{
+          background: visibilityPercentage > 0 
+            ? `linear-gradient(to bottom, 
+                #14b8a6 0%, 
+                #14b8a6 ${visibilityPercentage}%, 
+                #e5e7eb ${visibilityPercentage}%, 
+                #e5e7eb 100%)`
+            : '#e5e7eb'
+        }}
+      ></div>
       
       {/* Timestamp on the left side of timeline */}
       
