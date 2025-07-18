@@ -25,6 +25,7 @@ import { TimelineActivity } from '@/hooks/use-timeline-activities';
 import EmailRenderer from '@/components/timeline/EmailRenderer';
 import { TiptapEditor, MarkdownToolbar } from '@/components/markdown';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useTimelineViewport } from '@/hooks/useTimelineViewport';
 
 
 interface TimelineItemProps {
@@ -326,6 +327,9 @@ const TimelineItem = React.memo(function TimelineItem({
   const [showExpandButton, setShowExpandButton] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   
+  // Timeline viewport tracking
+  const { elementRef: timelineRef, isViewed } = useTimelineViewport(activity.id);
+  
   // OPTIMIZED: Memoize expensive calculations
   const activityProps = useMemo(() => {
     const Icon = getActivityIcon(activityIcon, activity.type);
@@ -500,9 +504,12 @@ const TimelineItem = React.memo(function TimelineItem({
   }, [editor]);
 
   return (
-    <li className="relative pl-12 pb-8  last:pb-0 mb-5">
-      {/* Timeline line - more prominent and continuous */}
-      <div className="absolute left-[22px] top-[20px] bottom-[-30px] w-[1px] bg-gray-200"></div>
+    <li ref={timelineRef} className="relative pl-12 pb-8 last:pb-0 mb-[50px]">
+      {/* Timeline line - changes color when viewed */}
+      <div className={cn(
+        "absolute left-[22px] top-[20px] bottom-[-60px] w-[1px] transition-all duration-500 ease-out",
+        isViewed ? "bg-teal-500" : "bg-gray-200"
+      )}></div>
       
       {/* Timestamp on the left side of timeline */}
       
