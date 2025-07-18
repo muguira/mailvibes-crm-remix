@@ -531,7 +531,11 @@ const TimelineItem = React.memo(function TimelineItem({
       </Tooltip>
       
       {/* Activity card with white background */}
-      <div className="relative bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200 w-[calc(100%-20px)]">
+      <div className={cn(
+        "relative bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md w-[calc(100%-20px)]",
+        "transition-all duration-500 ease-out",
+        isExpanded && "shadow-md"
+      )}>
         {/* Dropdown menu */}
         <div className="absolute top-2 right-2">
           {(permissions.canEditDelete || permissions.canPin) && (
@@ -681,9 +685,13 @@ const TimelineItem = React.memo(function TimelineItem({
                 <div 
                   ref={contentRef}
                   className={cn(
-                    "transition-all duration-300 ease-in-out overflow-hidden",
-                    !isExpanded && "max-h-[200px]"
+                    "overflow-hidden transition-all duration-500 ease-out",
+                    !isExpanded && "max-h-[200px]",
+                    isExpanded && "max-h-[2000px]"
                   )}
+                  style={{
+                    transition: 'max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
                 >
                   {activity.source === 'gmail' && activity.type === 'email' ? (
                     <EmailRenderer
@@ -698,6 +706,13 @@ const TimelineItem = React.memo(function TimelineItem({
                     />
                   )}
                 </div>
+                
+                {/* Fade overlay when collapsed */}
+                {!isExpanded && showExpandButton && (
+                  <div 
+                    className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none transition-opacity duration-300"
+                  />
+                )}
                 
 
               </div>
@@ -720,26 +735,19 @@ const TimelineItem = React.memo(function TimelineItem({
           
           {/* Show more/less button */}
           {activityProps.displayContent && (
-            <div>
-              {!isExpanded && showExpandButton && (
-                <button
-                  onClick={() => setIsExpanded(true)}
-                  className="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  <span>Show more</span>
-                  <ChevronDown className="w-3 h-3" />
-                </button>
-              )}
-              
-              {isExpanded && (
-                <button
-                  onClick={() => setIsExpanded(false)}
-                  className="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  <span>Show less</span>
-                  <ChevronUp className="w-3 h-3" />
-                </button>
-              )}
+            <div className="min-w-[80px]">
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-all duration-300 ease-in-out hover:scale-105"
+              >
+                <span className="transition-all duration-300">
+                  {!isExpanded && showExpandButton ? 'Show more' : isExpanded ? 'Show less' : null}
+                </span>
+                <div className="transition-transform duration-300 ease-in-out">
+                  {!isExpanded && showExpandButton && <ChevronDown className="w-3 h-3" />}
+                  {isExpanded && <ChevronUp className="w-3 h-3" />}
+                </div>
+              </button>
             </div>
           )}
         </div>
@@ -776,6 +784,28 @@ const TimelineItem = React.memo(function TimelineItem({
       {/* Timeline content styles */}
       <style dangerouslySetInnerHTML={{
         __html: `
+          @keyframes expandCard {
+            from {
+              max-height: 200px;
+              opacity: 0.95;
+            }
+            to {
+              max-height: 2000px;
+              opacity: 1;
+            }
+          }
+          
+          @keyframes collapseCard {
+            from {
+              max-height: 2000px;
+              opacity: 1;
+            }
+            to {
+              max-height: 200px;
+              opacity: 0.95;
+            }
+          }
+          
           .timeline-content h1 {
             font-size: 1.5rem;
             font-weight: 700;
