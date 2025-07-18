@@ -444,27 +444,25 @@ export default function TimelineComposer({
         <div className="flex items-center gap-3">
           {/* Gmail not connected indicator */}
           {!isGmailConnected && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <GmailConnectionModal onRefresh={() => window.location.reload()}>
-                    <button
-                      className={`rounded hover:bg-gray-100 text-amber-500 hover:text-amber-600 transition-all duration-300 ease-in-out ${
-                        isCompact ? 'p-1' : 'p-2'
-                      }`}
-                      title="Gmail not connected"
-                    >
-                      <AlertCircle className={`transition-all duration-300 ease-in-out ${
-                        isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                      }`} />
-                    </button>
-                  </GmailConnectionModal>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-sm">Gmail not connected - Click to connect</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <GmailConnectionModal onRefresh={() => window.location.reload()}>
+                  <button
+                    className={`rounded hover:bg-gray-100 text-amber-500 hover:text-amber-600 transition-all duration-300 ease-in-out ${
+                      isCompact ? 'p-1' : 'p-2'
+                    }`}
+                    title="Gmail not connected"
+                  >
+                    <AlertCircle className={`transition-all duration-300 ease-in-out ${
+                      isCompact ? 'w-3 h-3' : 'w-4 h-4'
+                    }`} />
+                  </button>
+                </GmailConnectionModal>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-sm">Gmail not connected - Click to connect</p>
+              </TooltipContent>
+            </Tooltip>
           )}
           
           {/* Toolbar */}

@@ -1,5 +1,4 @@
-
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { 
   MessageCircle, 
   ThumbsUp, 
@@ -17,12 +16,16 @@ import {
   Activity,
   Pin,
   Edit,
-  Trash2
+  Trash2,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TimelineActivity } from '@/hooks/use-timeline-activities';
 import EmailRenderer from '@/components/timeline/EmailRenderer';
 import { TiptapEditor, MarkdownToolbar } from '@/components/markdown';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 interface TimelineItemProps {
   activity: TimelineActivity;
@@ -254,16 +257,26 @@ const formatRelativeTime = (timestamp: string): string => {
   } else if (diffInSeconds < 86400) {
     const hours = Math.floor(diffInSeconds / 3600);
     return `${hours}h`;
-  } else if (diffInSeconds < 2592000) {
+  } else if (diffInSeconds < 2592000) { // Less than 30 days
     const days = Math.floor(diffInSeconds / 86400);
     return `${days}d`;
+  } else if (diffInSeconds < 31536000) { // Less than 1 year
+    const months = Math.floor(diffInSeconds / 2592000);
+    return `${months}mo`;
   } else {
-    return activityTime.toLocaleDateString();
+    const years = Math.floor(diffInSeconds / 31536000);
+    return `${years}y`;
   }
 };
 
-// Format full timestamp
+// Format full timestamp - back to original full date format
 const formatFullTimestamp = (timestamp: string): string => {
+  const date = new Date(timestamp);
+  return date.toLocaleString();
+};
+
+// Format absolute timestamp for tooltip
+const formatAbsoluteTimestamp = (timestamp: string): string => {
   const date = new Date(timestamp);
   return date.toLocaleString();
 };
@@ -309,6 +322,9 @@ const TimelineItem = React.memo(function TimelineItem({
   const [editContent, setEditContent] = useState(activity.content || '');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editor, setEditor] = useState<any>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showExpandButton, setShowExpandButton] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   
   // OPTIMIZED: Memoize expensive calculations
   const activityProps = useMemo(() => {
@@ -317,6 +333,7 @@ const TimelineItem = React.memo(function TimelineItem({
     const userNameColor = getUserNameColor(activity.type);
     const relativeTime = formatRelativeTime(activity.timestamp);
     const fullTimestamp = formatFullTimestamp(activity.timestamp);
+    const absoluteTimestamp = formatAbsoluteTimestamp(activity.timestamp);
     
     // Get content to display - for emails, show snippet or subject
     const displayContent = activity.source === 'gmail' && activity.subject 
@@ -332,6 +349,7 @@ const TimelineItem = React.memo(function TimelineItem({
       userNameColor,
       relativeTime,
       fullTimestamp,
+      absoluteTimestamp,
       displayContent,
       userName
     };
@@ -357,6 +375,14 @@ const TimelineItem = React.memo(function TimelineItem({
   React.useEffect(() => {
     setEditContent(activity.content || '');
   }, [activity.content]);
+
+  // Check if content needs expand button
+  useEffect(() => {
+    if (contentRef.current && !isExpanded) {
+      const contentHeight = contentRef.current.scrollHeight;
+      setShowExpandButton(contentHeight > 200);
+    }
+  }, [activityProps.displayContent, isExpanded]);
 
   // OPTIMIZED: Memoize click outside handler
   const handleClickOutside = useCallback((event: MouseEvent) => {
@@ -476,23 +502,33 @@ const TimelineItem = React.memo(function TimelineItem({
   return (
     <li className="relative pl-12 pb-8  last:pb-0 mb-5">
       {/* Timeline line - more prominent and continuous */}
-      <div className="absolute left-[22px] top-[20px] bottom-[-20px] w-[1px] bg-gray-200"></div>
+      <div className="absolute left-[22px] top-[20px] bottom-[-30px] w-[1px] bg-gray-200"></div>
       
       {/* Timestamp on the left side of timeline */}
-      <div 
-        className="absolute top-[15px] text-xs text-gray-500 font-medium text-right"
-        style={{
-          right: 'calc(100% - 5px)', // Position relative to the timeline dot
-          minWidth: activityProps.relativeTime.length <= 2 ? '24px' : activityProps.relativeTime.length <= 4 ? '32px' : '48px'
-        }}
-      >
-        {activityProps.relativeTime}
-      </div>
+      
       
       {/* Timeline dot with activity icon */}
       <div className={cn("absolute left-[5px] top-[8px] w-8 h-8 rounded-full flex items-center justify-center z-10", activityProps.colorClass)}>
         <activityProps.Icon className="h-5 w-5" />
       </div>
+      
+      {/* Tooltip for timestamp */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div 
+            className="absolute top-[15px] text-xs text-gray-500 font-medium text-right cursor-help hover:text-gray-700 transition-colors"
+            style={{
+              right: 'calc(100% - 5px)', // Position relative to the timeline dot
+              minWidth: activityProps.relativeTime.length <= 2 ? '24px' : activityProps.relativeTime.length <= 4 ? '32px' : '48px'
+            }}
+          >
+            {activityProps.relativeTime}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="end" className="max-w-none">
+          <p>{activityProps.absoluteTimestamp}</p>
+        </TooltipContent>
+      </Tooltip>
       
       {/* Activity card with white background */}
       <div className="relative bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200 w-[calc(100%-20px)]">
@@ -589,10 +625,7 @@ const TimelineItem = React.memo(function TimelineItem({
           </div>
         )}
         
-        {/* Timestamp details */}
-        <div className="text-xs text-gray-400 mb-3 pl-7">
-          {activityProps.fullTimestamp}
-        </div>
+
         
         {/* Activity content */}
         {activityProps.displayContent && (
@@ -643,33 +676,72 @@ const TimelineItem = React.memo(function TimelineItem({
                 </div>
               </div>
             ) : (
-              /* Display mode */
-              activity.source === 'gmail' && activity.type === 'email' ? (
-                <EmailRenderer
-                  bodyHtml={activity.bodyHtml}
-                  bodyText={activity.bodyText}
-                  subject={activity.subject}
-                />
-              ) : (
+              /* Display mode with expandable content */
+              <div className="relative">
                 <div 
-                  className="text-sm text-gray-800 leading-relaxed timeline-content"
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(activityProps.displayContent) }}
-                />
-              )
+                  ref={contentRef}
+                  className={cn(
+                    "transition-all duration-300 ease-in-out overflow-hidden",
+                    !isExpanded && "max-h-[200px]"
+                  )}
+                >
+                  {activity.source === 'gmail' && activity.type === 'email' ? (
+                    <EmailRenderer
+                      bodyHtml={activity.bodyHtml}
+                      bodyText={activity.bodyText}
+                      subject={activity.subject}
+                    />
+                  ) : (
+                    <div 
+                      className="text-sm text-gray-800 leading-relaxed timeline-content"
+                      dangerouslySetInnerHTML={{ __html: renderMarkdown(activityProps.displayContent) }}
+                    />
+                  )}
+                </div>
+                
+
+              </div>
             )}
           </div>
         )}
         
         {/* Action buttons */}
-        <div className="flex items-center gap-4 text-xs text-gray-500 pl-7">
-          <button className="flex items-center gap-1 hover:text-teal-600 transition-colors">
-            <Reply className="h-3 w-3" />
-            <span>2</span>
-          </button>
-          <button className="flex items-center gap-1 hover:text-teal-600 transition-colors">
-            <Heart className="h-3 w-3" />
-            <span>5</span>
-          </button>
+        <div className="flex items-center justify-between text-xs text-gray-500 pl-7">
+          <div className="flex items-center gap-4">
+            <button className="flex items-center gap-1 hover:text-teal-600 transition-colors">
+              <Reply className="h-3 w-3" />
+              <span>2</span>
+            </button>
+            <button className="flex items-center gap-1 hover:text-teal-600 transition-colors">
+              <Heart className="h-3 w-3" />
+              <span>5</span>
+            </button>
+          </div>
+          
+          {/* Show more/less button */}
+          {activityProps.displayContent && (
+            <div>
+              {!isExpanded && showExpandButton && (
+                <button
+                  onClick={() => setIsExpanded(true)}
+                  className="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <span>Show more</span>
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+              )}
+              
+              {isExpanded && (
+                <button
+                  onClick={() => setIsExpanded(false)}
+                  className="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <span>Show less</span>
+                  <ChevronUp className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
