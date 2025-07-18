@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { GmailConnectDialog } from '@/components/integrations/gmail/GmailConnectDialog';
-import { useHybridContactEmails } from "@/hooks/use-hybrid-contact-emails";
+import { useContactEmails } from "@/hooks/use-contact-emails-v2";
 import { useGmail } from "@/hooks/gmail";
 import { format } from "date-fns";
 
@@ -53,12 +53,19 @@ export const GmailConnectionModal = forwardRef<HTMLDivElement, GmailConnectionMo
     autoInitialize: true   // Enable auto-init for seamless experience
   });
 
-  // Use hybrid emails hook if contactEmail is provided
-  const hybridEmails = useHybridContactEmails(contactEmail ? {
+  // Use modern emails hook if contactEmail is provided
+  const {
+    emails,
+    loading: emailsLoading,
+    error: emailsError,
+    hasMore,
+    syncStatus: emailSyncStatus,
+    syncEmailHistory,
+    refreshEmails
+  } = useContactEmails({
     contactEmail,
-    maxResults: 20,
-    autoFetch: true,  // Re-enable autoFetch for full functionality
-  } : undefined);
+    autoFetch: true,
+  });
 
   const handleGmailConnectSuccess = () => {
     // Refresh accounts after successful connection
@@ -69,9 +76,9 @@ export const GmailConnectionModal = forwardRef<HTMLDivElement, GmailConnectionMo
       onRefresh();
     }
 
-    // Refresh hybrid emails if available
-    if (hybridEmails?.refresh) {
-      hybridEmails.refresh();
+    // Refresh emails if contactEmail is available
+    if (contactEmail && refreshEmails) {
+      refreshEmails();
     }
 
     toast.success('Gmail account connected successfully!');
@@ -252,51 +259,42 @@ export const GmailConnectionModal = forwardRef<HTMLDivElement, GmailConnectionMo
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="space-y-3">
-                  {hybridEmails.loading && (
+                  {emailsLoading && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <RefreshCw className="h-4 w-4 animate-spin" />
                       Loading email data...
                     </div>
                   )}
 
-                  {hybridEmails.emails && hybridEmails.emails.length > 0 && (
+                  {emails && emails.length > 0 && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">
-                          Found {hybridEmails.emails.length} emails
+                          Found {emails.length} emails
                         </span>
                         <Badge variant="outline" className="text-xs">
-                          {hybridEmails.source === 'api' ? (
-                            <>
-                              <Globe className="h-3 w-3 mr-1" />
-                              Live API
-                            </>
-                          ) : (
-                            <>
-                              <Database className="h-3 w-3 mr-1" />
-                              Database
-                            </>
-                          )}
+                          <Database className="h-3 w-3 mr-1" />
+                          Database
                         </Badge>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Data source: {hybridEmails.source === 'api' ? 'Gmail API (live)' : 'Local database'}
+                        Data source: Local database
                       </div>
                     </div>
                   )}
 
-                  {hybridEmails.error && (
+                  {emailsError && (
                     <Alert>
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription className="flex items-center justify-between">
-                        <span>Error loading emails: {hybridEmails.error}</span>
+                        <span>Error loading emails: {emailsError}</span>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={hybridEmails.refresh}
-                          disabled={hybridEmails.loading}
+                          onClick={refreshEmails}
+                          disabled={emailsLoading}
                         >
-                          <RefreshCw className={`w-4 h-4 ${hybridEmails.loading ? 'animate-spin' : ''}`} />
+                          <RefreshCw className={`w-4 h-4 ${emailsLoading ? 'animate-spin' : ''}`} />
                           Retry
                         </Button>
                       </AlertDescription>

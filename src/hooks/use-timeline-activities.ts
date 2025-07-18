@@ -1,3 +1,17 @@
+/**
+ * @deprecated Use useTimelineActivitiesV2 from use-timeline-activities-v2.ts instead
+ *
+ * This hook has been replaced with a Zustand-based implementation that provides:
+ * - True infinite scroll from database
+ * - Background sync without blocking UI
+ * - Better performance and centralized state management
+ * - Dynamic relationship date calculation
+ *
+ * Migration guide:
+ * - Replace: useTimelineActivities({ contactId, contactEmail, maxEmails: 20 })
+ * - With: useTimelineActivitiesV2({ contactId, contactEmail, autoInitialize: true })
+ */
+
 import { useMemo, useCallback } from 'react'
 import { useActivities, Activity } from '@/hooks/supabase/use-activities'
 import { useHybridContactEmails } from '@/hooks/use-hybrid-contact-emails'

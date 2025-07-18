@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import { useActivities } from '@/hooks/supabase/use-activities';
 import { useGmailConnection } from '@/hooks/use-gmail-auth';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useHybridContactEmails } from '@/hooks/use-hybrid-contact-emails';
+import { useContactEmails } from '@/hooks/use-contact-emails-v2';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GmailConnectionModal } from '@/components/stream/GmailConnectionModal';
 import { TiptapEditor, MarkdownToolbar } from '@/components/markdown';
@@ -183,19 +183,24 @@ export default function TimelineComposer({
   // Use provided contactEmail (we'll assume it's passed from parent)
   const effectiveContactEmail = contactEmail;
   
-  // Use hybrid emails hook to get email info and sync capabilities
-  const hybridEmails = useHybridContactEmails(effectiveContactEmail ? {
+  // Use modern emails hook to get email info and sync capabilities
+  const {
+    emails,
+    loading,
+    hasMore,
+    syncStatus: internalSyncStatus,
+    syncEmailHistory
+  } = useContactEmails({
     contactEmail: effectiveContactEmail,
-    maxResults: 30,
     autoFetch: true,
-  } : undefined);
+  });
   
-  // Show sync button if we have few emails (less than 200 suggests incomplete history)
+  // Show sync button if we have emails but there are more available (incomplete history)
   const shouldShowSyncButton = isGmailConnected && 
                                effectiveContactEmail && 
-                               hybridEmails.emails && 
-                               hybridEmails.emails.length > 0 && 
-                               hybridEmails.emails.length < 200;
+                               emails && 
+                               emails.length > 0 && 
+                               (hasMore || emails.length < 200);
 
   const handleSend = () => {
     if (text.trim() && effectiveContactId) {
@@ -294,8 +299,11 @@ export default function TimelineComposer({
 
   // Handle sync historical emails
   const handleSyncHistoricalEmails = async () => {
-    if (hybridEmails.triggerSync) {
-      await hybridEmails.triggerSync();
+    // Use prop function if provided (from StreamTimeline), otherwise use hook function
+    if (onSyncEmailHistory) {
+      await onSyncEmailHistory();
+    } else if (syncEmailHistory) {
+      await syncEmailHistory();
     }
   };
 
