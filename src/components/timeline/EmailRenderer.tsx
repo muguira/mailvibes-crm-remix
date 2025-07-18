@@ -1,11 +1,22 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import DOMPurify from 'dompurify';
+import { supabase } from '@/integrations/supabase/client';
 import './email-renderer.css';
 
 interface EmailRendererProps {
   bodyHtml?: string;
   bodyText?: string;
   subject?: string;
+  emailId?: string; // Gmail ID for fetching attachments
+}
+
+interface EmailAttachment {
+  id: string;
+  content_id: string | null;
+  filename: string;
+  mime_type: string | null;
+  inline: boolean | null;
+  gmail_attachment_id: string | null;
 }
 
 // Simplified sanitization config - less aggressive processing
@@ -27,13 +38,116 @@ const sanitizeConfig = {
   FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout', 'onfocus', 'onblur']
 };
 
-const EmailRenderer: React.FC<EmailRendererProps> = ({ bodyHtml, bodyText, subject }) => {
+const EmailRenderer: React.FC<EmailRendererProps> = ({ bodyHtml, bodyText, subject, emailId }) => {
+  const [attachments, setAttachments] = useState<EmailAttachment[]>([]);
+  const [attachmentsLoaded, setAttachmentsLoaded] = useState(false);
+
+  // Fetch email attachments for CID resolution
+  useEffect(() => {
+    if (!emailId) {
+      setAttachmentsLoaded(true);
+      return;
+    }
+
+    const fetchAttachments = async () => {
+      try {
+        // First, find the email in our database using the Gmail ID
+        const { data: emailData, error: emailError } = await supabase
+          .from('emails')
+          .select('id')
+          .eq('gmail_id', emailId)
+          .single();
+
+        if (emailError || !emailData) {
+          console.warn('Email not found for ID:', emailId);
+          setAttachmentsLoaded(true);
+          return;
+        }
+
+        // Now fetch the attachments for this email
+        const { data: attachmentData, error: attachmentError } = await supabase
+          .from('email_attachments')
+          .select('id, content_id, filename, mime_type, inline, gmail_attachment_id')
+          .eq('email_id', emailData.id);
+
+        if (attachmentError) {
+          console.error('Error fetching attachments:', attachmentError);
+          setAttachmentsLoaded(true);
+          return;
+        }
+
+        setAttachments(attachmentData || []);
+        setAttachmentsLoaded(true);
+      } catch (error) {
+        console.error('Error fetching email attachments:', error);
+        setAttachmentsLoaded(true);
+      }
+    };
+
+    fetchAttachments();
+  }, [emailId]);
+
   const processedContent = useMemo(() => {
+    // Wait for attachments to load before processing
+    if (!attachmentsLoaded) {
+      return null;
+    }
+
     // Try to render HTML first if available
     if (bodyHtml && bodyHtml.trim()) {
       try {
         // Minimal processing - just sanitize and make safe
         let sanitizedHtml = DOMPurify.sanitize(bodyHtml, sanitizeConfig);
+        
+        // Resolve CID references to placeholder images or broken image handling
+        if (attachments.length > 0) {
+          // Create a map of content-id to attachment info
+          const cidMap = new Map<string, EmailAttachment>();
+          attachments.forEach(attachment => {
+            if (attachment.content_id && attachment.inline) {
+              // Gmail content-ids sometimes have < > brackets, normalize them
+              const normalizedCid = attachment.content_id.replace(/[<>]/g, '');
+              cidMap.set(normalizedCid, attachment);
+            }
+          });
+
+          // Replace cid: references with placeholder or broken image handling
+          sanitizedHtml = sanitizedHtml.replace(
+            /src="cid:([^"]+)"/gi,
+            (match, contentId) => {
+              const attachment = cidMap.get(contentId);
+              
+              if (attachment) {
+                // For now, we'll use a placeholder since we don't have Gmail attachment fetching implemented
+                // In a full implementation, you'd fetch the actual attachment data from Gmail API
+                return `src="data:image/svg+xml;base64,${btoa(`
+                  <svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">
+                    <rect width="200" height="100" fill="#f3f4f6" stroke="#d1d5db"/>
+                    <text x="100" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">
+                      📎 ${attachment.filename}
+                    </text>
+                    <text x="100" y="65" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#9ca3af">
+                      (Inline Image)
+                    </text>
+                  </svg>
+                `)}" title="${attachment.filename}" alt="${attachment.filename}"`;
+              } else {
+                // CID not found in attachments - show broken image placeholder
+                return `src="data:image/svg+xml;base64,${btoa(`
+                  <svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">
+                    <rect width="200" height="100" fill="#fef2f2" stroke="#fecaca"/>
+                    <text x="100" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#dc2626">
+                      🖼️ Image not available
+                    </text>
+                    <text x="100" y="65" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ef4444">
+                      (cid:${contentId})
+                    </text>
+                  </svg>
+                `)}" title="Missing inline image" alt="Missing inline image"`;
+              }
+            }
+          );
+        }
         
         // Only do essential fixes - don't be aggressive
         sanitizedHtml = sanitizedHtml
@@ -58,7 +172,18 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({ bodyHtml, bodyText, subje
     }
 
     return null;
-  }, [bodyHtml, bodyText]);
+  }, [bodyHtml, bodyText, attachments, attachmentsLoaded]);
+
+  // Show loading state while fetching attachments
+  if (!attachmentsLoaded) {
+    return (
+      <div className="email-renderer">
+        <div className="email-no-content">
+          <em>Loading email content...</em>
+        </div>
+      </div>
+    );
+  }
 
   if (!processedContent) {
     return (

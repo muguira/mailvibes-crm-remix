@@ -12,10 +12,12 @@
 
 .email-subject {
   margin-bottom: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
+  font-size: 15px;
+  font-weight: 400;
+  border-bottom: 1px solid #eeeff0;
+  color: #374151;
   line-height: 1.4;
+  padding-bottom: 4px;
 }
 
 .email-body {
@@ -45,6 +47,28 @@
 .email-html-content img {
   max-width: 100%;
   height: auto;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  margin: 8px 0;
+}
+
+/* Style for placeholder images (inline attachments) */
+.email-html-content img[src^="data:image/svg+xml"] {
+  background-color: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 8px;
+  display: inline-block;
+  margin: 4px 0;
+  opacity: 0.9;
+}
+
+/* Ensure broken image handling looks clean */
+.email-html-content img[alt*="Missing inline image"],
+.email-html-content img[alt*="Inline Image"] {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .email-html-content a {
