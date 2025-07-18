@@ -160,9 +160,8 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
       // Handle internal activity pin
       togglePin({ activityId, isPinned: newPinState });
     } else if (activity.source === 'gmail' && activity.type === 'email') {
-      // Handle Gmail email pin
-      const emailId = activityId.replace('email-', ''); // Remove 'email-' prefix
-      toggleEmailPin({ emailId, isPinned: newPinState });
+      // Handle Gmail email pin - activityId is already the Gmail ID
+      toggleEmailPin({ emailId: activityId, isPinned: newPinState });
     } else {
       console.error('Cannot pin this type of activity:', activity);
     }

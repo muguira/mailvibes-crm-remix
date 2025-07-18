@@ -380,13 +380,51 @@ const TimelineItem = React.memo(function TimelineItem({
     setEditContent(activity.content || '');
   }, [activity.content]);
 
+  // Memoized height check function
+  const checkHeight = useCallback(() => {
+    if (contentRef.current) {
+      const contentHeight = contentRef.current.scrollHeight;
+      const clientHeight = contentRef.current.clientHeight;
+      const offsetHeight = contentRef.current.offsetHeight;
+      const shouldShow = contentHeight > 200;
+      
+      // Debug logging (only for development)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Height check:', {
+          activityId: activity.id,
+          subject: activity.subject || 'No subject',
+          contentHeight,
+          shouldShow
+        });
+      }
+      
+      setShowExpandButton(shouldShow);
+      return shouldShow;
+    }
+    return false;
+  }, [activity.id, activity.source, activity.subject, activity.bodyHtml, activity.bodyText, activityProps.displayContent, isExpanded]);
+
   // Check if content needs expand button
   useEffect(() => {
-    if (contentRef.current && !isExpanded) {
-      const contentHeight = contentRef.current.scrollHeight;
-      setShowExpandButton(contentHeight > 200);
+    if (!isExpanded) {
+      // Immediate check
+      const immediateResult = checkHeight();
+      
+      // For emails, do additional checks since content loads asynchronously
+      if (activity.source === 'gmail' && (activity.bodyHtml || activity.bodyText)) {
+        // Multiple checks to catch content loading
+        const timers = [
+          setTimeout(() => checkHeight(), 100),
+          setTimeout(() => checkHeight(), 300),
+          setTimeout(() => checkHeight(), 500)
+        ];
+        
+        return () => {
+          timers.forEach(timer => clearTimeout(timer));
+        };
+      }
     }
-  }, [activityProps.displayContent, isExpanded]);
+  }, [activity.id, activity.source, activity.bodyHtml, activity.bodyText, isExpanded, checkHeight]);
 
   // OPTIMIZED: Memoize click outside handler
   const handleClickOutside = useCallback((event: MouseEvent) => {
@@ -745,7 +783,7 @@ const TimelineItem = React.memo(function TimelineItem({
           </div>
           
           {/* Show more/less button */}
-          {activityProps.displayContent && (
+          {(activityProps.displayContent || activity.bodyHtml || activity.bodyText) && (
             <div className="min-w-[80px]">
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
