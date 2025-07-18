@@ -10,7 +10,6 @@ import type {
   GetEmailsOptions,
   SearchOptions,
   GmailError,
-  GmailErrorCode,
   ServiceState,
   EmailCache,
   CacheEntry,
@@ -73,7 +72,7 @@ export class EmailService {
     this.ensureNotDisposed()
     this.updateActivity()
 
-    const { maxEmails = 50, forceFullSync = false, onProgress } = options
+    const { maxEmails = Infinity, forceFullSync = false, onProgress } = options // No limit for full contact sync
 
     try {
       onProgress?.({
@@ -109,8 +108,8 @@ export class EmailService {
       const existingEmails = await this.getExistingEmailsFromDatabase(contactEmail)
       const existingGmailIds = new Set(existingEmails.map(e => e.gmail_id))
 
-      // Fetch emails from Gmail API
-      const response = await getRecentContactEmails(token, contactEmail, maxEmails)
+      // Fetch emails from Gmail API (enable full sync for complete contact history)
+      const response = await getRecentContactEmails(token, contactEmail, maxEmails, maxEmails === Infinity)
 
       // Filter out emails we already have (unless force full sync)
       const newEmails = forceFullSync
@@ -159,6 +158,254 @@ export class EmailService {
   }
 
   /**
+   * Get display name for contact
+   */
+  private getContactDisplayName(contactEmail: string): string {
+    if (!contactEmail || contactEmail === 'Unknown Contact') {
+      return 'unknown contact'
+    }
+
+    // If it's an email, show just the name part
+    if (contactEmail.includes('@')) {
+      const namePart = contactEmail.split('@')[0]
+      return namePart.charAt(0).toUpperCase() + namePart.slice(1)
+    }
+
+    return contactEmail
+  }
+
+  /**
+   * Log sync start to email_sync_log table
+   */
+  private async logSyncStart(syncType: string, contactEmail: string, metadata: any = {}) {
+    try {
+      const accounts = await this.authService.getConnectedAccounts()
+      if (accounts.length === 0) return
+
+      const { error } = await supabase.from('email_sync_log').insert({
+        email_account_id: accounts[0].id,
+        sync_type: syncType,
+        status: 'started',
+        metadata: JSON.stringify({
+          contactEmail,
+          targetContact: contactEmail,
+          description: `Sync emails with ${this.getContactDisplayName(contactEmail)}`,
+          ...metadata,
+        }),
+        started_at: new Date().toISOString(),
+      })
+
+      if (error) {
+        logger.error('[EmailService] Error logging sync start:', error)
+      } else {
+        logger.info(`[EmailService] Sync started for ${contactEmail}`, { syncType, metadata })
+      }
+    } catch (error) {
+      logger.error('[EmailService] Failed to log sync start:', error)
+    }
+  }
+
+  /**
+   * Log sync completion to email_sync_log table
+   */
+  private async logSyncComplete(syncType: string, contactEmail: string, emailsCount: number, metadata: any = {}) {
+    try {
+      const accounts = await this.authService.getConnectedAccounts()
+      if (accounts.length === 0) return
+
+      const { error } = await supabase.from('email_sync_log').insert({
+        email_account_id: accounts[0].id,
+        sync_type: syncType,
+        status: 'completed',
+        emails_synced: emailsCount,
+        emails_created: metadata.emailsCreated || 0,
+        emails_updated: metadata.emailsUpdated || 0,
+        completed_at: new Date().toISOString(),
+        metadata: JSON.stringify({
+          contactEmail,
+          targetContact: contactEmail,
+          description: `Sync emails with ${this.getContactDisplayName(contactEmail)}`,
+          ...metadata,
+        }),
+      })
+
+      if (error) {
+        logger.error('[EmailService] Error logging sync completion:', error)
+      } else {
+        logger.info(`[EmailService] Sync completed for ${contactEmail}`, {
+          syncType,
+          emailsCount,
+          metadata,
+        })
+      }
+    } catch (error) {
+      logger.error('[EmailService] Failed to log sync completion:', error)
+    }
+  }
+
+  /**
+   * Log sync error to email_sync_log table
+   */
+  private async logSyncError(syncType: string, contactEmail: string, errorMessage: string, metadata: any = {}) {
+    try {
+      const accounts = await this.authService.getConnectedAccounts()
+      if (accounts.length === 0) return
+
+      const { error } = await supabase.from('email_sync_log').insert({
+        email_account_id: accounts[0].id,
+        sync_type: syncType,
+        status: 'failed',
+        error_message: errorMessage,
+        completed_at: new Date().toISOString(),
+        metadata: JSON.stringify({ contactEmail, ...metadata }),
+      })
+
+      if (error) {
+        logger.error('[EmailService] Error logging sync error:', error)
+      } else {
+        logger.error(`[EmailService] Sync failed for ${contactEmail}`, {
+          syncType,
+          errorMessage,
+          metadata,
+        })
+      }
+    } catch (error) {
+      logger.error('[EmailService] Failed to log sync error:', error)
+    }
+  }
+
+  /**
+   * Get emails for a contact from multiple accounts in parallel
+   */
+  private async getEmailsFromMultipleAccounts(
+    contactEmail: string,
+    accounts: any[],
+    maxResults: number,
+    maxAge: number,
+  ): Promise<{ emails: GmailEmail[]; source: string; accountsProcessed: number }> {
+    const startTime = Date.now()
+
+    // Filter accounts that are enabled and not recently failed
+    const eligibleAccounts = accounts.filter(account => {
+      if (!account.sync_enabled) return false
+
+      // Skip accounts that failed recently (within last 5 minutes)
+      if (account.last_sync_status === 'failed' && account.last_sync_at) {
+        const lastSync = new Date(account.last_sync_at)
+        const timeSinceLastSync = Date.now() - lastSync.getTime()
+        if (timeSinceLastSync < 5 * 60 * 1000) {
+          logger.warn(`[EmailService] Skipping account ${account.email} - recently failed`)
+          return false
+        }
+      }
+
+      return true
+    })
+
+    if (eligibleAccounts.length === 0) {
+      return { emails: [], source: 'none', accountsProcessed: 0 }
+    }
+
+    logger.info(`[EmailService] Processing ${eligibleAccounts.length} accounts in parallel for ${contactEmail}`)
+
+    // Process accounts in parallel with rate limiting
+    const accountPromises = eligibleAccounts.map(async (account, index) => {
+      try {
+        // Stagger requests to respect rate limits (250ms between accounts)
+        await new Promise(resolve => setTimeout(resolve, index * 250))
+
+        const accountStartTime = Date.now()
+
+        // Try database first for this account
+        const dbResult = await this.getEmailsFromDatabase(contactEmail, account.id, maxResults)
+
+        if (dbResult.emails.length > 0 && this.isDatabaseFresh(dbResult.lastSync, maxAge)) {
+          logger.info(`[EmailService] Account ${account.email}: Using fresh DB data (${dbResult.emails.length} emails)`)
+          return {
+            emails: dbResult.emails,
+            source: 'database',
+            account: account.email,
+            duration: Date.now() - accountStartTime,
+          }
+        }
+
+        // Fall back to API for this account
+        const token = await this.authService.getValidToken(account.email)
+        if (!token) {
+          logger.warn(`[EmailService] Account ${account.email}: No valid token available`)
+          return { emails: [], source: 'failed', account: account.email, duration: Date.now() - accountStartTime }
+        }
+
+        const response = await getRecentContactEmails(
+          token,
+          contactEmail,
+          Math.floor(maxResults / eligibleAccounts.length),
+        )
+
+        logger.info(`[EmailService] Account ${account.email}: API returned ${response.emails.length} emails`)
+
+        return {
+          emails: response.emails,
+          source: 'api',
+          account: account.email,
+          duration: Date.now() - accountStartTime,
+        }
+      } catch (error) {
+        logger.error(`[EmailService] Account ${account.email}: Error fetching emails:`, error)
+        return {
+          emails: [],
+          source: 'error',
+          account: account.email,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          duration: Date.now() - Date.now(),
+        }
+      }
+    })
+
+    // Wait for all accounts to complete
+    const results = await Promise.all(accountPromises)
+
+    // Combine and deduplicate emails from all accounts
+    const allEmails: GmailEmail[] = []
+    const seenEmails = new Set<string>()
+    const sourceStats = { database: 0, api: 0, failed: 0, error: 0 }
+
+    for (const result of results) {
+      sourceStats[result.source as keyof typeof sourceStats]++
+
+      for (const email of result.emails) {
+        // Deduplicate by gmail_id
+        if (!seenEmails.has(email.id)) {
+          seenEmails.add(email.id)
+          allEmails.push(email)
+        }
+      }
+    }
+
+    // Sort by date (newest first)
+    allEmails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+    const totalDuration = Date.now() - startTime
+    logger.info(`[EmailService] Multi-account processing completed for ${contactEmail}`, {
+      accountsProcessed: results.length,
+      totalEmails: allEmails.length,
+      uniqueEmails: seenEmails.size,
+      sourceStats,
+      duration: totalDuration,
+    })
+
+    // Determine primary source
+    const primarySource =
+      sourceStats.api > 0 ? 'api-multi' : sourceStats.database > 0 ? 'database-multi' : 'failed-multi'
+
+    return {
+      emails: allEmails.slice(0, maxResults), // Respect final limit
+      source: primarySource,
+      accountsProcessed: results.length,
+    }
+  }
+
+  /**
    * Get emails for a contact (hybrid database + API approach)
    */
   async getContactEmails(contactEmail: string, options: GetEmailsOptions = {}): Promise<GmailEmail[]> {
@@ -166,11 +413,20 @@ export class EmailService {
     this.updateActivity()
 
     const {
-      maxResults = 50,
+      maxResults = 500,
       preferDatabase = true,
       maxAge = this.config.cacheTTL || 15 * 60 * 1000, // 15 minutes default
       includeAttachments = false,
     } = options
+
+    const startTime = Date.now()
+
+    // Log sync start
+    await this.logSyncStart('contact_emails', contactEmail, {
+      maxResults,
+      preferDatabase,
+      includeAttachments,
+    })
 
     try {
       // Check cache first
@@ -192,23 +448,59 @@ export class EmailService {
         return []
       }
 
+      // NEW: Use multi-account parallel processing
+      const multiAccountResult = await this.getEmailsFromMultipleAccounts(contactEmail, accounts, maxResults, maxAge)
+
+      if (multiAccountResult.emails.length > 0) {
+        // Update cache and trigger background sync
+        this.updateCache(contactEmail, multiAccountResult.emails)
+        this.triggerBackgroundSync(contactEmail)
+
+        // Log successful completion with multi-account stats
+        const duration = Date.now() - startTime
+        await this.logSyncComplete('contact_emails', contactEmail, multiAccountResult.emails.length, {
+          duration,
+          source: multiAccountResult.source,
+          accountsProcessed: multiAccountResult.accountsProcessed,
+          totalAccounts: accounts.length,
+        })
+
+        return multiAccountResult.emails
+      }
+
+      // FALLBACK: Single account logic (if multi-account completely failed)
+      logger.warn(
+        `[EmailService] Multi-account processing returned no results, trying single account fallback for ${contactEmail}`,
+      )
+
+      const firstEnabledAccount = accounts.find(acc => acc.sync_enabled) || accounts[0]
+
       if (preferDatabase) {
         // Try database first
-        const dbResult = await this.getEmailsFromDatabase(contactEmail, accounts[0].id, maxResults)
+        const dbResult = await this.getEmailsFromDatabase(contactEmail, firstEnabledAccount.id, maxResults)
 
         // Check if database results are fresh enough
         if (dbResult.emails.length > 0 && this.isDatabaseFresh(dbResult.lastSync, maxAge)) {
           this.updateCache(contactEmail, dbResult.emails)
+
+          // Log successful completion from database fallback
+          const duration = Date.now() - startTime
+          await this.logSyncComplete('contact_emails', contactEmail, dbResult.emails.length, {
+            duration,
+            source: 'database-fallback',
+            lastSync: dbResult.lastSync,
+          })
+
           return dbResult.emails
         }
       }
 
-      // Fall back to API
-      const token = await this.authService.getValidToken(accounts[0].email)
+      // Fall back to API for single account
+      const token = await this.authService.getValidToken(firstEnabledAccount.email)
       if (!token) {
         // If no token and we have database results, return them even if stale
         if (preferDatabase) {
-          const dbResult = await this.getEmailsFromDatabase(contactEmail, accounts[0].id, maxResults)
+          const dbResult = await this.getEmailsFromDatabase(contactEmail, firstEnabledAccount.id, maxResults)
           if (dbResult.emails.length > 0) {
             return dbResult.emails
           }
@@ -216,15 +508,36 @@ export class EmailService {
         return []
       }
 
-      const response = await getRecentContactEmails(token, contactEmail, maxResults)
+      const response = await getRecentContactEmails(token, contactEmail, maxResults, false) // Limited sync for hybrid calls
 
       // Update cache and trigger background sync
       this.updateCache(contactEmail, response.emails)
       this.triggerBackgroundSync(contactEmail)
 
+      // Log successful completion from single account fallback
+      const duration = Date.now() - startTime
+      await this.logSyncComplete('contact_emails', contactEmail, response.emails.length, {
+        duration,
+        source: 'api-fallback',
+        resultSizeEstimate: response.resultSizeEstimate || 0,
+      })
+
       return response.emails
     } catch (error) {
       this.handleError('Failed to get contact emails', error)
+
+      // Log sync error
+      const duration = Date.now() - startTime
+      await this.logSyncError(
+        'contact_emails',
+        contactEmail,
+        error instanceof Error ? error.message : 'Unknown error',
+        {
+          duration,
+          preferDatabase,
+          maxResults,
+        },
+      )
 
       // Try database as fallback
       if (preferDatabase) {
@@ -250,7 +563,7 @@ export class EmailService {
     this.ensureNotDisposed()
     this.updateActivity()
 
-    const { maxResults = 50 } = options
+    const { maxResults = 500 } = options
 
     try {
       // Get connected accounts
@@ -362,7 +675,29 @@ export class EmailService {
       // Get all emails and filter locally
       const { data: allEmails, error } = await supabase
         .from('emails')
-        .select('gmail_id, id, updated_at, from_email, to_emails')
+        .select(
+          `
+          id,
+          gmail_id,
+          subject,
+          snippet,
+          body_text,
+          body_html,
+          from_email,
+          from_name,
+          to_emails,
+          cc_emails,
+          bcc_emails,
+          date,
+          is_read,
+          is_important,
+          labels,
+          has_attachments,
+          attachment_count,
+          created_at,
+          updated_at
+        `,
+        )
         .eq('user_id', this.userId)
         .eq('email_account_id', accounts[0].id)
 
@@ -544,7 +879,7 @@ export class EmailService {
           updated_at: new Date().toISOString(),
         }
 
-        // Try to insert, if conflict then update
+        // Try to insert, if conflict then update using the gmail_id unique constraint
         const { data, error } = await supabase
           .from('emails')
           .upsert(emailData, {

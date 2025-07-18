@@ -272,6 +272,8 @@ const Integrations = () => {
                             />
                         </Card>
 
+
+
                         {/* Create Direct Integration */}
                         <Card className="p-6">
                             <h2 className="text-xl font-semibold mb-6">Create Direct Integration</h2>

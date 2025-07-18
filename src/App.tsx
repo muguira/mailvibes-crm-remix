@@ -24,6 +24,7 @@ import AccountProperties from "@/pages/dashboard/AccountProperties";
 import Landing from "@/pages/Landing";
 import Import from "@/pages/Import";
 import GmailImport from "@/pages/dashboard/GmailImport";
+import GmailDashboard from "@/pages/dashboard/GmailDashboard";
 import DeletedContacts from "@/pages/dashboard/DeletedContacts";
 import { useRadixPointerEventsFix } from "@/hooks/use-radix-pointer-events-fix";
 import PerformanceTestingDashboard from "@/components/debug/PerformanceTestingDashboard";
@@ -82,6 +83,7 @@ function App() {
                   <Route path="/deleted-contacts" element={<PrivateRoute><DeletedContacts /></PrivateRoute>} />
                   <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
                   <Route path="/settings/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
+                  <Route path="/settings/integrations/gmail-dashboard" element={<PrivateRoute><GmailDashboard /></PrivateRoute>} />
                   <Route path="/settings/imports" element={<PrivateRoute><Imports /></PrivateRoute>} />
                   <Route path="/settings/account-properties" element={<PrivateRoute><AccountProperties /></PrivateRoute>} />
                   <Route path="/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />

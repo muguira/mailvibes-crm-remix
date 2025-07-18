@@ -58,6 +58,7 @@ export interface GetEmailsOptions {
   maxAge?: number // Max age in milliseconds for database cache
   pageToken?: string
   includeAttachments?: boolean
+  skipCache?: boolean // Skip cache and force fresh data
 }
 
 export interface SearchOptions {
