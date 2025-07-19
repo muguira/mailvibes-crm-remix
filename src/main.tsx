@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { enableMapSet } from 'immer';
 import { startSyncWorker, stopSyncWorker } from '@/workers/emailSyncWorker';
+import { initializeHiddenColumnsDebug } from './utils/debugHiddenColumns';
 import App from './App';
 import './index.css';
 import './services/google/tokenDiagnostics';
@@ -10,6 +11,9 @@ import './utils/timelineDebug'; // Make timeline debug functions available globa
 
 // Enable Immer MapSet plugin for Set/Map support in Zustand store
 enableMapSet();
+
+// Initialize debug utilities
+initializeHiddenColumnsDebug();
 
 /**
  * Check if the current route should have email sync enabled

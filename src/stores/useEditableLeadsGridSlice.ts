@@ -487,7 +487,21 @@ export const useEditableLeadsGridSlice: StateCreator<
 
   // 16. Hide column - Remove from view but keep data
   editableLeadsGridHideColumn: async (columnId: string) => {
+    // ROBUST LOGGING for production debugging
+    console.log('🔵 [HIDE COLUMN] Starting hide operation:', {
+      columnId,
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+    })
+
     const { columns, hiddenColumns } = get()
+
+    console.log('🔵 [HIDE COLUMN] Current state:', {
+      columnsCount: columns.length,
+      hiddenColumnsCount: hiddenColumns.length,
+      columnIds: columns.map(c => c.id),
+      hiddenColumnIds: hiddenColumns.map(c => c.id),
+    })
 
     // Set loading state
     set({ columnOperationLoading: { type: 'hide', columnId } })
@@ -495,30 +509,50 @@ export const useEditableLeadsGridSlice: StateCreator<
     try {
       // Find the column to hide
       const column = columns.find(col => col.id === columnId)
-      if (!column) return
+      if (!column) {
+        console.error('🔴 [HIDE COLUMN] Column not found:', columnId)
+        return
+      }
+
+      console.log('🔵 [HIDE COLUMN] Found column to hide:', column)
 
       // Store the current index of the column before hiding
       const currentIndex = columns.findIndex(col => col.id === columnId)
       const columnWithIndex = { ...column, originalIndex: currentIndex } as any
 
+      console.log('🔵 [HIDE COLUMN] Column with index:', { currentIndex, columnWithIndex })
+
       // Add to hidden columns list with original index (prevent duplicates)
       const isAlreadyHidden = hiddenColumns.some(col => col.id === columnId)
       if (isAlreadyHidden) {
-        console.warn(`Column ${columnId} is already hidden, skipping duplicate`)
+        console.warn('🟡 [HIDE COLUMN] Column already hidden, skipping duplicate:', columnId)
         return
       }
 
       const newHiddenColumns = [...hiddenColumns, columnWithIndex]
+      console.log(
+        '🔵 [HIDE COLUMN] Setting new hidden columns:',
+        newHiddenColumns.map(c => c.id),
+      )
+
       get().editableLeadsGridSetHiddenColumns(newHiddenColumns)
 
       // Remove from columns array (this hides it from view)
       const newColumns = columns.filter(col => col.id !== columnId)
+      console.log(
+        '🔵 [HIDE COLUMN] Setting new visible columns:',
+        newColumns.map(c => c.id),
+      )
+
       get().editableLeadsGridSetColumns(newColumns)
 
       // Persist the column changes
+      console.log('🔵 [HIDE COLUMN] Persisting columns to database...')
       await get().editableLeadsGridPersistColumns(newColumns)
+      console.log('🔵 [HIDE COLUMN] Columns persisted successfully')
 
       // Hidden columns are automatically persisted by Zustand persist middleware
+      console.log('🔵 [HIDE COLUMN] Hidden columns will be auto-persisted by Zustand')
 
       // Show success message
       const toast = (window as any).__toast
@@ -527,11 +561,24 @@ export const useEditableLeadsGridSlice: StateCreator<
           title: 'Column hidden',
           description: `Column "${column.title}" is now hidden`,
         })
+        console.log('🔵 [HIDE COLUMN] Success toast shown')
+      } else {
+        console.warn('🟡 [HIDE COLUMN] Toast function not available')
       }
 
-      console.log(`✅ Hidden column: ${columnId} (${column.title})`)
+      console.log('✅ [HIDE COLUMN] Hide operation completed successfully:', {
+        columnId,
+        columnTitle: column.title,
+        newColumnsCount: newColumns.length,
+        newHiddenColumnsCount: newHiddenColumns.length,
+      })
     } catch (error) {
-      console.error('Error hiding column:', error)
+      console.error('🔴 [HIDE COLUMN] Error during hide operation:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        columnId,
+        stack: error instanceof Error ? error.stack : null,
+      })
 
       // Set error state
       set(state => ({
@@ -549,9 +596,14 @@ export const useEditableLeadsGridSlice: StateCreator<
           description: 'Failed to hide the column. Please try again.',
           variant: 'destructive',
         })
+        console.log('🔵 [HIDE COLUMN] Error toast shown')
+      } else {
+        console.warn('🟡 [HIDE COLUMN] Toast function not available for error')
       }
     } finally {
+      console.log('🔵 [HIDE COLUMN] Cleaning up loading state')
       set({ columnOperationLoading: { type: null } })
+      console.log('🔵 [HIDE COLUMN] Hide operation finished (finally block)')
     }
   },
 

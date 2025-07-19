@@ -136,6 +136,17 @@ export function EditableLeadsGrid() {
    */
   const { isInitialized, initializationError } = useEditableGridInitialization(user, renderNameLink);
 
+  // DEBUG: Environment check
+  useEffect(() => {
+    console.log('🔧 [ENVIRONMENT CHECK]:', {
+      NODE_ENV: process.env.NODE_ENV,
+      isProduction: process.env.NODE_ENV === 'production',
+      isDevelopment: process.env.NODE_ENV === 'development',
+      location: window.location.href,
+      userAgent: navigator.userAgent
+    });
+  }, []);
+
   /**
    * Setup automatic filter cache invalidation when columns change
    */
@@ -519,16 +530,32 @@ export function EditableLeadsGrid() {
    * @returns {Promise<void>} Promise that resolves when column is hidden
    */
   const handleHideColumn = useCallback(async (columnId: string) => {
+    console.log('🟢 [COMPONENT] handleHideColumn called:', {
+      columnId,
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      userAgent: navigator.userAgent
+    });
+
     const column = columns.find(col => col.id === columnId);
+    console.log('🟢 [COMPONENT] Column found:', column);
+    
     if (column) {
       try {
         logFilterChange({ type: 'column_hidden', columnId, columnName: column.title });
+        console.log('🟢 [COMPONENT] Activity logged successfully');
       } catch (error) {
-        console.warn('Failed to log column hide:', error);
+        console.warn('🟡 [COMPONENT] Failed to log column hide:', error);
       }
     }
     
-    await editableLeadsGridHideColumn(columnId);
+    console.log('🟢 [COMPONENT] Calling editableLeadsGridHideColumn...');
+    try {
+      await editableLeadsGridHideColumn(columnId);
+      console.log('🟢 [COMPONENT] editableLeadsGridHideColumn completed successfully');
+    } catch (error) {
+      console.error('🔴 [COMPONENT] Error in editableLeadsGridHideColumn:', error);
+    }
   }, [columns, editableLeadsGridHideColumn, logFilterChange]);
 
   /**

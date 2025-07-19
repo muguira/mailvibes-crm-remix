@@ -137,9 +137,20 @@ export function ContextMenu({
           <button 
             className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
             onClick={() => { 
+              console.log('🟡 [CONTEXT MENU] Hide/Show button clicked:', {
+                columnId,
+                isTemporarilyVisible,
+                hasOnShow: !!onShow,
+                hasOnHide: !!onHide,
+                action: isTemporarilyVisible ? 'show' : 'hide',
+                timestamp: new Date().toISOString()
+              });
+              
               if (isTemporarilyVisible && onShow) {
+                console.log('🟡 [CONTEXT MENU] Calling onShow for columnId:', columnId);
                 onShow(columnId); // Show permanently
               } else if (onHide) {
+                console.log('🟡 [CONTEXT MENU] Calling onHide for columnId:', columnId);
                 onHide(columnId); // Hide column
               }
               onClose(); 
