@@ -437,49 +437,49 @@ export default function TimelineComposer({
       </div>
 
       {/* Horizontal layout: Toolbar + Action Buttons */}
-      <div className={`flex items-center justify-between border-t border-gray-100 transition-all duration-300 ease-in-out ${
+      <div className={`flex items-center border-t border-gray-100 transition-all duration-300 ease-in-out gap-3 ${
         isCompact ? 'p-2' : 'p-3'
       }`}>
-        {/* Left side: Gmail indicator + Toolbar */}
-        <div className="flex items-center gap-3">
-          {/* Gmail not connected indicator */}
-          {!isGmailConnected && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <GmailConnectionModal onRefresh={() => window.location.reload()}>
-                  <button
-                    className={`rounded hover:bg-gray-100 text-amber-500 hover:text-amber-600 transition-all duration-300 ease-in-out ${
-                      isCompact ? 'p-1' : 'p-2'
-                    }`}
-                    title="Gmail not connected"
-                  >
-                    <AlertCircle className={`transition-all duration-300 ease-in-out ${
-                      isCompact ? 'w-3 h-3' : 'w-4 h-4'
-                    }`} />
-                  </button>
-                </GmailConnectionModal>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-sm">Gmail not connected - Click to connect</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-          
-          {/* Toolbar */}
-          <div className="flex-1">
-            <MarkdownToolbar
-              editor={editor}
-              onFormat={handleFormat}
-              onLinkRequest={handleLinkRequest}
-              onCodeBlockRequest={handleCodeBlockRequest}
-              isCompact={isCompact}
-              className="p-0"
-            />
-          </div>
+        {/* Gmail not connected indicator */}
+        {!isGmailConnected && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <GmailConnectionModal onRefresh={() => window.location.reload()}>
+                <button
+                  className={`rounded hover:bg-gray-100 text-amber-500 hover:text-amber-600 transition-all duration-300 ease-in-out flex-shrink-0 ${
+                    isCompact ? 'p-1' : 'p-2'
+                  }`}
+                  title="Gmail not connected"
+                >
+                  <AlertCircle className={`transition-all duration-300 ease-in-out ${
+                    isCompact ? 'w-3 h-3' : 'w-4 h-4'
+                  }`} />
+                </button>
+              </GmailConnectionModal>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-sm">Gmail not connected - Click to connect</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+        
+        {/* Toolbar - flexible with scroll */}
+        <div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
+          <MarkdownToolbar
+            editor={editor}
+            onFormat={handleFormat}
+            onLinkRequest={handleLinkRequest}
+            onCodeBlockRequest={handleCodeBlockRequest}
+            isCompact={isCompact}
+            className={cn(
+              "transition-all duration-300 ease-in-out min-w-max",
+              isCompact ? "p-1" : "p-0"
+            )}
+          />
         </div>
 
-        {/* Right side: Action Buttons */}
-        <div className="flex items-center gap-2">
+        {/* Action Buttons - always visible */}
+        <div className="flex items-center gap-2 flex-shrink-0">
           <Button
             variant="outline"
             size="sm"
@@ -503,6 +503,19 @@ export default function TimelineComposer({
           </Button>
         </div>
       </div>
+
+      {/* Add scrollbar styles for horizontal scroll */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+        `
+      }} />
     </div>
   );
 }

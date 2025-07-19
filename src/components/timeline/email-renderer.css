@@ -1,4 +1,4 @@
-/* Email Renderer Styles - Simplified for better compatibility */
+/* Email Renderer Styles - Enhanced for iframe-based rendering */
 
 .email-renderer {
   max-width: 100%;
@@ -27,145 +27,306 @@
   color: #333;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  position: relative;
 }
 
+/* Enhanced iframe styles for better integration */
+.email-iframe {
+  display: block;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  
+  /* Ensure iframe is properly contained */
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.email-iframe:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading state styling */
+.email-iframe[data-loading="true"] {
+  background: linear-gradient(90deg, #f9fafb 25%, #f3f4f6 50%, #f9fafb 75%);
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.5s infinite;
+  border-color: #d1d5db;
+}
+
+@keyframes loading-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Error state styling */
+.email-iframe[data-error="true"] {
+  border-color: #ef4444;
+  background: #fef2f2;
+  border-width: 2px;
+}
+
+/* Success state for loaded content */
+.email-iframe[data-loaded="true"] {
+  border-color: #10b981;
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* Error fallback container */
+.email-error-fallback {
+  animation: slideIn 0.3s ease-out;
+}
+
+.email-error-fallback button {
+  transition: all 0.2s ease;
+  transform: translateY(0);
+}
+
+.email-error-fallback button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
+}
+
+.email-error-fallback button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.3);
+}
+
+/* Fallback content styling */
 .email-no-content {
   color: #6b7280;
   font-style: italic;
   text-align: center;
-  padding: 20px 0;
+  padding: 40px 20px;
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+  margin: 16px 0;
 }
 
-/* Minimal content styling - let original email styles show through */
+/* Legacy content styling (for backward compatibility) */
 .email-html-content,
 .email-text-content {
   max-width: 100%;
   overflow-wrap: break-word;
   word-wrap: break-word;
-}
-
-/* Force tables to be visible and properly styled */
-.email-html-content table {
-  display: table !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  width: auto !important;
-  border-collapse: collapse;
-  margin: 8px 0;
-  background-color: transparent;
-}
-
-.email-html-content tbody {
-  display: table-row-group !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-.email-html-content tr {
-  display: table-row !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-.email-html-content td,
-.email-html-content th {
-  display: table-cell !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  padding: 2px 4px;
+  background: #fff;
+  padding: 16px;
   border: 1px solid #e5e7eb;
-  vertical-align: top;
-  background-color: transparent;
-  color: inherit;
-  font-size: inherit;
+  border-radius: 6px;
 }
 
-/* Ensure table content is readable */
-.email-html-content table td {
-  color: #333 !important;
-  background-color: #fff !important;
-  min-height: 16px;
-  line-height: 1.4;
+/* Loading indicator overlay */
+.email-body::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(249, 250, 251, 0.8);
+  display: none;
+  z-index: 10;
+  border-radius: 6px;
 }
 
-/* Force overflow to be visible for table content */
-.email-html-content table,
-.email-html-content tbody,
-.email-html-content tr,
-.email-html-content td {
-  overflow: visible !important;
+.email-iframe[data-loading="true"] + .email-body::before {
+  display: block;
 }
 
-/* Enhanced image handling for signatures and external content */
-.email-html-content img {
-  max-width: 100%;
-  height: auto;
-  display: inline-block;
-  vertical-align: middle;
-  /* Force images to load with proper referrer policy */
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  /* Ensure images don't get blocked */
-  crossorigin: anonymous;
-}
-
-/* Specific handling for signature images */
-.email-html-content img[src*="googleusercontent.com"],
-.email-html-content img[src*="drive.google.com"],
-.email-html-content img[src*="docs.google.com"],
-.email-html-content img[src*="gmail.com"],
-.email-html-content img[src*="gstatic.com"] {
-  display: inline-block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  max-width: 300px;
-  height: auto;
-  border: none;
-  background-color: transparent;
-}
-
-/* Gmail signature container styling */
-.email-html-content div[class*="gmail_signature"],
-.email-html-content div[class*="signature"] {
-  margin: 16px 0;
-  padding: 8px 0;
-  border-top: 1px solid #e5e7eb;
-  display: block !important;
-  visibility: visible !important;
-}
-
-.email-html-content a {
-  color: #1a73e8;
-  text-decoration: none;
-}
-
-.email-html-content a:hover {
-  text-decoration: underline;
-}
-
-/* Hide 1x1 tracking pixels */
-.email-html-content img[width="1"],
-.email-html-content img[height="1"],
-.email-html-content img[style*="width:1px"],
-.email-html-content img[style*="height:1px"] {
-  display: none !important;
-}
-
-/* Mobile responsive adjustments */
+/* Enhanced responsive design */
 @media (max-width: 768px) {
   .email-renderer {
     font-size: 13px;
   }
   
   .email-subject {
-    font-size: 15px;
+    font-size: 14px;
+    margin-bottom: 8px;
   }
   
-  /* Make signature images more mobile friendly */
-  .email-html-content img[src*="googleusercontent.com"],
-  .email-html-content img[src*="drive.google.com"] {
-    max-width: 200px;
+  .email-body {
+    font-size: 13px;
   }
+  
+  .email-iframe {
+    border-radius: 4px;
+  }
+
+  .email-error-fallback {
+    padding: 16px;
+    margin-top: 6px;
+  }
+
+  .email-error-fallback button {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .email-renderer {
+    color: #e5e7eb;
+  }
+  
+  .email-subject {
+    color: #f3f4f6;
+    border-bottom-color: #374151;
+  }
+  
+  .email-iframe {
+    border-color: #374151;
+    background: #1f2937;
+  }
+
+  .email-iframe[data-loading="true"] {
+    background: linear-gradient(90deg, #1f2937 25%, #374151 50%, #1f2937 75%);
+    background-size: 200% 100%;
+  }
+
+  .email-iframe[data-error="true"] {
+    background: #450a0a;
+    border-color: #dc2626;
+  }
+  
+  .email-no-content {
+    background: #1f2937;
+    border-color: #374151;
+    color: #9ca3af;
+  }
+
+  .email-error-fallback {
+    background: #450a0a !important;
+    border-color: #dc2626 !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .email-renderer {
+    background: white;
+    color: black;
+  }
+  
+  .email-iframe {
+    border: 1px solid #ccc;
+    box-shadow: none;
+  }
+  
+  .email-subject {
+    border-bottom-color: #ccc;
+  }
+
+  .email-error-fallback {
+    display: none;
+  }
+}
+
+/* Accessibility improvements */
+.email-iframe:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.email-iframe:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .email-iframe {
+    border-width: 2px;
+    border-color: #000;
+  }
+  
+  .email-subject {
+    border-bottom-width: 2px;
+    border-bottom-color: #000;
+  }
+
+  .email-iframe[data-error="true"] {
+    border-color: #ff0000;
+    border-width: 3px;
+  }
+
+  .email-iframe[data-loaded="true"] {
+    border-color: #008000;
+    border-width: 2px;
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .email-iframe {
+    transition: none;
+  }
+
+  .email-iframe[data-loading="true"] {
+    animation: none;
+    background: #f9fafb;
+  }
+
+  .email-iframe[data-loaded="true"] {
+    animation: none;
+  }
+
+  .email-error-fallback {
+    animation: none;
+  }
+
+  .email-error-fallback button {
+    transition: none;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Focus management for better accessibility */
+.email-iframe[tabindex] {
+  outline: none;
+}
+
+.email-iframe[tabindex]:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Performance optimizations */
+.email-iframe {
+  contain: layout style paint;
+  will-change: height;
+}
+
+/* Ensure proper stacking context */
+.email-renderer {
+  position: relative;
+  z-index: 1;
 } 

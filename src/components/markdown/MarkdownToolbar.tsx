@@ -195,9 +195,17 @@ const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
 
   return (
     <div className={cn("flex items-center transition-all duration-300 ease-in-out", className)}>
-      <div className="flex items-center gap-1 overflow-hidden w-full">
+      <div className={cn(
+        "flex items-center gap-1 w-full",
+        // In mobile, allow horizontal scroll when expanded
+        isMobile && isToolbarExpanded ? "overflow-x-auto scrollbar-hide" : "overflow-hidden"
+      )}>
         {/* Basic Tools - Always Visible */}
-        <div className="flex items-center gap-1">
+        <div className={cn(
+          "flex items-center gap-1",
+          // In mobile, make tools flex-shrink-0 to prevent squishing
+          isMobile && "flex-shrink-0"
+        )}>
           <button
             onClick={() => onFormat('bold')}
             className={`rounded transition-all duration-300 ease-in-out ${
@@ -225,8 +233,8 @@ const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
             }`} />
           </button>
           
-          {/* Show more tools on desktop */}
-          {!isMobile && (
+          {/* Show more tools on desktop OR when expanded on mobile */}
+          {(!isMobile || isToolbarExpanded) && (
             <>
               <button
                 onClick={() => onFormat('underline')}
@@ -345,9 +353,13 @@ const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
         </div>
 
         {/* Expandable tools */}
-        <div className={`flex items-center gap-1 transition-all duration-300 ease-in-out ${
-          isToolbarExpanded ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 overflow-hidden'
-        }`}>
+        <div className={cn(
+          "flex items-center gap-1 transition-all duration-300 ease-in-out",
+          // On desktop: standard expand/collapse behavior
+          !isMobile && (isToolbarExpanded ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 overflow-hidden'),
+          // On mobile: always show when expanded, with flex-shrink-0
+          isMobile && (isToolbarExpanded ? 'opacity-100 flex-shrink-0' : 'hidden'),
+        )}>
           <button
             onClick={() => onFormat('strikethrough')}
             className={`rounded transition-all duration-300 ease-in-out ${
@@ -463,6 +475,19 @@ const MarkdownToolbar: React.FC<MarkdownToolbarProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Add scrollbar styles for mobile */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+        `
+      }} />
 
       {/* Modals */}
       <LinkModal

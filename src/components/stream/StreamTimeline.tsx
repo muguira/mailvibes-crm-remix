@@ -27,6 +27,13 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
   const { user } = useAuth();
   const [isCompact, setIsCompact] = useState(false);
 
+  console.log('🔍 [StreamTimeline] Component initialized with:', {
+    contactId,
+    contactEmail,
+    contactName,
+    propsReceived: { contactId, contactEmail, contactName }
+  });
+
   const {
     activities,
     loading,
@@ -45,6 +52,22 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     contactEmail,
     includeEmails: true,
     autoInitialize: true,
+  });
+
+  console.log('🔍 [StreamTimeline] useTimelineActivitiesV2 results:', {
+    activitiesCount: activities.length,
+    emailsCount,
+    internalCount,
+    loading,
+    error,
+    syncStatus,
+    hasMoreEmails,
+    firstThreeActivities: activities.slice(0, 3).map(activity => ({
+      id: activity.id,
+      type: activity.type,
+      source: activity.source,
+      subject: activity.subject || 'N/A'
+    }))
   });
 
   // Get toggle pin function from activities hook
