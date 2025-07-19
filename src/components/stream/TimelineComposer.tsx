@@ -10,7 +10,8 @@ import {
   Download,
   RefreshCw,
   Plus,
-  Minus
+  Minus,
+  Edit3
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -191,6 +192,9 @@ export default function TimelineComposer({
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [showPermissionsAlert, setShowPermissionsAlert] = useState(false);
   const [showAdvancedEmailFields, setShowAdvancedEmailFields] = useState(false);
+  
+  // Click-to-edit states for email fields
+  const [editingField, setEditingField] = useState<'subject' | 'cc' | 'bcc' | null>(null);
   const { recordId } = useParams();
   const effectiveContactId = contactId || recordId;
   const { createActivity } = useActivities(effectiveContactId);
@@ -213,8 +217,98 @@ export default function TimelineComposer({
   useEffect(() => {
     if (selectedActivityType !== 'email') {
       setShowAdvancedEmailFields(false);
+      setEditingField(null); // Exit edit mode when switching activity types
     }
   }, [selectedActivityType]);
+
+  // Handle click-to-edit functionality
+  const handleFieldClick = (fieldName: 'subject' | 'cc' | 'bcc') => {
+    if (!isSendingEmail) {
+      setEditingField(fieldName);
+    }
+  };
+
+  const handleFieldBlur = (fieldName: 'subject' | 'cc' | 'bcc') => {
+    setEditingField(null);
+  };
+
+  const handleFieldKeyDown = (e: React.KeyboardEvent, fieldName: 'subject' | 'cc' | 'bcc') => {
+    if (e.key === 'Enter') {
+      setEditingField(null);
+    }
+    if (e.key === 'Escape') {
+      setEditingField(null);
+    }
+  };
+
+  // Component for click-to-edit fields
+  const ClickToEditField = ({ 
+    fieldName, 
+    label, 
+    value, 
+    onChange, 
+    placeholder,
+    type = "text",
+    required = false 
+  }: {
+    fieldName: 'subject' | 'cc' | 'bcc';
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
+    type?: string;
+    required?: boolean;
+  }) => {
+    const isEditing = editingField === fieldName;
+    const isEmpty = !value || value.trim() === '';
+
+    if (isEditing) {
+      return (
+        <div>
+          <input
+            type={type}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={() => handleFieldBlur(fieldName)}
+            onKeyDown={(e) => handleFieldKeyDown(e, fieldName)}
+            placeholder={
+              fieldName === 'subject' ? 'Email subject' : 
+              fieldName === 'cc' ? 'CC email' :
+              'BCC email'
+            }
+            className="h-8 w-full text-sm leading-none border-none bg-gray-50 rounded-md px-3 py-2 focus:outline-none transition-colors"
+            disabled={isSendingEmail}
+            required={required}
+            autoFocus
+          />
+        </div>
+      );
+    }
+
+        return (
+      <div 
+        className="cursor-pointer group"
+        onClick={() => handleFieldClick(fieldName)}
+        title={`Click to edit ${label.toLowerCase()}`}
+      >
+        <div className={cn(
+          "h-8 px-3 py-2 text-sm leading-none transition-all duration-200 relative flex items-center justify-between",
+          "hover:bg-gray-50 rounded-md", // All fields: no borders, subtle hover
+          isEmpty ? "text-muted-foreground" : "text-foreground",
+          isSendingEmail ? "opacity-50 cursor-not-allowed" : "cursor-text"
+        )}>
+          <span className="flex-1 truncate">
+            {isEmpty ? (
+              fieldName === 'subject' ? 'Subject' : 
+              fieldName === 'cc' ? 'CC' :
+              'BCC'
+            ) : value}
+          </span>
+          <Edit3 className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity ml-2 flex-shrink-0" />
+        </div>
+      </div>
+    );
+  };
   
   // Use provided contactEmail (we'll assume it's passed from parent)
   const effectiveContactEmail = contactEmail;
@@ -222,7 +316,6 @@ export default function TimelineComposer({
   // Use modern emails hook to get email info and sync capabilities
   const {
     emails,
-    loading,
     hasMore,
     syncStatus: internalSyncStatus,
     syncEmailHistory
@@ -313,6 +406,7 @@ export default function TimelineComposer({
         subject: ''
       });
       setShowAdvancedEmailFields(false); // Hide advanced fields after sending
+      setEditingField(null); // Exit edit mode after sending
       
       if (editor) {
         editor.commands.setContent('', false);
@@ -453,6 +547,7 @@ export default function TimelineComposer({
   const clearContent = () => {
     setText("");
     setShowAdvancedEmailFields(false); // Reset advanced fields when clearing
+    setEditingField(null); // Exit edit mode when clearing
     // Also clear the editor directly to ensure it's empty
     if (editor) {
       editor.commands.setContent('', false);
@@ -595,22 +690,18 @@ export default function TimelineComposer({
         <div className={`space-y-3 border-b border-gray-100 transition-all duration-300 ease-in-out ${
           isCompact ? 'p-2' : 'p-3'
         }`}>
-          {/* Subject Field - Always visible */}
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-gray-700">Subject:</label>
-            <Input
-              type="text"
-              value={emailFields.subject}
-              onChange={(e) => setEmailFields(prev => ({ ...prev, subject: e.target.value }))}
-              placeholder="Email subject"
-              className="h-8 text-sm"
-              disabled={isSendingEmail}
-              required
-            />
-          </div>
+          {/* Subject Field - Always visible with click-to-edit */}
+          <ClickToEditField
+            fieldName="subject"
+            label="Subject"
+            value={emailFields.subject}
+            onChange={(value) => setEmailFields(prev => ({ ...prev, subject: value }))}
+            placeholder="Click to add email subject"
+            required
+          />
 
           {/* Advanced Fields Toggle */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center">
             <button
               type="button"
               onClick={() => setShowAdvancedEmailFields(!showAdvancedEmailFields)}
@@ -624,38 +715,27 @@ export default function TimelineComposer({
               )}
               {showAdvancedEmailFields ? 'Hide' : 'Add'} CC/BCC
             </button>
-            
-            {/* To field info - shown as small text */}
-            <span className="text-xs text-gray-500">
-              To: {contactEmail || emailFields.to || 'No recipient'}
-            </span>
           </div>
           
-          {/* CC/BCC Fields - Collapsible */}
+          {/* CC/BCC Fields - Collapsible with click-to-edit */}
           {showAdvancedEmailFields && (
             <div className="grid grid-cols-2 gap-2 animate-in slide-in-from-top-2 duration-200">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-700">CC:</label>
-                <Input
-                  type="email"
-                  value={emailFields.cc}
-                  onChange={(e) => setEmailFields(prev => ({ ...prev, cc: e.target.value }))}
-                  placeholder="cc@example.com"
-                  className="h-8 text-sm"
-                  disabled={isSendingEmail}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-700">BCC:</label>
-                <Input
-                  type="email"
-                  value={emailFields.bcc}
-                  onChange={(e) => setEmailFields(prev => ({ ...prev, bcc: e.target.value }))}
-                  placeholder="bcc@example.com"
-                  className="h-8 text-sm"
-                  disabled={isSendingEmail}
-                />
-              </div>
+              <ClickToEditField
+                fieldName="cc"
+                label="CC"
+                value={emailFields.cc}
+                onChange={(value) => setEmailFields(prev => ({ ...prev, cc: value }))}
+                placeholder="Click to add CC"
+                type="email"
+              />
+              <ClickToEditField
+                fieldName="bcc"
+                label="BCC"
+                value={emailFields.bcc}
+                onChange={(value) => setEmailFields(prev => ({ ...prev, bcc: value }))}
+                placeholder="Click to add BCC"
+                type="email"
+              />
             </div>
           )}
         </div>
