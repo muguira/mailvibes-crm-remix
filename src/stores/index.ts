@@ -58,6 +58,8 @@ export const useStore = create<TStore>()(
         console.log('🔄 Zustand persist - saving to localStorage:', {
           columnsCount: persistedState.columns.length,
           columnIds: persistedState.columns.map(c => c.id),
+          hiddenColumnsCount: persistedState.hiddenColumns.length,
+          hiddenColumnIds: persistedState.hiddenColumns.map(c => c.id),
           activeFilters: persistedState.activeFilters,
           deletedColumnIds: persistedState.deletedColumnIds,
         })
@@ -104,6 +106,8 @@ export const useStore = create<TStore>()(
             console.log('✅ Zustand persist - rehydration completed:', {
               columnsCount: state?.columns?.length || 0,
               columnIds: state?.columns?.map(c => c.id) || [],
+              hiddenColumnsCount: state?.hiddenColumns?.length || 0,
+              hiddenColumnIds: state?.hiddenColumns?.map(c => c.id) || [],
               deletedColumnIds: state?.deletedColumnIds ? Array.from(state.deletedColumnIds) : [],
               fullState: !!state,
             })

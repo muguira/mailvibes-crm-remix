@@ -512,6 +512,8 @@ export const useEditableLeadsGridSlice: StateCreator<
       // Persist the column changes
       await get().editableLeadsGridPersistColumns(newColumns)
 
+      // Hidden columns are automatically persisted by Zustand persist middleware
+
       // Show success message
       const toast = (window as any).__toast
       if (toast) {
@@ -573,6 +575,8 @@ export const useEditableLeadsGridSlice: StateCreator<
 
       // Persist the column changes
       await get().editableLeadsGridPersistColumns(newColumns)
+
+      // Hidden columns are automatically persisted by Zustand persist middleware
 
       // Show success message
       const toast = (window as any).__toast
@@ -1092,7 +1096,7 @@ export const useEditableLeadsGridSlice: StateCreator<
   },
 
   // 21. Save hidden columns - Persist hidden columns to localStorage and Supabase
-  editableLeadsGridSaveHiddenColumns: async (hiddenCols: Column[]) => {
+  editableLeadsGridSaveHiddenColumns: async (hiddenCols: Column[], user?: any) => {
     try {
       console.log('🔄 Slice: Starting save hidden columns', { count: hiddenCols.length })
 
@@ -1108,8 +1112,34 @@ export const useEditableLeadsGridSlice: StateCreator<
         // Continue even if localStorage fails
       }
 
-      // Note: Supabase save will be handled by component since user context is needed
-      console.log('✅ Hidden columns save to localStorage completed')
+      // Save to Supabase for cross-device persistence if user is authenticated
+      if (user) {
+        try {
+          const { supabase } = await import('@/integrations/supabase/client')
+          const { error } = await supabase.from('user_settings' as any).upsert(
+            {
+              user_id: user.id,
+              setting_key: 'hidden_columns',
+              setting_value: hiddenCols,
+            },
+            {
+              onConflict: 'user_id,setting_key',
+            },
+          )
+
+          if (error) {
+            console.error('Supabase hidden columns save error:', error)
+            throw new Error(`Supabase sync failed: ${error.message}`)
+          } else {
+            console.log('✅ Hidden columns synced to Supabase successfully')
+          }
+        } catch (supabaseError) {
+          console.warn('Failed to save hidden columns to Supabase:', supabaseError)
+          // Continue even if Supabase fails - localStorage still works
+        }
+      }
+
+      console.log('✅ Hidden columns save completed')
     } catch (error) {
       console.error('❌ Critical error in save hidden columns:', error)
 
