@@ -1020,11 +1020,12 @@ export const useEditableLeadsGridSlice: StateCreator<
       // Smart priority logic: Compare localStorage vs Supabase
       let columnsToUse: Column[]
       const currentColumns = get().columns
+      const { hiddenColumns } = get() // Get current hiddenColumns from Zustand persist
       const hasPersistedColumns = currentColumns.length > 0
       const hasSupabaseColumns = storedColumns && storedColumns.length > 0
 
       if (hasPersistedColumns && hasSupabaseColumns) {
-        // Both exist - for now, prefer Supabase (could add timestamp comparison later)
+        // Both exist - prefer Supabase but FILTER OUT hidden columns
         console.log(
           '🔄 Both localStorage and Supabase have columns, using Supabase for consistency:',
           storedColumns.length,
@@ -1039,6 +1040,20 @@ export const useEditableLeadsGridSlice: StateCreator<
       } else {
         console.log('📋 No stored columns found, using default columns')
         columnsToUse = getDefaultColumns()
+      }
+
+      // 🔧 CRITICAL FIX: Always filter out hidden columns after determining source
+      if (hiddenColumns.length > 0) {
+        const hiddenColumnIds = hiddenColumns.map(col => col.id)
+        const beforeFilterCount = columnsToUse.length
+        columnsToUse = columnsToUse.filter(col => !hiddenColumnIds.includes(col.id))
+
+        console.log('🔧 [INIT FIX] Filtered out hidden columns during load:', {
+          beforeCount: beforeFilterCount,
+          afterCount: columnsToUse.length,
+          hiddenColumnIds,
+          removedCount: beforeFilterCount - columnsToUse.length,
+        })
       }
 
       // Filter out deleted columns
