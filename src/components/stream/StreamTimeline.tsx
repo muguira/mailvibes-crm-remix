@@ -275,7 +275,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
                 const isLastActivity = index === activities.length - 1;
 
                 return (
-                  <div key={`${activity.id}-${index}`} className="last-of-type:overflow-y-hidden">
+                  <div key={`${activity.id}-${index}`} className="">
                     {showSeparator && (
                       <li className="relative pl-10 py-4">
                         <div className="flex items-center">
