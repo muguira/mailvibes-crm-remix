@@ -542,7 +542,7 @@ const TimelineItem = React.memo(function TimelineItem({
   }, [editor]);
 
   return (
-    <li ref={timelineRef} className="relative pl-12 pb-8 mb-[50px]">
+    <li ref={timelineRef} className="relative pl-12 pb-8">
       {/* Timeline line - progressive filling effect */}
       <div 
         className="absolute left-[22px] top-[20px] bottom-[-200px] w-[1px] transition-all duration-300 ease-out"
