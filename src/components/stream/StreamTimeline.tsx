@@ -270,6 +270,9 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
                 const showSeparator = index > 0 && 
                   activities[index - 1].is_pinned && 
                   !activity.is_pinned;
+                
+                // Check if this is the last activity
+                const isLastActivity = index === activities.length - 1;
 
                 return (
                   <div key={`${activity.id}-${index}`} className="last-of-type:overflow-y-hidden">
@@ -288,6 +291,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
                       activity={activity}
                       activityUserName={getUserName(activity)}
                       contactName={contactName}
+                      isLast={isLastActivity}
                       onTogglePin={handleTogglePin}
                       onEditActivity={handleEditActivity}
                       onDeleteActivity={handleDeleteActivity}
@@ -298,18 +302,26 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
               
               {/* Conversation start indicator with dynamic info */}
               {getFirstInteractionDate() && (
-                <li className="relative pl-10 pb-6 pb-[150px]">
-                  <div className="flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-2">
+                <li className="relative pl-10 pb-6 pb-[100px]">
+                  {/* Connecting line from timeline to indicator */}
+                  <div className="absolute left-[22px] top-0 w-[1px] h-8 bg-gradient-to-b from-transparent to-gray-300"></div>
+                  
+                  <div className="flex items-center justify-center mt-6">
+                    <div className="flex flex-col items-center gap-3">
+                      {/* Timeline terminus circle */}
+                      <div className="w-4 h-4 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 border-2 border-white shadow-lg relative">
+                        <div className="absolute inset-0 rounded-full bg-teal-500 animate-pulse opacity-50"></div>
+                      </div>
+                      
                       {/* Main relationship indicator */}
-                      <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm text-gray-600">
-                        <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
-                          <Users className="w-3 h-3 text-gray-500" />
+                      <div className="flex items-center gap-3 bg-white border border-gray-300 rounded-full px-4 py-2 text-sm text-gray-700 shadow-sm">
+                        <div className="w-6 h-6 bg-teal-50 border border-teal-200 rounded-full flex items-center justify-center">
+                          <Users className="w-3 h-3 text-teal-600" />
                         </div>
                         <span className="font-medium">
                           {formatFirstInteractionDate(getFirstInteractionDate()!)}
                         </span>
-                        <div className="text-xs text-gray-400">
+                        <div className="text-xs text-gray-500">
                           {new Date(getFirstInteractionDate()!).toLocaleDateString('en-US', {
                             day: 'numeric',
                             month: 'long', 

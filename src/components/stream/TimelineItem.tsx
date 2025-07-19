@@ -34,6 +34,7 @@ interface TimelineItemProps {
   activitySummary?: string;
   activityUserName?: string;
   contactName?: string;
+  isLast?: boolean; // New prop to identify the last timeline item
   onTogglePin?: (activityId: string, currentState: boolean) => void;
   onEditActivity?: (activityId: string, newContent: string) => void;
   onDeleteActivity?: (activityId: string) => void;
@@ -312,6 +313,7 @@ const TimelineItem = React.memo(function TimelineItem({
   activitySummary, 
   activityUserName,
   contactName,
+  isLast,
   onTogglePin,
   onEditActivity,
   onDeleteActivity
@@ -545,17 +547,39 @@ const TimelineItem = React.memo(function TimelineItem({
     <li ref={timelineRef} className="relative pl-12 pb-8">
       {/* Timeline line - progressive filling effect */}
       <div 
-        className="absolute left-[22px] top-[20px] bottom-[-200px] w-[1px] transition-all duration-300 ease-out"
+        className={cn(
+          "absolute left-[22px] top-[20px] w-[1px] transition-all duration-300 ease-out",
+          isLast ? "bottom-[60px]" : "bottom-[-200px]"
+        )}
         style={{
-          background: visibilityPercentage > 0 
-            ? `linear-gradient(to bottom, 
-                #14b8a6 0%, 
-                #14b8a6 ${visibilityPercentage}%, 
-                #e5e7eb ${visibilityPercentage}%, 
-                #e5e7eb 100%)`
-            : '#e5e7eb'
+          background: isLast 
+            ? visibilityPercentage > 0
+              ? `linear-gradient(to bottom, 
+                  #14b8a6 0%, 
+                  #14b8a6 ${Math.min(visibilityPercentage, 85)}%, 
+                  rgba(20, 184, 166, 0.5) ${Math.min(visibilityPercentage + 10, 95)}%, 
+                  transparent 100%)`
+              : `linear-gradient(to bottom, 
+                  #e5e7eb 0%, 
+                  #e5e7eb 85%, 
+                  rgba(229, 231, 235, 0.5) 95%, 
+                  transparent 100%)`
+            : visibilityPercentage > 0 
+              ? `linear-gradient(to bottom, 
+                  #14b8a6 0%, 
+                  #14b8a6 ${visibilityPercentage}%, 
+                  #e5e7eb ${visibilityPercentage}%, 
+                  #e5e7eb 100%)`
+              : '#e5e7eb'
         }}
       ></div>
+      
+      {/* Timeline end indicator for last item */}
+      {isLast && (
+        <div className="absolute left-[18px] bottom-[56px] w-2 h-2 rounded-full bg-teal-600 border-2 border-white shadow-sm z-10">
+          <div className="absolute inset-0 rounded-full bg-teal-600 animate-pulse opacity-75"></div>
+        </div>
+      )}
       
       {/* Timestamp on the left side of timeline */}
       
