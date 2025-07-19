@@ -34,6 +34,7 @@ interface TimelineItemProps {
   activitySummary?: string;
   activityUserName?: string;
   contactName?: string;
+  isLast?: boolean; // New prop to identify the last timeline item
   onTogglePin?: (activityId: string, currentState: boolean) => void;
   onEditActivity?: (activityId: string, newContent: string) => void;
   onDeleteActivity?: (activityId: string) => void;
@@ -312,6 +313,7 @@ const TimelineItem = React.memo(function TimelineItem({
   activitySummary, 
   activityUserName,
   contactName,
+  isLast,
   onTogglePin,
   onEditActivity,
   onDeleteActivity
@@ -331,6 +333,65 @@ const TimelineItem = React.memo(function TimelineItem({
   
   // Timeline viewport tracking with progressive visibility
   const { elementRef: timelineRef, isViewed, visibilityPercentage, maxVisibilityReached } = useTimelineViewport(activity.id);
+  
+  // State to trigger recalculation on scroll
+  const [scrollTrigger, setScrollTrigger] = useState(0);
+  
+  // Listen for scroll events to update the center-based calculation
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollTrigger(prev => prev + 1);
+    };
+    
+    // Find the scrollable container (timeline container)
+    const scrollContainer = timelineRef.current?.closest('[class*="overflow-y-auto"]');
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+      return () => scrollContainer.removeEventListener('scroll', handleScroll);
+    }
+  }, []);
+  
+    // Create a sequential filling effect (only first few visible elements get filled)
+  const progressiveFillPercentage = useMemo(() => {
+    if (!timelineRef.current || visibilityPercentage < 25) return 0; // Much higher threshold
+    
+    // Get element position
+    const element = timelineRef.current;
+    const rect = element.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    
+    // Only fill elements that are significantly visible (at least 25% visible)
+    if (visibilityPercentage < 25) return 0;
+    
+    // Calculate element's vertical position relative to viewport top
+    const elementTop = rect.top;
+    const elementBottom = rect.bottom;
+    
+    // Determine if element is in the "primary" visible area (top portion of viewport)
+    const primaryZone = viewportHeight * 0.4; // Top 40% of viewport
+    const secondaryZone = viewportHeight * 0.7; // Top 70% of viewport
+    
+    let fillPercentage = 0;
+    
+    if (elementTop >= 0 && elementTop <= primaryZone) {
+      // Element starts in primary zone - full fill
+      fillPercentage = 100;
+    } else if (elementTop > primaryZone && elementTop <= secondaryZone) {
+      // Element starts in secondary zone - partial fill
+      const distanceIntoSecondary = elementTop - primaryZone;
+      const secondaryZoneHeight = secondaryZone - primaryZone;
+      const falloff = 1 - (distanceIntoSecondary / secondaryZoneHeight);
+      fillPercentage = Math.max(0, falloff * 50); // Max 50% in secondary zone
+    } else {
+      // Element is too far down - no fill
+      fillPercentage = 0;
+    }
+    
+    // Apply visibility factor for smooth transitions
+    const visibilityFactor = Math.min(1, (visibilityPercentage - 25) / 25); // Ramp up from 25% to 50% visibility
+    
+    return Math.round(fillPercentage * visibilityFactor);
+  }, [visibilityPercentage, timelineRef, scrollTrigger]);
   
   // OPTIMIZED: Memoize expensive calculations
   const activityProps = useMemo(() => {
@@ -542,20 +603,42 @@ const TimelineItem = React.memo(function TimelineItem({
   }, [editor]);
 
   return (
-    <li ref={timelineRef} className="relative pl-12 pb-8 mb-[50px]">
+    <li ref={timelineRef} className="relative pl-12 pb-8 mb-[40px]">
       {/* Timeline line - progressive filling effect */}
       <div 
-        className="absolute left-[22px] top-[20px] bottom-[-200px] w-[1px] transition-all duration-300 ease-out"
+        className={cn(
+          "absolute left-[22px] top-[40px] w-[1px] transition-all duration-300 ease-out",
+          isLast ? "bottom-[50px]" : "bottom-[-350px]"
+        )}
         style={{
-          background: visibilityPercentage > 0 
-            ? `linear-gradient(to bottom, 
-                #14b8a6 0%, 
-                #14b8a6 ${visibilityPercentage}%, 
-                #e5e7eb ${visibilityPercentage}%, 
-                #e5e7eb 100%)`
-            : '#e5e7eb'
+          background: isLast 
+            ? progressiveFillPercentage > 0
+              ? `linear-gradient(to bottom, 
+                  #14b8a6 0%, 
+                  #14b8a6 ${Math.min(progressiveFillPercentage, 85)}%, 
+                  rgba(20, 184, 166, 0.5) ${Math.min(progressiveFillPercentage + 10, 95)}%, 
+                  transparent 100%)`
+              : `linear-gradient(to bottom, 
+                  #e5e7eb 0%, 
+                  #e5e7eb 85%, 
+                  rgba(229, 231, 235, 0.5) 95%, 
+                  transparent 100%)`
+            : progressiveFillPercentage > 0 
+              ? `linear-gradient(to bottom, 
+                  #14b8a6 0%, 
+                  #14b8a6 ${progressiveFillPercentage}%, 
+                  #e5e7eb ${progressiveFillPercentage}%, 
+                  #e5e7eb 100%)`
+              : '#e5e7eb'
         }}
       ></div>
+      
+      {/* Timeline end indicator for last item */}
+      {isLast && (
+        <div className="absolute left-[16px] bottom-[30px] w-3 h-3 rounded-full bg-teal-600 border-2 border-white shadow-sm z-10">
+          <div className="absolute inset-0 rounded-full bg-teal-600 animate-pulse opacity-75"></div>
+        </div>
+      )}
       
       {/* Timestamp on the left side of timeline */}
       
