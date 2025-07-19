@@ -501,7 +501,13 @@ export const useEditableLeadsGridSlice: StateCreator<
       const currentIndex = columns.findIndex(col => col.id === columnId)
       const columnWithIndex = { ...column, originalIndex: currentIndex } as any
 
-      // Add to hidden columns list with original index
+      // Add to hidden columns list with original index (prevent duplicates)
+      const isAlreadyHidden = hiddenColumns.some(col => col.id === columnId)
+      if (isAlreadyHidden) {
+        console.warn(`Column ${columnId} is already hidden, skipping duplicate`)
+        return
+      }
+
       const newHiddenColumns = [...hiddenColumns, columnWithIndex]
       get().editableLeadsGridSetHiddenColumns(newHiddenColumns)
 

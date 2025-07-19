@@ -103,6 +103,25 @@ export const useStore = create<TStore>()(
               state.deletedColumnIds = new Set()
             }
 
+            // Clean up duplicate hidden columns (production bug fix)
+            if (state && state.hiddenColumns && Array.isArray(state.hiddenColumns)) {
+              const originalCount = state.hiddenColumns.length
+              const uniqueHiddenColumns = state.hiddenColumns.filter(
+                (column, index, arr) => arr.findIndex(c => c.id === column.id) === index,
+              )
+
+              if (uniqueHiddenColumns.length !== originalCount) {
+                const duplicateCount = originalCount - uniqueHiddenColumns.length
+                const duplicateIds = state.hiddenColumns.map(c => c.id)
+                console.log(`🧹 Cleaned up ${duplicateCount} duplicate hidden columns:`, {
+                  before: duplicateIds,
+                  after: uniqueHiddenColumns.map(c => c.id),
+                  duplicatesRemoved: duplicateCount,
+                })
+                state.hiddenColumns = uniqueHiddenColumns
+              }
+            }
+
             console.log('✅ Zustand persist - rehydration completed:', {
               columnsCount: state?.columns?.length || 0,
               columnIds: state?.columns?.map(c => c.id) || [],
