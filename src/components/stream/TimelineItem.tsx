@@ -6,8 +6,6 @@ import {
   Phone, 
   FileText, 
   Calendar,
-  User,
-  Bell,
   CheckCircle2,
   MoreHorizontal,
   Reply,
@@ -384,8 +382,6 @@ const TimelineItem = React.memo(function TimelineItem({
   const checkHeight = useCallback(() => {
     if (contentRef.current) {
       const contentHeight = contentRef.current.scrollHeight;
-      const clientHeight = contentRef.current.clientHeight;
-      const offsetHeight = contentRef.current.offsetHeight;
       const shouldShow = contentHeight > 200;
       
       // Debug logging (only for development)
@@ -542,10 +538,10 @@ const TimelineItem = React.memo(function TimelineItem({
   }, [editor]);
 
   return (
-    <li ref={timelineRef} className="relative pl-12 pb-8 last:pb-0 mb-[50px]">
+    <li ref={timelineRef} className="relative pl-12 pb-8 mb-[50px]">
       {/* Timeline line - progressive filling effect */}
       <div 
-        className="absolute left-[22px] top-[20px] bottom-[-60px] w-[1px] transition-all duration-300 ease-out"
+        className="absolute left-[22px] top-[20px] bottom-[-200px] w-[1px] transition-all duration-300 ease-out"
         style={{
           background: visibilityPercentage > 0 
             ? `linear-gradient(to bottom, 
