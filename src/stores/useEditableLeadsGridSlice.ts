@@ -106,7 +106,7 @@ export const useEditableLeadsGridSlice: StateCreator<
    */
   editableLeadsGridSetPageSize: (size: number) => {
     set(state => {
-      state.pageSize = Math.max(1, Math.min(size, 100))
+      state.pageSize = Math.max(1, Math.min(size, 2000))
       // Reset to first page when page size changes
       state.currentPage = 1
     })
@@ -848,7 +848,7 @@ export const useEditableLeadsGridSlice: StateCreator<
    */
   editableLeadsGridHandlePageSizeChange: (size: number) => {
     set(state => ({
-      pageSize: Math.max(1, Math.min(100, size)),
+      pageSize: Math.max(1, Math.min(2000, size)),
       // Reset to first page when changing page size
       currentPage: 1,
     }))
