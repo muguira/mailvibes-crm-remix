@@ -303,9 +303,17 @@ export function useInstantContacts({
     return rows
   }, [filteredIds, currentPage, pageSize, cache])
 
+  // Check if we need more data for the current page size and we're on page 1
+  const needsMoreDataForPageSize = useMemo(() => {
+    return currentPage === 1 && pageSize > loadedCount && pageSize >= 100
+  }, [currentPage, pageSize, loadedCount])
+
+  // Show loading when we need more data for large page sizes
+  const isLoadingForPageSize = needsMoreDataForPageSize && (fetching || isBackgroundLoading)
+
   return {
     rows: paginatedRows,
-    loading: loading && orderedIds.length === 0, // Only show loading on initial load
+    loading: (loading && orderedIds.length === 0) || isLoadingForPageSize, // Show loading on initial load or when loading for page size
     totalCount: filteredIds.length, // Use actual loaded and filtered count for pagination
     isBackgroundLoading,
     loadedCount,

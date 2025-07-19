@@ -16,11 +16,6 @@ import type {
   IColumnOperationLoading,
   IDeleteColumnDialog,
   IEditableLeadsGridErrorState,
-  IEditableLeadsGridLoadingState,
-  ILastCellEdit,
-  ILastContactDeletion,
-  ILastInitialization,
-  IColumnInsertConfig,
 } from '@/types/store/editable-leads-grid'
 import { Column } from '@/components/grid-view/types'
 import { INITIAL_EDITABLE_LEADS_GRID_STATE } from '@/constants/store/editable-leads-grid'
@@ -847,11 +842,26 @@ export const useEditableLeadsGridSlice: StateCreator<
    * @param size - The new page size to set
    */
   editableLeadsGridHandlePageSizeChange: (size: number) => {
+    const newPageSize = Math.max(1, Math.min(2000, size))
+
     set(state => ({
-      pageSize: Math.max(1, Math.min(2000, size)),
+      pageSize: newPageSize,
       // Reset to first page when changing page size
       currentPage: 1,
     }))
+
+    // Trigger priority loading if we need more contacts for large page sizes
+    const { contactsPagination, contactsEnsureMinimumLoaded } = get()
+    if (newPageSize > contactsPagination.loadedCount && newPageSize >= 100) {
+      console.log(
+        `[EditableLeadsGrid] Page size changed to ${newPageSize}, ensuring ${newPageSize} contacts are loaded`,
+      )
+
+      // Don't await - let it load in background
+      contactsEnsureMinimumLoaded(newPageSize).catch(error => {
+        console.error('[EditableLeadsGrid] Failed to ensure minimum contacts loaded:', error)
+      })
+    }
   },
 
   /**

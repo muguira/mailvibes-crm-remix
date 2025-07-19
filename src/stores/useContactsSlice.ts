@@ -562,6 +562,159 @@ export const useContactsSlice: StateCreator<
   },
 
   /**
+   * Ensure minimum contacts are loaded for large page sizes
+   * This is called when user selects large page sizes (500, 1000) to prevent showing partial data
+   */
+  contactsEnsureMinimumLoaded: async (minimumRequired: number) => {
+    const state = get()
+
+    // Skip if not initialized or no user
+    if (!state.contactsInternal.userId || !state.contactsPagination.isInitialized) {
+      logger.log('[ContactsStore] Cannot ensure minimum loaded - not initialized')
+      return
+    }
+
+    // Skip if we already have enough loaded contacts
+    if (state.contactsPagination.loadedCount >= minimumRequired) {
+      logger.log(
+        `[ContactsStore] Already have ${state.contactsPagination.loadedCount} contacts loaded, need ${minimumRequired}`,
+      )
+      return
+    }
+
+    // Skip if we've already loaded all available contacts
+    if (state.contactsPagination.allContactsLoaded) {
+      logger.log('[ContactsStore] All contacts already loaded')
+      return
+    }
+
+    // Skip if already actively loading
+    if (state.contactsLoading.fetching || state.contactsInternal.backgroundLoadingActive) {
+      logger.log('[ContactsStore] Already loading contacts, skipping minimum load')
+      return
+    }
+
+    const needed = minimumRequired - state.contactsPagination.loadedCount
+    logger.log(
+      `[ContactsStore] Need to load ${needed} more contacts (have: ${state.contactsPagination.loadedCount}, need: ${minimumRequired})`,
+    )
+
+    // Set priority loading state
+    set(state => {
+      state.contactsLoading.fetching = true
+      state.contactsInternal.backgroundLoadingActive = true
+    })
+
+    try {
+      // Use larger chunks for priority loading to load faster
+      const priorityChunkSize = Math.min(2000, Math.max(1000, needed))
+
+      logger.log(`[ContactsStore] Starting priority loading with chunk size: ${priorityChunkSize}`)
+
+      // Keep loading until we have enough or no more contacts
+      while (
+        get().contactsPagination.loadedCount < minimumRequired &&
+        get().contactsPagination.hasMore &&
+        !get().contactsPagination.allContactsLoaded
+      ) {
+        const currentState = get()
+
+        // Fetch next chunk with priority size
+        const { data, error } = await supabase
+          .from('contacts')
+          .select('id, name, email, phone, company, status, data')
+          .eq('user_id', currentState.contactsInternal.userId)
+          .order('created_at', { ascending: false })
+          .range(currentState.contactsPagination.offset, currentState.contactsPagination.offset + priorityChunkSize - 1)
+
+        if (error) {
+          logger.error('[ContactsStore] Priority loading failed:', error)
+          throw error
+        }
+
+        if (!data || data.length === 0) {
+          logger.log('[ContactsStore] No more contacts to load')
+          set(state => {
+            state.contactsPagination.hasMore = false
+            state.contactsPagination.allContactsLoaded = true
+          })
+          break
+        }
+
+        // Process the loaded contacts
+        const latestState = get()
+        const newCache = { ...latestState.contactsCache }
+        const newOrderedIds = [...latestState.contactsOrderedIds]
+        const currentDeletedIds = latestState.contactsDeletedIds
+
+        let addedCount = 0
+        let skippedCount = 0
+
+        data.forEach(contact => {
+          // Skip if deleted
+          if (currentDeletedIds.has(contact.id)) {
+            skippedCount++
+            return
+          }
+
+          const leadContact: LeadContact = {
+            id: contact.id,
+            name: contact.name || '',
+            email: contact.email || '',
+            phone: contact.phone || '',
+            company: contact.company || '',
+            status: contact.status || '',
+            importListName: (contact.data as any)?.importListName || '',
+            importOrder: (contact.data as any)?.importOrder,
+            ...((contact.data as any) || {}),
+          }
+
+          // Only add if not already in cache
+          if (!newCache[contact.id]) {
+            newCache[contact.id] = leadContact
+            newOrderedIds.push(contact.id)
+            addedCount++
+          }
+        })
+
+        const newLoadedCount = latestState.contactsPagination.loadedCount + addedCount
+        const hasMore = data.length === priorityChunkSize && newLoadedCount < latestState.contactsPagination.totalCount
+
+        // Update state
+        set(state => {
+          state.contactsCache = newCache
+          state.contactsOrderedIds = newOrderedIds
+          state.contactsPagination.loadedCount = newLoadedCount
+          state.contactsPagination.offset = state.contactsPagination.offset + priorityChunkSize
+          state.contactsPagination.hasMore = hasMore
+          state.contactsPagination.allContactsLoaded = !hasMore
+        })
+
+        logger.log(
+          `[ContactsStore] Priority loaded: ${addedCount} contacts (total: ${newLoadedCount}/${latestState.contactsPagination.totalCount})`,
+        )
+
+        // Get updated state for loop condition check
+      }
+
+      logger.log(
+        `[ContactsStore] ✅ Priority loading complete. Loaded ${get().contactsPagination.loadedCount} contacts`,
+      )
+    } catch (error) {
+      logger.error('[ContactsStore] Priority loading failed:', error)
+
+      set(state => {
+        state.contactsErrors.fetch = 'Failed to load contacts for large page size'
+      })
+    } finally {
+      set(state => {
+        state.contactsLoading.fetching = false
+        state.contactsInternal.backgroundLoadingActive = false
+      })
+    }
+  },
+
+  /**
    * Remueve contacts del cache
    */
   contactsRemoveContacts: (contactIds: string[]) => {

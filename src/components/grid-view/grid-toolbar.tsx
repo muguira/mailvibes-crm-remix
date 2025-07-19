@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Filter, Search, Plus, Bell, X, Calendar as CalendarIcon, Calendar, User, Mail, Phone, Building2, CreditCard, Eye, Pin, Trash2, Loader2 } from "lucide-react";
 import { Column, GridRow } from './types';
@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/dialog";
 import { v4 as uuidv4 } from 'uuid';
 import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
-import { useStore } from '@/stores';
 import { toast } from '@/hooks/use-toast';
 
 interface GridToolbarProps {
@@ -102,6 +101,25 @@ export function GridToolbar({
       });
     }
   }, [isAddContactOpen]);
+
+  // Sync local filter state with global activeFilters when they change externally
+  useEffect(() => {
+    setSelectedColumns(activeFilters.columns || []);
+    setFilterValues(activeFilters.values || {});
+  }, [activeFilters]);
+
+  // Auto-apply Hidden Columns filter when it changes (special case for immediate feedback)
+  useEffect(() => {
+    const hiddenColumnsValue = filterValues['__hidden_columns__'];
+    const isHiddenColumnsSelected = selectedColumns.includes('__hidden_columns__');
+    
+    if (hiddenColumnsValue && isHiddenColumnsSelected) {
+      handleApplyFilters();
+    } else if (!hiddenColumnsValue && !isHiddenColumnsSelected) {
+      // If hidden columns filter was removed, also auto-apply
+      handleApplyFilters();
+    }
+  }, [filterValues['__hidden_columns__'], selectedColumns]);
   
   // Detect mobile devices based on screen width
   useEffect(() => {
@@ -127,15 +145,44 @@ export function GridToolbar({
     return () => window.removeEventListener('resize', checkMobile);
   }, [searchTerm]);
   
-  // Filter columns to show only those with filterable types, excluding contact info columns
-  const filterColumns = columns.filter(col => {
+  // Filter columns to show only those with filterable types, excluding contact info columns and corrupted columns
+  const baseFilterColumns = columns.filter(col => {
     // Exclude contact info columns that are covered by search
     const excludedColumns = ['name', 'phone', 'email', 'linkedin', 'x', 'instagram', 'facebook', 'twitter'];
     
-    // Only include filterable column types and exclude contact info columns
+    // Exclude corrupted columns from my previous failed attempts
+    const corruptedColumns = [
+      'Column-bce76de8',
+      'Column-bce76de8_temp_visible', 
+      'Column-c8787149',
+      'User_id', // Internal field that shouldn't be filterable
+      'user_id' // Lowercase version
+    ];
+    
+    // Only include filterable column types and exclude problematic columns
     return ['text', 'number', 'date', 'status', 'currency'].includes(col.type) && 
-           !excludedColumns.includes(col.id);
+           !excludedColumns.includes(col.id) &&
+           !corruptedColumns.includes(col.id) &&
+           !col.id.includes('temp_visible'); // Extra safety for any temp columns
   });
+
+  // Add Hidden Columns as filter option when hidden columns exist
+  const filterColumns = useMemo(() => {
+    const columns = [...baseFilterColumns];
+    
+    // Add Hidden Columns filter if there are hidden columns available
+    if (hiddenColumns && hiddenColumns.length > 0) {
+      columns.push({
+        id: '__hidden_columns__',
+        title: 'Hidden Columns',
+        type: 'text', // Simple type for the hidden columns filter
+        width: 200,
+        editable: false
+      });
+    }
+    
+    return columns;
+  }, [baseFilterColumns, hiddenColumns]);
   
   // Helper function to apply filters
   function handleApplyFilters() {
@@ -303,11 +350,7 @@ export function GridToolbar({
         revenue: ''
       });
       
-      // Add to contacts store immediately for instant visibility
-      const { contactsAddContact } = useStore.getState();
-      contactsAddContact(newContact);
-      
-      // Also add via the useLeadsRows hook for database persistence
+      // Add contact via useLeadsRows hook - it handles both store update and database persistence
       await addContact(newContact);
       
       // Show a brief success message that auto-dismisses quickly
@@ -383,8 +426,39 @@ export function GridToolbar({
           {selectedColumns.length > 0 && (
             <div className="flex items-center gap-2">
               {selectedColumns.map(columnId => {
-                const column = columns.find(col => col.id === columnId);
+                                const column = columns.find(col => col.id === columnId);
                 const filterValue = filterValues[columnId];
+                
+                // Handle special Hidden Columns filter badge
+                if (columnId === '__hidden_columns__' && filterValue) {
+                  return (
+                    <Badge key={columnId} variant="outline" className="gap-1 max-w-[200px] bg-blue-50 text-blue-700 border-blue-200">
+                      <span className="truncate">Hidden Columns</span>
+                      <X 
+                        size={12} 
+                        className="cursor-pointer flex-shrink-0 hover:text-red-600" 
+                        onClick={() => {
+                          // Remove hidden columns filter and apply changes immediately
+                          const newSelectedColumns = selectedColumns.filter(id => id !== columnId);
+                          const newFilterValues = { ...filterValues };
+                          delete newFilterValues[columnId];
+                          
+                          setSelectedColumns(newSelectedColumns);
+                          setFilterValues(newFilterValues);
+                          
+                          // Apply the updated filters immediately
+                          onApplyFilters({
+                            columns: newSelectedColumns,
+                            values: newFilterValues,
+                            columnFilters: []
+                          });
+                        }}
+                      />
+                    </Badge>
+                  );
+                }
+                
+                // Regular column filters
                 if (!column || !filterValue) return null;
                 
                 let badgeText = column.title;

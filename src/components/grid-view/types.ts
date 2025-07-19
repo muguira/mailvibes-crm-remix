@@ -55,8 +55,10 @@ export interface GridContainerProps {
   ) => void
   onHideColumn?: (columnId: string) => void
   onUnhideColumn?: (columnId: string) => void
+  onShowColumn?: (columnId: string) => void // New: Show column permanently
   onDeleteContacts?: (contactIds: string[]) => Promise<void>
   cellUpdateLoading?: Set<string>
+  isColumnTemporarilyVisible?: (columnId: string) => boolean // New: Check if column is temporarily visible
 }
 
 // Props for the grid toolbar

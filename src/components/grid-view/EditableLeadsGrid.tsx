@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Database } from 'lucide-react';
 import { useStore } from '@/stores';
@@ -66,6 +66,7 @@ export function EditableLeadsGrid() {
     currentPage,
     pageSize,
     columns,
+    hiddenColumns,
     forceRenderKey,
     deletedColumnIds,
     deleteColumnDialog,
@@ -120,6 +121,16 @@ export function EditableLeadsGrid() {
   );
 
   /**
+   * Helper function to check if a column is temporarily visible via Hidden Columns filter
+   * Used by ContextMenu to determine whether to show "Hide column" or "Show column"
+   */
+  const isColumnTemporarilyVisible = useCallback((columnId: string) => {
+    const hiddenColumnsFilter = activeFilters.values['__hidden_columns__'] as any;
+    const showHiddenColumns = hiddenColumnsFilter?.showHidden === true;
+    return showHiddenColumns && hiddenColumns.some(col => col.id === columnId);
+  }, [activeFilters.values, hiddenColumns]);
+
+  /**
    * Initialize grid component using custom hook
    * Handles loading stored columns, hidden columns, and setting up render functions
    */
@@ -169,8 +180,42 @@ export function EditableLeadsGrid() {
     pageSize,
     currentPage,
     columnFilters,
-  });
-  
+  });  
+
+  /**
+   * Compute display columns: show hidden columns temporarily when filter is active
+   * This is the CORRECT implementation: simple, no state corruption, no duplicate keys
+   */
+  const displayColumns = useMemo(() => {
+    const hiddenColumnsFilter = activeFilters.values['__hidden_columns__'] as any;
+    const showHiddenColumns = hiddenColumnsFilter?.showHidden === true;
+
+    if (showHiddenColumns && hiddenColumns.length > 0) {
+      // Insert hidden columns at their original positions
+      let result = [...columns];
+      
+      hiddenColumns.forEach((hiddenCol: any) => {
+        const originalIndex = hiddenCol.originalIndex;
+        if (originalIndex !== undefined && originalIndex >= 0) {
+          // Insert at original position, but ensure it doesn't exceed current array length
+          const insertAt = Math.min(originalIndex, result.length);
+          result.splice(insertAt, 0, hiddenCol);
+        } else {
+          // If no original index, add at the end
+          result.push(hiddenCol);
+        }
+      });
+      
+      // Remove duplicates (in case a column exists in both arrays)
+      const uniqueColumns = Array.from(
+        new Map(result.map(col => [col.id, col])).values()
+      );
+      
+      return uniqueColumns;
+    }
+    return columns;
+  }, [columns, hiddenColumns, activeFilters.values]);
+   
   /**
    * Leads rows hook for mutation operations
    * Provides functions for updating cells, deleting contacts, and bulk column operations
@@ -586,7 +631,7 @@ export function EditableLeadsGrid() {
       <div className="flex-1 overflow-hidden relative">
         <GridViewContainer 
           key={gridKey}
-          columns={columns} 
+          columns={displayColumns} 
           data={rows}
           firstRowIndex={(currentPage - 1) * pageSize}
           onCellChange={handleCellChange}
@@ -595,7 +640,9 @@ export function EditableLeadsGrid() {
           onDeleteColumn={handleDeleteColumn}
           onHideColumn={handleHideColumn}
           onUnhideColumn={handleUnhideColumn}
+          onShowColumn={handleUnhideColumn} // Show permanently = unhide
           onDeleteContacts={handleDeleteContacts}
+          isColumnTemporarilyVisible={isColumnTemporarilyVisible}
         />
       </div>
       <GridPagination
