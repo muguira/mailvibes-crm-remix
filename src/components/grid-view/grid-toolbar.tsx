@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/dialog";
 import { v4 as uuidv4 } from 'uuid';
 import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
-import { useStore } from '@/stores';
 import { toast } from '@/hooks/use-toast';
 
 interface GridToolbarProps {
@@ -351,11 +350,7 @@ export function GridToolbar({
         revenue: ''
       });
       
-      // Add to contacts store immediately for instant visibility
-      const { contactsAddContact } = useStore.getState();
-      contactsAddContact(newContact);
-      
-      // Also add via the useLeadsRows hook for database persistence
+      // Add contact via useLeadsRows hook - it handles both store update and database persistence
       await addContact(newContact);
       
       // Show a brief success message that auto-dismisses quickly
