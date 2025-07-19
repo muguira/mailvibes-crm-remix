@@ -203,9 +203,18 @@ const useEmailsStore = create<EmailsStore>()(
           throw new Error('No authenticated user')
         }
 
+        console.log('🔍 [EmailsStore] loadEmailsFromDatabase called:', {
+          contactEmail,
+          userId: currentUserId,
+          offset,
+          limit,
+        })
+
         try {
-          // Query emails with their attachments
-          const { data, error, count } = await supabase
+          // Get more emails than needed to filter locally (JSONB cs operator is unreliable)
+          const fetchLimit = Math.max(limit * 5, 200) // Increased: Get at least 200 or 5x the limit
+
+          const { data, error } = await supabase
             .from('emails')
             .select(
               `
@@ -218,30 +227,128 @@ const useEmailsStore = create<EmailsStore>()(
                 size_bytes, inline, content_id
               )
             `,
-              { count: 'exact' },
             )
             .eq('user_id', currentUserId)
-            .or(
-              `from_email.eq.${contactEmail},to_emails.cs.["${contactEmail}"],cc_emails.cs.["${contactEmail}"],bcc_emails.cs.["${contactEmail}"]`,
-            )
             .order('date', { ascending: false })
-            .range(offset, offset + limit - 1)
+            .limit(fetchLimit)
 
           if (error) throw error
 
-          const convertedEmails = (data || []).map(get().convertDatabaseEmail)
+          console.log('🔍 [EmailsStore] Raw database results:', {
+            totalFetched: data?.length || 0,
+            contactEmail,
+            sampleEmails: (data || []).slice(0, 3).map(email => ({
+              from: email.from_email,
+              to: email.to_emails,
+              subject: email.subject,
+            })),
+          })
+
+          // Filter emails locally for this contact
+          const filteredData = (data || []).filter(email => {
+            // Check from_email
+            if (email.from_email === contactEmail) {
+              return true
+            }
+
+            // Check to_emails (stored as JSONB array)
+            if (email.to_emails) {
+              try {
+                const toEmails = Array.isArray(email.to_emails) ? email.to_emails : JSON.parse(String(email.to_emails))
+                if (
+                  toEmails.some(
+                    recipient =>
+                      (typeof recipient === 'object' && recipient.email === contactEmail) ||
+                      (typeof recipient === 'string' && recipient === contactEmail),
+                  )
+                ) {
+                  return true
+                }
+              } catch (e) {
+                // Fallback to string search
+                const toEmailsStr =
+                  typeof email.to_emails === 'string' ? email.to_emails : String(email.to_emails || '')
+                if (toEmailsStr.includes(contactEmail)) {
+                  return true
+                }
+              }
+            }
+
+            // Check cc_emails
+            if (email.cc_emails) {
+              try {
+                const ccEmails = Array.isArray(email.cc_emails) ? email.cc_emails : JSON.parse(String(email.cc_emails))
+                if (
+                  ccEmails.some(
+                    recipient =>
+                      (typeof recipient === 'object' && recipient.email === contactEmail) ||
+                      (typeof recipient === 'string' && recipient === contactEmail),
+                  )
+                ) {
+                  return true
+                }
+              } catch (e) {
+                const ccEmailsStr = String(email.cc_emails || '')
+                if (ccEmailsStr.includes(contactEmail)) {
+                  return true
+                }
+              }
+            }
+
+            // Check bcc_emails
+            if (email.bcc_emails) {
+              try {
+                const bccEmails = Array.isArray(email.bcc_emails)
+                  ? email.bcc_emails
+                  : JSON.parse(String(email.bcc_emails))
+                if (
+                  bccEmails.some(
+                    recipient =>
+                      (typeof recipient === 'object' && recipient.email === contactEmail) ||
+                      (typeof recipient === 'string' && recipient === contactEmail),
+                  )
+                ) {
+                  return true
+                }
+              } catch (e) {
+                const bccEmailsStr = String(email.bcc_emails || '')
+                if (bccEmailsStr.includes(contactEmail)) {
+                  return true
+                }
+              }
+            }
+
+            return false
+          })
+
+          console.log('🔍 [EmailsStore] Filtered results:', {
+            totalFiltered: filteredData.length,
+            contactEmail,
+            matchingEmails: filteredData.slice(0, 3).map(email => ({
+              from: email.from_email,
+              to: email.to_emails,
+              subject: email.subject,
+              date: email.date,
+            })),
+          })
+
+          // Apply pagination to filtered results
+          const paginatedData = filteredData.slice(offset, offset + limit)
+
+          const convertedEmails = paginatedData.map(get().convertDatabaseEmail)
 
           logger.info(
-            `[EmailsStore] Loaded ${convertedEmails.length} emails for ${contactEmail} (offset: ${offset}, total: ${count})`,
+            `[EmailsStore] Loaded ${convertedEmails.length} emails for ${contactEmail} (offset: ${offset}, filtered from ${filteredData.length} total matches)`,
           )
 
           return {
             emails: convertedEmails,
-            hasMore: (count || 0) > offset + limit,
-            totalCount: count || 0,
+            hasMore: filteredData.length > offset + limit,
+            totalCount: filteredData.length,
           }
         } catch (error) {
           logger.error('Error loading emails from database:', error)
+          console.error('🔍 [EmailsStore] Database error:', error)
           throw error
         }
       },
@@ -251,6 +358,13 @@ const useEmailsStore = create<EmailsStore>()(
        */
       initializeContactEmails: async (contactEmail: string, userId: string) => {
         const { emailsPerPage } = get()
+
+        console.log('🔍 [EmailsStore] initializeContactEmails called:', {
+          contactEmail,
+          userId,
+          emailsPerPage,
+          currentState: get().emailsByContact[contactEmail]?.length || 0,
+        })
 
         // Set current user
         set(state => {

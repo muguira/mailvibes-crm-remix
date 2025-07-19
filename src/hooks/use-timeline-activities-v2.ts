@@ -112,6 +112,14 @@ const sortActivitiesByPriorityAndDate = (activities: TimelineActivity[]): Timeli
 export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options = {}): UseTimelineActivitiesV2Return {
   const { contactId, contactEmail, includeEmails = true, autoInitialize = true } = options
 
+  console.log('🔍 [useTimelineActivitiesV2] Hook called with:', {
+    contactId,
+    contactEmail,
+    includeEmails,
+    autoInitialize,
+    options,
+  })
+
   // Performance monitoring
   const { logSummary } = usePerformanceMonitor('useTimelineActivitiesV2')
 
@@ -136,18 +144,36 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
 
   // Initialize emails for this contact if needed - MOVED TO useEffect to prevent render-time setState
   useEffect(() => {
-    if (!autoInitialize || !includeEmails || !contactEmail || !authUser?.id) return
+    if (!autoInitialize || !includeEmails || !contactEmail || !authUser?.id) {
+      console.log('🔍 [useTimelineActivitiesV2] Skipping initialization:', {
+        autoInitialize,
+        includeEmails,
+        contactEmail,
+        authUserId: authUser?.id,
+      })
+      return
+    }
 
     // Check if we already initialized this contact
     const initKey = `${contactEmail}-${authUser.id}`
-    if (initializedContactsRef.current.has(initKey)) return
+    if (initializedContactsRef.current.has(initKey)) {
+      console.log('🔍 [useTimelineActivitiesV2] Already initialized:', initKey)
+      return
+    }
 
     // Get current state to decide if initialization is needed
     const contactEmails = getEmailsForContact(contactEmail)
     const loading = getLoadingState(contactEmail)
 
+    console.log('🔍 [useTimelineActivitiesV2] Checking initialization need:', {
+      contactEmail,
+      currentEmailsCount: contactEmails.length,
+      loading,
+      shouldInitialize: contactEmails.length === 0 && !loading,
+    })
+
     if (contactEmails.length === 0 && !loading) {
-      console.log('🔄 Initializing emails for contact:', contactEmail)
+      console.log('🔄 [useTimelineActivitiesV2] Initializing emails for contact:', contactEmail)
       initializedContactsRef.current.add(initKey)
       initializeContactEmails(contactEmail, authUser.id)
     }
@@ -177,6 +203,21 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
   const emailsLoadingMore = contactEmail ? getLoadingMoreState(contactEmail) : false
   const hasMoreEmails = contactEmail ? hasMoreEmailsFn(contactEmail) : false
   const syncStatus = contactEmail ? getSyncState(contactEmail) : 'idle'
+
+  console.log('🔍 [useTimelineActivitiesV2] Email data state:', {
+    contactEmail,
+    contactEmailsCount: contactEmails.length,
+    emailsLoading,
+    syncStatus,
+    hasMoreEmails,
+    authUserId: authUser?.id,
+    firstTwoEmails: contactEmails.slice(0, 2).map(email => ({
+      id: email.id,
+      subject: email.subject,
+      from: email.from,
+      date: email.date,
+    })),
+  })
 
   // Get pinned emails
   const { isEmailPinned } = usePinnedEmails(contactEmail)
@@ -256,7 +297,23 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
   // Combine and sort all activities
   const allActivities = useMemo(() => {
     const combined = [...timelineInternalActivities, ...timelineEmailActivities]
-    return sortActivitiesByPriorityAndDate(combined)
+    const sorted = sortActivitiesByPriorityAndDate(combined)
+
+    console.log('🔍 [useTimelineActivitiesV2] Final activities combined:', {
+      internalCount: timelineInternalActivities.length,
+      emailCount: timelineEmailActivities.length,
+      totalCombined: combined.length,
+      finalSorted: sorted.length,
+      firstThreeActivities: sorted.slice(0, 3).map(activity => ({
+        id: activity.id,
+        type: activity.type,
+        source: activity.source,
+        timestamp: activity.timestamp,
+        subject: activity.subject || 'N/A',
+      })),
+    })
+
+    return sorted
   }, [timelineInternalActivities, timelineEmailActivities])
 
   // Calculate oldest email date (for relationship date)

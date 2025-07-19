@@ -54,8 +54,9 @@ export default function ActionRow({ className = '', contact }: ActionRowProps) {
     }
   };
 
-  // Check if we should show sync option - show when there are more emails to sync
-  const shouldShowSync = contact?.email && (hasMoreEmails || contactEmails.length < 20);
+  // Check if we should show sync option - show when there might be more emails to sync
+  // Always show sync if we have less than 100 emails (reasonable assumption that Gmail should have more)
+  const shouldShowSync = contact?.email && (hasMoreEmails || contactEmails.length < 100);
 
   // Action buttons configuration - all buttons for desktop
   const desktopActions = [
