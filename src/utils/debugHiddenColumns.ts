@@ -7,6 +7,7 @@
 declare global {
   interface Window {
     debugHiddenColumns: () => void
+    fixHiddenColumnsState: () => void
     __zustand_store?: any
     editableLeadsGridHideColumn?: any
   }
@@ -68,6 +69,26 @@ export function initializeHiddenColumnsDebug() {
         hasConsoleLog: typeof console.log === 'function',
         hasLocalStorage: typeof localStorage !== 'undefined',
       })
+
+      // Check for state inconsistencies
+      if (parsedStore?.state?.columns && parsedStore?.state?.hiddenColumns) {
+        const visibleColumns = parsedStore.state.columns.map(c => c.id)
+        const hiddenColumns = parsedStore.state.hiddenColumns.map(c => c.id)
+        const intersection = visibleColumns.filter(id => hiddenColumns.includes(id))
+
+        if (intersection.length > 0) {
+          console.error('🚨 STATE INCONSISTENCY DETECTED:', {
+            message: 'Columns exist in BOTH visible and hidden arrays',
+            inconsistentColumns: intersection,
+            visibleColumnsCount: visibleColumns.length,
+            hiddenColumnsCount: hiddenColumns.length,
+            allVisibleColumns: visibleColumns,
+            allHiddenColumns: hiddenColumns,
+          })
+        } else {
+          console.log('✅ State consistency check passed')
+        }
+      }
     } catch (error) {
       console.error('❌ Error in debug function:', error)
     }
@@ -76,4 +97,64 @@ export function initializeHiddenColumnsDebug() {
   }
 
   console.log('🔧 Hidden columns debug function available: window.debugHiddenColumns()')
+
+  // Add a repair function
+  window.fixHiddenColumnsState = () => {
+    console.group('🔧 FIXING HIDDEN COLUMNS STATE')
+
+    try {
+      const zustandStore = localStorage.getItem('mailvibes-crm-store')
+      if (!zustandStore) {
+        console.log('❌ No Zustand store found')
+        return
+      }
+
+      const parsedStore = JSON.parse(zustandStore)
+      if (!parsedStore.state) {
+        console.log('❌ No state found in store')
+        return
+      }
+
+      const { columns, hiddenColumns } = parsedStore.state
+      if (!columns || !hiddenColumns) {
+        console.log('❌ Columns or hiddenColumns not found')
+        return
+      }
+
+      const visibleColumnIds = columns.map(c => c.id)
+      const hiddenColumnIds = hiddenColumns.map(c => c.id)
+      const intersection = visibleColumnIds.filter(id => hiddenColumnIds.includes(id))
+
+      if (intersection.length === 0) {
+        console.log('✅ No inconsistencies found')
+        return
+      }
+
+      console.log('🔧 Fixing inconsistencies for columns:', intersection)
+
+      // Remove inconsistent columns from visible columns
+      const cleanedColumns = columns.filter(col => !hiddenColumnIds.includes(col.id))
+
+      parsedStore.state.columns = cleanedColumns
+
+      // Save back to localStorage
+      localStorage.setItem('mailvibes-crm-store', JSON.stringify(parsedStore))
+
+      console.log('✅ Fixed state:', {
+        removedFromVisible: intersection,
+        newVisibleCount: cleanedColumns.length,
+        hiddenCount: hiddenColumns.length,
+      })
+
+      console.log('🔄 Please refresh the page to see changes')
+    } catch (error) {
+      console.error('❌ Error fixing state:', error)
+    }
+
+    console.groupEnd()
+  }
+
+  console.log('🔧 Debug functions available:')
+  console.log('  - window.debugHiddenColumns() - Analyze state')
+  console.log('  - window.fixHiddenColumnsState() - Fix inconsistencies')
 }

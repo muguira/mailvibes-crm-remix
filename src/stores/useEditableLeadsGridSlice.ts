@@ -525,7 +525,18 @@ export const useEditableLeadsGridSlice: StateCreator<
       // Add to hidden columns list with original index (prevent duplicates)
       const isAlreadyHidden = hiddenColumns.some(col => col.id === columnId)
       if (isAlreadyHidden) {
-        console.warn('🟡 [HIDE COLUMN] Column already hidden, skipping duplicate:', columnId)
+        console.warn('🟡 [HIDE COLUMN] Column already hidden, skipping duplicate:', {
+          columnId,
+          currentHiddenColumns: hiddenColumns.map(c => ({ id: c.id, title: c.title })),
+          currentVisibleColumns: columns.map(c => ({ id: c.id, title: c.title })),
+          issue: 'Column exists in hiddenColumns but UI still shows it',
+        })
+
+        // Show instructions for fixing
+        console.log('🔧 [FIX SUGGESTION] Run this in console to diagnose and fix:')
+        console.log('  window.debugHiddenColumns()   - See detailed state')
+        console.log('  window.fixHiddenColumnsState() - Auto-fix inconsistencies')
+
         return
       }
 

@@ -201,6 +201,15 @@ export function EditableLeadsGrid() {
     const hiddenColumnsFilter = activeFilters.values['__hidden_columns__'] as any;
     const showHiddenColumns = hiddenColumnsFilter?.showHidden === true;
 
+    console.log('🔵 [DISPLAY COLUMNS] Computing display columns:', {
+      baseColumnsCount: columns.length,
+      hiddenColumnsCount: hiddenColumns.length,
+      showHiddenColumns,
+      baseColumnIds: columns.map(c => c.id),
+      hiddenColumnIds: hiddenColumns.map(c => c.id),
+      activeFilter: hiddenColumnsFilter
+    });
+
     if (showHiddenColumns && hiddenColumns.length > 0) {
       // Insert hidden columns at their original positions
       let result = [...columns];
@@ -222,8 +231,19 @@ export function EditableLeadsGrid() {
         new Map(result.map(col => [col.id, col])).values()
       );
       
+      console.log('🔵 [DISPLAY COLUMNS] With hidden columns shown:', {
+        resultCount: uniqueColumns.length,
+        resultIds: uniqueColumns.map(c => c.id)
+      });
+      
       return uniqueColumns;
     }
+
+    console.log('🔵 [DISPLAY COLUMNS] Normal mode (hidden columns hidden):', {
+      displayCount: columns.length,
+      displayIds: columns.map(c => c.id)
+    });
+    
     return columns;
   }, [columns, hiddenColumns, activeFilters.values]);
    
