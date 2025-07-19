@@ -16,11 +16,6 @@ import type {
   IColumnOperationLoading,
   IDeleteColumnDialog,
   IEditableLeadsGridErrorState,
-  IEditableLeadsGridLoadingState,
-  ILastCellEdit,
-  ILastContactDeletion,
-  ILastInitialization,
-  IColumnInsertConfig,
 } from '@/types/store/editable-leads-grid'
 import { Column } from '@/components/grid-view/types'
 import { INITIAL_EDITABLE_LEADS_GRID_STATE } from '@/constants/store/editable-leads-grid'
