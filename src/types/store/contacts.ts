@@ -98,6 +98,13 @@ export interface TContactsStore {
   contactsResumeBackgroundLoading: () => void
 
   /**
+   * Asegura que se hayan cargado el mínimo de contactos requeridos
+   * Se usa cuando el usuario selecciona page sizes grandes (500, 1000)
+   * @param minimumRequired - Número mínimo de contactos que deben estar cargados
+   */
+  contactsEnsureMinimumLoaded: (minimumRequired: number) => Promise<void>
+
+  /**
    * Limpia todo el cache (usado en logout)
    */
   contactsClear: () => void

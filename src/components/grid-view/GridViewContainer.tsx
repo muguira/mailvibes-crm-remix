@@ -296,7 +296,7 @@ export function GridViewContainer({
   };
 
   return (
-    <div className="grid-view h-full" ref={containerRef}>
+    <div className="grid-view h-full pb-9" ref={containerRef}>
       <GridToolbar
         listType={listType}
         searchTerm={searchTerm}
