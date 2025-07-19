@@ -25,7 +25,9 @@ export function GridViewContainer({
   onInsertColumn,
   onHideColumn,
   onUnhideColumn,
-  onDeleteContacts
+  onShowColumn,
+  onDeleteContacts,
+  isColumnTemporarilyVisible
 }: GridContainerProps) {
   // Static configuration constants
   const listName = 'All Leads';
@@ -402,6 +404,7 @@ export function GridViewContainer({
               onAddColumn={handleMainGridAddColumn}
               onDeleteColumn={onDeleteColumn}
               onHideColumn={onHideColumn}
+              onShowColumn={onShowColumn}
               onContextMenu={handleOpenContextMenu}
               contextMenuColumn={contextMenuColumn}
               contextMenuPosition={contextMenuPosition}
@@ -412,6 +415,7 @@ export function GridViewContainer({
               onInsertColumn={onInsertColumn}
               allColumns={columns}
               selectedRowIds={selectedRowIds}
+              isColumnTemporarilyVisible={isColumnTemporarilyVisible}
             />
           </>
         )}

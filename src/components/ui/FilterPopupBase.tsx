@@ -215,6 +215,11 @@ export function FilterPopupBase({
       return filterValue.number1 !== undefined || filterValue.value !== undefined;
     }
     
+    // Hidden columns filter
+    if (filterValue.type === 'hidden_columns') {
+      return filterValue.showHidden === true;
+    }
+    
     return false;
   };
 
@@ -283,37 +288,40 @@ export function FilterPopupBase({
           </div>
         ) : (
           // Column selection view
-          <div className="border-b border-gray-100 p-3 overflow-y-auto max-h-[300px]">
-            <p className="text-xs font-medium mb-2 text-gray-500">Select Columns to Filter</p>
-            {columns.map(column => (
-              <div 
-                key={column.id} 
-                className={cn(
-                  "flex items-center justify-between py-3 px-3 rounded-md cursor-pointer hover:bg-gray-50 transition-colors border border-transparent",
-                  selectedColumns.includes(column.id) ? "bg-blue-50 border-blue-200" : "hover:border-gray-200"
-                )}
-                onClick={() => {
-                  // Always navigate to filter details when clicking a column
-                  if (!selectedColumns.includes(column.id)) {
-                    // If not selected, add it to selected columns
-                    onSelectedColumnsChange([...selectedColumns, column.id]);
-                  }
-                  // Always open the filter details
-                  setSelectedField(column.id);
-                }}
-              >
-                <span className={cn(
-                  "text-sm font-medium",
-                  selectedColumns.includes(column.id) ? "text-primary" : "text-gray-900"
-                )}>
-                  {column.title}
-                </span>
-                <span className="text-xs text-gray-400 capitalize">
-                  {column.type || 'text'}
-                </span>
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="border-b border-gray-100 p-3 overflow-y-auto max-h-[300px]">
+              <p className="text-xs font-medium mb-2 text-gray-500">Select Columns to Filter</p>
+              {columns.map(column => (
+                <div 
+                  key={column.id} 
+                  className={cn(
+                    "flex items-center justify-between py-3 px-3 rounded-md cursor-pointer hover:bg-gray-50 transition-colors border border-transparent",
+                    selectedColumns.includes(column.id) ? "bg-blue-50 border-blue-200" : "hover:border-gray-200"
+                  )}
+                  onClick={() => {
+                    // Always navigate to filter details when clicking a column
+                    if (!selectedColumns.includes(column.id)) {
+                      // If not selected, add it to selected columns
+                      onSelectedColumnsChange([...selectedColumns, column.id]);
+                    }
+                    // Always open the filter details
+                    setSelectedField(column.id);
+                  }}
+                >
+                  <span className={cn(
+                    "text-sm font-medium",
+                    selectedColumns.includes(column.id) ? "text-primary" : "text-gray-900"
+                  )}>
+                    {column.title}
+                  </span>
+                  <span className="text-xs text-gray-400 capitalize">
+                    {column.type || 'text'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+          </>
         )}
         
         <div className="p-3 border-t border-gray-100">

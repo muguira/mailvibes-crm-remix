@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Copy, Clipboard as Paste, ChevronLeft, ChevronRight, Trash2, ArrowDown, ArrowUp, EyeOff } from 'lucide-react';
+import { Copy, Clipboard as Paste, ChevronLeft, ChevronRight, Trash2, ArrowDown, ArrowUp, EyeOff, Eye } from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;
@@ -13,9 +13,11 @@ interface ContextMenuProps {
   onInsertRight: (columnIndex: number) => void;
   onDelete: (columnId: string) => void;
   onHide?: (columnId: string) => void;
+  onShow?: (columnId: string) => void; // New: Function to show column permanently
   onSortAZ: (columnId: string) => void;
   onSortZA: (columnId: string) => void;
   isVisible: boolean;
+  isTemporarilyVisible?: boolean; // New: Flag for columns shown by Hidden Columns filter
 }
 
 export function ContextMenu({
@@ -30,9 +32,11 @@ export function ContextMenu({
   onInsertRight,
   onDelete,
   onHide,
+  onShow,
   onSortAZ,
   onSortZA,
-  isVisible
+  isVisible,
+  isTemporarilyVisible = false
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [adjustedPosition, setAdjustedPosition] = useState({ x, y });
@@ -129,13 +133,29 @@ export function ContextMenu({
           <span>Delete column</span>
         </button>
         
-        {onHide && (
+        {(onHide || onShow) && (
           <button 
             className="flex w-full items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-            onClick={() => { onHide(columnId); onClose(); }}
+            onClick={() => { 
+              if (isTemporarilyVisible && onShow) {
+                onShow(columnId); // Show permanently
+              } else if (onHide) {
+                onHide(columnId); // Hide column
+              }
+              onClose(); 
+            }}
           >
-            <EyeOff size={16} className="mr-2 text-gray-500" />
-            <span>Hide this column</span>
+            {isTemporarilyVisible ? (
+              <>
+                <Eye size={16} className="mr-2 text-gray-500" />
+                <span>Show column</span>
+              </>
+            ) : (
+              <>
+                <EyeOff size={16} className="mr-2 text-gray-500" />
+                <span>Hide this column</span>
+              </>
+            )}
           </button>
         )}
       </div>

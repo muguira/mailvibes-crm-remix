@@ -42,6 +42,7 @@ export interface MainGridViewProps {
   onInsertColumn: (direction: 'left' | 'right', targetIndex: number, headerName: string, columnType: string, config?: any) => void;
   onDeleteColumn: (columnId: string) => void;
   onHideColumn: (columnId: string) => void;
+  onShowColumn?: (columnId: string) => void;
   onContextMenu: (columnId: string | null, position?: { x: number, y: number }) => void;
   contextMenuColumn?: string | null;
   contextMenuPosition?: { x: number, y: number } | null;
@@ -51,6 +52,7 @@ export interface MainGridViewProps {
   setEditingCell: (cell: EditingCell | null) => void;
   allColumns: Column[];
   selectedRowIds?: Set<string>;
+  isColumnTemporarilyVisible?: (columnId: string) => boolean;
 }
 
 export const MainGridView = forwardRef(function MainGridView({
@@ -66,6 +68,7 @@ export const MainGridView = forwardRef(function MainGridView({
   onInsertColumn,
   onDeleteColumn,
   onHideColumn,
+  onShowColumn,
   onContextMenu,
   contextMenuColumn,
   contextMenuPosition,
@@ -74,7 +77,8 @@ export const MainGridView = forwardRef(function MainGridView({
   editingCell,
   setEditingCell,
   allColumns,
-  selectedRowIds
+  selectedRowIds,
+  isColumnTemporarilyVisible
 }: MainGridViewProps, ref) {
   const gridRef = useRef<any>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -1552,9 +1556,17 @@ export const MainGridView = forwardRef(function MainGridView({
             }
             if (onContextMenu) onContextMenu(null);
           }}
+          onShow={(columnId) => {
+            // Show column permanently (unhide it)
+            if (onShowColumn) {
+              onShowColumn(columnId);
+            }
+            if (onContextMenu) onContextMenu(null);
+          }}
           onSortAZ={handleSortAZ}
           onSortZA={handleSortZA}
           isVisible={!!contextMenuColumn}
+          isTemporarilyVisible={isColumnTemporarilyVisible ? isColumnTemporarilyVisible(contextMenuColumn) : false}
         />
       )}
 

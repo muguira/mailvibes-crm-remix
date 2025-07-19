@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -601,8 +601,58 @@ export function DropdownFilterSelector({ column, value, onChange, data }: Filter
   }
 }
 
+// Hidden Columns Filter Component - Simple checkbox to show/hide columns temporarily
+export function HiddenColumnsFilterSelector({ column, value, onChange }: FilterValueSelectorProps) {
+  const [showHiddenColumns, setShowHiddenColumns] = useState(value?.showHidden || false);
+
+  const handleCheckboxChange = useCallback((checked: boolean) => {
+    setShowHiddenColumns(checked);
+    onChange({
+      showHidden: checked,
+      type: 'hidden_columns'
+    });
+  }, [onChange]);
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <Label className="text-xs font-medium text-gray-600">Hidden Columns Visibility</Label>
+        <div className="mt-2">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="show-hidden-columns"
+              checked={showHiddenColumns}
+              onCheckedChange={handleCheckboxChange}
+            />
+            <Label
+              htmlFor="show-hidden-columns"
+              className="text-sm cursor-pointer"
+            >
+              Show hidden columns temporarily
+            </Label>
+          </div>
+        </div>
+      </div>
+      
+      <div className="text-xs text-gray-500 mt-2">
+        When enabled, hidden columns will be visible. Remove this filter to hide them again.
+      </div>
+    </div>
+  );
+}
+
 // Main Filter Value Selector Component
 export function FilterValueSelector({ column, value, onChange, data }: FilterValueSelectorProps) {
+  // Safety check - return null if column is undefined
+  if (!column) {
+    return null;
+  }
+  
+  // Handle special Hidden Columns filter
+  if (column.id === '__hidden_columns__') {
+    return <HiddenColumnsFilterSelector column={column} value={value} onChange={onChange} data={data} />;
+  }
+  
   // Use dropdown filter for specific default columns that should show actual data values
   const dropdownColumns = ['company', 'industry', 'source', 'jobTitle', 'associatedDeals', 'importListName'];
   
