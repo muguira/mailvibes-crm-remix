@@ -36,8 +36,7 @@ export const useEditableGridInitialization = (
   const currentUserIdRef = useRef<string | null>(null)
 
   // Get store functions
-  const { editableLeadsGridInitialize, editableLeadsGridLoadStoredColumns, editableLeadsGridLoadHiddenColumns } =
-    useStore()
+  const { editableLeadsGridInitialize, editableLeadsGridLoadStoredColumns } = useStore()
 
   useEffect(() => {
     let isMounted = true
@@ -108,8 +107,8 @@ export const useEditableGridInitialization = (
 
         if (!isMounted) return
 
-        // Step 3: Load hidden columns as part of initialization
-        await editableLeadsGridLoadHiddenColumns(user)
+        // Step 3: Hidden columns are automatically loaded by Zustand persist middleware
+        // No manual loading needed
 
         if (isMounted) {
           setIsInitialized(true)
@@ -146,13 +145,7 @@ export const useEditableGridInitialization = (
     return () => {
       isMounted = false
     }
-  }, [
-    user?.id,
-    renderNameLink,
-    editableLeadsGridInitialize,
-    editableLeadsGridLoadStoredColumns,
-    editableLeadsGridLoadHiddenColumns,
-  ])
+  }, [user?.id, renderNameLink, editableLeadsGridInitialize, editableLeadsGridLoadStoredColumns])
 
   return {
     isInitialized,
