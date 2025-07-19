@@ -8,7 +8,9 @@ import {
   CalendarDays,
   AlertCircle,
   Download,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  Minus
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -188,6 +190,7 @@ export default function TimelineComposer({
   });
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [showPermissionsAlert, setShowPermissionsAlert] = useState(false);
+  const [showAdvancedEmailFields, setShowAdvancedEmailFields] = useState(false);
   const { recordId } = useParams();
   const effectiveContactId = contactId || recordId;
   const { createActivity } = useActivities(effectiveContactId);
@@ -205,6 +208,13 @@ export default function TimelineComposer({
       }));
     }
   }, [contactEmail]);
+
+  // Reset advanced fields when switching away from email type
+  useEffect(() => {
+    if (selectedActivityType !== 'email') {
+      setShowAdvancedEmailFields(false);
+    }
+  }, [selectedActivityType]);
   
   // Use provided contactEmail (we'll assume it's passed from parent)
   const effectiveContactEmail = contactEmail;
@@ -241,7 +251,9 @@ export default function TimelineComposer({
     if (!emailFields.to || !emailFields.subject) {
       toast({
         title: "Error", 
-        description: "Please fill in To and Subject fields",
+        description: !emailFields.to 
+          ? "No recipient email found for this contact" 
+          : "Please enter an email subject",
         variant: "destructive",
       });
       return;
@@ -300,6 +312,7 @@ export default function TimelineComposer({
         bcc: '',
         subject: ''
       });
+      setShowAdvancedEmailFields(false); // Hide advanced fields after sending
       
       if (editor) {
         editor.commands.setContent('', false);
@@ -439,6 +452,7 @@ export default function TimelineComposer({
 
   const clearContent = () => {
     setText("");
+    setShowAdvancedEmailFields(false); // Reset advanced fields when clearing
     // Also clear the editor directly to ensure it's empty
     if (editor) {
       editor.commands.setContent('', false);
@@ -581,43 +595,7 @@ export default function TimelineComposer({
         <div className={`space-y-3 border-b border-gray-100 transition-all duration-300 ease-in-out ${
           isCompact ? 'p-2' : 'p-3'
         }`}>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-gray-700">To:</label>
-            <Input
-              type="email"
-              value={emailFields.to}
-              onChange={(e) => setEmailFields(prev => ({ ...prev, to: e.target.value }))}
-              placeholder="recipient@example.com"
-              className="h-8 text-sm"
-              disabled={isSendingEmail}
-            />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-700">CC:</label>
-              <Input
-                type="email"
-                value={emailFields.cc}
-                onChange={(e) => setEmailFields(prev => ({ ...prev, cc: e.target.value }))}
-                placeholder="cc@example.com"
-                className="h-8 text-sm"
-                disabled={isSendingEmail}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-700">BCC:</label>
-              <Input
-                type="email"
-                value={emailFields.bcc}
-                onChange={(e) => setEmailFields(prev => ({ ...prev, bcc: e.target.value }))}
-                placeholder="bcc@example.com"
-                className="h-8 text-sm"
-                disabled={isSendingEmail}
-              />
-            </div>
-          </div>
-          
+          {/* Subject Field - Always visible */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-gray-700">Subject:</label>
             <Input
@@ -630,6 +608,56 @@ export default function TimelineComposer({
               required
             />
           </div>
+
+          {/* Advanced Fields Toggle */}
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setShowAdvancedEmailFields(!showAdvancedEmailFields)}
+              className="flex items-center gap-2 text-xs text-gray-600 hover:text-gray-800 transition-colors"
+              disabled={isSendingEmail}
+            >
+              {showAdvancedEmailFields ? (
+                <Minus className="w-3 h-3" />
+              ) : (
+                <Plus className="w-3 h-3" />
+              )}
+              {showAdvancedEmailFields ? 'Hide' : 'Add'} CC/BCC
+            </button>
+            
+            {/* To field info - shown as small text */}
+            <span className="text-xs text-gray-500">
+              To: {contactEmail || emailFields.to || 'No recipient'}
+            </span>
+          </div>
+          
+          {/* CC/BCC Fields - Collapsible */}
+          {showAdvancedEmailFields && (
+            <div className="grid grid-cols-2 gap-2 animate-in slide-in-from-top-2 duration-200">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-700">CC:</label>
+                <Input
+                  type="email"
+                  value={emailFields.cc}
+                  onChange={(e) => setEmailFields(prev => ({ ...prev, cc: e.target.value }))}
+                  placeholder="cc@example.com"
+                  className="h-8 text-sm"
+                  disabled={isSendingEmail}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-700">BCC:</label>
+                <Input
+                  type="email"
+                  value={emailFields.bcc}
+                  onChange={(e) => setEmailFields(prev => ({ ...prev, bcc: e.target.value }))}
+                  placeholder="bcc@example.com"
+                  className="h-8 text-sm"
+                  disabled={isSendingEmail}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
