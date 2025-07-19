@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Phone,
@@ -22,6 +22,10 @@ import { useContactEmails } from '@/hooks/use-contact-emails-v2';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GmailConnectionModal } from '@/components/stream/GmailConnectionModal';
 import { TiptapEditor, MarkdownToolbar } from '@/components/markdown';
+import { Input } from '@/components/ui/input';
+import { useGmailStore } from '@/stores/gmail/gmailStore';
+import { toast } from '@/hooks/use-toast';
+import { GmailPermissionsAlert, useGmailPermissionsAlert } from '@/components/integrations/gmail/GmailPermissionsAlert';
 
 const ACTIVITY_TYPES = [
   { id: 'call', label: 'Call', icon: Phone },
@@ -174,11 +178,33 @@ export default function TimelineComposer({
   });
   const [isDateTimeManuallySet, setIsDateTimeManuallySet] = useState(false);
   const [editor, setEditor] = useState<any>(null);
+  
+  // Email-specific states
+  const [emailFields, setEmailFields] = useState({
+    to: contactEmail || '',
+    cc: '',
+    bcc: '',
+    subject: ''
+  });
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [showPermissionsAlert, setShowPermissionsAlert] = useState(false);
   const { recordId } = useParams();
   const effectiveContactId = contactId || recordId;
   const { createActivity } = useActivities(effectiveContactId);
   const { isConnected: isGmailConnected } = useGmailConnection();
   const isMobile = useIsMobile();
+  const gmailStore = useGmailStore();
+  const { triggerPermissionsAlert } = useGmailPermissionsAlert();
+  
+  // Update email "to" field when contactEmail changes
+  useEffect(() => {
+    if (contactEmail) {
+      setEmailFields(prev => ({
+        ...prev,
+        to: contactEmail
+      }));
+    }
+  }, [contactEmail]);
   
   // Use provided contactEmail (we'll assume it's passed from parent)
   const effectiveContactEmail = contactEmail;
@@ -202,8 +228,141 @@ export default function TimelineComposer({
                                emails.length > 0 && 
                                (hasMore || emails.length < 200);
 
+  const handleSendEmail = async () => {
+    if (!text.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter email content",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!emailFields.to || !emailFields.subject) {
+      toast({
+        title: "Error", 
+        description: "Please fill in To and Subject fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isGmailConnected) {
+      toast({
+        title: "Error",
+        description: "No Gmail account connected. Please connect Gmail to send emails.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingEmail(true);
+
+    try {
+      // Get Gmail service from store
+      const gmailService = gmailStore.service;
+      if (!gmailService) {
+        throw new Error('Gmail service not initialized');
+      }
+
+      // Send email via Gmail API
+      const result = await gmailService.sendEmail({
+        to: [emailFields.to],
+        cc: emailFields.cc ? [emailFields.cc] : undefined,
+        bcc: emailFields.bcc ? [emailFields.bcc] : undefined,
+        subject: emailFields.subject,
+        bodyHtml: text,
+        contactId: effectiveContactId
+      });
+
+      // Create activity record for the sent email
+      const activityTimestamp = new Date().toISOString();
+      
+      if (onCreateActivity) {
+        onCreateActivity({
+          type: 'email_sent',
+          content: `Email sent to ${emailFields.to}: ${emailFields.subject}`,
+          timestamp: activityTimestamp
+        });
+      } else {
+        createActivity({
+          type: 'email_sent',
+          content: `Email sent to ${emailFields.to}: ${emailFields.subject}`,
+          timestamp: activityTimestamp
+        });
+      }
+
+      // Clear form
+      setText("");
+      setEmailFields({
+        to: contactEmail || '',
+        cc: '',
+        bcc: '',
+        subject: ''
+      });
+      
+      if (editor) {
+        editor.commands.setContent('', false);
+      }
+
+      toast({
+        title: "Success",
+        description: `Email sent to ${emailFields.to}`,
+      });
+
+      logger.log("Email sent successfully:", {
+        messageId: result.messageId,
+        to: emailFields.to,
+        subject: emailFields.subject
+      });
+
+    } catch (error) {
+      logger.error("Failed to send email:", error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Check if error is due to insufficient scopes
+      if (errorMessage.includes('insufficient authentication scopes') || 
+          errorMessage.includes('insufficient scope') ||
+          errorMessage.includes('The required scopes are not present')) {
+        
+        setShowPermissionsAlert(true);
+        triggerPermissionsAlert();
+        
+        toast({
+          title: "Gmail Permissions Required",
+          description: "Please reconnect Gmail with email sending permissions.",
+          variant: "destructive",
+          action: (
+            <button 
+              onClick={() => setShowPermissionsAlert(true)}
+              className="text-white underline hover:no-underline"
+            >
+              Update Permissions
+            </button>
+          )
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: `Failed to send email: ${errorMessage}`,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   const handleSend = () => {
-    if (text.trim() && effectiveContactId) {
+    if (!text.trim()) return;
+
+    if (selectedActivityType === 'email') {
+      handleSendEmail();
+      return;
+    }
+
+    if (effectiveContactId) {
       // Use current date/time if not manually set, otherwise use the selected date/time
       let finalDate = activityDate;
       let finalTime = activityTime;
@@ -417,7 +576,80 @@ export default function TimelineComposer({
         />
       </div>
 
+      {/* Email Fields - only show when email type is selected */}
+      {selectedActivityType === 'email' && (
+        <div className={`space-y-3 border-b border-gray-100 transition-all duration-300 ease-in-out ${
+          isCompact ? 'p-2' : 'p-3'
+        }`}>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-gray-700">To:</label>
+            <Input
+              type="email"
+              value={emailFields.to}
+              onChange={(e) => setEmailFields(prev => ({ ...prev, to: e.target.value }))}
+              placeholder="recipient@example.com"
+              className="h-8 text-sm"
+              disabled={isSendingEmail}
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-700">CC:</label>
+              <Input
+                type="email"
+                value={emailFields.cc}
+                onChange={(e) => setEmailFields(prev => ({ ...prev, cc: e.target.value }))}
+                placeholder="cc@example.com"
+                className="h-8 text-sm"
+                disabled={isSendingEmail}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-700">BCC:</label>
+              <Input
+                type="email"
+                value={emailFields.bcc}
+                onChange={(e) => setEmailFields(prev => ({ ...prev, bcc: e.target.value }))}
+                placeholder="bcc@example.com"
+                className="h-8 text-sm"
+                disabled={isSendingEmail}
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-gray-700">Subject:</label>
+            <Input
+              type="text"
+              value={emailFields.subject}
+              onChange={(e) => setEmailFields(prev => ({ ...prev, subject: e.target.value }))}
+              placeholder="Email subject"
+              className="h-8 text-sm"
+              disabled={isSendingEmail}
+              required
+            />
+          </div>
+        </div>
+      )}
 
+      {/* Gmail Permissions Alert */}
+      {showPermissionsAlert && (
+        <div className="p-3 border-b border-gray-100">
+          <GmailPermissionsAlert 
+            onReconnectStart={() => {
+              logger.info('Gmail reconnection started from TimelineComposer');
+            }}
+            onReconnectSuccess={() => {
+              setShowPermissionsAlert(false);
+              toast({
+                title: "Success",
+                description: "Gmail permissions updated. You can now send emails!",
+              });
+            }}
+          />
+        </div>
+      )}
 
       {/* Rich Text Editor */}
       <div className={`outline-none transition-all duration-300 ease-in-out ${
@@ -493,13 +725,22 @@ export default function TimelineComposer({
           </Button>
           <Button
             size="sm"
-            disabled={!text.trim()}
+            disabled={!text.trim() || isSendingEmail}
             onClick={handleSend}
             className={`bg-teal-600 hover:bg-teal-700 transition-all duration-300 ease-in-out ${
               isCompact ? "text-xs px-2 py-1 h-7" : "h-8"
             }`}
           >
-            Ok
+            {isSendingEmail ? (
+              <>
+                <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                Sending...
+              </>
+            ) : selectedActivityType === 'email' ? (
+              'Send Email'
+            ) : (
+              'Ok'
+            )}
           </Button>
         </div>
       </div>

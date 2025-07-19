@@ -243,6 +243,64 @@ export class GmailService {
     await this.emailService.deleteEmail(gmailId)
   }
 
+  /**
+   * Send email via Gmail API
+   */
+  async sendEmail(emailData: {
+    to: string[]
+    cc?: string[]
+    bcc?: string[]
+    subject: string
+    bodyHtml: string
+    contactId?: string
+  }): Promise<{ messageId: string; threadId?: string }> {
+    this.ensureNotDisposed()
+    this.updateActivity()
+
+    return await this.emailService.sendEmail(emailData)
+  }
+
+  /**
+   * Create draft email via Gmail API
+   */
+  async createDraft(emailData: {
+    to: string[]
+    cc?: string[]
+    bcc?: string[]
+    subject: string
+    bodyHtml: string
+    contactId?: string
+  }): Promise<{ draftId: string }> {
+    this.ensureNotDisposed()
+    this.updateActivity()
+
+    return await this.emailService.createDraft(emailData)
+  }
+
+  /**
+   * Reply to an email with proper threading
+   */
+  async replyToEmail(
+    originalEmail: {
+      gmailId: string
+      subject: string
+      from: string
+      references?: string
+    },
+    replyData: {
+      to: string[]
+      cc?: string[]
+      subject?: string
+      bodyHtml: string
+      contactId?: string
+    },
+  ): Promise<{ messageId: string; threadId?: string }> {
+    this.ensureNotDisposed()
+    this.updateActivity()
+
+    return await this.emailService.replyToEmail(originalEmail, replyData)
+  }
+
   // =============================================================================
   // CONTACT METHODS
   // =============================================================================
