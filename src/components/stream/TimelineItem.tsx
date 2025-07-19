@@ -24,6 +24,7 @@ import EmailRenderer from '@/components/timeline/EmailRenderer';
 import { TiptapEditor, MarkdownToolbar } from '@/components/markdown';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTimelineViewport } from '@/hooks/useTimelineViewport';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 
 interface TimelineItemProps {
@@ -325,6 +326,9 @@ const TimelineItem = React.memo(function TimelineItem({
   const [showExpandButton, setShowExpandButton] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   
+  // Mobile detection for responsive toolbar
+  const isMobile = useIsMobile();
+  
   // Timeline viewport tracking with progressive visibility
   const { elementRef: timelineRef, isViewed, visibilityPercentage, maxVisibilityReached } = useTimelineViewport(activity.id);
   
@@ -581,9 +585,11 @@ const TimelineItem = React.memo(function TimelineItem({
       
       {/* Activity card with white background */}
       <div className={cn(
-        "relative bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md w-[calc(100%-20px)]",
+        "relative bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md",
         "transition-all duration-500 ease-out",
-        isExpanded && "shadow-md"
+        isExpanded && "shadow-md",
+        // Responsive width and padding
+        isMobile ? "w-[calc(100%-16px)] p-3" : "w-[calc(100%-20px)] p-4"
       )}>
         {/* Dropdown menu */}
         <div className="absolute top-2 right-2">
@@ -640,10 +646,11 @@ const TimelineItem = React.memo(function TimelineItem({
         )}
 
         {/* Header with user info */}
-        <div className={`flex items-center text-sm mb-2 ${
-          optimisticPinState ? 'mt-6' : ''
-        }`}>
-          <span className={cn("ml-7 font-medium", activityProps.userNameColor)}>
+        <div className={cn(
+          "flex items-center text-sm mb-2",
+          optimisticPinState && (isMobile ? 'mt-5' : 'mt-6')
+        )}>
+          <span className={cn("font-medium", activityProps.userNameColor, isMobile ? "ml-5" : "ml-7")}>
             {activityProps.userName}
           </span>
           <span className="text-gray-500 ml-1">
@@ -663,7 +670,7 @@ const TimelineItem = React.memo(function TimelineItem({
         
         {/* Additional email details for multiple recipients */}
         {activity.type === 'email' && activity.to && activity.to.length > 1 && (
-          <div className="text-xs text-gray-500 mb-2 pl-7">
+          <div className={cn("text-xs text-gray-500 mb-2", isMobile ? "pl-5" : "pl-7")}>
             <span className="font-medium">To:</span> {activity.to.map(recipient => recipient.name || recipient.email).join(', ')}
             {activity.cc && activity.cc.length > 0 && (
               <div className="mt-1">
@@ -677,7 +684,7 @@ const TimelineItem = React.memo(function TimelineItem({
         
         {/* Activity content */}
         {activityProps.displayContent && (
-          <div className="mb-3 pl-7">
+          <div className={cn("mb-3", isMobile ? "pl-5" : "pl-7")}>
             {isEditing ? (
               /* Edit mode */
               <div className="space-y-3">
@@ -685,38 +692,52 @@ const TimelineItem = React.memo(function TimelineItem({
                   value={editContent}
                   onChange={setEditContent}
                   placeholder="Edit your note..."
-                  minHeight="100px"
+                  minHeight={isMobile ? "80px" : "100px"}
                   showToolbar={false}
                   externalToolbar={true}
-                  isCompact={false}
+                  isCompact={isMobile}
                   autoFocus={true}
                   onEditorReady={(editor) => setEditor(editor)}
                 />
                 {/* Responsive layout: Toolbar + Action Buttons */}
                 <div className="border-t border-gray-100 pt-3">
-                  {/* Toolbar */}
-                  <div className="mb-3">
+                  {/* Toolbar - responsive wrapper */}
+                  <div className={cn(
+                    "mb-3 transition-all duration-300 ease-in-out overflow-x-auto scrollbar-hide"
+                  )}>
                     <MarkdownToolbar
                       editor={editor}
                       onFormat={handleFormat}
                       onLinkRequest={handleLinkRequest}
                       onCodeBlockRequest={handleCodeBlockRequest}
-                      isCompact={false}
-                      className="p-0"
+                      isCompact={isMobile}
+                      className={cn(
+                        "transition-all duration-300 ease-in-out min-w-max",
+                        isMobile ? "p-1" : "p-0"
+                      )}
                     />
                   </div>
                   
-                  {/* Action Buttons - Always on their own line */}
-                  <div className="flex gap-2 justify-end">
+                  {/* Action Buttons - Responsive layout */}
+                  <div className={cn(
+                    "flex gap-2",
+                    isMobile ? "justify-center" : "justify-end"
+                  )}>
                     <button
                       onClick={handleSaveEdit}
-                      className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-md hover:bg-teal-700 transition-colors"
+                      className={cn(
+                        "bg-teal-600 text-white text-sm rounded-md hover:bg-teal-700 transition-colors",
+                        isMobile ? "px-4 py-2 flex-1 max-w-[120px]" : "px-3 py-1.5"
+                      )}
                     >
                       Save
                     </button>
                     <button
                       onClick={handleCancelEdit}
-                      className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300 transition-colors"
+                      className={cn(
+                        "bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300 transition-colors",
+                        isMobile ? "px-4 py-2 flex-1 max-w-[120px]" : "px-3 py-1.5"
+                      )}
                     >
                       Cancel
                     </button>
@@ -767,7 +788,7 @@ const TimelineItem = React.memo(function TimelineItem({
         )}
         
         {/* Action buttons */}
-        <div className="flex items-center justify-between text-xs text-gray-500 pl-7">
+        <div className={cn("flex items-center justify-between text-xs text-gray-500", isMobile ? "pl-5" : "pl-7")}>
           <div className="flex items-center gap-4">
             <button className="flex items-center gap-1 hover:text-teal-600 transition-colors">
               <Reply className="h-3 w-3" />
@@ -849,6 +870,29 @@ const TimelineItem = React.memo(function TimelineItem({
             to {
               max-height: 200px;
               opacity: 0.95;
+            }
+          }
+          
+          /* Hide scrollbars while maintaining functionality */
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+          
+          /* Mobile toolbar improvements */
+          @media (max-width: 767px) {
+            .timeline-item-toolbar {
+              padding: 8px 4px;
+              gap: 4px;
+            }
+            
+            .timeline-item-toolbar button {
+              min-width: 32px;
+              height: 32px;
+              flex-shrink: 0;
             }
           }
           

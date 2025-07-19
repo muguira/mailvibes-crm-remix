@@ -409,20 +409,36 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               height: 0;
               float: left;
             }
-          `
+          `          
         }} />
       </div>
 
+      {/* Scrollbar styles for toolbar */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+        `
+      }} />
+
       {/* Internal Formatting Toolbar */}
       {showToolbar && (
-        <div className="relative overflow-visible">
+        <div className="relative overflow-x-auto scrollbar-hide">
           <MarkdownToolbar
             editor={editor}
             onFormat={handleFormat}
             onLinkRequest={handleLinkRequest}
             onCodeBlockRequest={handleCodeBlockRequest}
             isCompact={isCompact}
-            className={isCompact ? 'p-2' : 'p-3'}
+            className={cn(
+              "min-w-max",
+              isCompact ? 'p-2' : 'p-3'
+            )}
           />
         </div>
       )}
