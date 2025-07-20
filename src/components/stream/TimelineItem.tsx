@@ -25,6 +25,11 @@ import { TiptapEditor, MarkdownToolbar } from '@/components/markdown';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTimelineViewport } from '@/hooks/useTimelineViewport';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useGmailStore } from '@/stores/gmail/gmailStore';
+import { toast } from '@/hooks/use-toast';
+import { GmailEmail } from '@/services/google/gmailApi';
+import { useContactEmails } from '@/hooks/use-contact-emails-v2';
+import { logger } from '@/utils/logger';
 
 
 interface TimelineItemProps {
@@ -350,12 +355,25 @@ const TimelineItem = React.memo(function TimelineItem({
   const [isExpanded, setIsExpanded] = useState(false);
   const [showExpandButton, setShowExpandButton] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // ✅ NEW: Reply functionality states
+  const [isReplying, setIsReplying] = useState(false);
+  const [replyContent, setReplyContent] = useState('');
+  const [replyEditor, setReplyEditor] = useState<any>(null);
+  const [isSendingReply, setIsSendingReply] = useState(false);
   
   // State to track if this item has ever been seen
   const [hasBeenViewed, setHasBeenViewed] = useState(false);
   
   // Mobile detection for responsive toolbar
   const isMobile = useIsMobile();
+  
+  // ✅ NEW: Gmail store and contacts hooks for reply functionality
+  const gmailStore = useGmailStore();
+  const { addOptimisticEmail } = useContactEmails({
+    contactEmail: activity.from?.email,
+    autoFetch: false, // Don't auto-fetch, just use for optimistic updates
+  });
   
   // Timeline viewport tracking with progressive visibility
   const { elementRef: timelineRef, isViewed, visibilityPercentage, maxVisibilityReached } = useTimelineViewport(activity.id);
@@ -658,6 +676,166 @@ const TimelineItem = React.memo(function TimelineItem({
     }
   }, [editor]);
 
+  // ✅ NEW: Handle reply email sending
+  const handleSendReply = useCallback(async () => {
+    if (!replyContent.trim() || !activity.from?.email) {
+      toast({
+        title: "Error",
+        description: "Please enter reply content",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!gmailStore.service) {
+      toast({
+        title: "Error",
+        description: "Gmail service not available. Please check your connection.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingReply(true);
+
+    try {
+      // Construct reply subject
+      const originalSubject = activity.subject || '';
+      const replySubject = originalSubject.startsWith('Re: ') 
+        ? originalSubject 
+        : `Re: ${originalSubject}`;
+
+      // Send reply via Gmail API
+      const result = await gmailStore.service.sendEmail({
+        to: [activity.from.email],
+        subject: replySubject,
+        bodyHtml: replyContent,
+      });
+
+      // ✅ Create optimistic reply email for immediate feedback
+      if (addOptimisticEmail) {
+        const optimisticReply: GmailEmail = {
+          id: `optimistic-reply-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          threadId: (activity as any).threadId || 'reply-thread',
+          subject: replySubject,
+          snippet: replyContent.replace(/<[^>]*>/g, '').substring(0, 150) + '...',
+          bodyText: replyContent.replace(/<[^>]*>/g, ''),
+          bodyHtml: replyContent,
+          from: {
+            email: gmailStore.accounts[0]?.email || '',
+            name: gmailStore.accounts[0]?.email?.split('@')[0] || 'You'
+          },
+          to: [{ email: activity.from.email, name: activity.from.name }],
+          date: new Date().toISOString(),
+          isRead: true,
+          isImportant: false,
+          labels: ['SENT'],
+          attachments: []
+        };
+        
+        addOptimisticEmail(optimisticReply);
+      }
+
+      // Clear reply form
+      setReplyContent('');
+      setIsReplying(false);
+      if (replyEditor) {
+        replyEditor.commands.setContent('', false);
+      }
+
+      toast({
+        title: "Reply sent!",
+        description: `Reply sent to ${activity.from?.name || activity.from?.email}`,
+      });
+
+      logger.log("✨ Reply sent successfully:", {
+        replyId: result.messageId,
+        originalEmailId: activity.id,
+        threadId: (activity as any).threadId || 'unknown',
+        to: activity.from?.email,
+        subject: replySubject
+      });
+
+    } catch (error) {
+      logger.error("Failed to send reply:", error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      toast({
+        title: "Error",
+        description: `Failed to send reply: ${errorMessage}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingReply(false);
+    }
+  }, [replyContent, activity, gmailStore.service, gmailStore.accounts, addOptimisticEmail, replyEditor]);
+
+  // ✅ Handle formatting for reply editor
+  const handleReplyFormat = useCallback((format: string) => {
+    if (!replyEditor) return;
+
+    switch (format) {
+      case 'bold':
+        replyEditor.chain().focus().toggleBold().run();
+        break;
+      case 'italic':
+        replyEditor.chain().focus().toggleItalic().run();
+        break;
+      case 'underline':
+        replyEditor.chain().focus().toggleUnderline().run();
+        break;
+      case 'strikethrough':
+        replyEditor.chain().focus().toggleStrike().run();
+        break;
+      case 'code':
+        replyEditor.chain().focus().toggleCode().run();
+        break;
+      case 'heading1':
+        replyEditor.chain().focus().toggleHeading({ level: 1 }).run();
+        break;
+      case 'heading2':
+        replyEditor.chain().focus().toggleHeading({ level: 2 }).run();
+        break;
+      case 'heading3':
+        replyEditor.chain().focus().toggleHeading({ level: 3 }).run();
+        break;
+      case 'bulletList':
+        replyEditor.chain().focus().toggleBulletList().run();
+        break;
+      case 'numberedList':
+        replyEditor.chain().focus().toggleOrderedList().run();
+        break;
+      case 'quote':
+        replyEditor.chain().focus().toggleBlockquote().run();
+        break;
+      case 'divider':
+        replyEditor.chain().focus().setHorizontalRule().run();
+        break;
+    }
+  }, [replyEditor]);
+
+  const handleReplyLinkRequest = useCallback((url: string, linkText: string) => {
+    if (!replyEditor) return;
+
+    if (url && linkText) {
+      replyEditor.chain().focus().setLink({ href: url }).insertContent(linkText).run();
+    }
+  }, [replyEditor]);
+
+  const handleReplyCodeBlockRequest = useCallback((selectedText: string, range: Range) => {
+    if (!replyEditor) return;
+
+    const selection = window.getSelection();
+    if (selection && range) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      const codeBlock = `\`\`\`\n${selectedText}\n\`\`\``;
+      replyEditor.chain().focus().insertContent(codeBlock).run();
+    }
+  }, [replyEditor]);
+
   return (
     <li ref={timelineRef} className="relative pl-12 pb-8 mb-[40px]">
       {/* Timeline line - simple gray line */}
@@ -906,6 +1084,82 @@ const TimelineItem = React.memo(function TimelineItem({
             )}
           </div>
         )}
+
+        {/* ✅ NEW: Reply editor - only show for emails when replying */}
+        {isReplying && (activity.source === 'gmail' && activity.type === 'email') && (
+          <div className={cn("mb-3 border-t border-gray-100 pt-3", isMobile ? "pl-5" : "pl-7")}>
+            <div className="space-y-3">
+              <div className="text-sm text-gray-600 mb-2">
+                <span className="font-medium">Reply to:</span> {activity.from?.name || activity.from?.email}
+              </div>
+              
+              <TiptapEditor
+                value={replyContent}
+                onChange={setReplyContent}
+                placeholder={`Reply to ${activity.from?.name || activity.from?.email}...`}
+                minHeight={isMobile ? "80px" : "100px"}
+                showToolbar={false}
+                externalToolbar={true}
+                isCompact={isMobile}
+                autoFocus={true}
+                onEditorReady={(editor) => setReplyEditor(editor)}
+              />
+              
+              {/* Reply Toolbar + Action Buttons */}
+              <div className="border-t border-gray-100 pt-3">
+                {/* Toolbar - responsive wrapper */}
+                <div className={cn(
+                  "mb-3 transition-all duration-300 ease-in-out overflow-x-auto scrollbar-hide"
+                )}>
+                  <MarkdownToolbar
+                    editor={replyEditor}
+                    onFormat={handleReplyFormat}
+                    onLinkRequest={handleReplyLinkRequest}
+                    onCodeBlockRequest={handleReplyCodeBlockRequest}
+                    isCompact={isMobile}
+                    className={cn(
+                      "transition-all duration-300 ease-in-out min-w-max",
+                      isMobile ? "p-1" : "p-0"
+                    )}
+                  />
+                </div>
+                
+                {/* Reply Action Buttons */}
+                <div className={cn(
+                  "flex gap-2",
+                  isMobile ? "justify-center" : "justify-end"
+                )}>
+                  <button
+                    onClick={() => {
+                      setIsReplying(false);
+                      setReplyContent('');
+                      if (replyEditor) {
+                        replyEditor.commands.setContent('', false);
+                      }
+                    }}
+                    className={cn(
+                      "bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300 transition-colors",
+                      isMobile ? "px-4 py-2 flex-1 max-w-[120px]" : "px-3 py-1.5"
+                    )}
+                    disabled={isSendingReply}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSendReply}
+                    className={cn(
+                      "bg-teal-600 text-white text-sm rounded-md hover:bg-teal-700 transition-colors disabled:opacity-50",
+                      isMobile ? "px-4 py-2 flex-1 max-w-[120px]" : "px-3 py-1.5"
+                    )}
+                    disabled={!replyContent.trim() || isSendingReply}
+                  >
+                    {isSendingReply ? 'Sending...' : 'Send Reply'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Action buttons */}
         <div className={cn("flex items-center justify-between text-xs text-gray-500", isMobile ? "pl-5" : "pl-7")}>
@@ -920,14 +1174,32 @@ const TimelineItem = React.memo(function TimelineItem({
             </button>
           </div>
           
-          {/* Show more/less button */}
+          {/* Show more/less button and Reply button */}
           {(activityProps.displayContent || activity.bodyHtml || activity.bodyText) && (
-            <div className="min-w-[80px]">
+            <div className="flex items-center gap-3">
+              {/* Reply button - only show for emails when expanded */}
+              {isExpanded && (activity.source === 'gmail' && activity.type === 'email') && (
+                <button
+                  onClick={() => setIsReplying(!isReplying)}
+                  className={cn(
+                    "flex items-center gap-1 text-xs transition-all duration-300 ease-in-out hover:scale-105",
+                    isReplying 
+                      ? "text-teal-600 hover:text-teal-700" 
+                      : "text-gray-500 hover:text-gray-700"
+                  )}
+                  disabled={isSendingReply}
+                >
+                  <Reply className="w-3 h-3" />
+                  <span>{isReplying ? 'Cancel' : 'Reply'}</span>
+                </button>
+              )}
+              
+              {/* Show more/less button */}
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-all duration-300 ease-in-out hover:scale-105"
               >
-                <span className="transition-all duration-300">
+                <span className="transition-all duration-300 text-xs">
                   {!isExpanded && showExpandButton ? 'Show more' : isExpanded ? 'Show less' : null}
                 </span>
                 <div className="transition-transform duration-300 ease-in-out">
