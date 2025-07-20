@@ -11,7 +11,9 @@ import {
   RefreshCw,
   Plus,
   Minus,
-  Edit3
+  Edit3,
+  Clock,
+  AtSign
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -192,6 +194,7 @@ export default function TimelineComposer({
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [showPermissionsAlert, setShowPermissionsAlert] = useState(false);
   const [showAdvancedEmailFields, setShowAdvancedEmailFields] = useState(false);
+  const [showDateTime, setShowDateTime] = useState(false);
   
   // Click-to-edit states for email fields
   const [editingField, setEditingField] = useState<'subject' | 'cc' | 'bcc' | null>(null);
@@ -672,18 +675,54 @@ export default function TimelineComposer({
         })}
       </div>
 
-      {/* Date and Time Selector */}
-      <div className={`flex items-center gap-3 border-b border-gray-100 transition-all duration-300 ease-in-out ${
+      {/* Minimalist Controls Row */}
+      <div className={`flex items-center gap-2 border-b border-gray-100 transition-all duration-300 ease-in-out ${
         isCompact ? 'p-2' : 'p-3'
       }`}>
-        <DateTimePicker
-          date={activityDate}
-          onDateChange={handleDateChange}
-          time={activityTime}
-          onTimeChange={handleTimeChange}
-          isCompact={isCompact}
-        />
+        {/* Date/Time Toggle Button - Always visible */}
+        <button
+          type="button"
+          onClick={() => setShowDateTime(!showDateTime)}
+          className={`flex items-center gap-1 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors ${
+            showDateTime ? 'bg-gray-100 text-gray-900' : ''
+          } ${isCompact ? 'px-2 py-1 text-xs' : 'px-2 py-1.5 text-xs'}`}
+          title="Date & Time"
+        >
+          <Clock className="w-3 h-3" />
+          {!isCompact && <span className="text-xs">Time</span>}
+        </button>
+
+        {/* CC/BCC Toggle Button - Only when email is selected */}
+        {selectedActivityType === 'email' && (
+          <button
+            type="button"
+            onClick={() => setShowAdvancedEmailFields(!showAdvancedEmailFields)}
+            className={`flex items-center gap-1 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors ${
+              showAdvancedEmailFields ? 'bg-gray-100 text-gray-900' : ''
+            } ${isCompact ? 'px-2 py-1 text-xs' : 'px-2 py-1.5 text-xs'}`}
+            disabled={isSendingEmail}
+            title="CC & BCC"
+          >
+            <AtSign className="w-3 h-3" />
+            {!isCompact && <span className="text-xs">CC</span>}
+          </button>
+        )}
       </div>
+
+      {/* Date and Time Selector - Collapsible */}
+      {showDateTime && (
+        <div className={`flex items-center gap-3 border-b border-gray-100 transition-all duration-300 ease-in-out animate-in slide-in-from-top-2 duration-200 ${
+          isCompact ? 'p-2' : 'p-3'
+        }`}>
+          <DateTimePicker
+            date={activityDate}
+            onDateChange={handleDateChange}
+            time={activityTime}
+            onTimeChange={handleTimeChange}
+            isCompact={isCompact}
+          />
+        </div>
+      )}
 
       {/* Email Fields - only show when email type is selected */}
       {selectedActivityType === 'email' && (
@@ -699,23 +738,6 @@ export default function TimelineComposer({
             placeholder="Click to add email subject"
             required
           />
-
-          {/* Advanced Fields Toggle */}
-          <div className="flex items-center">
-            <button
-              type="button"
-              onClick={() => setShowAdvancedEmailFields(!showAdvancedEmailFields)}
-              className="flex items-center gap-2 text-xs text-gray-600 hover:text-gray-800 transition-colors"
-              disabled={isSendingEmail}
-            >
-              {showAdvancedEmailFields ? (
-                <Minus className="w-3 h-3" />
-              ) : (
-                <Plus className="w-3 h-3" />
-              )}
-              {showAdvancedEmailFields ? 'Hide' : 'Add'} CC/BCC
-            </button>
-          </div>
           
           {/* CC/BCC Fields - Collapsible with click-to-edit */}
           {showAdvancedEmailFields && (
