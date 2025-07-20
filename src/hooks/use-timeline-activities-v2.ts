@@ -17,6 +17,7 @@ export interface TimelineActivity {
 
   // Email-specific fields
   subject?: string
+  threadId?: string
   from?: {
     name?: string
     email: string
@@ -287,6 +288,7 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
         timestamp: emailTimestamp,
         source: 'gmail' as const,
         subject: email.subject,
+        threadId: email.threadId,
         snippet: email.snippet,
         from: email.from,
         to: email.to,

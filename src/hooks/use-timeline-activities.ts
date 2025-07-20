@@ -31,6 +31,7 @@ export interface TimelineActivity {
 
   // Email-specific fields
   subject?: string
+  threadId?: string
   from?: {
     name?: string
     email: string
@@ -212,6 +213,7 @@ export function useTimelineActivities(options: UseTimelineActivitiesOptions = {}
         source: 'gmail' as const,
         is_pinned: pinnedStatusMap.get(email.id) || false,
         subject: email.subject,
+        threadId: email.threadId,
         from: email.from,
         to: email.to,
         cc: email.cc,
