@@ -208,7 +208,9 @@ const getActivityIcon = (iconName?: string, activityType?: string) => {
 const getActivityColor = (type?: string) => {
   switch (type) {
     case 'email':
-      return 'text-teal-600 bg-teal-50';
+      return 'text-blue-600 bg-blue-50';
+    case 'email_sent':
+      return 'text-blue-600 bg-blue-50';
     case 'call':
       return 'text-green-600 bg-green-50';
     case 'task':
@@ -228,7 +230,9 @@ const getActivityColor = (type?: string) => {
 const getUserNameColor = (type?: string) => {
   switch (type) {
     case 'email':
-      return 'text-teal-600';
+      return 'text-blue-600';
+    case 'email_sent':
+      return 'text-blue-600';
     case 'call':
       return 'text-green-600';
     case 'task':
@@ -656,39 +660,18 @@ const TimelineItem = React.memo(function TimelineItem({
 
   return (
     <li ref={timelineRef} className="relative pl-12 pb-8 mb-[40px]">
-      {/* Timeline line - progressive filling effect */}
+      {/* Timeline line - simple gray line */}
       <div 
         className={cn(
-          "absolute left-[22px] top-[40px] w-[1px] transition-all duration-300 ease-out",
+          "absolute left-[22px] top-[40px] w-[1px] bg-gray-300",
           isLast ? "bottom-[0px]" : "bottom-[-150px]"
         )}
-        style={{
-          background: isLast 
-            ? progressiveFillPercentage > 0
-              ? `linear-gradient(to bottom, 
-                  #14b8a6 0%, 
-                  #14b8a6 ${Math.min(progressiveFillPercentage, 85)}%, 
-                  rgba(20, 184, 166, 0.5) ${Math.min(progressiveFillPercentage + 10, 95)}%, 
-                  transparent 100%)`
-              : `linear-gradient(to bottom, 
-                  #e5e7eb 0%, 
-                  #e5e7eb 85%, 
-                  rgba(229, 231, 235, 0.5) 95%, 
-                  transparent 100%)`
-            : progressiveFillPercentage > 0 
-              ? `linear-gradient(to bottom, 
-                  #14b8a6 0%, 
-                  #14b8a6 ${progressiveFillPercentage}%, 
-                  #e5e7eb ${progressiveFillPercentage}%, 
-                  #e5e7eb 100%)`
-              : '#e5e7eb'
-        }}
       ></div>
       
       {/* Timeline end indicator for last item */}
       {isLast && (
-        <div className="absolute left-[16px] bottom-[0px] w-3 h-3 rounded-full bg-teal-600 border-2 border-white shadow-sm z-10">
-          <div className="absolute inset-0 rounded-full bg-teal-600 animate-pulse opacity-75"></div>
+        <div className="absolute left-[16px] bottom-[0px] w-3 h-3 rounded-full bg-gray-400 border-2 border-white shadow-sm z-10">
+          <div className="absolute inset-0 rounded-full bg-gray-400 animate-pulse opacity-75"></div>
         </div>
       )}
       
