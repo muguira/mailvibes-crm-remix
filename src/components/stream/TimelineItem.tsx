@@ -208,7 +208,7 @@ const getActivityIcon = (iconName?: string, activityType?: string) => {
 const getActivityColor = (type?: string) => {
   switch (type) {
     case 'email':
-      return 'text-blue-600 bg-blue-50';
+      return 'text-teal-600 bg-teal-50';
     case 'call':
       return 'text-green-600 bg-green-50';
     case 'task':
@@ -228,7 +228,7 @@ const getActivityColor = (type?: string) => {
 const getUserNameColor = (type?: string) => {
   switch (type) {
     case 'email':
-      return 'text-blue-600';
+      return 'text-teal-600';
     case 'call':
       return 'text-green-600';
     case 'task':
@@ -641,7 +641,7 @@ const TimelineItem = React.memo(function TimelineItem({
       <div 
         className={cn(
           "absolute left-[22px] top-[40px] w-[1px] transition-all duration-300 ease-out",
-          isLast ? "bottom-[0px]" : "bottom-[-100px]"
+          isLast ? "bottom-[0px]" : "bottom-[-150px]"
         )}
         style={{
           background: isLast 
@@ -668,7 +668,7 @@ const TimelineItem = React.memo(function TimelineItem({
       
       {/* Timeline end indicator for last item */}
       {isLast && (
-        <div className="absolute left-[16px] bottom-[30px] w-3 h-3 rounded-full bg-teal-600 border-2 border-white shadow-sm z-10">
+        <div className="absolute left-[16px] bottom-[0px] w-3 h-3 rounded-full bg-teal-600 border-2 border-white shadow-sm z-10">
           <div className="absolute inset-0 rounded-full bg-teal-600 animate-pulse opacity-75"></div>
         </div>
       )}
