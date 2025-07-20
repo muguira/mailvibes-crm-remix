@@ -19,8 +19,12 @@ interface UseContactEmailsReturn {
 
   // Actions
   loadMoreEmails: () => Promise<void>
-  syncEmailHistory: () => Promise<void>
+  syncEmailHistory: (options?: { isAfterEmailSend?: boolean }) => Promise<void>
   refreshEmails: () => Promise<void>
+
+  // ✅ NEW: Optimistic updates
+  addOptimisticEmail: (optimisticEmail: GmailEmail) => void
+  removeOptimisticEmail: (optimisticEmailId: string) => void
 }
 
 /**
@@ -79,15 +83,28 @@ export function useContactEmails(options: UseContactEmailsOptions = {}): UseCont
     }
   }
 
-  const syncEmailHistory = async () => {
+  const syncEmailHistory = async (options?: { isAfterEmailSend?: boolean }) => {
     if (contactEmail && authUser?.id) {
-      await emails.syncContactHistory(contactEmail, authUser.id)
+      await emails.syncContactHistory(contactEmail, authUser.id, options)
     }
   }
 
   const refreshEmails = async () => {
     if (contactEmail && authUser?.id) {
       await emails.refreshContactEmails(contactEmail, authUser.id)
+    }
+  }
+
+  // ✅ NEW: Optimistic update functions
+  const addOptimisticEmail = (optimisticEmail: GmailEmail) => {
+    if (contactEmail) {
+      emails.addOptimisticEmail(contactEmail, optimisticEmail)
+    }
+  }
+
+  const removeOptimisticEmail = (optimisticEmailId: string) => {
+    if (contactEmail) {
+      emails.removeOptimisticEmail(contactEmail, optimisticEmailId)
     }
   }
 
@@ -102,6 +119,8 @@ export function useContactEmails(options: UseContactEmailsOptions = {}): UseCont
     loadMoreEmails,
     syncEmailHistory,
     refreshEmails,
+    addOptimisticEmail,
+    removeOptimisticEmail,
   }
 }
 
