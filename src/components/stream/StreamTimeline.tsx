@@ -308,10 +308,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
                   
                   <div className="flex items-center justify-center mt-6">
                     <div className="flex flex-col items-center gap-3">
-                      {/* Timeline terminus circle */}
-                      <div className="w-4 h-4 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 border-2 border-white shadow-lg relative">
-                        <div className="absolute inset-0 rounded-full bg-teal-500 animate-pulse opacity-50"></div>
-                      </div>
+                      
                       
                       {/* Main relationship indicator */}
                       <div className="flex items-center gap-3 bg-white border border-gray-300 rounded-full px-4 py-2 text-sm text-gray-700 shadow-sm">
