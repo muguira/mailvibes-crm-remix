@@ -65,6 +65,9 @@ interface ContactEmailsState {
   syncStatus: Record<string, 'idle' | 'syncing' | 'completed' | 'failed'>
   lastSyncAt: Record<string, Date | undefined>
 
+  // ✅ NEW: Optimistic emails tracking
+  optimisticEmails: Record<string, Set<string>> // contactEmail -> Set of optimistic email IDs
+
   // Configuration
   emailsPerPage: number
   isInitialized: boolean
@@ -87,8 +90,13 @@ interface EmailsActions {
   // Main actions
   initializeContactEmails: (contactEmail: string, userId: string) => Promise<void>
   loadMoreEmails: (contactEmail: string) => Promise<void>
-  syncContactHistory: (contactEmail: string, userId: string) => Promise<void>
+  syncContactHistory: (contactEmail: string, userId: string, options?: { isAfterEmailSend?: boolean }) => Promise<void>
   refreshContactEmails: (contactEmail: string, userId: string) => Promise<void>
+
+  // ✅ NEW: Optimistic updates for immediate UI feedback
+  addOptimisticEmail: (contactEmail: string, optimisticEmail: GmailEmail) => void
+  removeOptimisticEmail: (contactEmail: string, optimisticEmailId: string) => void
+  cleanupStaleOptimisticEmails: (contactEmail: string, maxAgeMinutes?: number) => void
 
   // Getters
   getEmailsForContact: (contactEmail: string) => GmailEmail[]
@@ -135,6 +143,7 @@ const useEmailsStore = create<EmailsStore>()(
       },
       syncStatus: {},
       lastSyncAt: {},
+      optimisticEmails: {},
       emailsPerPage: 20,
       isInitialized: false,
       currentUserId: null,
@@ -476,7 +485,7 @@ const useEmailsStore = create<EmailsStore>()(
       /**
        * Sync full email history in background (doesn't block UI)
        */
-      syncContactHistory: async (contactEmail: string, userId: string) => {
+      syncContactHistory: async (contactEmail: string, userId: string, options?: { isAfterEmailSend?: boolean }) => {
         set(state => {
           state.syncStatus[contactEmail] = 'syncing'
           state.loading.syncing[contactEmail] = true
@@ -507,14 +516,54 @@ const useEmailsStore = create<EmailsStore>()(
           // Trigger background sync for ALL historical emails
           await triggerContactSync(userId, primaryAccount.email, contactEmail)
 
+          // ✅ Cleanup any stale optimistic emails before refresh (fallback safety)
+          if (options?.isAfterEmailSend) {
+            get().cleanupStaleOptimisticEmails(contactEmail, 1) // Clean up anything older than 1 minute
+          }
+
+          // ✅ CRITICAL FIX: Refresh local state after sync completes
+          // Wait for sync to complete then reload emails from database
+          const refreshDelay = options?.isAfterEmailSend ? 5000 : 3000 // Longer delay for sent emails
+
+          setTimeout(async () => {
+            try {
+              // Clear existing emails and reload from database
+              set(state => {
+                delete state.emailsByContact[contactEmail]
+                delete state.paginationByContact[contactEmail]
+                // ✅ Clear optimistic emails after sync - they'll be replaced by real Gmail emails
+                // This prevents duplicates when the real sent email comes from Gmail
+                delete state.optimisticEmails[contactEmail]
+              })
+
+              // Reinitialize to get the newly synced emails
+              await get().initializeContactEmails(contactEmail, userId)
+
+              logger.info(`[EmailsStore] Successfully refreshed emails after sync for ${contactEmail}`)
+
+              // Only show toast for manual sync, not for auto-sync after email send
+              if (!options?.isAfterEmailSend) {
+                toast({
+                  title: 'Emails updated',
+                  description: 'New emails are now visible in the timeline',
+                })
+              } else {
+                // Silent update for sent emails since they already appear optimistically
+                logger.info(`[EmailsStore] Silent refresh completed after email send for ${contactEmail}`)
+              }
+            } catch (refreshError) {
+              logger.error(`[EmailsStore] Failed to refresh emails after sync:`, refreshError)
+            }
+          }, refreshDelay)
+
           set(state => {
             state.syncStatus[contactEmail] = 'completed'
             state.lastSyncAt[contactEmail] = new Date()
           })
 
           toast({
-            title: 'Email sync started',
-            description: 'Historical emails are being synced in the background',
+            title: 'Syncing emails...',
+            description: 'Your emails will appear in the timeline in a few seconds.',
           })
 
           logger.info(`[EmailsStore] Started background sync for ${contactEmail}`)
@@ -557,6 +606,89 @@ const useEmailsStore = create<EmailsStore>()(
         })
 
         await get().initializeContactEmails(contactEmail, userId)
+      },
+
+      // ✅ NEW: Optimistic updates for immediate UI feedback
+      addOptimisticEmail: (contactEmail: string, optimisticEmail: GmailEmail) => {
+        set(state => {
+          const existingEmails = state.emailsByContact[contactEmail] || []
+          // Add optimistic email at the beginning (most recent)
+          state.emailsByContact[contactEmail] = [optimisticEmail, ...existingEmails]
+
+          // Track this as an optimistic email
+          if (!state.optimisticEmails[contactEmail]) {
+            state.optimisticEmails[contactEmail] = new Set()
+          }
+          state.optimisticEmails[contactEmail].add(optimisticEmail.id)
+        })
+
+        logger.info(`[EmailsStore] Added optimistic email for ${contactEmail}:`, {
+          emailId: optimisticEmail.id,
+          subject: optimisticEmail.subject,
+          to: optimisticEmail.to?.map(t => t.email).join(', '),
+        })
+      },
+
+      removeOptimisticEmail: (contactEmail: string, optimisticEmailId: string) => {
+        set(state => {
+          const existingEmails = state.emailsByContact[contactEmail] || []
+          state.emailsByContact[contactEmail] = existingEmails.filter(email => email.id !== optimisticEmailId)
+
+          // Remove from optimistic tracking
+          if (state.optimisticEmails[contactEmail]) {
+            state.optimisticEmails[contactEmail].delete(optimisticEmailId)
+            if (state.optimisticEmails[contactEmail].size === 0) {
+              delete state.optimisticEmails[contactEmail]
+            }
+          }
+        })
+
+        logger.info(`[EmailsStore] Removed optimistic email ${optimisticEmailId} for ${contactEmail}`)
+      },
+
+      // ✅ NEW: Cleanup old optimistic emails (fallback in case sync fails)
+      cleanupStaleOptimisticEmails: (contactEmail: string, maxAgeMinutes: number = 2) => {
+        const cutoffTime = Date.now() - maxAgeMinutes * 60 * 1000
+
+        set(state => {
+          const existingEmails = state.emailsByContact[contactEmail] || []
+          const optimisticIds = state.optimisticEmails[contactEmail] || new Set()
+
+          // Find stale optimistic emails
+          const staleOptimisticIds: string[] = []
+
+          existingEmails.forEach(email => {
+            if (optimisticIds.has(email.id) && email.id.startsWith('optimistic-')) {
+              // Extract timestamp from optimistic ID (format: optimistic-{timestamp}-{random})
+              const timestampMatch = email.id.match(/optimistic-(\d+)-/)
+              if (timestampMatch) {
+                const emailTimestamp = parseInt(timestampMatch[1])
+                if (emailTimestamp < cutoffTime) {
+                  staleOptimisticIds.push(email.id)
+                }
+              }
+            }
+          })
+
+          // Remove stale optimistic emails
+          if (staleOptimisticIds.length > 0) {
+            state.emailsByContact[contactEmail] = existingEmails.filter(email => !staleOptimisticIds.includes(email.id))
+
+            staleOptimisticIds.forEach(id => {
+              if (state.optimisticEmails[contactEmail]) {
+                state.optimisticEmails[contactEmail].delete(id)
+              }
+            })
+
+            if (state.optimisticEmails[contactEmail]?.size === 0) {
+              delete state.optimisticEmails[contactEmail]
+            }
+
+            logger.info(
+              `[EmailsStore] Cleaned up ${staleOptimisticIds.length} stale optimistic emails for ${contactEmail}`,
+            )
+          }
+        })
       },
 
       // Getters

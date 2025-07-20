@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/input';
 import { useGmailStore } from '@/stores/gmail/gmailStore';
 import { toast } from '@/hooks/use-toast';
 import { GmailPermissionsAlert, useGmailPermissionsAlert } from '@/components/integrations/gmail/GmailPermissionsAlert';
+import { GmailEmail } from '@/services/google/gmailApi';
 
 const ACTIVITY_TYPES = [
   { id: 'call', label: 'Call', icon: Phone },
@@ -321,7 +322,8 @@ export default function TimelineComposer({
     emails,
     hasMore,
     syncStatus: internalSyncStatus,
-    syncEmailHistory
+    syncEmailHistory,
+    addOptimisticEmail
   } = useContactEmails({
     contactEmail: effectiveContactEmail,
     autoFetch: true,
@@ -383,39 +385,41 @@ export default function TimelineComposer({
         contactId: effectiveContactId
       });
 
-      // Create activity record for the sent email with full content
-      const activityTimestamp = new Date().toISOString();
-      
-      // Create detailed activity data with email content
-      const emailActivityData = {
-        type: 'email_sent',
-        content: `Email sent to ${emailFields.to}: ${emailFields.subject}`,
-        timestamp: activityTimestamp,
-        // Store email details in the details field for proper rendering
-        details: {
-          email_content: {
-            subject: emailFields.subject,
-            to: [{ email: emailFields.to }],
-            cc: emailFields.cc ? [{ email: emailFields.cc }] : undefined,
-            bcc: emailFields.bcc ? [{ email: emailFields.bcc }] : undefined,
-            bodyHtml: text, // Store the actual HTML content from the editor
-            bodyText: text.replace(/<[^>]*>/g, ''), // Strip HTML for plain text version
-            from: {
-              email: gmailStore.accounts[0]?.email || '',
-              name: gmailStore.accounts[0]?.email || ''
-            },
-            timestamp: activityTimestamp
-          }
-        }
-      };
-      
-      if (onCreateActivity) {
-        onCreateActivity(emailActivityData);
-      } else {
-        createActivity(emailActivityData);
+      // ✅ NEW: Create optimistic email for immediate UI feedback
+      if (effectiveContactEmail && addOptimisticEmail) {
+        const optimisticEmail: GmailEmail = {
+          id: `optimistic-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Unique temporary ID
+          threadId: 'optimistic-thread',
+          subject: emailFields.subject,
+          snippet: text.replace(/<[^>]*>/g, '').substring(0, 150) + '...',
+          bodyText: text.replace(/<[^>]*>/g, ''),
+          bodyHtml: text,
+          from: {
+            email: gmailStore.accounts[0]?.email || '',
+            name: gmailStore.accounts[0]?.email?.split('@')[0] || 'You'
+          },
+          to: [{ email: emailFields.to }],
+          cc: emailFields.cc ? [{ email: emailFields.cc }] : undefined,
+          bcc: emailFields.bcc ? [{ email: emailFields.bcc }] : undefined,
+          date: new Date().toISOString(),
+          isRead: true, // Sent emails are considered "read"
+          isImportant: false,
+          labels: ['SENT'],
+          attachments: []
+        };
+        
+        // Add immediately to the timeline for instant feedback
+        addOptimisticEmail(optimisticEmail);
+        
+        logger.log("✨ Created optimistic email for instant feedback:", {
+          optimisticId: optimisticEmail.id,
+          subject: optimisticEmail.subject,
+          to: emailFields.to,
+          snippet: optimisticEmail.snippet.substring(0, 50) + '...'
+        });
       }
-
-      // Clear form
+      
+      // Clear form immediately for better UX
       setText("");
       setEmailFields({
         to: contactEmail || '',
@@ -423,16 +427,17 @@ export default function TimelineComposer({
         bcc: '',
         subject: ''
       });
-      setShowAdvancedEmailFields(false); // Hide advanced fields after sending
-      setEditingField(null); // Exit edit mode after sending
+      setShowAdvancedEmailFields(false);
+      setEditingField(null);
       
       if (editor) {
         editor.commands.setContent('', false);
       }
 
+      // Show success toast - email already appears optimistically
       toast({
-        title: "Success",
-        description: `Email sent to ${emailFields.to}`,
+        title: "Email sent successfully!",
+        description: `Email sent to ${emailFields.to}. Syncing with Gmail in the background.`,
       });
 
       logger.log("Email sent successfully:", {
@@ -440,6 +445,42 @@ export default function TimelineComposer({
         to: emailFields.to,
         subject: emailFields.subject
       });
+
+      // ✅ CRITICAL: Auto-sync to get the real sent email from Gmail
+      // This replaces the immediate activity creation and prevents duplicates
+      if (effectiveContactEmail && syncEmailHistory) {
+        // Use a more robust approach with retries
+        const autoSync = async () => {
+          let attempts = 0;
+          const maxAttempts = 3;
+          
+          while (attempts < maxAttempts) {
+            try {
+              // Progressive delay to ensure Gmail processes the email
+              await new Promise(resolve => setTimeout(resolve, 3000 + (attempts * 1500))); 
+              
+              // Trigger the sync (which now includes auto-refresh) with email send flag
+              await syncEmailHistory({ isAfterEmailSend: true });
+              
+              logger.log("Auto-sync after email send successful");
+              break; // Success, exit loop
+              
+            } catch (syncError) {
+              attempts++;
+              logger.warn(`Auto-sync attempt ${attempts} failed:`, syncError);
+              
+              if (attempts >= maxAttempts) {
+                logger.error("Auto-sync after email send failed after all attempts:", syncError);
+                // Don't show error to user as the email was sent successfully
+                // User can manually sync if needed
+              }
+            }
+          }
+        };
+        
+        // Execute auto-sync in background
+        autoSync();
+      }
 
     } catch (error) {
       logger.error("Failed to send email:", error);

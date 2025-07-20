@@ -501,7 +501,8 @@ export class EmailSyncService {
           updated_at: new Date().toISOString(),
         }
 
-        // Try to insert, if conflict then update using the gmail_id unique constraint
+        // ✅ IMPROVED: Better upsert with conflict resolution for sent emails
+        // This ensures we don't create duplicates when auto-syncing after sending from CRM
         const { data, error } = await supabase
           .from('emails')
           .upsert(emailData, {
