@@ -203,8 +203,15 @@ function parseGmailMessage(gmailMessage: any): GmailEmail {
   let isCalendarInvitation = false
 
   if (gmailMessage.payload?.body?.data) {
-    // Simple message body
-    bodyText = base64UrlDecode(gmailMessage.payload.body.data)
+    // Simple message body - check mimeType to determine if it's HTML or plain text
+    const decodedContent = base64UrlDecode(gmailMessage.payload.body.data)
+    const mimeType = gmailMessage.payload?.mimeType || ''
+
+    if (mimeType.includes('text/html')) {
+      bodyHtml = decodedContent
+    } else {
+      bodyText = decodedContent
+    }
   } else if (parts.length > 0) {
     // Multipart message
     for (const part of parts) {

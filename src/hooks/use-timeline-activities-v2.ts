@@ -9,7 +9,7 @@ import { usePerformanceMonitor } from './use-performance-monitor'
 
 export interface TimelineActivity {
   id: string
-  type: 'note' | 'email' | 'call' | 'meeting' | 'task' | 'system'
+  type: 'note' | 'email' | 'call' | 'meeting' | 'task' | 'system' | 'email_sent'
   content?: string | null
   timestamp: string
   source: 'internal' | 'gmail'
@@ -40,6 +40,9 @@ export interface TimelineActivity {
   bodyHtml?: string
   labels?: string[]
   attachments?: any[]
+
+  // Activity details (for emails sent from CRM)
+  details?: any
 }
 
 interface UseTimelineActivitiesV2Options {
@@ -240,6 +243,7 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
         timestamp: activity.timestamp,
         source: 'internal' as const,
         is_pinned: activity.is_pinned || false,
+        details: activity.details || undefined, // Include details for emails sent from CRM
       }
 
       ACTIVITY_TRANSFORM_CACHE.set(cacheKey, transformed)

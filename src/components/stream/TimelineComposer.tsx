@@ -383,21 +383,36 @@ export default function TimelineComposer({
         contactId: effectiveContactId
       });
 
-      // Create activity record for the sent email
+      // Create activity record for the sent email with full content
       const activityTimestamp = new Date().toISOString();
       
+      // Create detailed activity data with email content
+      const emailActivityData = {
+        type: 'email_sent',
+        content: `Email sent to ${emailFields.to}: ${emailFields.subject}`,
+        timestamp: activityTimestamp,
+        // Store email details in the details field for proper rendering
+        details: {
+          email_content: {
+            subject: emailFields.subject,
+            to: [{ email: emailFields.to }],
+            cc: emailFields.cc ? [{ email: emailFields.cc }] : undefined,
+            bcc: emailFields.bcc ? [{ email: emailFields.bcc }] : undefined,
+            bodyHtml: text, // Store the actual HTML content from the editor
+            bodyText: text.replace(/<[^>]*>/g, ''), // Strip HTML for plain text version
+            from: {
+              email: gmailStore.accounts[0]?.email || '',
+              name: gmailStore.accounts[0]?.email || ''
+            },
+            timestamp: activityTimestamp
+          }
+        }
+      };
+      
       if (onCreateActivity) {
-        onCreateActivity({
-          type: 'email_sent',
-          content: `Email sent to ${emailFields.to}: ${emailFields.subject}`,
-          timestamp: activityTimestamp
-        });
+        onCreateActivity(emailActivityData);
       } else {
-        createActivity({
-          type: 'email_sent',
-          content: `Email sent to ${emailFields.to}: ${emailFields.subject}`,
-          timestamp: activityTimestamp
-        });
+        createActivity(emailActivityData);
       }
 
       // Clear form

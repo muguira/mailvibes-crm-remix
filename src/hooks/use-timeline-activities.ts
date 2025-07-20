@@ -23,7 +23,7 @@ import { usePerformanceMonitor } from './use-performance-monitor'
 
 export interface TimelineActivity {
   id: string
-  type: 'note' | 'email' | 'call' | 'meeting' | 'task' | 'system'
+  type: 'note' | 'email' | 'call' | 'meeting' | 'task' | 'system' | 'email_sent'
   content?: string | null
   timestamp: string
   source: 'internal' | 'gmail'
@@ -54,6 +54,9 @@ export interface TimelineActivity {
   bodyHtml?: string
   labels?: string[]
   attachments?: any[]
+
+  // Activity details (for emails sent from CRM)
+  details?: any
 }
 
 interface UseTimelineActivitiesOptions {

@@ -16,6 +16,18 @@ interface EmailRendererProps {
     inline?: boolean;
     contentId?: string;
   }>;
+  // For emails sent from CRM (stored in activity details)
+  activityDetails?: {
+    email_content?: {
+      bodyHtml?: string;
+      bodyText?: string;
+      subject?: string;
+      to?: Array<{ email: string; name?: string }>;
+      cc?: Array<{ email: string; name?: string }>;
+      bcc?: Array<{ email: string; name?: string }>;
+      from?: { email: string; name?: string };
+    };
+  };
 }
 
 const EmailRenderer: React.FC<EmailRendererProps> = ({ 
@@ -23,7 +35,8 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
   bodyText, 
   subject, 
   emailId, 
-  attachments = [] 
+  attachments = [],
+  activityDetails 
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,10 +95,12 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
 
   // Enhanced HTML processing with better security and error handling
   const processedHtml = useMemo(() => {
-    if (!bodyHtml || !bodyHtml.trim()) return null;
+    // Check for direct bodyHtml first, then fallback to activity details
+    const htmlContent = bodyHtml || activityDetails?.email_content?.bodyHtml;
+    if (!htmlContent || !htmlContent.trim()) return null;
     
-    try {
-      let html = bodyHtml;
+          try {
+        let html = htmlContent;
       
       // Handle CID references for inline attachments
       if (processedAttachments.length > 0) {
@@ -231,11 +246,13 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
       setHasError(true);
       return null;
     }
-  }, [bodyHtml, processedAttachments]);
+  }, [bodyHtml, activityDetails?.email_content?.bodyHtml, processedAttachments]);
 
   // Create enhanced email document with better error handling
   const emailDocument = useMemo(() => {
-    const content = processedHtml || (bodyText ? bodyText.replace(/\n/g, '<br>').replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>') : '');
+    // Check for direct bodyText first, then fallback to activity details
+    const textContent = bodyText || activityDetails?.email_content?.bodyText;
+    const content = processedHtml || (textContent ? textContent.replace(/\n/g, '<br>').replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>') : '');
     
     if (!content.trim()) {
       return `
@@ -457,7 +474,7 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
         </body>
       </html>
     `;
-  }, [processedHtml, bodyText, attachmentGallery, subject]);
+  }, [processedHtml, bodyText, activityDetails?.email_content?.bodyText, attachmentGallery, subject]);
 
   // Enhanced iframe loading with better error handling and performance
   const loadEmailIntoIframe = useCallback(() => {

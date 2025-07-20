@@ -874,13 +874,15 @@ const TimelineItem = React.memo(function TimelineItem({
                     transition: 'max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
                   }}
                 >
-                  {activity.source === 'gmail' && activity.type === 'email' ? (
+                  {(activity.source === 'gmail' && activity.type === 'email') || 
+                   (activity.source === 'internal' && activity.type === 'email_sent') ? (
                     <EmailRenderer
                       bodyHtml={activity.bodyHtml}
                       bodyText={activity.bodyText}
                       subject={activity.subject}
                       emailId={activity.id}
                       attachments={activity.attachments}
+                      activityDetails={activity.details}
                     />
                   ) : (
                     <div 

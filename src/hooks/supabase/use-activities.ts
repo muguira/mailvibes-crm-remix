@@ -12,6 +12,7 @@ export interface Activity {
   content?: string | null
   timestamp: string
   is_pinned?: boolean
+  details?: any | null
 }
 
 // Hook for activities CRUD operations
