@@ -608,7 +608,7 @@ const TimelineItem = React.memo(function TimelineItem({
       <div 
         className={cn(
           "absolute left-[22px] top-[40px] w-[1px] transition-all duration-300 ease-out",
-          isLast ? "bottom-[50px]" : "bottom-[-350px]"
+          isLast ? "bottom-[50px]" : "bottom-[-500px]"
         )}
         style={{
           background: isLast 

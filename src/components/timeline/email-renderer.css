@@ -15,8 +15,8 @@
   margin-bottom: 12px;
   font-size: 15px;
   font-weight: 400;
-  border-bottom: 1px solid #eeeff0;
-  color: #374151;
+  border-bottom: 1px solid #eeeff0 !important;
+  color: #374151 !important;
   line-height: 1.4;
   padding-bottom: 4px;
 }
