@@ -187,7 +187,7 @@ export function useActivities(contactId?: string) {
 
   // Mutation to create an activity
   const createActivityMutation = useMutation({
-    mutationFn: async (newActivity: { type: string; content?: string; timestamp?: string }) => {
+    mutationFn: async (newActivity: { type: string; content?: string; timestamp?: string; details?: any }) => {
       if (!user) throw new Error('User not authenticated')
       if (!contactId) throw new Error('Contact ID is required')
 
@@ -210,6 +210,7 @@ export function useActivities(contactId?: string) {
           entity_type: 'contact',
           entity_name: '',
           new_value: newActivity.content || null, // Store as string directly
+          details: newActivity.details || null, // ✅ Store details for email content
           timestamp: newActivity.timestamp || new Date().toISOString(),
         })
         .select()

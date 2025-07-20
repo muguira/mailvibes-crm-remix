@@ -244,6 +244,19 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
         source: 'internal' as const,
         is_pinned: activity.is_pinned || false,
         details: activity.details || undefined, // Include details for emails sent from CRM
+
+        // Extract email fields for email_sent activities
+        ...(activity.type === 'email_sent' && activity.details?.email_content
+          ? {
+              subject: activity.details.email_content.subject,
+              bodyHtml: activity.details.email_content.bodyHtml,
+              bodyText: activity.details.email_content.bodyText,
+              to: activity.details.email_content.to,
+              cc: activity.details.email_content.cc,
+              bcc: activity.details.email_content.bcc,
+              from: activity.details.email_content.from,
+            }
+          : {}),
       }
 
       ACTIVITY_TRANSFORM_CACHE.set(cacheKey, transformed)

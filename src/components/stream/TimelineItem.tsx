@@ -282,18 +282,37 @@ const formatAbsoluteTimestamp = (timestamp: string): string => {
   return date.toLocaleString();
 };
 
-// Helper function to format email recipients display
+// Helper function to format email recipients display with intelligent name extraction
 const formatEmailRecipients = (to?: Array<{name?: string; email: string}>, contactName?: string) => {
   if (!to || to.length === 0) {
     return contactName || 'Contact';
   }
   
+  // Helper to get display name from recipient
+  const getDisplayName = (recipient: {name?: string; email: string}) => {
+    if (recipient.name && recipient.name.trim()) {
+      return recipient.name;
+    }
+    
+    // If no name, try to extract a readable name from email
+    const emailPart = recipient.email.split('@')[0];
+    const cleanName = emailPart
+      .replace(/[._-]/g, ' ') // Replace dots, underscores, hyphens with spaces
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+    
+    return cleanName || recipient.email;
+  };
+  
   if (to.length === 1) {
-    return to[0].name || to[0].email;
+    const displayName = getDisplayName(to[0]);
+    // Prefer contactName if available and looks more complete
+    return (contactName && contactName.includes(' ')) ? contactName : displayName;
   }
   
   // Multiple recipients - show first recipient + count
-  const firstRecipient = to[0].name || to[0].email;
+  const firstRecipient = getDisplayName(to[0]);
   const remainingCount = to.length - 1;
   
   return (
@@ -770,7 +789,7 @@ const TimelineItem = React.memo(function TimelineItem({
             {activityProps.userName}
           </span>
           <span className="text-gray-500 ml-1">
-            {activity.type === 'email' ? 'emailed' : 
+            {(activity.type === 'email' || activity.type === 'email_sent') ? 'emailed' : 
              activity.type === 'note' ? 'added a note to' :
              activity.type === 'call' ? 'called' :
              activity.type === 'meeting' ? 'met with' :
@@ -778,14 +797,14 @@ const TimelineItem = React.memo(function TimelineItem({
              `added a ${activity.type} to`}
           </span>
           <span className="text-gray-700 font-medium ml-1">
-            {activity.type === 'email' 
+            {(activity.type === 'email' || activity.type === 'email_sent')
               ? formatEmailRecipients(activity.to, contactName)
               : contactName || 'Contact'}
           </span>
         </div>
         
         {/* Additional email details for multiple recipients */}
-        {activity.type === 'email' && activity.to && activity.to.length > 1 && (
+        {(activity.type === 'email' || activity.type === 'email_sent') && activity.to && activity.to.length > 1 && (
           <div className={cn("text-xs text-gray-500 mb-2", isMobile ? "pl-5" : "pl-7")}>
             <span className="font-medium">To:</span> {activity.to.map(recipient => recipient.name || recipient.email).join(', ')}
             {activity.cc && activity.cc.length > 0 && (
