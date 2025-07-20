@@ -208,7 +208,7 @@ const getActivityIcon = (iconName?: string, activityType?: string) => {
 const getActivityColor = (type?: string) => {
   switch (type) {
     case 'email':
-      return 'text-blue-600 bg-blue-50';
+      return 'text-teal-600 bg-teal-50';
     case 'call':
       return 'text-green-600 bg-green-50';
     case 'task':
@@ -228,7 +228,7 @@ const getActivityColor = (type?: string) => {
 const getUserNameColor = (type?: string) => {
   switch (type) {
     case 'email':
-      return 'text-blue-600';
+      return 'text-teal-600';
     case 'call':
       return 'text-green-600';
     case 'task':
@@ -282,18 +282,37 @@ const formatAbsoluteTimestamp = (timestamp: string): string => {
   return date.toLocaleString();
 };
 
-// Helper function to format email recipients display
+// Helper function to format email recipients display with intelligent name extraction
 const formatEmailRecipients = (to?: Array<{name?: string; email: string}>, contactName?: string) => {
   if (!to || to.length === 0) {
     return contactName || 'Contact';
   }
   
+  // Helper to get display name from recipient
+  const getDisplayName = (recipient: {name?: string; email: string}) => {
+    if (recipient.name && recipient.name.trim()) {
+      return recipient.name;
+    }
+    
+    // If no name, try to extract a readable name from email
+    const emailPart = recipient.email.split('@')[0];
+    const cleanName = emailPart
+      .replace(/[._-]/g, ' ') // Replace dots, underscores, hyphens with spaces
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+    
+    return cleanName || recipient.email;
+  };
+  
   if (to.length === 1) {
-    return to[0].name || to[0].email;
+    const displayName = getDisplayName(to[0]);
+    // Prefer contactName if available and looks more complete
+    return (contactName && contactName.includes(' ')) ? contactName : displayName;
   }
   
   // Multiple recipients - show first recipient + count
-  const firstRecipient = to[0].name || to[0].email;
+  const firstRecipient = getDisplayName(to[0]);
   const remainingCount = to.length - 1;
   
   return (
@@ -328,6 +347,9 @@ const TimelineItem = React.memo(function TimelineItem({
   const [showExpandButton, setShowExpandButton] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   
+  // State to track if this item has ever been seen
+  const [hasBeenViewed, setHasBeenViewed] = useState(false);
+  
   // Mobile detection for responsive toolbar
   const isMobile = useIsMobile();
   
@@ -351,47 +373,77 @@ const TimelineItem = React.memo(function TimelineItem({
     }
   }, []);
   
-    // Create a sequential filling effect (only first few visible elements get filled)
+  // State to track maximum progress achieved for this item
+  const [maxProgress, setMaxProgress] = useState(0);
+
+  // Mark item as viewed when it becomes significantly visible
+  useEffect(() => {
+    if (visibilityPercentage >= 25 && !hasBeenViewed) {
+      setHasBeenViewed(true);
+    }
+  }, [visibilityPercentage, hasBeenViewed]);
+
+  // Create a sequential filling effect with persistent progress
   const progressiveFillPercentage = useMemo(() => {
-    if (!timelineRef.current || visibilityPercentage < 25) return 0; // Much higher threshold
+    // If item has never been viewed, return 0 (no fill)
+    if (!hasBeenViewed) return 0;
+    
+    if (!timelineRef.current) return maxProgress;
     
     // Get element position
     const element = timelineRef.current;
     const rect = element.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     
-    // Only fill elements that are significantly visible (at least 25% visible)
-    if (visibilityPercentage < 25) return 0;
+    // If not significantly visible, return the stored max progress
+    if (visibilityPercentage < 25) {
+      return maxProgress;
+    }
     
     // Calculate element's vertical position relative to viewport top
     const elementTop = rect.top;
-    const elementBottom = rect.bottom;
     
-    // Determine if element is in the "primary" visible area (top portion of viewport)
-    const primaryZone = viewportHeight * 0.4; // Top 40% of viewport
-    const secondaryZone = viewportHeight * 0.7; // Top 70% of viewport
+    // Aggressive sequential logic: complete previous items well before starting new ones
+    const completeThreshold = viewportHeight * 0.7; // Top 70% - complete before this point
+    const startThreshold = viewportHeight * 0.9; // Top 90% - only start filling after this
     
-    let fillPercentage = 0;
+    let currentFillPercentage = 0;
     
-    if (elementTop >= 0 && elementTop <= primaryZone) {
-      // Element starts in primary zone - full fill
-      fillPercentage = 100;
-    } else if (elementTop > primaryZone && elementTop <= secondaryZone) {
-      // Element starts in secondary zone - partial fill
-      const distanceIntoSecondary = elementTop - primaryZone;
-      const secondaryZoneHeight = secondaryZone - primaryZone;
-      const falloff = 1 - (distanceIntoSecondary / secondaryZoneHeight);
-      fillPercentage = Math.max(0, falloff * 50); // Max 50% in secondary zone
+    // If element is in the top 70% of viewport, it should be 100% filled
+    if (elementTop < completeThreshold) {
+      currentFillPercentage = 100;
+    }
+    // If element is between 70% and 90% of viewport, no filling (gap to ensure completion)
+    else if (elementTop >= completeThreshold && elementTop < startThreshold) {
+      currentFillPercentage = 0;
+    }
+    // If element is in the bottom 10% of viewport and visible, start progressive fill
+    else if (elementTop >= startThreshold && elementTop <= viewportHeight && visibilityPercentage >= 25) {
+      // Progressive fill from 0% to 100% in the small bottom zone
+      const distanceFromStart = elementTop - startThreshold;
+      const fillZoneHeight = viewportHeight - startThreshold;
+      const progressInFillZone = distanceFromStart / fillZoneHeight;
+      
+      currentFillPercentage = Math.max(0, 100 - (progressInFillZone * 100));
     } else {
-      // Element is too far down - no fill
-      fillPercentage = 0;
+      // Element is below viewport or not visible enough - no fill
+      currentFillPercentage = 0;
     }
     
     // Apply visibility factor for smooth transitions
     const visibilityFactor = Math.min(1, (visibilityPercentage - 25) / 25); // Ramp up from 25% to 50% visibility
+    const calculatedProgress = Math.round(currentFillPercentage * visibilityFactor);
     
-    return Math.round(fillPercentage * visibilityFactor);
-  }, [visibilityPercentage, timelineRef, scrollTrigger]);
+    // Return the maximum between current calculation and stored max
+    const finalProgress = Math.max(calculatedProgress, maxProgress);
+    
+    // Update max progress if we've achieved a higher value
+    if (finalProgress > maxProgress) {
+      setMaxProgress(finalProgress);
+    }
+    
+    return finalProgress;
+  }, [visibilityPercentage, timelineRef, scrollTrigger, hasBeenViewed, maxProgress]);
   
   // OPTIMIZED: Memoize expensive calculations
   const activityProps = useMemo(() => {
@@ -608,7 +660,7 @@ const TimelineItem = React.memo(function TimelineItem({
       <div 
         className={cn(
           "absolute left-[22px] top-[40px] w-[1px] transition-all duration-300 ease-out",
-          isLast ? "bottom-[50px]" : "bottom-[-350px]"
+          isLast ? "bottom-[0px]" : "bottom-[-150px]"
         )}
         style={{
           background: isLast 
@@ -635,7 +687,7 @@ const TimelineItem = React.memo(function TimelineItem({
       
       {/* Timeline end indicator for last item */}
       {isLast && (
-        <div className="absolute left-[16px] bottom-[30px] w-3 h-3 rounded-full bg-teal-600 border-2 border-white shadow-sm z-10">
+        <div className="absolute left-[16px] bottom-[0px] w-3 h-3 rounded-full bg-teal-600 border-2 border-white shadow-sm z-10">
           <div className="absolute inset-0 rounded-full bg-teal-600 animate-pulse opacity-75"></div>
         </div>
       )}
@@ -737,7 +789,7 @@ const TimelineItem = React.memo(function TimelineItem({
             {activityProps.userName}
           </span>
           <span className="text-gray-500 ml-1">
-            {activity.type === 'email' ? 'emailed' : 
+            {(activity.type === 'email' || activity.type === 'email_sent') ? 'emailed' : 
              activity.type === 'note' ? 'added a note to' :
              activity.type === 'call' ? 'called' :
              activity.type === 'meeting' ? 'met with' :
@@ -745,14 +797,14 @@ const TimelineItem = React.memo(function TimelineItem({
              `added a ${activity.type} to`}
           </span>
           <span className="text-gray-700 font-medium ml-1">
-            {activity.type === 'email' 
+            {(activity.type === 'email' || activity.type === 'email_sent')
               ? formatEmailRecipients(activity.to, contactName)
               : contactName || 'Contact'}
           </span>
         </div>
         
         {/* Additional email details for multiple recipients */}
-        {activity.type === 'email' && activity.to && activity.to.length > 1 && (
+        {(activity.type === 'email' || activity.type === 'email_sent') && activity.to && activity.to.length > 1 && (
           <div className={cn("text-xs text-gray-500 mb-2", isMobile ? "pl-5" : "pl-7")}>
             <span className="font-medium">To:</span> {activity.to.map(recipient => recipient.name || recipient.email).join(', ')}
             {activity.cc && activity.cc.length > 0 && (
@@ -841,13 +893,15 @@ const TimelineItem = React.memo(function TimelineItem({
                     transition: 'max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
                   }}
                 >
-                  {activity.source === 'gmail' && activity.type === 'email' ? (
+                  {(activity.source === 'gmail' && activity.type === 'email') || 
+                   (activity.source === 'internal' && activity.type === 'email_sent') ? (
                     <EmailRenderer
                       bodyHtml={activity.bodyHtml}
                       bodyText={activity.bodyText}
                       subject={activity.subject}
                       emailId={activity.id}
                       attachments={activity.attachments}
+                      activityDetails={activity.details}
                     />
                   ) : (
                     <div 

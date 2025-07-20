@@ -113,12 +113,42 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
   //   error
   // });
 
-  // Get user name for activities
+  // Get user name for activities with intelligent name extraction
   const getUserName = (activity: any) => {
+    // For Gmail emails, use the from field
     if (activity.source === 'gmail' && activity.from) {
-      return activity.from.name || activity.from.email;
+      if (activity.from.name && activity.from.name.trim()) {
+        return activity.from.name;
+      }
+      // Extract readable name from email
+      const emailPart = activity.from.email.split('@')[0];
+      const cleanName = emailPart
+        .replace(/[._-]/g, ' ')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+      return cleanName || activity.from.email;
     }
-    return user?.email?.split('@')[0] || 'User';
+    
+    // For internal activities (notes, emails sent from CRM, etc.)
+    // Try to get a better name from user metadata or email
+    const userFullName = user?.user_metadata?.full_name;
+    if (userFullName && userFullName.trim()) {
+      return userFullName;
+    }
+    
+    // Extract readable name from user email
+    if (user?.email) {
+      const emailPart = user.email.split('@')[0];
+      const cleanName = emailPart
+        .replace(/[._-]/g, ' ')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+      return cleanName || user.email.split('@')[0];
+    }
+    
+    return 'User';
   };
 
   // Get the first interaction date (dynamic based on loaded emails)
@@ -308,10 +338,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
                   
                   <div className="flex items-center justify-center mt-6">
                     <div className="flex flex-col items-center gap-3">
-                      {/* Timeline terminus circle */}
-                      <div className="w-4 h-4 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 border-2 border-white shadow-lg relative">
-                        <div className="absolute inset-0 rounded-full bg-teal-500 animate-pulse opacity-50"></div>
-                      </div>
+                      
                       
                       {/* Main relationship indicator */}
                       <div className="flex items-center gap-3 bg-white border border-gray-300 rounded-full px-4 py-2 text-sm text-gray-700 shadow-sm">

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Phone,
@@ -8,7 +8,12 @@ import {
   CalendarDays,
   AlertCircle,
   Download,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  Minus,
+  Edit3,
+  Clock,
+  AtSign
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -22,6 +27,10 @@ import { useContactEmails } from '@/hooks/use-contact-emails-v2';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { GmailConnectionModal } from '@/components/stream/GmailConnectionModal';
 import { TiptapEditor, MarkdownToolbar } from '@/components/markdown';
+import { Input } from '@/components/ui/input';
+import { useGmailStore } from '@/stores/gmail/gmailStore';
+import { toast } from '@/hooks/use-toast';
+import { GmailPermissionsAlert, useGmailPermissionsAlert } from '@/components/integrations/gmail/GmailPermissionsAlert';
 
 const ACTIVITY_TYPES = [
   { id: 'call', label: 'Call', icon: Phone },
@@ -174,11 +183,135 @@ export default function TimelineComposer({
   });
   const [isDateTimeManuallySet, setIsDateTimeManuallySet] = useState(false);
   const [editor, setEditor] = useState<any>(null);
+  
+  // Email-specific states
+  const [emailFields, setEmailFields] = useState({
+    to: contactEmail || '',
+    cc: '',
+    bcc: '',
+    subject: ''
+  });
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [showPermissionsAlert, setShowPermissionsAlert] = useState(false);
+  const [showAdvancedEmailFields, setShowAdvancedEmailFields] = useState(false);
+  const [showDateTime, setShowDateTime] = useState(false);
+  
+  // Click-to-edit states for email fields
+  const [editingField, setEditingField] = useState<'subject' | 'cc' | 'bcc' | null>(null);
   const { recordId } = useParams();
   const effectiveContactId = contactId || recordId;
   const { createActivity } = useActivities(effectiveContactId);
   const { isConnected: isGmailConnected } = useGmailConnection();
   const isMobile = useIsMobile();
+  const gmailStore = useGmailStore();
+  const { triggerPermissionsAlert } = useGmailPermissionsAlert();
+  
+  // Update email "to" field when contactEmail changes
+  useEffect(() => {
+    if (contactEmail) {
+      setEmailFields(prev => ({
+        ...prev,
+        to: contactEmail
+      }));
+    }
+  }, [contactEmail]);
+
+  // Reset advanced fields when switching away from email type
+  useEffect(() => {
+    if (selectedActivityType !== 'email') {
+      setShowAdvancedEmailFields(false);
+      setEditingField(null); // Exit edit mode when switching activity types
+    }
+  }, [selectedActivityType]);
+
+  // Handle click-to-edit functionality
+  const handleFieldClick = (fieldName: 'subject' | 'cc' | 'bcc') => {
+    if (!isSendingEmail) {
+      setEditingField(fieldName);
+    }
+  };
+
+  const handleFieldBlur = (fieldName: 'subject' | 'cc' | 'bcc') => {
+    setEditingField(null);
+  };
+
+  const handleFieldKeyDown = (e: React.KeyboardEvent, fieldName: 'subject' | 'cc' | 'bcc') => {
+    if (e.key === 'Enter') {
+      setEditingField(null);
+    }
+    if (e.key === 'Escape') {
+      setEditingField(null);
+    }
+  };
+
+  // Component for click-to-edit fields
+  const ClickToEditField = ({ 
+    fieldName, 
+    label, 
+    value, 
+    onChange, 
+    placeholder,
+    type = "text",
+    required = false 
+  }: {
+    fieldName: 'subject' | 'cc' | 'bcc';
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
+    type?: string;
+    required?: boolean;
+  }) => {
+    const isEditing = editingField === fieldName;
+    const isEmpty = !value || value.trim() === '';
+
+    if (isEditing) {
+      return (
+        <div>
+          <input
+            type={type}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={() => handleFieldBlur(fieldName)}
+            onKeyDown={(e) => handleFieldKeyDown(e, fieldName)}
+            placeholder={
+              fieldName === 'subject' ? 'Email subject' : 
+              fieldName === 'cc' ? 'CC email' :
+              'BCC email'
+            }
+            className="h-8 w-full text-sm leading-none border-none bg-gray-50 rounded-md px-3 py-2 focus:outline-none transition-colors"
+            disabled={isSendingEmail}
+            required={required}
+            autoFocus
+          />
+        </div>
+      );
+    }
+
+        return (
+      <div 
+        className="cursor-pointer group"
+        onClick={() => handleFieldClick(fieldName)}
+        title={`Click to edit ${label.toLowerCase()}`}
+      >
+        <div className={cn(
+          "h-8 px-3 py-2 text-sm leading-none transition-all duration-200 relative flex items-center justify-between",
+          "hover:bg-gray-50 rounded-md", // All fields: no borders, subtle hover
+          isEmpty ? "text-muted-foreground" : "text-foreground",
+          isSendingEmail ? "opacity-50 cursor-not-allowed" : "cursor-text"
+        )}>
+          <span className="flex-1 truncate">
+            {isEmpty ? (
+              fieldName === 'subject' ? 'Subject' : 
+              fieldName === 'cc' ? 'CC' :
+              'BCC'
+            ) : value}
+          </span>
+          <Edit3 className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity ml-2 flex-shrink-0" />
+        </div>
+      </div>
+    );
+  };
   
   // Use provided contactEmail (we'll assume it's passed from parent)
   const effectiveContactEmail = contactEmail;
@@ -186,7 +319,6 @@ export default function TimelineComposer({
   // Use modern emails hook to get email info and sync capabilities
   const {
     emails,
-    loading,
     hasMore,
     syncStatus: internalSyncStatus,
     syncEmailHistory
@@ -202,8 +334,160 @@ export default function TimelineComposer({
                                emails.length > 0 && 
                                (hasMore || emails.length < 200);
 
+  const handleSendEmail = async () => {
+    if (!text.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter email content",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!emailFields.to || !emailFields.subject) {
+      toast({
+        title: "Error", 
+        description: !emailFields.to 
+          ? "No recipient email found for this contact" 
+          : "Please enter an email subject",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isGmailConnected) {
+      toast({
+        title: "Error",
+        description: "No Gmail account connected. Please connect Gmail to send emails.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingEmail(true);
+
+    try {
+      // Get Gmail service from store
+      const gmailService = gmailStore.service;
+      if (!gmailService) {
+        throw new Error('Gmail service not initialized');
+      }
+
+      // Send email via Gmail API
+      const result = await gmailService.sendEmail({
+        to: [emailFields.to],
+        cc: emailFields.cc ? [emailFields.cc] : undefined,
+        bcc: emailFields.bcc ? [emailFields.bcc] : undefined,
+        subject: emailFields.subject,
+        bodyHtml: text,
+        contactId: effectiveContactId
+      });
+
+      // Create activity record for the sent email with full content
+      const activityTimestamp = new Date().toISOString();
+      
+      // Create detailed activity data with email content
+      const emailActivityData = {
+        type: 'email_sent',
+        content: `Email sent to ${emailFields.to}: ${emailFields.subject}`,
+        timestamp: activityTimestamp,
+        // Store email details in the details field for proper rendering
+        details: {
+          email_content: {
+            subject: emailFields.subject,
+            to: [{ email: emailFields.to }],
+            cc: emailFields.cc ? [{ email: emailFields.cc }] : undefined,
+            bcc: emailFields.bcc ? [{ email: emailFields.bcc }] : undefined,
+            bodyHtml: text, // Store the actual HTML content from the editor
+            bodyText: text.replace(/<[^>]*>/g, ''), // Strip HTML for plain text version
+            from: {
+              email: gmailStore.accounts[0]?.email || '',
+              name: gmailStore.accounts[0]?.email || ''
+            },
+            timestamp: activityTimestamp
+          }
+        }
+      };
+      
+      if (onCreateActivity) {
+        onCreateActivity(emailActivityData);
+      } else {
+        createActivity(emailActivityData);
+      }
+
+      // Clear form
+      setText("");
+      setEmailFields({
+        to: contactEmail || '',
+        cc: '',
+        bcc: '',
+        subject: ''
+      });
+      setShowAdvancedEmailFields(false); // Hide advanced fields after sending
+      setEditingField(null); // Exit edit mode after sending
+      
+      if (editor) {
+        editor.commands.setContent('', false);
+      }
+
+      toast({
+        title: "Success",
+        description: `Email sent to ${emailFields.to}`,
+      });
+
+      logger.log("Email sent successfully:", {
+        messageId: result.messageId,
+        to: emailFields.to,
+        subject: emailFields.subject
+      });
+
+    } catch (error) {
+      logger.error("Failed to send email:", error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Check if error is due to insufficient scopes
+      if (errorMessage.includes('insufficient authentication scopes') || 
+          errorMessage.includes('insufficient scope') ||
+          errorMessage.includes('The required scopes are not present')) {
+        
+        setShowPermissionsAlert(true);
+        triggerPermissionsAlert();
+        
+        toast({
+          title: "Gmail Permissions Required",
+          description: "Please reconnect Gmail with email sending permissions.",
+          variant: "destructive",
+          action: (
+            <button 
+              onClick={() => setShowPermissionsAlert(true)}
+              className="text-white underline hover:no-underline"
+            >
+              Update Permissions
+            </button>
+          )
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: `Failed to send email: ${errorMessage}`,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   const handleSend = () => {
-    if (text.trim() && effectiveContactId) {
+    if (!text.trim()) return;
+
+    if (selectedActivityType === 'email') {
+      handleSendEmail();
+      return;
+    }
+
+    if (effectiveContactId) {
       // Use current date/time if not manually set, otherwise use the selected date/time
       let finalDate = activityDate;
       let finalTime = activityTime;
@@ -280,6 +564,8 @@ export default function TimelineComposer({
 
   const clearContent = () => {
     setText("");
+    setShowAdvancedEmailFields(false); // Reset advanced fields when clearing
+    setEditingField(null); // Exit edit mode when clearing
     // Also clear the editor directly to ensure it's empty
     if (editor) {
       editor.commands.setContent('', false);
@@ -404,20 +690,111 @@ export default function TimelineComposer({
         })}
       </div>
 
-      {/* Date and Time Selector */}
-      <div className={`flex items-center gap-3 border-b border-gray-100 transition-all duration-300 ease-in-out ${
+      {/* Minimalist Controls Row */}
+      <div className={`flex items-center gap-2 border-b border-gray-100 transition-all duration-300 ease-in-out ${
         isCompact ? 'p-2' : 'p-3'
       }`}>
-        <DateTimePicker
-          date={activityDate}
-          onDateChange={handleDateChange}
-          time={activityTime}
-          onTimeChange={handleTimeChange}
-          isCompact={isCompact}
-        />
+        {/* Date/Time Toggle Button - Always visible */}
+        <button
+          type="button"
+          onClick={() => setShowDateTime(!showDateTime)}
+          className={`flex items-center gap-1 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors ${
+            showDateTime ? 'bg-gray-100 text-gray-900' : ''
+          } ${isCompact ? 'px-2 py-1 text-xs' : 'px-2 py-1.5 text-xs'}`}
+          title="Date & Time"
+        >
+          <Clock className="w-3 h-3" />
+          {!isCompact && <span className="text-xs">Time</span>}
+        </button>
+
+        {/* CC/BCC Toggle Button - Only when email is selected */}
+        {selectedActivityType === 'email' && (
+          <button
+            type="button"
+            onClick={() => setShowAdvancedEmailFields(!showAdvancedEmailFields)}
+            className={`flex items-center gap-1 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors ${
+              showAdvancedEmailFields ? 'bg-gray-100 text-gray-900' : ''
+            } ${isCompact ? 'px-2 py-1 text-xs' : 'px-2 py-1.5 text-xs'}`}
+            disabled={isSendingEmail}
+            title="CC & BCC"
+          >
+            <AtSign className="w-3 h-3" />
+            {!isCompact && <span className="text-xs">CC</span>}
+          </button>
+        )}
       </div>
 
+      {/* Date and Time Selector - Collapsible */}
+      {showDateTime && (
+        <div className={`flex items-center gap-3 border-b border-gray-100 transition-all duration-300 ease-in-out animate-in slide-in-from-top-2 duration-200 ${
+          isCompact ? 'p-2' : 'p-3'
+        }`}>
+          <DateTimePicker
+            date={activityDate}
+            onDateChange={handleDateChange}
+            time={activityTime}
+            onTimeChange={handleTimeChange}
+            isCompact={isCompact}
+          />
+        </div>
+      )}
 
+      {/* Email Fields - only show when email type is selected */}
+      {selectedActivityType === 'email' && (
+        <div className={`space-y-3 border-b border-gray-100 transition-all duration-300 ease-in-out ${
+          isCompact ? 'p-2' : 'p-3'
+        }`}>
+          {/* Subject Field - Always visible with click-to-edit */}
+          <ClickToEditField
+            fieldName="subject"
+            label="Subject"
+            value={emailFields.subject}
+            onChange={(value) => setEmailFields(prev => ({ ...prev, subject: value }))}
+            placeholder="Click to add email subject"
+            required
+          />
+          
+          {/* CC/BCC Fields - Collapsible with click-to-edit */}
+          {showAdvancedEmailFields && (
+            <div className="grid grid-cols-2 gap-2 animate-in slide-in-from-top-2 duration-200">
+              <ClickToEditField
+                fieldName="cc"
+                label="CC"
+                value={emailFields.cc}
+                onChange={(value) => setEmailFields(prev => ({ ...prev, cc: value }))}
+                placeholder="Click to add CC"
+                type="email"
+              />
+              <ClickToEditField
+                fieldName="bcc"
+                label="BCC"
+                value={emailFields.bcc}
+                onChange={(value) => setEmailFields(prev => ({ ...prev, bcc: value }))}
+                placeholder="Click to add BCC"
+                type="email"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Gmail Permissions Alert */}
+      {showPermissionsAlert && (
+        <div className="p-3 border-b border-gray-100">
+          <GmailPermissionsAlert 
+            onReconnectStart={() => {
+              logger.info('Gmail reconnection started from TimelineComposer');
+            }}
+            onReconnectSuccess={() => {
+              setShowPermissionsAlert(false);
+              toast({
+                title: "Success",
+                description: "Gmail permissions updated. You can now send emails!",
+              });
+            }}
+          />
+        </div>
+      )}
 
       {/* Rich Text Editor */}
       <div className={`outline-none transition-all duration-300 ease-in-out ${
@@ -493,13 +870,22 @@ export default function TimelineComposer({
           </Button>
           <Button
             size="sm"
-            disabled={!text.trim()}
+            disabled={!text.trim() || isSendingEmail}
             onClick={handleSend}
             className={`bg-teal-600 hover:bg-teal-700 transition-all duration-300 ease-in-out ${
               isCompact ? "text-xs px-2 py-1 h-7" : "h-8"
             }`}
           >
-            Ok
+            {isSendingEmail ? (
+              <>
+                <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                Sending...
+              </>
+            ) : selectedActivityType === 'email' ? (
+              'Send Email'
+            ) : (
+              'Ok'
+            )}
           </Button>
         </div>
       </div>

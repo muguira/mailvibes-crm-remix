@@ -1,6 +1,15 @@
 import { supabase } from '@/integrations/supabase/client'
 import { logger } from '@/utils/logger'
-import { getRecentContactEmails, searchContactEmails, GmailEmail, GmailApiResponse } from '@/services/google/gmailApi'
+import {
+  getRecentContactEmails,
+  searchContactEmails,
+  GmailEmail,
+  GmailApiResponse,
+  sendEmail,
+  createDraft,
+  SendEmailData,
+  SendEmailResponse,
+} from '@/services/google/gmailApi'
 import { triggerContactSync } from '@/workers/emailSyncWorker'
 import type { AuthService } from './AuthService'
 import type {
@@ -988,6 +997,162 @@ export class EmailService {
     error.retryable = this.isRetryableError(code)
     error.originalError = originalError
     return error
+  }
+
+  // =============================================================================
+  // EMAIL SENDING METHODS
+  // =============================================================================
+
+  /**
+   * Send email via Gmail API
+   */
+  async sendEmail(emailData: {
+    to: string[]
+    cc?: string[]
+    bcc?: string[]
+    subject: string
+    bodyHtml: string
+    contactId?: string
+    inReplyTo?: string
+    references?: string
+  }): Promise<SendEmailResponse> {
+    this.ensureNotDisposed()
+    this.updateActivity()
+
+    try {
+      if (this.config.enableLogging) {
+        logger.info(`[EmailService] Sending email to: ${emailData.to.join(', ')}`)
+      }
+
+      // Get valid access token
+      const accounts = await this.authService.getConnectedAccounts()
+      if (accounts.length === 0) {
+        throw this.createError(GmailErrorCode.AUTH_NO_ACCOUNT, 'No connected Gmail accounts found')
+      }
+
+      const token = await this.authService.getValidToken(accounts[0].email)
+      if (!token) {
+        throw this.createError(GmailErrorCode.AUTH_INVALID_TOKEN, 'Unable to get valid access token')
+      }
+
+      // Prepare email data for Gmail API
+      const gmailEmailData: SendEmailData = {
+        to: emailData.to,
+        cc: emailData.cc,
+        bcc: emailData.bcc,
+        subject: emailData.subject,
+        bodyHtml: emailData.bodyHtml,
+        inReplyTo: emailData.inReplyTo,
+        references: emailData.references,
+      }
+
+      // Send email via Gmail API
+      const result = await sendEmail(token, gmailEmailData)
+
+      if (this.config.enableLogging) {
+        logger.info(`[EmailService] Email sent successfully: ${result.messageId}`)
+      }
+
+      return result
+    } catch (error) {
+      this.handleError('Failed to send email', error)
+      throw error
+    }
+  }
+
+  /**
+   * Create draft email via Gmail API
+   */
+  async createDraft(emailData: {
+    to: string[]
+    cc?: string[]
+    bcc?: string[]
+    subject: string
+    bodyHtml: string
+    contactId?: string
+  }): Promise<{ draftId: string }> {
+    this.ensureNotDisposed()
+    this.updateActivity()
+
+    try {
+      if (this.config.enableLogging) {
+        logger.info(`[EmailService] Creating draft for: ${emailData.to.join(', ')}`)
+      }
+
+      // Get valid access token
+      const accounts = await this.authService.getConnectedAccounts()
+      if (accounts.length === 0) {
+        throw this.createError(GmailErrorCode.AUTH_NO_ACCOUNT, 'No connected Gmail accounts found')
+      }
+
+      const token = await this.authService.getValidToken(accounts[0].email)
+      if (!token) {
+        throw this.createError(GmailErrorCode.AUTH_INVALID_TOKEN, 'Unable to get valid access token')
+      }
+
+      // Prepare email data for Gmail API
+      const gmailEmailData: SendEmailData = {
+        to: emailData.to,
+        cc: emailData.cc,
+        bcc: emailData.bcc,
+        subject: emailData.subject,
+        bodyHtml: emailData.bodyHtml,
+      }
+
+      // Create draft via Gmail API
+      const result = await createDraft(token, gmailEmailData)
+
+      if (this.config.enableLogging) {
+        logger.info(`[EmailService] Draft created successfully: ${result.draftId}`)
+      }
+
+      return result
+    } catch (error) {
+      this.handleError('Failed to create draft', error)
+      throw error
+    }
+  }
+
+  /**
+   * Reply to an email with proper threading
+   */
+  async replyToEmail(
+    originalEmail: {
+      gmailId: string
+      subject: string
+      from: string
+      references?: string
+    },
+    replyData: {
+      to: string[]
+      cc?: string[]
+      subject?: string
+      bodyHtml: string
+      contactId?: string
+    },
+  ): Promise<SendEmailResponse> {
+    this.ensureNotDisposed()
+    this.updateActivity()
+
+    // Prepare reply subject
+    const replySubject =
+      replyData.subject ||
+      (originalEmail.subject.startsWith('Re:') ? originalEmail.subject : `Re: ${originalEmail.subject}`)
+
+    // Prepare threading headers
+    const references = originalEmail.references
+      ? `${originalEmail.references} ${originalEmail.gmailId}`
+      : originalEmail.gmailId
+
+    return await this.sendEmail({
+      to: replyData.to,
+      cc: replyData.cc,
+      subject: replySubject,
+      bodyHtml: replyData.bodyHtml,
+      contactId: replyData.contactId,
+      inReplyTo: originalEmail.gmailId,
+      references: references,
+    })
   }
 
   private isRetryableError(code: GmailErrorCode): boolean {

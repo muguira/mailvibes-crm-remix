@@ -170,6 +170,7 @@ const useEmailsStore = create<EmailsStore>()(
             size: att.size_bytes || 0,
             inline: att.inline || false,
             contentId: att.content_id,
+            storage_path: att.storage_path, // Include storage path for local images
           })) || []
 
         return {
@@ -224,7 +225,7 @@ const useEmailsStore = create<EmailsStore>()(
               attachment_count, created_at, updated_at,
               email_attachments (
                 id, gmail_attachment_id, filename, mime_type, 
-                size_bytes, inline, content_id
+                size_bytes, inline, content_id, storage_path
               )
             `,
             )

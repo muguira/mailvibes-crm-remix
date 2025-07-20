@@ -203,8 +203,15 @@ function parseGmailMessage(gmailMessage: any): GmailEmail {
   let isCalendarInvitation = false
 
   if (gmailMessage.payload?.body?.data) {
-    // Simple message body
-    bodyText = base64UrlDecode(gmailMessage.payload.body.data)
+    // Simple message body - check mimeType to determine if it's HTML or plain text
+    const decodedContent = base64UrlDecode(gmailMessage.payload.body.data)
+    const mimeType = gmailMessage.payload?.mimeType || ''
+
+    if (mimeType.includes('text/html')) {
+      bodyHtml = decodedContent
+    } else {
+      bodyText = decodedContent
+    }
   } else if (parts.length > 0) {
     // Multipart message
     for (const part of parts) {
@@ -678,6 +685,185 @@ export async function getRecentContactEmails(
     }
   } catch (error) {
     logger.error('Error getting recent contact emails:', error)
+    throw error
+  }
+}
+
+/**
+ * Interface for email data to be sent
+ */
+export interface SendEmailData {
+  to: string[]
+  cc?: string[]
+  bcc?: string[]
+  subject: string
+  bodyHtml: string
+  bodyText?: string
+  inReplyTo?: string // For threading replies
+  references?: string // For threading replies
+}
+
+/**
+ * Interface for the response when sending an email
+ */
+export interface SendEmailResponse {
+  messageId: string
+  threadId?: string
+}
+
+/**
+ * Creates a MIME message from email data
+ * @param emailData - Email content and metadata
+ * @returns MIME formatted message string
+ */
+function createMimeMessage(emailData: SendEmailData): string {
+  const { to, cc, bcc, subject, bodyHtml, bodyText, inReplyTo, references } = emailData
+
+  let mime = ''
+
+  // Headers
+  mime += `To: ${to.join(', ')}\r\n`
+  if (cc && cc.length > 0) {
+    mime += `Cc: ${cc.join(', ')}\r\n`
+  }
+  if (bcc && bcc.length > 0) {
+    mime += `Bcc: ${bcc.join(', ')}\r\n`
+  }
+  mime += `Subject: ${subject}\r\n`
+
+  // Threading headers for replies
+  if (inReplyTo) {
+    mime += `In-Reply-To: ${inReplyTo}\r\n`
+  }
+  if (references) {
+    mime += `References: ${references}\r\n`
+  }
+
+  mime += `Content-Type: text/html; charset=utf-8\r\n`
+  mime += `MIME-Version: 1.0\r\n`
+  mime += `\r\n`
+
+  // Body
+  mime += bodyHtml
+
+  return mime
+}
+
+/**
+ * Encodes email content to base64url format required by Gmail API
+ * @param message - MIME message string
+ * @returns base64url encoded string
+ */
+function encodeEmailMessage(message: string): string {
+  return btoa(unescape(encodeURIComponent(message)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+}
+
+/**
+ * Send email using Gmail API
+ * @param accessToken - Valid Gmail API access token
+ * @param emailData - Email content and metadata
+ * @returns Promise<SendEmailResponse>
+ */
+export async function sendEmail(accessToken: string, emailData: SendEmailData): Promise<SendEmailResponse> {
+  try {
+    logger.info('[Gmail API] Sending email:', {
+      to: emailData.to,
+      subject: emailData.subject,
+      hasHtml: !!emailData.bodyHtml,
+    })
+
+    // Create MIME message
+    const mimeMessage = createMimeMessage(emailData)
+
+    // Encode to base64url
+    const encodedMessage = encodeEmailMessage(mimeMessage)
+
+    // Send via Gmail API
+    const response = await fetch(`${GMAIL_API_BASE_URL}/users/me/messages/send`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        raw: encodedMessage,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error?.message || `Gmail API error: ${response.statusText}`)
+    }
+
+    const result = await response.json()
+
+    logger.info('[Gmail API] Email sent successfully:', {
+      messageId: result.id,
+      threadId: result.threadId,
+    })
+
+    return {
+      messageId: result.id,
+      threadId: result.threadId,
+    }
+  } catch (error) {
+    logger.error('[Gmail API] Error sending email:', error)
+    throw error
+  }
+}
+
+/**
+ * Create a draft email using Gmail API
+ * @param accessToken - Valid Gmail API access token
+ * @param emailData - Email content and metadata
+ * @returns Promise with draft ID
+ */
+export async function createDraft(accessToken: string, emailData: SendEmailData): Promise<{ draftId: string }> {
+  try {
+    logger.info('[Gmail API] Creating draft:', {
+      to: emailData.to,
+      subject: emailData.subject,
+    })
+
+    // Create MIME message
+    const mimeMessage = createMimeMessage(emailData)
+
+    // Encode to base64url
+    const encodedMessage = encodeEmailMessage(mimeMessage)
+
+    // Create draft via Gmail API
+    const response = await fetch(`${GMAIL_API_BASE_URL}/users/me/drafts`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: {
+          raw: encodedMessage,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error?.message || `Gmail API error: ${response.statusText}`)
+    }
+
+    const result = await response.json()
+
+    logger.info('[Gmail API] Draft created successfully:', {
+      draftId: result.id,
+    })
+
+    return {
+      draftId: result.id,
+    }
+  } catch (error) {
+    logger.error('[Gmail API] Error creating draft:', error)
     throw error
   }
 }

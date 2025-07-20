@@ -16,6 +16,18 @@ interface EmailRendererProps {
     inline?: boolean;
     contentId?: string;
   }>;
+  // For emails sent from CRM (stored in activity details)
+  activityDetails?: {
+    email_content?: {
+      bodyHtml?: string;
+      bodyText?: string;
+      subject?: string;
+      to?: Array<{ email: string; name?: string }>;
+      cc?: Array<{ email: string; name?: string }>;
+      bcc?: Array<{ email: string; name?: string }>;
+      from?: { email: string; name?: string };
+    };
+  };
 }
 
 const EmailRenderer: React.FC<EmailRendererProps> = ({ 
@@ -23,12 +35,44 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
   bodyText, 
   subject, 
   emailId, 
-  attachments = [] 
+  attachments = [],
+  activityDetails 
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Debug log for specific test email
+  console.log('📧 [EmailRenderer] Component called:', {
+    emailId,
+    subject,
+    hasBodyHtml: !!bodyHtml,
+    hasBodyText: !!bodyText,
+    attachmentsCount: attachments.length,
+    isTestEmail: subject?.includes('crm email test just test') || subject?.includes('test'),
+    attachmentFilenames: attachments.map(a => a.filename)
+  });
+
+  // SPECIFIC DEBUG for emails with attachments
+  if (attachments.length > 0) {
+    console.log('🔍 [EmailRenderer] DETAILED attachment debug for', emailId, ':', {
+      emailId,
+      subject,
+      attachmentDetails: attachments.map(att => ({
+        id: att.id,
+        filename: att.filename,
+        mimeType: att.mimeType,
+        size: att.size,
+        inline: att.inline,
+        contentId: att.contentId,
+        storage_path: (att as any).storage_path,
+        storagePath: (att as any).storagePath,
+        hasStorageField: !!(att as any).storage_path || !!(att as any).storagePath,
+        fullAttachmentObject: att
+      }))
+    });
+  }
 
   // Enhanced attachment processing with better error handling
   const processedAttachments = useMemo(() => {
@@ -43,49 +87,16 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
     }));
   }, [attachments]);
 
-  // Generate attachment gallery with enhanced error handling
-  const attachmentGallery = useMemo(() => {
-    const imageAttachments = processedAttachments.filter(att => 
-      att.filename && (
-        /\.(gif|png|jpe?g|webp|svg)$/i.test(att.filename) ||
-        (att.mimeType && att.mimeType.startsWith('image/'))
-      )
-    );
-    
-    if (imageAttachments.length === 0) return null;
-    
-    const galleryItems = imageAttachments.map((att, index) => {
-      const isGif = /\.gif$/i.test(att.filename);
-      const isSvg = /\.svg$/i.test(att.filename);
-      const icon = isGif ? '🎬' : isSvg ? '🎨' : '🖼️';
-      const sizeText = att.size > 0 ? `${Math.round(att.size / 1024)}KB` : '';
-      
-      return `
-        <div style="display: inline-block; margin: 8px; padding: 12px; border: 1px dashed #d1d5db; border-radius: 6px; background: #f9fafb; text-align: center; min-width: 120px; max-width: 200px;">
-          <div style="font-size: 24px; margin-bottom: 4px;" aria-hidden="true">${icon}</div>
-          <div style="font-size: 11px; color: #374151; word-break: break-word; margin-bottom: 2px; max-height: 40px; overflow: hidden;" title="${att.filename}">${att.filename}</div>
-          <div style="font-size: 9px; color: #6b7280;">${att.mimeType} ${sizeText}</div>
-          <div style="font-size: 8px; color: #9ca3af; margin-top: 2px;">${att.inline ? 'Inline' : 'Attachment'}</div>
-        </div>
-      `;
-    }).join('');
-    
-    return `
-      <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb;" role="region" aria-label="Email attachments">
-        <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">📎 Email Images (${imageAttachments.length}):</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-          ${galleryItems}
-        </div>
-      </div>
-    `;
-  }, [processedAttachments]);
+
 
   // Enhanced HTML processing with better security and error handling
   const processedHtml = useMemo(() => {
-    if (!bodyHtml || !bodyHtml.trim()) return null;
+    // Check for direct bodyHtml first, then fallback to activity details
+    const htmlContent = bodyHtml || activityDetails?.email_content?.bodyHtml;
+    if (!htmlContent || !htmlContent.trim()) return null;
     
-    try {
-      let html = bodyHtml;
+          try {
+        let html = htmlContent;
       
       // Handle CID references for inline attachments
       if (processedAttachments.length > 0) {
@@ -231,11 +242,111 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
       setHasError(true);
       return null;
     }
-  }, [bodyHtml, processedAttachments]);
+  }, [bodyHtml, activityDetails?.email_content?.bodyHtml, processedAttachments]);
 
   // Create enhanced email document with better error handling
   const emailDocument = useMemo(() => {
-    const content = processedHtml || (bodyText ? bodyText.replace(/\n/g, '<br>').replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>') : '');
+    // Check for direct bodyText first, then fallback to activity details
+    const textContent = bodyText || activityDetails?.email_content?.bodyText;
+    let content = processedHtml || (textContent ? textContent.replace(/\n/g, '<br>').replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>') : '');
+    
+    // Check if we have images when no text content exists
+    // Include any images (with content_id or inline=true) or if email has only image attachments
+    const hasInlineImages = processedAttachments.some(att => 
+      (att.contentId || att.inline) && 
+      (att.mimeType?.startsWith('image/') || /\.(gif|png|jpe?g|webp|svg)$/i.test(att.filename))
+    );
+    
+    // Also check if email has only image attachments (likely the main content)
+    const hasOnlyImageAttachments = processedAttachments.length > 0 && 
+      processedAttachments.every(att => 
+        att.mimeType?.startsWith('image/') || /\.(gif|png|jpe?g|webp|svg)$/i.test(att.filename)
+      );
+    
+    // Debug logging for troubleshooting
+    if (!content.trim() && processedAttachments.length > 0) {
+      console.log('🔍 [EmailRenderer] Debug - Email with no content but has attachments:', {
+        hasContent: !!content.trim(),
+        attachmentsCount: processedAttachments.length,
+        hasInlineImages,
+        hasOnlyImageAttachments,
+        attachments: processedAttachments.map(att => ({
+          filename: att.filename,
+          mimeType: att.mimeType,
+          contentId: att.contentId,
+          inline: att.inline,
+          size: att.size
+        }))
+      });
+    }
+    
+    // If no text content but we have images, create content from images
+    if (!content.trim() && (hasInlineImages || hasOnlyImageAttachments)) {
+      const imagesToShow = processedAttachments.filter(att => 
+        (att.mimeType?.startsWith('image/') || /\.(gif|png|jpe?g|webp|svg)$/i.test(att.filename)) &&
+        (att.contentId || att.inline || hasOnlyImageAttachments)
+      );
+      
+      console.log('🖼️ [EmailRenderer] Creating content from images:', imagesToShow.length);
+      
+      // Create content with real images from Supabase Storage or fallback to placeholder
+      content = imagesToShow.map(att => {
+        const isJpegOrPng = /\.(jpe?g|png)$/i.test(att.filename) || att.mimeType?.includes('jpeg') || att.mimeType?.includes('png');
+        const imageIcon = isJpegOrPng ? '📸' : '🖼️';
+        const sizeText = att.size > 0 ? `${Math.round(att.size / 1024)}KB` : '';
+        
+        // Check if we have a stored image in Supabase Storage
+        const hasStoredImage = (att as any).storage_path || (att as any).storagePath;
+        
+        console.log('🖼️ [EmailRenderer] Attachment storage check:', {
+          filename: att.filename,
+          storage_path: (att as any).storage_path,
+          storagePath: (att as any).storagePath,
+          hasStoredImage,
+          attachmentObject: att
+        })
+        
+        if (hasStoredImage) {
+          const storagePath = (att as any).storage_path || (att as any).storagePath;
+          // Use Supabase Storage public URL directly
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
+          const imageUrl = `${supabaseUrl}/storage/v1/object/public/email-attachments/${storagePath}`;
+          
+          return `<div style="text-align: center; margin: 20px 0;">
+            <div style="display: inline-block; max-width: 100%; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+              <img 
+                src="${imageUrl}" 
+                alt="${att.filename}" 
+                style="max-width: 100%; max-height: 500px; width: auto; height: auto; display: block;"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+              />
+              <div style="display: none; padding: 20px; background: #f8fafc; text-align: center;">
+                <div style="font-size: 24px; margin-bottom: 8px;">❌</div>
+                <div style="font-size: 14px; color: #374151; margin-bottom: 4px;">Failed to load image</div>
+                <div style="font-size: 12px; color: #6b7280;">${att.filename}</div>
+              </div>
+            </div>
+            <div style="padding: 8px; background: rgba(255,255,255,0.9); margin-top: 8px; border-radius: 6px; font-size: 12px; color: #6b7280;">
+              ${att.filename} • ${sizeText}
+            </div>
+          </div>`;
+        } else {
+          // Fallback to enhanced placeholder for images not yet downloaded
+          return `<div style="text-align: center; margin: 20px 0;">
+            <div style="display: inline-block; max-width: 400px; width: 100%; border: 2px dashed #d1d5db; border-radius: 12px; padding: 24px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); transition: all 0.3s ease;">
+              <div style="font-size: 48px; margin-bottom: 12px; opacity: 0.7;">${imageIcon}</div>
+              <div style="font-size: 16px; color: #1f2937; font-weight: 600; margin-bottom: 8px; word-break: break-word;">${att.filename}</div>
+              <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">${att.mimeType}</div>
+              <div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">${sizeText}</div>
+              <div style="font-size: 11px; color: #f59e0b; margin-bottom: 8px;">📥 Image will be downloaded on next sync</div>
+              <div style="margin-top: 16px; padding: 8px 16px; background: #3b82f6; color: white; border-radius: 6px; font-size: 12px; cursor: pointer; display: inline-block;" onclick="window.open('https://mail.google.com', '_blank')">
+                📧 View in Gmail
+              </div>
+            </div>
+          </div>`;
+        }
+      }).join('');
+    }
     
     if (!content.trim()) {
       return `
@@ -452,12 +563,11 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
         <body>
           <div class="email-content" role="main">
             ${content}
-            ${attachmentGallery || ''}
           </div>
         </body>
       </html>
     `;
-  }, [processedHtml, bodyText, attachmentGallery, subject]);
+  }, [processedHtml, bodyText, activityDetails?.email_content?.bodyText, subject]);
 
   // Enhanced iframe loading with better error handling and performance
   const loadEmailIntoIframe = useCallback(() => {
