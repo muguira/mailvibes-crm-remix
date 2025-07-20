@@ -328,6 +328,9 @@ const TimelineItem = React.memo(function TimelineItem({
   const [showExpandButton, setShowExpandButton] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   
+  // State to track if this item has ever been seen
+  const [hasBeenViewed, setHasBeenViewed] = useState(false);
+  
   // Mobile detection for responsive toolbar
   const isMobile = useIsMobile();
   
@@ -351,47 +354,77 @@ const TimelineItem = React.memo(function TimelineItem({
     }
   }, []);
   
-    // Create a sequential filling effect (only first few visible elements get filled)
+  // State to track maximum progress achieved for this item
+  const [maxProgress, setMaxProgress] = useState(0);
+
+  // Mark item as viewed when it becomes significantly visible
+  useEffect(() => {
+    if (visibilityPercentage >= 25 && !hasBeenViewed) {
+      setHasBeenViewed(true);
+    }
+  }, [visibilityPercentage, hasBeenViewed]);
+
+  // Create a sequential filling effect with persistent progress
   const progressiveFillPercentage = useMemo(() => {
-    if (!timelineRef.current || visibilityPercentage < 25) return 0; // Much higher threshold
+    // If item has never been viewed, return 0 (no fill)
+    if (!hasBeenViewed) return 0;
+    
+    if (!timelineRef.current) return maxProgress;
     
     // Get element position
     const element = timelineRef.current;
     const rect = element.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     
-    // Only fill elements that are significantly visible (at least 25% visible)
-    if (visibilityPercentage < 25) return 0;
+    // If not significantly visible, return the stored max progress
+    if (visibilityPercentage < 25) {
+      return maxProgress;
+    }
     
     // Calculate element's vertical position relative to viewport top
     const elementTop = rect.top;
-    const elementBottom = rect.bottom;
     
-    // Determine if element is in the "primary" visible area (top portion of viewport)
-    const primaryZone = viewportHeight * 0.4; // Top 40% of viewport
-    const secondaryZone = viewportHeight * 0.7; // Top 70% of viewport
+    // Aggressive sequential logic: complete previous items well before starting new ones
+    const completeThreshold = viewportHeight * 0.7; // Top 70% - complete before this point
+    const startThreshold = viewportHeight * 0.9; // Top 90% - only start filling after this
     
-    let fillPercentage = 0;
+    let currentFillPercentage = 0;
     
-    if (elementTop >= 0 && elementTop <= primaryZone) {
-      // Element starts in primary zone - full fill
-      fillPercentage = 100;
-    } else if (elementTop > primaryZone && elementTop <= secondaryZone) {
-      // Element starts in secondary zone - partial fill
-      const distanceIntoSecondary = elementTop - primaryZone;
-      const secondaryZoneHeight = secondaryZone - primaryZone;
-      const falloff = 1 - (distanceIntoSecondary / secondaryZoneHeight);
-      fillPercentage = Math.max(0, falloff * 50); // Max 50% in secondary zone
+    // If element is in the top 70% of viewport, it should be 100% filled
+    if (elementTop < completeThreshold) {
+      currentFillPercentage = 100;
+    }
+    // If element is between 70% and 90% of viewport, no filling (gap to ensure completion)
+    else if (elementTop >= completeThreshold && elementTop < startThreshold) {
+      currentFillPercentage = 0;
+    }
+    // If element is in the bottom 10% of viewport and visible, start progressive fill
+    else if (elementTop >= startThreshold && elementTop <= viewportHeight && visibilityPercentage >= 25) {
+      // Progressive fill from 0% to 100% in the small bottom zone
+      const distanceFromStart = elementTop - startThreshold;
+      const fillZoneHeight = viewportHeight - startThreshold;
+      const progressInFillZone = distanceFromStart / fillZoneHeight;
+      
+      currentFillPercentage = Math.max(0, 100 - (progressInFillZone * 100));
     } else {
-      // Element is too far down - no fill
-      fillPercentage = 0;
+      // Element is below viewport or not visible enough - no fill
+      currentFillPercentage = 0;
     }
     
     // Apply visibility factor for smooth transitions
     const visibilityFactor = Math.min(1, (visibilityPercentage - 25) / 25); // Ramp up from 25% to 50% visibility
+    const calculatedProgress = Math.round(currentFillPercentage * visibilityFactor);
     
-    return Math.round(fillPercentage * visibilityFactor);
-  }, [visibilityPercentage, timelineRef, scrollTrigger]);
+    // Return the maximum between current calculation and stored max
+    const finalProgress = Math.max(calculatedProgress, maxProgress);
+    
+    // Update max progress if we've achieved a higher value
+    if (finalProgress > maxProgress) {
+      setMaxProgress(finalProgress);
+    }
+    
+    return finalProgress;
+  }, [visibilityPercentage, timelineRef, scrollTrigger, hasBeenViewed, maxProgress]);
   
   // OPTIMIZED: Memoize expensive calculations
   const activityProps = useMemo(() => {
@@ -608,7 +641,7 @@ const TimelineItem = React.memo(function TimelineItem({
       <div 
         className={cn(
           "absolute left-[22px] top-[40px] w-[1px] transition-all duration-300 ease-out",
-          isLast ? "bottom-[50px]" : "bottom-[-500px]"
+          isLast ? "bottom-[0px]" : "bottom-[-100px]"
         )}
         style={{
           background: isLast 
