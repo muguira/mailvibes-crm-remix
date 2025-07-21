@@ -841,7 +841,7 @@ const TimelineItem = React.memo(function TimelineItem({
       {/* Timeline line - simple gray line */}
       <div 
         className={cn(
-          "absolute left-[22px] top-[40px] w-[1px] bg-gray-300",
+          "absolute left-[22px] top-[40px] w-[1px] bg-gray-200",
           isLast ? "bottom-[0px]" : "bottom-[-150px]"
         )}
       ></div>
