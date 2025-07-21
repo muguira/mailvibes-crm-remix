@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { TimelineActivity } from '@/hooks/use-timeline-activities';
 import EmailRenderer from '@/components/timeline/EmailRenderer';
 import { TiptapEditor, MarkdownToolbar } from '@/components/markdown';
+import TiptapEditorWithAI from '@/components/markdown/TiptapEditorWithAI';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTimelineViewport } from '@/hooks/useTimelineViewport';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -31,6 +32,7 @@ import { GmailEmail } from '@/services/google/gmailApi';
 import { useContactEmails } from '@/hooks/use-contact-emails-v2';
 import { logger } from '@/utils/logger';
 import { EmailSummaryButton } from '@/components/ai/EmailSummaryButton';
+import { AIReplyButtons } from '@/components/ai/AIReplyButtons';
 
 
 interface TimelineItemProps {
@@ -543,21 +545,30 @@ const TimelineItem = React.memo(function TimelineItem({
   const checkHeight = useCallback(() => {
     if (contentRef.current) {
       const contentHeight = contentRef.current.scrollHeight;
-      const shouldShow = contentHeight > 200;
+      // Lower threshold for emails since they often have rich content
+      const threshold = activity.source === 'gmail' ? 150 : 200;
+      const shouldShow = contentHeight > threshold;
       
-      // Debug logging (only for development)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔍 Height check:', {
-          activityId: activity.id,
-          subject: activity.subject || 'No subject',
-          contentHeight,
-          shouldShow
-        });
-      }
+      // Debug logging (always show for emails)
+      console.log('🔍 Height check:', {
+        activityId: activity.id,
+        subject: activity.subject || 'No subject',
+        contentHeight,
+        threshold,
+        shouldShow,
+        source: activity.source
+      });
       
       setShowExpandButton(shouldShow);
       return shouldShow;
     }
+    
+    // For emails, default to showing expand button if we can't measure
+    if (activity.source === 'gmail' && (activity.bodyHtml || activity.bodyText)) {
+      setShowExpandButton(true);
+      return true;
+    }
+    
     return false;
   }, [activity.id, activity.source, activity.subject, activity.bodyHtml, activity.bodyText, activityProps.displayContent, isExpanded]);
 
@@ -1254,7 +1265,7 @@ const TimelineItem = React.memo(function TimelineItem({
                 }
               </div>
               
-              <TiptapEditor
+              <TiptapEditorWithAI
                 value={replyContent}
                 onChange={setReplyContent}
                 placeholder={`Reply to ${
@@ -1268,8 +1279,42 @@ const TimelineItem = React.memo(function TimelineItem({
                 isCompact={isMobile}
                 autoFocus={true}
                 onEditorReady={(editor) => setReplyEditor(editor)}
+                enableAIAutocompletion={true}
+                originalEmail={isEmailThread ? (activity.latestEmail || activity) : activity}
+                conversationHistory={isEmailThread ? emailsInThread : []}
+                contactInfo={{
+                  id: activity.id,
+                  name: contactName || activity.from?.name || 'Contact',
+                  email: activity.from?.email || 'unknown@example.com'
+                }}
               />
               
+              {/* AI Reply Buttons */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-gray-600 font-medium">
+                    ✨ AI Suggestions:
+                  </span>
+                </div>
+                <AIReplyButtons
+                  originalEmail={isEmailThread ? (activity.latestEmail || activity) : activity}
+                  conversationHistory={isEmailThread ? emailsInThread : []}
+                  contactInfo={{
+                    id: activity.id,
+                    name: contactName || activity.from?.name || 'Contact',
+                    email: activity.from?.email || 'unknown@example.com'
+                  }}
+                  onReplyGenerated={(generatedReply) => {
+                    setReplyContent(generatedReply);
+                    if (replyEditor) {
+                      replyEditor.commands.setContent(generatedReply, false);
+                    }
+                  }}
+                  disabled={isSendingReply}
+                  className="mb-3"
+                />
+              </div>
+
               {/* Reply Toolbar + Action Buttons */}
               <div className="border-t border-gray-100 pt-3">
                 {/* Toolbar - responsive wrapper */}
@@ -1355,8 +1400,8 @@ const TimelineItem = React.memo(function TimelineItem({
               />
           )}
               
-              {/* Reply button - show for emails and email threads when expanded */}
-              {isExpanded && (activity.source === 'gmail' && (activity.type === 'email' || activity.type === 'email_thread')) && (
+              {/* Reply button - show for emails and email threads */}
+              {(activity.source === 'gmail' && (activity.type === 'email' || activity.type === 'email_thread')) && (
                 <button
                   onClick={() => setIsReplying(!isReplying)}
                   className={cn(
@@ -1378,10 +1423,11 @@ const TimelineItem = React.memo(function TimelineItem({
                 className="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-all duration-300 ease-in-out hover:scale-105"
               >
                 <span className="transition-all duration-300 text-xs">
-                  {!isExpanded && showExpandButton ? 'Show more' : isExpanded ? 'Show less' : null}
+                  {/* For emails, always show the button; for others, use the height check */}
+                  {!isExpanded && (showExpandButton || (activity.source === 'gmail' && (activity.bodyHtml || activity.bodyText))) ? 'Show more' : isExpanded ? 'Show less' : null}
                 </span>
                 <div className="transition-transform duration-300 ease-in-out">
-                  {!isExpanded && showExpandButton && <ChevronDown className="w-3 h-3" />}
+                  {!isExpanded && (showExpandButton || (activity.source === 'gmail' && (activity.bodyHtml || activity.bodyText))) && <ChevronDown className="w-3 h-3" />}
                   {isExpanded && <ChevronUp className="w-3 h-3" />}
                 </div>
               </button>
