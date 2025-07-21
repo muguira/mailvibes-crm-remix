@@ -30,6 +30,7 @@ import { toast } from '@/hooks/use-toast';
 import { GmailEmail } from '@/services/google/gmailApi';
 import { useContactEmails } from '@/hooks/use-contact-emails-v2';
 import { logger } from '@/utils/logger';
+import { EmailSummaryButton } from '@/components/ai/EmailSummaryButton';
 
 
 interface TimelineItemProps {
@@ -1341,6 +1342,19 @@ const TimelineItem = React.memo(function TimelineItem({
           {/* Show more/less button and Reply button */}
           {(activityProps.displayContent || activity.bodyHtml || activity.bodyText) && (
             <div className="flex items-center gap-3">
+                        {/* AI Summary button - show for emails and email threads */}
+          {(activity.source === 'gmail' && (activity.type === 'email' || activity.type === 'email_thread')) && (
+              <EmailSummaryButton
+                emails={[activity]} // For now, pass single activity. Could be enhanced to pass thread emails
+                contactInfo={{
+                  id: activity.id,
+                  name: contactName || activity.from?.name || 'Contact',
+                  email: activity.from?.email || 'unknown@example.com'
+                }}
+                variant="link"
+              />
+          )}
+              
               {/* Reply button - show for emails and email threads when expanded */}
               {isExpanded && (activity.source === 'gmail' && (activity.type === 'email' || activity.type === 'email_thread')) && (
                 <button
