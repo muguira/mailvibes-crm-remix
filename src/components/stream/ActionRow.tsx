@@ -50,7 +50,8 @@ export default function ActionRow({ className = '', contact }: ActionRowProps) {
   const handleSyncHistoricalEmails = async () => {
     if (contact?.email && authUser?.id) {
       await emails.syncContactHistory(contact.email, authUser.id);
-      logContactAction('email sync');
+      // ✅ REMOVED: No longer log sync action as it creates unwanted notes
+      // logContactAction('email sync');
     }
   };
 

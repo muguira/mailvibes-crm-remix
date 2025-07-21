@@ -9,7 +9,7 @@ import { usePerformanceMonitor } from './use-performance-monitor'
 
 export interface TimelineActivity {
   id: string
-  type: 'note' | 'email' | 'call' | 'meeting' | 'task' | 'system' | 'email_sent'
+  type: 'note' | 'email' | 'call' | 'meeting' | 'task' | 'system' | 'email_sent' | 'email_thread'
   content?: string | null
   timestamp: string
   source: 'internal' | 'gmail'
@@ -44,6 +44,12 @@ export interface TimelineActivity {
 
   // Activity details (for emails sent from CRM)
   details?: any
+
+  // ✅ NEW: Email threading fields
+  emailsInThread?: TimelineActivity[] // For email_thread type, contains all emails in chronological order
+  threadEmailCount?: number // Total emails in this thread
+  latestEmail?: TimelineActivity // Most recent email in thread (for display)
+  isThreadExpanded?: boolean // UI state for thread expansion
 }
 
 interface UseTimelineActivitiesV2Options {
@@ -101,6 +107,163 @@ const sortActivitiesByPriorityAndDate = (activities: TimelineActivity[]): Timeli
     const timestampB = getCachedTimestamp(b.timestamp)
     return timestampB - timestampA
   })
+}
+
+// ✅ NEW: Group emails by threadId to create email threads
+const groupEmailsByThread = (emailActivities: TimelineActivity[]): TimelineActivity[] => {
+  if (emailActivities.length === 0) return []
+
+  console.log('🔗 [Timeline] Starting email grouping process:', {
+    totalEmails: emailActivities.length,
+    emailSubjects: emailActivities.map(e => ({
+      id: e.id?.substring(0, 12),
+      subject: e.subject,
+      threadId: e.threadId,
+    })),
+  })
+
+  // ✅ ENHANCED: First consolidate emails by subject, then by threadId
+  const subjectGroups = new Map<string, TimelineActivity[]>()
+  const threadGroups = new Map<string, TimelineActivity[]>()
+  const standaloneEmails: TimelineActivity[] = []
+
+  // Step 1: Group by base subject to consolidate conversations
+  emailActivities.forEach(email => {
+    if (!email.subject) {
+      standaloneEmails.push(email)
+      return
+    }
+
+    // Normalize subject by removing Re: prefixes and trimming
+    const baseSubject = email.subject.replace(/^(Re:|RE:|Fwd:|FWD:)\s*/g, '').trim()
+
+    if (!baseSubject) {
+      standaloneEmails.push(email)
+      return
+    }
+
+    if (!subjectGroups.has(baseSubject)) {
+      subjectGroups.set(baseSubject, [])
+    }
+    subjectGroups.get(baseSubject)!.push(email)
+  })
+
+  // Step 2: For each subject group, decide how to handle threading
+  subjectGroups.forEach((emailsWithSameSubject, baseSubject) => {
+    if (emailsWithSameSubject.length === 1) {
+      // Single email with this subject
+      const email = emailsWithSameSubject[0]
+      const threadId = email.threadId
+
+      if (!threadId || threadId === 'optimistic-thread' || threadId === 'reply-thread') {
+        standaloneEmails.push(email)
+      } else {
+        if (!threadGroups.has(threadId)) {
+          threadGroups.set(threadId, [])
+        }
+        threadGroups.get(threadId)!.push(email)
+      }
+    } else {
+      // Multiple emails with same subject - these should be grouped together
+      // Create a subject-based thread ID
+      const subjectThreadId = `subject-${btoa(baseSubject)
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .substring(0, 12)}`
+
+      console.log(
+        `🔗 [Timeline] Consolidating ${emailsWithSameSubject.length} emails with subject "${baseSubject}" into thread ${subjectThreadId}`,
+        {
+          emails: emailsWithSameSubject.map(e => ({
+            id: e.id,
+            originalThreadId: e.threadId,
+            subject: e.subject,
+            from: e.from?.email,
+            timestamp: e.timestamp,
+          })),
+        },
+      )
+
+      if (!threadGroups.has(subjectThreadId)) {
+        threadGroups.set(subjectThreadId, [])
+      }
+      threadGroups.get(subjectThreadId)!.push(...emailsWithSameSubject)
+    }
+  })
+
+  const result: TimelineActivity[] = []
+
+  // Step 3: Process thread groups
+  threadGroups.forEach((emailsInThread, threadId) => {
+    if (emailsInThread.length === 1) {
+      // Single email in thread - keep as individual email
+      result.push(emailsInThread[0])
+    } else if (emailsInThread.length > 1) {
+      // Multiple emails in thread - create thread activity
+      // Sort emails in thread chronologically (oldest first for thread display)
+      const sortedEmails = emailsInThread.sort(
+        (a, b) => getCachedTimestamp(a.timestamp) - getCachedTimestamp(b.timestamp),
+      )
+
+      // Find the latest email for the thread summary
+      const latestEmail = sortedEmails[sortedEmails.length - 1]
+
+      // Check if any email in thread is pinned
+      const isThreadPinned = emailsInThread.some(email => email.is_pinned)
+
+      // Create thread activity
+      const threadActivity: TimelineActivity = {
+        id: `thread-${threadId}`, // Unique ID for the thread
+        type: 'email_thread',
+        timestamp: latestEmail.timestamp, // Use latest email timestamp for sorting
+        source: 'gmail',
+        is_pinned: isThreadPinned,
+
+        // Use latest email data for thread header display
+        subject: latestEmail.subject,
+        threadId: threadId,
+        from: latestEmail.from,
+        to: latestEmail.to,
+        cc: latestEmail.cc,
+        bcc: latestEmail.bcc,
+        snippet: latestEmail.snippet,
+        isRead: latestEmail.isRead,
+        isImportant: latestEmail.isImportant,
+        labels: latestEmail.labels,
+
+        // Thread-specific data
+        emailsInThread: sortedEmails,
+        threadEmailCount: emailsInThread.length,
+        latestEmail: latestEmail,
+        isThreadExpanded: false, // Default to collapsed
+      }
+
+      result.push(threadActivity)
+    }
+  })
+
+  // Add standalone emails
+  result.push(...standaloneEmails)
+
+  console.log('🔗 [Timeline] Email grouping completed:', {
+    originalEmails: emailActivities.length,
+    resultingActivities: result.length,
+    threads: result.filter(r => r.type === 'email_thread').length,
+    standaloneEmails: standaloneEmails.length,
+    threadsDetails: result
+      .filter(r => r.type === 'email_thread')
+      .map(thread => ({
+        threadId: thread.threadId,
+        subject: thread.subject,
+        emailCount: thread.threadEmailCount,
+        emails: thread.emailsInThread?.map(e => ({
+          id: e.id?.substring(0, 12),
+          originalThreadId: e.threadId,
+          subject: e.subject,
+        })),
+      })),
+  })
+
+  return result
 }
 
 /**
@@ -270,11 +433,12 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
     })
   }, [internalActivities])
 
-  // Transform email activities
+  // Transform email activities and group by threads
   const timelineEmailActivities: TimelineActivity[] = useMemo(() => {
     if (!includeEmails || !contactEmails.length) return []
 
-    return contactEmails.map((email: GmailEmail) => {
+    // First, transform individual emails to TimelineActivity format
+    const individualEmailActivities = contactEmails.map((email: GmailEmail) => {
       const emailTimestamp = email.date
       const cacheKey = `email-${email.id}-${emailTimestamp}-${isEmailPinned(email.id)}`
 
@@ -311,6 +475,26 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
 
       return activity
     })
+
+    // ✅ NEW: Group emails by threadId to create email threads
+    const groupedEmailActivities = groupEmailsByThread(individualEmailActivities)
+
+    console.log('🔗 [useTimelineActivitiesV2] Email threading results:', {
+      originalEmails: individualEmailActivities.length,
+      afterGrouping: groupedEmailActivities.length,
+      threads: groupedEmailActivities.filter(a => a.type === 'email_thread').length,
+      standaloneEmails: groupedEmailActivities.filter(a => a.type === 'email').length,
+      threadDetails: groupedEmailActivities
+        .filter(a => a.type === 'email_thread')
+        .map(thread => ({
+          threadId: thread.threadId,
+          emailCount: thread.threadEmailCount,
+          subject: thread.subject,
+          latestFrom: thread.latestEmail?.from?.email,
+        })),
+    })
+
+    return groupedEmailActivities
   }, [contactEmails, includeEmails, isEmailPinned])
 
   // Combine and sort all activities

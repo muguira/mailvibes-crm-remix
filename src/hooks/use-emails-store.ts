@@ -10,6 +10,7 @@ import { logger } from '@/utils/logger'
 interface DatabaseEmail {
   id: string
   gmail_id: string
+  gmail_thread_id?: string | null // ✅ ADD: Thread ID from Gmail
   subject: string
   snippet: string
   body_text?: string | null
@@ -97,6 +98,7 @@ interface EmailsActions {
   addOptimisticEmail: (contactEmail: string, optimisticEmail: GmailEmail) => void
   removeOptimisticEmail: (contactEmail: string, optimisticEmailId: string) => void
   cleanupStaleOptimisticEmails: (contactEmail: string, maxAgeMinutes?: number) => void
+  deduplicateEmails: (contactEmail: string) => void // ✅ NEW: Smart deduplication
 
   // Getters
   getEmailsForContact: (contactEmail: string) => GmailEmail[]
@@ -184,7 +186,7 @@ const useEmailsStore = create<EmailsStore>()(
 
         return {
           id: dbEmail.gmail_id,
-          threadId: '',
+          threadId: dbEmail.gmail_thread_id || '', // ✅ FIX: Map real threadId from database
           snippet: dbEmail.snippet,
           subject: dbEmail.subject,
           from: {
@@ -228,7 +230,7 @@ const useEmailsStore = create<EmailsStore>()(
             .from('emails')
             .select(
               `
-              id, gmail_id, subject, snippet, body_text, body_html,
+              id, gmail_id, gmail_thread_id, subject, snippet, body_text, body_html,
               from_email, from_name, to_emails, cc_emails, bcc_emails,
               date, is_read, is_important, labels, has_attachments,
               attachment_count, created_at, updated_at,
@@ -339,6 +341,7 @@ const useEmailsStore = create<EmailsStore>()(
               to: email.to_emails,
               subject: email.subject,
               date: email.date,
+              threadId: email.gmail_thread_id, // ✅ DEBUG: Log threadIds to verify
             })),
           })
 
@@ -346,6 +349,33 @@ const useEmailsStore = create<EmailsStore>()(
           const paginatedData = filteredData.slice(offset, offset + limit)
 
           const convertedEmails = paginatedData.map(get().convertDatabaseEmail)
+
+          // ✅ DEBUG: Log threadId mapping and potential duplicates
+          console.log('🔗 [EmailsStore] ThreadId mapping results:', {
+            convertedEmails: convertedEmails.slice(0, 3).map(email => ({
+              id: email.id,
+              subject: email.subject,
+              threadId: email.threadId,
+              hasThreadId: !!email.threadId,
+              from: email.from?.email,
+              date: email.date,
+            })),
+            threadIdStats: {
+              total: convertedEmails.length,
+              withThreadId: convertedEmails.filter(e => e.threadId).length,
+              withoutThreadId: convertedEmails.filter(e => !e.threadId).length,
+            },
+            // ✅ DUPLICATE DETECTION: Log potential duplicates by subject
+            duplicatesBySubject: convertedEmails.reduce(
+              (acc, email) => {
+                const subject = email.subject || 'No Subject'
+                if (!acc[subject]) acc[subject] = []
+                acc[subject].push({ id: email.id, threadId: email.threadId, date: email.date })
+                return acc
+              },
+              {} as Record<string, any[]>,
+            ),
+          })
 
           logger.info(
             `[EmailsStore] Loaded ${convertedEmails.length} emails for ${contactEmail} (offset: ${offset}, filtered from ${filteredData.length} total matches)`,
@@ -404,6 +434,12 @@ const useEmailsStore = create<EmailsStore>()(
             state.isInitialized = true
           })
 
+          // ✅ CRITICAL: Run deduplication after loading emails to remove optimistic duplicates
+          get().deduplicateEmails(contactEmail)
+
+          // ✅ ADDITIONAL: Clean up any stale optimistic emails older than 1 minute
+          get().cleanupStaleOptimisticEmails(contactEmail, 1)
+
           logger.info(`[EmailsStore] Initialized ${result.emails.length} emails for ${contactEmail}`)
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to load emails'
@@ -460,6 +496,9 @@ const useEmailsStore = create<EmailsStore>()(
               totalCount: result.totalCount,
             }
           })
+
+          // ✅ Run deduplication after loading more emails
+          get().deduplicateEmails(contactEmail)
 
           logger.info(`[EmailsStore] Loaded ${result.emails.length} more emails for ${contactEmail}`)
         } catch (error) {
@@ -538,6 +577,9 @@ const useEmailsStore = create<EmailsStore>()(
 
               // Reinitialize to get the newly synced emails
               await get().initializeContactEmails(contactEmail, userId)
+
+              // ✅ ADDITIONAL: Run deduplication after sync refresh to ensure no duplicates remain
+              get().deduplicateEmails(contactEmail)
 
               logger.info(`[EmailsStore] Successfully refreshed emails after sync for ${contactEmail}`)
 
@@ -627,6 +669,12 @@ const useEmailsStore = create<EmailsStore>()(
           subject: optimisticEmail.subject,
           to: optimisticEmail.to?.map(t => t.email).join(', '),
         })
+
+        // ✅ PROACTIVE: Run deduplication immediately after adding optimistic email
+        // This helps catch any duplicates that might already exist
+        setTimeout(() => {
+          get().deduplicateEmails(contactEmail)
+        }, 100) // Small delay to ensure state is updated
       },
 
       removeOptimisticEmail: (contactEmail: string, optimisticEmailId: string) => {
@@ -686,6 +734,84 @@ const useEmailsStore = create<EmailsStore>()(
 
             logger.info(
               `[EmailsStore] Cleaned up ${staleOptimisticIds.length} stale optimistic emails for ${contactEmail}`,
+            )
+          }
+        })
+      },
+
+      // ✅ NEW: Smart deduplication - remove optimistic emails when real ones arrive
+      deduplicateEmails: (contactEmail: string) => {
+        set(state => {
+          const existingEmails = state.emailsByContact[contactEmail] || []
+          const optimisticIds = state.optimisticEmails[contactEmail] || new Set()
+
+          if (optimisticIds.size === 0) return // No optimistic emails to dedupe
+
+          const realEmails: GmailEmail[] = []
+          const duplicateOptimisticIds: string[] = []
+
+          // Separate real and optimistic emails
+          const { optimisticEmails, nonOptimisticEmails } = existingEmails.reduce(
+            (acc, email) => {
+              if (optimisticIds.has(email.id)) {
+                acc.optimisticEmails.push(email)
+              } else {
+                acc.nonOptimisticEmails.push(email)
+              }
+              return acc
+            },
+            { optimisticEmails: [] as GmailEmail[], nonOptimisticEmails: [] as GmailEmail[] },
+          )
+
+          // Check for duplicates between optimistic and real emails
+          optimisticEmails.forEach(optimisticEmail => {
+            const isDuplicate = nonOptimisticEmails.some(realEmail => {
+              // Match by multiple criteria to catch sent emails that came back from Gmail
+              const subjectMatch = optimisticEmail.subject === realEmail.subject
+              const timeMatch =
+                Math.abs(new Date(optimisticEmail.date).getTime() - new Date(realEmail.date).getTime()) < 60000 // Within 1 minute
+              const fromMatch = optimisticEmail.from?.email === realEmail.from?.email
+              const toMatch = JSON.stringify(optimisticEmail.to) === JSON.stringify(realEmail.to)
+
+              return subjectMatch && (timeMatch || (fromMatch && toMatch))
+            })
+
+            if (isDuplicate) {
+              duplicateOptimisticIds.push(optimisticEmail.id)
+            }
+          })
+
+          // Remove duplicate optimistic emails
+          if (duplicateOptimisticIds.length > 0) {
+            state.emailsByContact[contactEmail] = existingEmails.filter(
+              email => !duplicateOptimisticIds.includes(email.id),
+            )
+
+            // Remove from optimistic tracking
+            duplicateOptimisticIds.forEach(id => {
+              if (state.optimisticEmails[contactEmail]) {
+                state.optimisticEmails[contactEmail].delete(id)
+              }
+            })
+
+            if (state.optimisticEmails[contactEmail]?.size === 0) {
+              delete state.optimisticEmails[contactEmail]
+            }
+
+            logger.info(
+              `[EmailsStore] Removed ${duplicateOptimisticIds.length} duplicate optimistic emails for ${contactEmail}`,
+              {
+                duplicateIds: duplicateOptimisticIds,
+                removedEmails: duplicateOptimisticIds.map(id => {
+                  const email = optimisticEmails.find(e => e.id === id)
+                  return {
+                    id,
+                    subject: email?.subject,
+                    threadId: email?.threadId,
+                    date: email?.date,
+                  }
+                }),
+              },
             )
           }
         })

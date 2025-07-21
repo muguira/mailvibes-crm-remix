@@ -23,7 +23,7 @@ import { usePerformanceMonitor } from './use-performance-monitor'
 
 export interface TimelineActivity {
   id: string
-  type: 'note' | 'email' | 'call' | 'meeting' | 'task' | 'system' | 'email_sent'
+  type: 'note' | 'email' | 'call' | 'meeting' | 'task' | 'system' | 'email_sent' | 'email_thread'
   content?: string | null
   timestamp: string
   source: 'internal' | 'gmail'
@@ -58,6 +58,12 @@ export interface TimelineActivity {
 
   // Activity details (for emails sent from CRM)
   details?: any
+
+  // ✅ NEW: Email threading fields (for compatibility)
+  emailsInThread?: TimelineActivity[]
+  threadEmailCount?: number
+  latestEmail?: TimelineActivity
+  isThreadExpanded?: boolean
 }
 
 interface UseTimelineActivitiesOptions {

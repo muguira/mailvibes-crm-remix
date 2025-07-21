@@ -387,9 +387,57 @@ export default function TimelineComposer({
 
       // ✅ NEW: Create optimistic email for immediate UI feedback
       if (effectiveContactEmail && addOptimisticEmail) {
+        // ✅ ENHANCED: Detect if this is a reply and find the correct threadId
+        let detectedThreadId = 'optimistic-thread';
+        
+        if (emailFields.subject.startsWith('Re: ')) {
+          // This is a reply - try to find the original email's threadId
+          const originalSubject = emailFields.subject.replace(/^Re:\s*/, '');
+          
+          // Search for original email by subject - improved search
+          let originalEmail = emails.find(email => {
+            const emailSubject = email.subject?.replace(/^Re:\s*/, '');
+            return emailSubject === originalSubject;
+          });
+          
+          // If found, use its threadId - could be from existing thread
+          if (originalEmail && originalEmail.threadId) {
+            detectedThreadId = originalEmail.threadId;
+            logger.log("🔗 Detected reply to existing email:", {
+              originalSubject,
+              foundEmailSubject: originalEmail.subject,
+              originalThreadId: originalEmail.threadId,
+              originalEmailId: originalEmail.id
+            });
+          } else {
+            // ✅ IMPROVED: Use same pattern as timeline grouping for consistency
+            const subjectHash = btoa(originalSubject).replace(/[^a-zA-Z0-9]/g, '').substring(0, 12);
+            detectedThreadId = `subject-${subjectHash}`;
+            
+            logger.log("🔗 Creating subject-based thread for reply:", {
+              originalSubject,
+              newThreadId: detectedThreadId,
+              contactEmail: effectiveContactEmail,
+              reasoning: "Will group with other emails with same subject using timeline pattern"
+            });
+          }
+        } else {
+          // ✅ NEW: For new conversations, create a subject-based threadId for future grouping
+          if (emailFields.subject) {
+            const subjectHash = btoa(emailFields.subject).replace(/[^a-zA-Z0-9]/g, '').substring(0, 12);
+            detectedThreadId = `subject-${subjectHash}`;
+            
+            logger.log("🔗 Creating subject-based thread for new conversation:", {
+              subject: emailFields.subject,
+              newThreadId: detectedThreadId,
+              reasoning: "Future replies will group with this thread using timeline pattern"
+            });
+          }
+        }
+
         const optimisticEmail: GmailEmail = {
           id: `optimistic-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Unique temporary ID
-          threadId: 'optimistic-thread',
+          threadId: detectedThreadId,
           subject: emailFields.subject,
           snippet: text.replace(/<[^>]*>/g, '').substring(0, 150) + '...',
           bodyText: text.replace(/<[^>]*>/g, ''),

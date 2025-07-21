@@ -195,6 +195,10 @@ const getActivityIcon = (iconName?: string, activityType?: string) => {
   switch (activityType) {
     case 'email':
       return Mail;
+    case 'email_sent':
+      return Mail;
+    case 'email_thread':
+      return Mail; // ✅ NEW: Use Mail icon for email threads
     case 'call':
       return Phone;
     case 'meeting':
@@ -216,6 +220,8 @@ const getActivityColor = (type?: string) => {
       return 'text-blue-600 bg-blue-50';
     case 'email_sent':
       return 'text-blue-600 bg-blue-50';
+    case 'email_thread':
+      return 'text-blue-600 bg-blue-50'; // ✅ NEW: Use blue for email threads
     case 'call':
       return 'text-green-600 bg-green-50';
     case 'task':
@@ -238,6 +244,8 @@ const getUserNameColor = (type?: string) => {
       return 'text-blue-600';
     case 'email_sent':
       return 'text-blue-600';
+    case 'email_thread':
+      return 'text-blue-600'; // ✅ NEW: Use blue for email threads
     case 'call':
       return 'text-green-600';
     case 'task':
@@ -361,6 +369,14 @@ const TimelineItem = React.memo(function TimelineItem({
   const [replyContent, setReplyContent] = useState('');
   const [replyEditor, setReplyEditor] = useState<any>(null);
   const [isSendingReply, setIsSendingReply] = useState(false);
+
+  // ✅ NEW: Email threading states
+  const [isThreadExpanded, setIsThreadExpanded] = useState(activity.isThreadExpanded || false);
+  
+  // Check if this is an email thread
+  const isEmailThread = activity.type === 'email_thread';
+  const emailsInThread = activity.emailsInThread || [];
+  const threadEmailCount = activity.threadEmailCount || 0;
   
   // State to track if this item has ever been seen
   const [hasBeenViewed, setHasBeenViewed] = useState(false);
@@ -476,10 +492,15 @@ const TimelineItem = React.memo(function TimelineItem({
     const fullTimestamp = formatFullTimestamp(activity.timestamp);
     const absoluteTimestamp = formatAbsoluteTimestamp(activity.timestamp);
     
-    // Get content to display - for emails, show snippet or subject
-    const displayContent = activity.source === 'gmail' && activity.subject 
-      ? activity.snippet || activity.subject
-      : activity.content;
+    // Get content to display - for email threads, show latest email content
+    let displayContent;
+    if (isEmailThread && activity.latestEmail) {
+      displayContent = activity.latestEmail.snippet || activity.latestEmail.subject;
+    } else if (activity.source === 'gmail' && activity.subject) {
+      displayContent = activity.snippet || activity.subject;
+    } else {
+      displayContent = activity.content;
+    }
     
     // Get user name - use the passed prop or default to User
     const userName = activityUserName || 'User';
@@ -494,7 +515,7 @@ const TimelineItem = React.memo(function TimelineItem({
       displayContent,
       userName
     };
-  }, [activity, activityIcon, activityColor, activityUserName]);
+  }, [activity, activityIcon, activityColor, activityUserName, isEmailThread]);
 
   // OPTIMIZED: Memoize permissions
   const permissions = useMemo(() => {
@@ -574,13 +595,30 @@ const TimelineItem = React.memo(function TimelineItem({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [handleClickOutside]);
 
-  // OPTIMIZED: Memoize event handlers
+  // OPTIMIZED: Memoize event handlers with thread support
   const handlePinClick = useCallback(() => {
     const newPinState = !optimisticPinState;
     setOptimisticPinState(newPinState);
-    onTogglePin?.(activity.id, newPinState);
+    
+    if (isEmailThread && emailsInThread.length > 0) {
+      // ✅ NEW: Pin/unpin all emails in the thread
+      emailsInThread.forEach(email => {
+        onTogglePin?.(email.id, newPinState);
+      });
+      
+      logger.log("✨ Thread pin action:", {
+        threadId: activity.threadId,
+        emailCount: emailsInThread.length,
+        newPinState,
+        emailIds: emailsInThread.map(e => e.id)
+      });
+    } else {
+      // Regular single activity pin
+      onTogglePin?.(activity.id, newPinState);
+    }
+    
     setShowDropdown(false);
-  }, [optimisticPinState, onTogglePin, activity.id]);
+  }, [optimisticPinState, onTogglePin, activity.id, isEmailThread, emailsInThread, activity.threadId]);
 
   const handleEditClick = useCallback(() => {
     setIsEditing(true);
@@ -678,7 +716,11 @@ const TimelineItem = React.memo(function TimelineItem({
 
   // ✅ NEW: Handle reply email sending
   const handleSendReply = useCallback(async () => {
-    if (!replyContent.trim() || !activity.from?.email) {
+    // Get the correct email data for threading
+    const targetEmail = isEmailThread ? activity.latestEmail : activity;
+    const fromEmail = targetEmail?.from?.email;
+    
+    if (!replyContent.trim() || !fromEmail) {
       toast({
         title: "Error",
         description: "Please enter reply content",
@@ -699,15 +741,15 @@ const TimelineItem = React.memo(function TimelineItem({
     setIsSendingReply(true);
 
     try {
-      // Construct reply subject
-      const originalSubject = activity.subject || '';
+      // Construct reply subject using target email
+      const originalSubject = targetEmail?.subject || '';
       const replySubject = originalSubject.startsWith('Re: ') 
         ? originalSubject 
         : `Re: ${originalSubject}`;
 
       // Send reply via Gmail API
       const result = await gmailStore.service.sendEmail({
-        to: [activity.from.email],
+        to: [fromEmail],
         subject: replySubject,
         bodyHtml: replyContent,
       });
@@ -716,7 +758,7 @@ const TimelineItem = React.memo(function TimelineItem({
       if (addOptimisticEmail) {
         const optimisticReply: GmailEmail = {
           id: `optimistic-reply-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          threadId: (activity as any).threadId || 'reply-thread',
+          threadId: targetEmail?.threadId || activity.threadId || `thread-${activity.id}`, // ✅ Use real threadId for proper grouping
           subject: replySubject,
           snippet: replyContent.replace(/<[^>]*>/g, '').substring(0, 150) + '...',
           bodyText: replyContent.replace(/<[^>]*>/g, ''),
@@ -725,7 +767,7 @@ const TimelineItem = React.memo(function TimelineItem({
             email: gmailStore.accounts[0]?.email || '',
             name: gmailStore.accounts[0]?.email?.split('@')[0] || 'You'
           },
-          to: [{ email: activity.from.email, name: activity.from.name }],
+          to: [{ email: fromEmail, name: targetEmail?.from?.name }],
           date: new Date().toISOString(),
           isRead: true,
           isImportant: false,
@@ -745,15 +787,16 @@ const TimelineItem = React.memo(function TimelineItem({
 
       toast({
         title: "Reply sent!",
-        description: `Reply sent to ${activity.from?.name || activity.from?.email}`,
+        description: `Reply sent to ${targetEmail?.from?.name || fromEmail}`,
       });
 
       logger.log("✨ Reply sent successfully:", {
         replyId: result.messageId,
-        originalEmailId: activity.id,
-        threadId: (activity as any).threadId || 'unknown',
-        to: activity.from?.email,
-        subject: replySubject
+        originalEmailId: targetEmail?.id || activity.id,
+        threadId: targetEmail?.threadId || 'unknown',
+        to: fromEmail,
+        subject: replySubject,
+        isEmailThread: isEmailThread
       });
 
     } catch (error) {
@@ -769,7 +812,7 @@ const TimelineItem = React.memo(function TimelineItem({
     } finally {
       setIsSendingReply(false);
     }
-  }, [replyContent, activity, gmailStore.service, gmailStore.accounts, addOptimisticEmail, replyEditor]);
+  }, [replyContent, activity, gmailStore.service, gmailStore.accounts, addOptimisticEmail, replyEditor, isEmailThread]);
 
   // ✅ Handle formatting for reply editor
   const handleReplyFormat = useCallback((format: string) => {
@@ -835,6 +878,65 @@ const TimelineItem = React.memo(function TimelineItem({
       replyEditor.chain().focus().insertContent(codeBlock).run();
     }
   }, [replyEditor]);
+
+  // ✅ NEW: Component for individual emails within a thread
+  const ThreadedEmailItem = ({ email, isFirst, isLast }: { 
+    email: TimelineActivity; 
+    isFirst: boolean; 
+    isLast: boolean; 
+  }) => (
+    <div 
+      className={cn(
+        "relative border-l-2 border-gray-200 pl-4 pb-4",
+        isFirst && "pt-2",
+        isLast && "pb-2"
+      )}
+    >
+      {/* Email header */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center space-x-2">
+          <div className="text-xs text-gray-600">
+            {formatRelativeTime(email.timestamp)}
+          </div>
+          <div className="text-xs text-gray-500">
+            <span className="font-medium">
+              {email.from?.name || email.from?.email}
+            </span>
+            {email.to && email.to.length > 0 && (
+              <>
+                <span className="mx-1">to</span>
+                <span>{formatEmailRecipients(email.to, contactName)}</span>
+              </>
+            )}
+          </div>
+        </div>
+        {/* Email-specific badges */}
+        <div className="flex items-center space-x-1">
+          {email.isImportant && (
+            <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Important" />
+          )}
+          {!email.isRead && (
+            <div className="w-2 h-2 bg-blue-500 rounded-full" title="Unread" />
+          )}
+        </div>
+      </div>
+      
+      {/* Email content */}
+      <div className="text-sm text-gray-700">
+        {email.bodyHtml ? (
+          <EmailRenderer 
+            bodyHtml={email.bodyHtml} 
+            bodyText={email.bodyText} 
+            subject={email.subject || ''} 
+          />
+        ) : (
+          <div className="whitespace-pre-wrap">
+            {email.snippet || email.bodyText || 'No content'}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <li ref={timelineRef} className="relative pl-12 pb-8 mb-[40px]">
@@ -951,6 +1053,7 @@ const TimelineItem = React.memo(function TimelineItem({
           </span>
           <span className="text-gray-500 ml-1">
             {(activity.type === 'email' || activity.type === 'email_sent') ? 'emailed' : 
+             activity.type === 'email_thread' ? 'email conversation with' :
              activity.type === 'note' ? 'added a note to' :
              activity.type === 'call' ? 'called' :
              activity.type === 'meeting' ? 'met with' :
@@ -975,7 +1078,33 @@ const TimelineItem = React.memo(function TimelineItem({
             )}
           </div>
         )}
-        
+
+        {/* ✅ NEW: Email thread badge and controls */}
+        {isEmailThread && threadEmailCount > 1 && (
+          <div className={cn("flex items-center justify-between mb-2", isMobile ? "pl-5" : "pl-7")}>
+            <div className="flex items-center space-x-2">
+              <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
+                📧 {threadEmailCount} emails in conversation
+              </span>
+              <button
+                onClick={() => setIsThreadExpanded(!isThreadExpanded)}
+                className="text-blue-600 hover:text-blue-700 transition-colors text-xs font-medium"
+              >
+                {isThreadExpanded ? (
+                  <span className="flex items-center gap-1">
+                    <ChevronUp className="w-3 h-3" />
+                    Collapse thread
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1">
+                    <ChevronDown className="w-3 h-3" />
+                    Expand thread
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         
         {/* Activity content */}
@@ -1054,8 +1183,34 @@ const TimelineItem = React.memo(function TimelineItem({
                     transition: 'max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
                   }}
                 >
-                  {(activity.source === 'gmail' && activity.type === 'email') || 
-                   (activity.source === 'internal' && activity.type === 'email_sent') ? (
+                  {/* ✅ NEW: Email thread display */}
+                  {isEmailThread && isThreadExpanded ? (
+                    <div className="space-y-4">
+                      <div className="text-sm font-medium text-gray-700 mb-3">
+                        Email conversation ({threadEmailCount} emails):
+                      </div>
+                      {emailsInThread.map((email, index) => (
+                        <ThreadedEmailItem
+                          key={email.id}
+                          email={email}
+                          isFirst={index === 0}
+                          isLast={index === emailsInThread.length - 1}
+                        />
+                      ))}
+                    </div>
+                  ) : isEmailThread && !isThreadExpanded ? (
+                    /* Show only latest email when thread is collapsed */
+                    <EmailRenderer
+                      bodyHtml={activity.latestEmail?.bodyHtml || activity.bodyHtml}
+                      bodyText={activity.latestEmail?.bodyText || activity.bodyText}
+                      subject={activity.latestEmail?.subject || activity.subject}
+                      emailId={activity.latestEmail?.id || activity.id}
+                      attachments={activity.latestEmail?.attachments || activity.attachments}
+                      activityDetails={activity.details}
+                    />
+                  ) : (activity.source === 'gmail' && activity.type === 'email') || 
+                       (activity.source === 'internal' && activity.type === 'email_sent') ? (
+                    /* Regular single email display */
                     <EmailRenderer
                       bodyHtml={activity.bodyHtml}
                       bodyText={activity.bodyText}
@@ -1065,6 +1220,7 @@ const TimelineItem = React.memo(function TimelineItem({
                       activityDetails={activity.details}
                     />
                   ) : (
+                    /* Non-email activity display */
                     <div 
                       className="text-sm text-gray-800 leading-relaxed timeline-content"
                       dangerouslySetInnerHTML={{ __html: renderMarkdown(activityProps.displayContent) }}
@@ -1085,18 +1241,26 @@ const TimelineItem = React.memo(function TimelineItem({
           </div>
         )}
 
-        {/* ✅ NEW: Reply editor - only show for emails when replying */}
-        {isReplying && (activity.source === 'gmail' && activity.type === 'email') && (
+        {/* ✅ NEW: Reply editor - show for emails and email threads when replying */}
+        {isReplying && (activity.source === 'gmail' && (activity.type === 'email' || activity.type === 'email_thread')) && (
           <div className={cn("mb-3 border-t border-gray-100 pt-3", isMobile ? "pl-5" : "pl-7")}>
             <div className="space-y-3">
               <div className="text-sm text-gray-600 mb-2">
-                <span className="font-medium">Reply to:</span> {activity.from?.name || activity.from?.email}
+                <span className="font-medium">Reply to:</span> {
+                  isEmailThread 
+                    ? (activity.latestEmail?.from?.name || activity.latestEmail?.from?.email)
+                    : (activity.from?.name || activity.from?.email)
+                }
               </div>
               
               <TiptapEditor
                 value={replyContent}
                 onChange={setReplyContent}
-                placeholder={`Reply to ${activity.from?.name || activity.from?.email}...`}
+                placeholder={`Reply to ${
+                  isEmailThread 
+                    ? (activity.latestEmail?.from?.name || activity.latestEmail?.from?.email)
+                    : (activity.from?.name || activity.from?.email)
+                }...`}
                 minHeight={isMobile ? "80px" : "100px"}
                 showToolbar={false}
                 externalToolbar={true}
@@ -1177,8 +1341,8 @@ const TimelineItem = React.memo(function TimelineItem({
           {/* Show more/less button and Reply button */}
           {(activityProps.displayContent || activity.bodyHtml || activity.bodyText) && (
             <div className="flex items-center gap-3">
-              {/* Reply button - only show for emails when expanded */}
-              {isExpanded && (activity.source === 'gmail' && activity.type === 'email') && (
+              {/* Reply button - show for emails and email threads when expanded */}
+              {isExpanded && (activity.source === 'gmail' && (activity.type === 'email' || activity.type === 'email_thread')) && (
                 <button
                   onClick={() => setIsReplying(!isReplying)}
                   className={cn(
