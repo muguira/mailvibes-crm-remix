@@ -547,10 +547,21 @@ export async function getRecentContactEmails(
     // If full sync is enabled, we'll get ALL emails regardless of maxResults
     const maxTotalEmails = enableFullSync ? Infinity : maxResults
 
-    logger.info(`[Gmail API] Starting ${enableFullSync ? 'FULL' : 'LIMITED'} sync for ${contactEmail}`, {
+    logger.info(`[Gmail API] Starting ${enableFullSync ? 'FULL HISTORICAL' : 'LIMITED'} sync for ${contactEmail}`, {
       maxResults,
       enableFullSync,
       maxTotalEmails: enableFullSync ? 'unlimited' : maxTotalEmails,
+      query: query,
+      hasExistingFilter: !!existingGmailIds,
+    })
+
+    // ✅ IMPROVED: Log to console for easier user debugging
+    console.log(`🚀 [Gmail API] Starting ${enableFullSync ? 'FULL HISTORICAL' : 'LIMITED'} sync for ${contactEmail}`)
+    console.log(`📊 [Gmail API] Configuration:`, {
+      maxResults,
+      enableFullSync,
+      willFetchAllPages: enableFullSync,
+      maxPagesLimit: enableFullSync ? 50 : Math.ceil(maxResults / 500),
     })
 
     // Iterate through ALL pages until we get all emails
@@ -605,21 +616,9 @@ export async function getRecentContactEmails(
       totalFetched += newMessages.length
       nextPageToken = searchData.nextPageToken
 
-      // If full sync is disabled, respect original maxResults limit
-      if (!enableFullSync && totalFetched >= maxResults) {
-        logger.info(`[Gmail API] Reached maxResults limit (${maxResults}), stopping`)
-        break
-      }
-
-      // Safety limit for full sync to prevent infinite loops (max 50 pages = ~25,000 emails)
-      if (enableFullSync && pagesProcessed >= 50) {
-        logger.warn(`[Gmail API] Reached safety limit of 50 pages (${totalFetched} emails), stopping`)
-        break
-      }
-
       logger.info(`[Gmail API] Fetched ${searchData.messages.length} emails, total: ${totalFetched}`)
 
-      // Stop if we reach the maximum limit
+      // Check if we should continue based on sync type and limits
       if (!enableFullSync && totalFetched >= maxResults) {
         logger.info(`[Gmail API] Reached maxResults limit (${maxResults}), stopping`)
         break
@@ -679,7 +678,52 @@ export async function getRecentContactEmails(
 
     const validEmails = emailDetails.filter(email => email !== null) as GmailEmail[]
 
-    logger.info(`[Gmail API] Completed fetching emails for ${contactEmail}`, {
+    // ✅ IMPROVED: Enhanced completion logging for user debugging
+    const oldestEmail =
+      validEmails.length > 0
+        ? validEmails.reduce((oldest, email) => (new Date(email.date) < new Date(oldest.date) ? email : oldest))
+        : null
+    const newestEmail =
+      validEmails.length > 0
+        ? validEmails.reduce((newest, email) => (new Date(email.date) > new Date(newest.date) ? email : newest))
+        : null
+
+    const completionInfo = {
+      totalEmailsFetched: validEmails.length,
+      totalPagesProcessed: pagesProcessed,
+      syncType: enableFullSync ? 'FULL HISTORICAL' : 'LIMITED',
+      dateRange:
+        validEmails.length > 0
+          ? {
+              oldest: oldestEmail ? new Date(oldestEmail.date).toLocaleDateString() : null,
+              newest: newestEmail ? new Date(newestEmail.date).toLocaleDateString() : null,
+              yearsSpan:
+                oldestEmail && newestEmail
+                  ? new Date(newestEmail.date).getFullYear() - new Date(oldestEmail.date).getFullYear() + 1
+                  : null,
+            }
+          : null,
+      originalResultEstimate: resultSizeEstimate,
+    }
+
+    logger.info(`[Gmail API] Completed fetching emails for ${contactEmail}`, completionInfo)
+
+    // ✅ IMPROVED: Console summary for easier user debugging
+    console.log(`✅ [Gmail API] Sync completed for ${contactEmail}`)
+    console.log(`📧 [Gmail API] Results summary:`, completionInfo)
+
+    if (validEmails.length > 0 && oldestEmail) {
+      const oldestYear = new Date(oldestEmail.date).getFullYear()
+      if (oldestYear >= 2023) {
+        console.warn(
+          `⚠️ [Gmail API] Warning: Oldest email is from ${oldestYear}. If you expected older emails, there might be a sync issue.`,
+        )
+      } else {
+        console.log(`✅ [Gmail API] Good: Found emails dating back to ${oldestYear}`)
+      }
+    }
+
+    logger.info(`[Gmail API] Original completion info:`, {
       totalMessages: allEmails.length,
       validEmails: validEmails.length,
       resultSizeEstimate,
