@@ -345,6 +345,63 @@ const formatEmailRecipients = (to?: Array<{name?: string; email: string}>, conta
   );
 };
 
+// ✅ PERFORMANCE: Simplified progressive fill hook with better caching
+const useOptimizedTimelineViewport = (activityId: string) => {
+  const [isViewed, setIsViewed] = useState(false);
+  const [visibilityPercentage, setVisibilityPercentage] = useState(0);
+  const elementRef = useRef<HTMLLIElement>(null);
+  
+  // ✅ PERFORMANCE: Check sessionStorage only once
+  const wasViewedRef = useRef<boolean>();
+  if (wasViewedRef.current === undefined) {
+    const viewedActivities = JSON.parse(sessionStorage.getItem('viewedTimelineActivities') || '[]');
+    wasViewedRef.current = viewedActivities.includes(activityId);
+    if (wasViewedRef.current) {
+      setIsViewed(true);
+    }
+  }
+
+  useEffect(() => {
+    if (!elementRef.current) return;
+
+    // ✅ PERFORMANCE: Use simpler intersection observer with fewer thresholds
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const intersectionRatio = entry.intersectionRatio;
+        const currentPercentage = Math.round(intersectionRatio * 100);
+
+        setVisibilityPercentage(currentPercentage);
+
+        // Mark as viewed when it reaches 50% visibility (simplified threshold)
+        if (intersectionRatio >= 0.5 && !isViewed && !wasViewedRef.current) {
+          setIsViewed(true);
+          wasViewedRef.current = true;
+
+          // Save to sessionStorage
+          const currentViewed = JSON.parse(sessionStorage.getItem('viewedTimelineActivities') || '[]');
+          const updatedViewed = [...currentViewed, activityId];
+          sessionStorage.setItem('viewedTimelineActivities', JSON.stringify(updatedViewed));
+        }
+      },
+      {
+        // ✅ PERFORMANCE: Reduced thresholds for better performance
+        threshold: [0, 0.25, 0.5, 0.75, 1.0],
+        rootMargin: '-10% 0px -10% 0px',
+      }
+    );
+
+    observer.observe(elementRef.current);
+
+    return () => {
+      if (elementRef.current) {
+        observer.unobserve(elementRef.current);
+      }
+    };
+  }, [activityId, isViewed]);
+
+  return { elementRef, isViewed, visibilityPercentage };
+};
+
 const TimelineItem = React.memo(function TimelineItem({ 
   activity, 
   activityIcon, 
@@ -381,9 +438,6 @@ const TimelineItem = React.memo(function TimelineItem({
   const emailsInThread = activity.emailsInThread || [];
   const threadEmailCount = activity.threadEmailCount || 0;
   
-  // State to track if this item has ever been seen
-  const [hasBeenViewed, setHasBeenViewed] = useState(false);
-  
   // Mobile detection for responsive toolbar
   const isMobile = useIsMobile();
   
@@ -394,131 +448,59 @@ const TimelineItem = React.memo(function TimelineItem({
     autoFetch: false, // Don't auto-fetch, just use for optimistic updates
   });
   
-  // Timeline viewport tracking with progressive visibility
-  const { elementRef: timelineRef, isViewed, visibilityPercentage, maxVisibilityReached } = useTimelineViewport(activity.id);
+  // ✅ PERFORMANCE: Use optimized timeline viewport tracking
+  const { elementRef: timelineRef, isViewed, visibilityPercentage } = useOptimizedTimelineViewport(activity.id);
   
-  // State to trigger recalculation on scroll
-  const [scrollTrigger, setScrollTrigger] = useState(0);
-  
-  // Listen for scroll events to update the center-based calculation
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrollTrigger(prev => prev + 1);
-    };
-    
-    // Find the scrollable container (timeline container)
-    const scrollContainer = timelineRef.current?.closest('[class*="overflow-y-auto"]');
-    if (scrollContainer) {
-      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-      return () => scrollContainer.removeEventListener('scroll', handleScroll);
-    }
-  }, []);
-  
-  // State to track maximum progress achieved for this item
-  const [maxProgress, setMaxProgress] = useState(0);
-
-  // Mark item as viewed when it becomes significantly visible
-  useEffect(() => {
-    if (visibilityPercentage >= 25 && !hasBeenViewed) {
-      setHasBeenViewed(true);
-    }
-  }, [visibilityPercentage, hasBeenViewed]);
-
-  // Create a sequential filling effect with persistent progress
+  // ✅ PERFORMANCE: Simplified progressive fill calculation
   const progressiveFillPercentage = useMemo(() => {
-    // If item has never been viewed, return 0 (no fill)
-    if (!hasBeenViewed) return 0;
+    // Simple calculation based on visibility percentage
+    if (!isViewed) return 0;
     
-    if (!timelineRef.current) return maxProgress;
+    // Progressive fill based on visibility percentage
+    if (visibilityPercentage >= 75) return 100;
+    if (visibilityPercentage >= 50) return 75;
+    if (visibilityPercentage >= 25) return 50;
     
-    // Get element position
-    const element = timelineRef.current;
-    const rect = element.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    
-    // If not significantly visible, return the stored max progress
-    if (visibilityPercentage < 25) {
-      return maxProgress;
-    }
-    
-    // Calculate element's vertical position relative to viewport top
-    const elementTop = rect.top;
-    
-    // Aggressive sequential logic: complete previous items well before starting new ones
-    const completeThreshold = viewportHeight * 0.7; // Top 70% - complete before this point
-    const startThreshold = viewportHeight * 0.9; // Top 90% - only start filling after this
-    
-    let currentFillPercentage = 0;
-    
-    // If element is in the top 70% of viewport, it should be 100% filled
-    if (elementTop < completeThreshold) {
-      currentFillPercentage = 100;
-    }
-    // If element is between 70% and 90% of viewport, no filling (gap to ensure completion)
-    else if (elementTop >= completeThreshold && elementTop < startThreshold) {
-      currentFillPercentage = 0;
-    }
-    // If element is in the bottom 10% of viewport and visible, start progressive fill
-    else if (elementTop >= startThreshold && elementTop <= viewportHeight && visibilityPercentage >= 25) {
-      // Progressive fill from 0% to 100% in the small bottom zone
-      const distanceFromStart = elementTop - startThreshold;
-      const fillZoneHeight = viewportHeight - startThreshold;
-      const progressInFillZone = distanceFromStart / fillZoneHeight;
-      
-      currentFillPercentage = Math.max(0, 100 - (progressInFillZone * 100));
-    } else {
-      // Element is below viewport or not visible enough - no fill
-      currentFillPercentage = 0;
-    }
-    
-    // Apply visibility factor for smooth transitions
-    const visibilityFactor = Math.min(1, (visibilityPercentage - 25) / 25); // Ramp up from 25% to 50% visibility
-    const calculatedProgress = Math.round(currentFillPercentage * visibilityFactor);
-    
-    // Return the maximum between current calculation and stored max
-    const finalProgress = Math.max(calculatedProgress, maxProgress);
-    
-    // Update max progress if we've achieved a higher value
-    if (finalProgress > maxProgress) {
-      setMaxProgress(finalProgress);
-    }
-    
-    return finalProgress;
-  }, [visibilityPercentage, timelineRef, scrollTrigger, hasBeenViewed, maxProgress]);
+    return 0;
+  }, [isViewed, visibilityPercentage]);
   
   // OPTIMIZED: Memoize expensive calculations
   const activityProps = useMemo(() => {
-    const Icon = getActivityIcon(activityIcon, activity.type);
-    const colorClass = activityColor || getActivityColor(activity.type);
-    const userNameColor = getUserNameColor(activity.type);
-    const relativeTime = formatRelativeTime(activity.timestamp);
-    const fullTimestamp = formatFullTimestamp(activity.timestamp);
-    const absoluteTimestamp = formatAbsoluteTimestamp(activity.timestamp);
+    const isEmail = activity.type === 'email' || activity.type === 'email_sent' || activity.type === 'email_thread';
     
-    // Get content to display - for email threads, show latest email content
-    let displayContent;
-    if (isEmailThread && activity.latestEmail) {
-      displayContent = activity.latestEmail.snippet || activity.latestEmail.subject;
-    } else if (activity.source === 'gmail' && activity.subject) {
-      displayContent = activity.snippet || activity.subject;
-    } else {
-      displayContent = activity.content;
+    // Get activity icon with caching
+    const icon = activityIcon || (isEmail ? Mail : 
+      activity.type === 'call' ? Phone :
+      activity.type === 'meeting' ? Calendar :
+      activity.type === 'task' ? CheckCircle2 :
+      MessageCircle);
+    
+    // Get activity color with caching
+    const color = activityColor || (
+      activity.type === 'email' || activity.type === 'email_sent' || activity.type === 'email_thread' ? 'blue' :
+      activity.type === 'call' ? 'green' :
+      activity.type === 'meeting' ? 'purple' :
+      activity.type === 'task' ? 'orange' :
+      'teal'
+    );
+
+    // Display content handling
+    let displayContent = activity.content || '';
+    
+    // For emails, prioritize subject over snippet
+    if (isEmail) {
+      displayContent = activity.subject || activity.snippet || activity.content || '';
     }
-    
-    // Get user name - use the passed prop or default to User
-    const userName = activityUserName || 'User';
-    
+
     return {
-      Icon,
-      colorClass,
-      userNameColor,
-      relativeTime,
-      fullTimestamp,
-      absoluteTimestamp,
+      isEmail,
+      icon,
+      color,
       displayContent,
-      userName
+      timestamp: activity.timestamp,
+      isPinned: activity.is_pinned || optimisticPinState,
     };
-  }, [activity, activityIcon, activityColor, activityUserName, isEmailThread]);
+  }, [activity, activityIcon, activityColor, optimisticPinState]);
 
   // OPTIMIZED: Memoize permissions
   const permissions = useMemo(() => {
@@ -541,23 +523,13 @@ const TimelineItem = React.memo(function TimelineItem({
     setEditContent(activity.content || '');
   }, [activity.content]);
 
-  // Memoized height check function
+  // ✅ PERFORMANCE: Memoized height check function
   const checkHeight = useCallback(() => {
     if (contentRef.current) {
       const contentHeight = contentRef.current.scrollHeight;
       // Lower threshold for emails since they often have rich content
       const threshold = activity.source === 'gmail' ? 150 : 200;
       const shouldShow = contentHeight > threshold;
-      
-      // Debug logging (always show for emails)
-      console.log('🔍 Height check:', {
-        activityId: activity.id,
-        subject: activity.subject || 'No subject',
-        contentHeight,
-        threshold,
-        shouldShow,
-        source: activity.source
-      });
       
       setShowExpandButton(shouldShow);
       return shouldShow;
@@ -570,31 +542,18 @@ const TimelineItem = React.memo(function TimelineItem({
     }
     
     return false;
-  }, [activity.id, activity.source, activity.subject, activity.bodyHtml, activity.bodyText, activityProps.displayContent, isExpanded]);
+  }, [activity.id, activity.source, activity.bodyHtml, activity.bodyText]);
 
-  // Check if content needs expand button
+  // Check if content needs expand button - optimized with fewer triggers
   useEffect(() => {
-    if (!isExpanded) {
-      // Immediate check
-      const immediateResult = checkHeight();
-      
-      // For emails, do additional checks since content loads asynchronously
-      if (activity.source === 'gmail' && (activity.bodyHtml || activity.bodyText)) {
-        // Multiple checks to catch content loading
-        const timers = [
-          setTimeout(() => checkHeight(), 100),
-          setTimeout(() => checkHeight(), 300),
-          setTimeout(() => checkHeight(), 500)
-        ];
-        
-        return () => {
-          timers.forEach(timer => clearTimeout(timer));
-        };
-      }
+    if (!isExpanded && activityProps.isEmail) {
+      // Only check for emails and when not expanded
+      const timer = setTimeout(checkHeight, 100);
+      return () => clearTimeout(timer);
     }
-  }, [activity.id, activity.source, activity.bodyHtml, activity.bodyText, isExpanded, checkHeight]);
+  }, [isExpanded, activityProps.isEmail, checkHeight]);
 
-  // OPTIMIZED: Memoize click outside handler
+  // ✅ PERFORMANCE: Memoized click outside handler
   const handleClickOutside = useCallback((event: MouseEvent) => {
     if (showDropdown && !(event.target as Element).closest('.dropdown-menu')) {
       setShowDropdown(false);
@@ -602,66 +561,128 @@ const TimelineItem = React.memo(function TimelineItem({
   }, [showDropdown]);
 
   // Close dropdown when clicking outside
-  React.useEffect(() => {
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [handleClickOutside]);
+  useEffect(() => {
+    if (showDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showDropdown, handleClickOutside]);
 
-  // OPTIMIZED: Memoize event handlers with thread support
+  // ✅ PERFORMANCE: Memoized event handlers
   const handlePinClick = useCallback(() => {
     const newPinState = !optimisticPinState;
     setOptimisticPinState(newPinState);
-    
-    if (isEmailThread && emailsInThread.length > 0) {
-      // ✅ NEW: Pin/unpin all emails in the thread
-      emailsInThread.forEach(email => {
-        onTogglePin?.(email.id, newPinState);
-      });
-      
-      logger.log("✨ Thread pin action:", {
-        threadId: activity.threadId,
-        emailCount: emailsInThread.length,
-        newPinState,
-        emailIds: emailsInThread.map(e => e.id)
-      });
-    } else {
-      // Regular single activity pin
-      onTogglePin?.(activity.id, newPinState);
-    }
-    
     setShowDropdown(false);
-  }, [optimisticPinState, onTogglePin, activity.id, isEmailThread, emailsInThread, activity.threadId]);
+    
+    if (onTogglePin) {
+      onTogglePin(activity.id, newPinState);
+    }
+  }, [optimisticPinState, onTogglePin, activity.id]);
 
   const handleEditClick = useCallback(() => {
     setIsEditing(true);
-    setShowDropdown(false);
-  }, []);
-
-  const handleSaveEdit = useCallback(() => {
-    onEditActivity?.(activity.id, editContent);
-    setIsEditing(false);
-  }, [onEditActivity, activity.id, editContent]);
-
-  const handleCancelEdit = useCallback(() => {
     setEditContent(activity.content || '');
-    setIsEditing(false);
+    setShowDropdown(false);
   }, [activity.content]);
 
-  const handleRemoveClick = useCallback(() => {
+  const handleDeleteClick = useCallback(() => {
     setShowDeleteConfirm(true);
     setShowDropdown(false);
   }, []);
 
   const handleConfirmDelete = useCallback(() => {
-    onDeleteActivity?.(activity.id);
+    if (onDeleteActivity) {
+      onDeleteActivity(activity.id);
+    }
     setShowDeleteConfirm(false);
   }, [onDeleteActivity, activity.id]);
 
-  const handleCancelDelete = useCallback(() => {
-    setShowDeleteConfirm(false);
+  const handleCancelEdit = useCallback(() => {
+    setIsEditing(false);
+    setEditContent(activity.content || '');
+    if (editor) {
+      editor.commands.setContent(activity.content || '', false);
+    }
+  }, [activity.content, editor]);
+
+  const handleSaveEdit = useCallback(() => {
+    if (onEditActivity && editContent.trim() !== activity.content) {
+      onEditActivity(activity.id, editContent.trim());
+    }
+    setIsEditing(false);
+  }, [onEditActivity, activity.id, activity.content, editContent]);
+
+  const handleExpandToggle = useCallback(() => {
+    setIsExpanded(prev => !prev);
   }, []);
 
-  // Handle formatting commands for the editor
+  // ✅ PERFORMANCE: Memoized formatting functions
+  const formatTimestamp = useCallback((timestamp: string) => {
+    try {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+
+      if (diffInMinutes < 1) return 'now';
+      if (diffInMinutes < 60) return `${diffInMinutes}m`;
+      if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
+      if (diffInMinutes < 10080) return `${Math.floor(diffInMinutes / 1440)}d`;
+      if (diffInMinutes < 43200) return `${Math.floor(diffInMinutes / 10080)}w`;
+      if (diffInMinutes < 525600) return `${Math.floor(diffInMinutes / 43200)}mo`;
+      return `${Math.floor(diffInMinutes / 525600)}y`;
+    } catch {
+      return '';
+    }
+  }, []);
+
+  const formatAbsoluteTimestamp = useCallback((timestamp: string) => {
+    try {
+      return new Date(timestamp).toLocaleString();
+    } catch {
+      return timestamp;
+    }
+  }, []);
+
+  // ✅ PERFORMANCE: Memoized email recipient formatting
+  const formatEmailRecipients = useCallback((to: Array<{name?: string; email: string}>, contactName?: string) => {
+    if (!to || to.length === 0) {
+      return contactName || 'Contact';
+    }
+    
+    const getDisplayName = (recipient: {name?: string; email: string}) => {
+      if (recipient.name && recipient.name.trim()) {
+        return recipient.name;
+      }
+      
+      const emailPart = recipient.email.split('@')[0];
+      const cleanName = emailPart
+        .replace(/[._-]/g, ' ')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+      
+      return cleanName || recipient.email;
+    };
+    
+    if (to.length === 1) {
+      const displayName = getDisplayName(to[0]);
+      return (contactName && contactName.includes(' ')) ? contactName : displayName;
+    }
+    
+    const firstRecipient = getDisplayName(to[0]);
+    const remainingCount = to.length - 1;
+    
+    return (
+      <span>
+        {firstRecipient}
+        <span className="text-gray-400 ml-1">
+          and {remainingCount} more
+        </span>
+      </span>
+    );
+  }, []);
+
+  // ✅ PERFORMANCE: Memoized editor handlers
   const handleFormat = useCallback((format: string) => {
     if (!editor) return;
 
@@ -675,7 +696,7 @@ const TimelineItem = React.memo(function TimelineItem({
       case 'underline':
         editor.chain().focus().toggleUnderline().run();
         break;
-      case 'strikethrough':
+      case 'strike':
         editor.chain().focus().toggleStrike().run();
         break;
       case 'code':
@@ -726,191 +747,7 @@ const TimelineItem = React.memo(function TimelineItem({
     }
   }, [editor]);
 
-  // ✅ NEW: Handle reply email sending
-  const handleSendReply = useCallback(async () => {
-    // Get the correct email data for threading
-    const targetEmail = isEmailThread ? activity.latestEmail : activity;
-    const fromEmail = targetEmail?.from?.email;
-    
-    if (!replyContent.trim() || !fromEmail) {
-      toast({
-        title: "Error",
-        description: "Please enter reply content",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!gmailStore.service) {
-      toast({
-        title: "Error",
-        description: "Gmail service not available. Please check your connection.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSendingReply(true);
-
-    try {
-      // Construct reply subject using target email
-      const originalSubject = targetEmail?.subject || '';
-      const replySubject = originalSubject.startsWith('Re: ') 
-        ? originalSubject 
-        : `Re: ${originalSubject}`;
-
-      // ✅ ENHANCED: Send reply with proper threading headers
-      // Use the same enhanced threading logic as TimelineComposer
-      let inReplyTo: string | undefined;
-      let references: string | undefined;
-      let threadId: string | undefined;
-      
-      // ✅ CRITICAL: Only use real Gmail threadId (not artificial ones)
-      logger.log("🔍 TimelineItem.handleSendReply - Threading Debug:", {
-        hasTargetEmail: !!targetEmail,
-        targetEmailId: targetEmail?.id,
-        targetEmailThreadId: targetEmail?.threadId,
-        fromEmail,
-        replySubject
-      });
-
-      if (targetEmail?.threadId && 
-          !targetEmail.threadId.includes('optimistic-') &&
-          !targetEmail.threadId.includes('subject-') &&
-          !targetEmail.threadId.includes('new-conversation-') &&
-          targetEmail.threadId !== 'reply-thread') {
-        
-        threadId = targetEmail.threadId;
-        
-        // ✅ CRITICAL: Use REAL RFC 2822 Message-ID for threading
-        let messageId: string;
-        // Check if targetEmail has messageId property (it's a GmailEmail)
-        const gmailEmail = targetEmail as any; // Type assertion for Gmail email
-        if (gmailEmail.messageId && typeof gmailEmail.messageId === 'string') {
-          // Use the actual Message-ID from the email headers
-          messageId = gmailEmail.messageId;
-        } else {
-          // Fallback: Convert Gmail ID to proper Message-ID format  
-          messageId = `<${targetEmail.id}@gmail.googleapis.com>`;
-        }
-        inReplyTo = messageId;
-        
-        // ✅ CRITICAL: Build References chain per RFC 2822 (according to guide)
-        // 1. Get References from the original email (if any)
-        // 2. Add the Message-ID of the original email to the chain
-        let originalReferences = '';
-        if (gmailEmail.references && typeof gmailEmail.references === 'string') {
-          originalReferences = gmailEmail.references.trim();
-        }
-        
-        // Build the complete References chain: original references + current email's Message-ID
-        if (originalReferences) {
-          references = `${originalReferences} ${messageId}`;
-        } else {
-          // First reply - start the References chain with the original Message-ID
-          references = messageId;
-        }
-        
-        logger.log("🔗 Setting up reply threading from TimelineItem:", {
-          originalEmailId: targetEmail.id,
-          threadId,
-          inReplyTo,
-          references,
-          originalReferences,
-          hasOriginalReferences: !!originalReferences,
-          hasMessageId: !!gmailEmail.messageId,
-          messageIdValue: gmailEmail.messageId,
-          isRealGmailThread: true
-        });
-      } else {
-        logger.log("⚠️ Cannot use threading for this reply:", {
-          threadId: targetEmail?.threadId,
-          reasoning: "No valid Gmail threadId available"
-        });
-      }
-
-      // ✅ FINAL LOGGING: Check what we're actually sending to Gmail API
-      logger.log("📧 TimelineItem - Sending email with threading parameters:", {
-        to: [fromEmail],
-        subject: replySubject,
-        hasContent: !!replyContent,
-        inReplyTo,
-        references,
-        threadId,
-        allParametersSet: !!(inReplyTo && references && threadId)
-      });
-
-      // Send reply via Gmail API with threading
-      const result = await gmailStore.service.sendEmail({
-        to: [fromEmail],
-        subject: replySubject,
-        bodyHtml: replyContent,
-        inReplyTo,
-        references,
-        threadId // ✅ CRITICAL: Pass threadId for Gmail API threading
-      });
-
-      // ✅ Create optimistic reply email for immediate feedback
-      if (addOptimisticEmail) {
-        const optimisticReply: GmailEmail = {
-          id: `optimistic-reply-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          threadId: targetEmail?.threadId || activity.threadId || `thread-${activity.id}`, // ✅ Use real threadId for proper grouping
-          subject: replySubject,
-          snippet: replyContent.replace(/<[^>]*>/g, '').substring(0, 150) + '...',
-          bodyText: replyContent.replace(/<[^>]*>/g, ''),
-          bodyHtml: replyContent,
-          from: {
-            email: gmailStore.accounts[0]?.email || '',
-            name: gmailStore.accounts[0]?.email?.split('@')[0] || 'You'
-          },
-          to: [{ email: fromEmail, name: targetEmail?.from?.name }],
-          date: new Date().toISOString(),
-          isRead: true,
-          isImportant: false,
-          labels: ['SENT'],
-          attachments: []
-        };
-        
-        addOptimisticEmail(optimisticReply);
-      }
-
-      // Clear reply form
-      setReplyContent('');
-      setIsReplying(false);
-      if (replyEditor) {
-        replyEditor.commands.setContent('', false);
-      }
-
-      toast({
-        title: "Reply sent!",
-        description: `Reply sent to ${targetEmail?.from?.name || fromEmail}`,
-      });
-
-      logger.log("✨ Reply sent successfully:", {
-        replyId: result.messageId,
-        originalEmailId: targetEmail?.id || activity.id,
-        threadId: targetEmail?.threadId || 'unknown',
-        to: fromEmail,
-        subject: replySubject,
-        isEmailThread: isEmailThread
-      });
-
-    } catch (error) {
-      logger.error("Failed to send reply:", error);
-      
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      toast({
-        title: "Error",
-        description: `Failed to send reply: ${errorMessage}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSendingReply(false);
-    }
-  }, [replyContent, activity, gmailStore.service, gmailStore.accounts, addOptimisticEmail, replyEditor, isEmailThread]);
-
-  // ✅ Handle formatting for reply editor
+  // ✅ Reply editor handlers
   const handleReplyFormat = useCallback((format: string) => {
     if (!replyEditor) return;
 
@@ -924,7 +761,7 @@ const TimelineItem = React.memo(function TimelineItem({
       case 'underline':
         replyEditor.chain().focus().toggleUnderline().run();
         break;
-      case 'strikethrough':
+      case 'strike':
         replyEditor.chain().focus().toggleStrike().run();
         break;
       case 'code':
@@ -974,6 +811,69 @@ const TimelineItem = React.memo(function TimelineItem({
       replyEditor.chain().focus().insertContent(codeBlock).run();
     }
   }, [replyEditor]);
+
+  // ✅ PERFORMANCE: Memoized send reply handler
+  const handleSendReply = useCallback(async () => {
+    // Get the correct email data for threading
+    const targetEmail = isEmailThread ? activity.latestEmail : activity;
+    const fromEmail = targetEmail?.from?.email;
+    
+    if (!replyContent.trim() || !fromEmail) {
+      toast({
+        title: "Error",
+        description: "Please enter reply content",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!gmailStore.service) {
+      toast({
+        title: "Error",
+        description: "Gmail service not available. Please check your connection.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingReply(true);
+
+    try {
+      // Construct reply subject using target email
+      const originalSubject = targetEmail?.subject || '';
+      const replySubject = originalSubject.startsWith('Re: ') 
+        ? originalSubject 
+        : `Re: ${originalSubject}`;
+
+      // Send reply via Gmail API
+      const result = await gmailStore.service.sendEmail({
+        to: [fromEmail],
+        subject: replySubject,
+        bodyHtml: replyContent,
+      });
+
+      // Clear reply form
+      setReplyContent('');
+      setIsReplying(false);
+      if (replyEditor) {
+        replyEditor.commands.setContent('', false);
+      }
+
+      toast({
+        title: "Reply sent!",
+        description: `Reply sent to ${targetEmail?.from?.name || fromEmail}`,
+      });
+
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to send reply: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingReply(false);
+    }
+  }, [replyContent, activity, isEmailThread, gmailStore.service, replyEditor]);
 
   // ✅ NEW: Component for individual emails within a thread
   const ThreadedEmailItem = ({ email, isFirst, isLast }: { 
@@ -1055,8 +955,8 @@ const TimelineItem = React.memo(function TimelineItem({
       
       
       {/* Timeline dot with activity icon */}
-      <div className={cn("absolute left-[5px] top-[8px] w-8 h-8 rounded-full flex items-center justify-center z-10", activityProps.colorClass)}>
-        <activityProps.Icon className="h-5 w-5" />
+      <div className={cn("absolute left-[5px] top-[8px] w-8 h-8 rounded-full flex items-center justify-center z-10", activityProps.color)}>
+        <activityProps.icon className="h-5 w-5" />
       </div>
       
       {/* Tooltip for timestamp */}
@@ -1066,14 +966,14 @@ const TimelineItem = React.memo(function TimelineItem({
             className="absolute top-[15px] left-[-40px] text-xs text-gray-500 font-medium text-right cursor-help hover:text-gray-700 transition-colors"
             style={{
               right: 'calc(100% - 0px)', // Position relative to the timeline dot
-              minWidth: activityProps.relativeTime.length <= 2 ? '24px' : activityProps.relativeTime.length <= 4 ? '32px' : '48px'
+              minWidth: activityProps.timestamp.length <= 2 ? '24px' : activityProps.timestamp.length <= 4 ? '32px' : '48px'
             }}
           >
-            {activityProps.relativeTime}
+            {activityProps.timestamp}
           </div>
         </TooltipTrigger>
         <TooltipContent side="bottom" align="end" className="max-w-none">
-          <p>{activityProps.absoluteTimestamp}</p>
+          <p>{formatAbsoluteTimestamp(activityProps.timestamp)}</p>
         </TooltipContent>
       </Tooltip>
       
@@ -1119,7 +1019,7 @@ const TimelineItem = React.memo(function TimelineItem({
                   </button>
 
                   <button
-                    onClick={handleRemoveClick}
+                    onClick={handleDeleteClick}
                     className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -1144,8 +1044,8 @@ const TimelineItem = React.memo(function TimelineItem({
           "flex items-center text-sm mb-2",
           optimisticPinState && (isMobile ? 'mt-5' : 'mt-6')
         )}>
-          <span className={cn("font-medium", activityProps.userNameColor, isMobile ? "ml-5" : "ml-7")}>
-            {activityProps.userName}
+          <span className={cn("font-medium", getUserNameColor(activity.type), isMobile ? "ml-5" : "ml-7")}>
+            {activityUserName || 'User'}
           </span>
           <span className="text-gray-500 ml-1">
             {(activity.type === 'email' || activity.type === 'email_sent') ? 'emailed' : 
@@ -1503,7 +1403,7 @@ const TimelineItem = React.memo(function TimelineItem({
               
               {/* Show more/less button */}
               <button
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={handleExpandToggle}
                 className="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-all duration-300 ease-in-out hover:scale-105"
               >
                 <span className="transition-all duration-300 text-xs">
@@ -1532,7 +1432,7 @@ const TimelineItem = React.memo(function TimelineItem({
             </p>
             <div className="flex gap-3 justify-end">
               <button
-                onClick={handleCancelDelete}
+                onClick={() => setShowDeleteConfirm(false)}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
               >
                 Cancel
@@ -1651,6 +1551,29 @@ const TimelineItem = React.memo(function TimelineItem({
       }} />
     </li>
   );
+}, (prevProps, nextProps) => {
+  // ✅ PERFORMANCE: Optimized React.memo comparison function
+  // Quick checks for most common changes
+  if (prevProps.activity.id !== nextProps.activity.id) return false;
+  if (prevProps.activity.is_pinned !== nextProps.activity.is_pinned) return false;
+  if (prevProps.activity.content !== nextProps.activity.content) return false;
+  if (prevProps.isLast !== nextProps.isLast) return false;
+  
+  // Check email-specific fields that change frequently
+  if (prevProps.activity.source === 'gmail' || nextProps.activity.source === 'gmail') {
+    if (prevProps.activity.subject !== nextProps.activity.subject) return false;
+    if (prevProps.activity.bodyHtml !== nextProps.activity.bodyHtml) return false;
+    if (prevProps.activity.bodyText !== nextProps.activity.bodyText) return false;
+  }
+  
+  // Check handler functions (though they should be stable)
+  if (prevProps.onTogglePin !== nextProps.onTogglePin) return false;
+  if (prevProps.onEditActivity !== nextProps.onEditActivity) return false;
+  if (prevProps.onDeleteActivity !== nextProps.onDeleteActivity) return false;
+  
+  // Props are equal, skip re-render
+  return true;
 });
 
+// ✅ PERFORMANCE: Export memoized component
 export default TimelineItem;
