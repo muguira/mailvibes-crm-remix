@@ -1,40 +1,34 @@
-import React, { useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Loader2, Sparkles, ArrowRight, X, ChevronUp, ChevronDown } from 'lucide-react'
+import { getSuggestionTypeInfo } from '@/helpers/ai'
 import { cn } from '@/lib/utils'
+import { AIAutocompleteSuggestionProps } from '@/types/ai'
+import { ChevronDown, ChevronUp, Loader2, Sparkles, X } from 'lucide-react'
+import React, { useEffect } from 'react'
 
-interface AutocompleteSuggestion {
-  id: string
-  text: string
-  confidence: number
-  type: 'completion' | 'continuation' | 'sentence_end'
-}
-
-interface AIAutocompleteSuggestionProps {
-  suggestions: AutocompleteSuggestion[]
-  activeSuggestionIndex: number
-  isLoadingSuggestions: boolean
-  showSuggestions: boolean
-  onAcceptSuggestion: (index?: number) => void
-  onRejectSuggestions: () => void
-  onNavigateSuggestions: (direction: 'up' | 'down') => void
-  className?: string
-}
-
-const getSuggestionTypeInfo = (type: AutocompleteSuggestion['type']) => {
-  switch (type) {
-    case 'completion':
-      return { label: 'Complete', color: 'bg-blue-100 text-blue-700', icon: ArrowRight }
-    case 'continuation':
-      return { label: 'Continue', color: 'bg-green-100 text-green-700', icon: ArrowRight }
-    case 'sentence_end':
-      return { label: 'Finish', color: 'bg-purple-100 text-purple-700', icon: ArrowRight }
-    default:
-      return { label: 'Suggest', color: 'bg-gray-100 text-gray-700', icon: ArrowRight }
-  }
-}
-
+/**
+ * A React component that displays AI-generated autocompletion suggestions in a dropdown interface.
+ *
+ * Features:
+ * - Shows suggestions with confidence scores and type indicators
+ * - Supports keyboard navigation (arrow keys, Tab, Escape)
+ * - Visual feedback for active suggestion
+ * - Loading states and empty states
+ * - Different suggestion types with color-coded badges
+ *
+ * @example
+ * ```tsx
+ * <AIAutocompleteSuggestion
+ *   suggestions={suggestions}
+ *   activeSuggestionIndex={0}
+ *   isLoadingSuggestions={false}
+ *   showSuggestions={true}
+ *   onAcceptSuggestion={(index) => handleAccept(index)}
+ *   onRejectSuggestions={() => handleReject()}
+ *   onNavigateSuggestions={(direction) => handleNavigate(direction)}
+ * />
+ * ```
+ */
 export const AIAutocompleteSuggestion: React.FC<AIAutocompleteSuggestionProps> = ({
   suggestions,
   activeSuggestionIndex,
@@ -45,8 +39,19 @@ export const AIAutocompleteSuggestion: React.FC<AIAutocompleteSuggestionProps> =
   onNavigateSuggestions,
   className,
 }) => {
-  // Handle keyboard navigation
+  /**
+   * Effect to handle keyboard navigation for the suggestions dropdown
+   *
+   * Supported keys:
+   * - Tab/Enter: Accept the currently active suggestion
+   * - Escape: Dismiss all suggestions
+   * - ArrowUp/ArrowDown: Navigate between suggestions
+   */
   useEffect(() => {
+    /**
+     * Handles keyboard events for suggestion navigation
+     * @param event - The keyboard event
+     */
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!showSuggestions || suggestions.length === 0) return
 
