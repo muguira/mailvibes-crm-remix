@@ -3,6 +3,8 @@ import { logger } from '@/utils/logger'
 export interface GmailEmail {
   id: string
   threadId: string
+  messageId?: string // ✅ ADD: RFC 2822 Message-ID for threading
+  references?: string // ✅ ADD: RFC 2822 References header for threading
   snippet: string
   subject: string
   from: {
@@ -184,6 +186,8 @@ function parseGmailMessage(gmailMessage: any): GmailEmail {
   const ccHeader = getHeader('Cc')
   const bccHeader = getHeader('Bcc')
   const dateHeader = getHeader('Date')
+  const messageId = getHeader('Message-ID') // ✅ ADD: Extract RFC 2822 Message-ID
+  const references = getHeader('References') // ✅ ADD: Extract RFC 2822 References for threading
 
   // Parse From email
   const fromMatch = fromHeader.match(/^(.+?)\s*<(.+?)>$/) || fromHeader.match(/^(.+)$/)
@@ -293,6 +297,8 @@ function parseGmailMessage(gmailMessage: any): GmailEmail {
   return {
     id: gmailMessage.id,
     threadId: gmailMessage.threadId,
+    messageId: messageId, // ✅ ADD: Include RFC 2822 Message-ID
+    references: references, // ✅ ADD: Include RFC 2822 References header
     snippet: gmailMessage.snippet || '',
     subject,
     from,
@@ -701,6 +707,7 @@ export interface SendEmailData {
   bodyText?: string
   inReplyTo?: string // For threading replies
   references?: string // For threading replies
+  threadId?: string // ✅ ADD: For Gmail API threading
 }
 
 /**
@@ -721,7 +728,10 @@ function createMimeMessage(emailData: SendEmailData): string {
 
   let mime = ''
 
-  // Headers
+  // ✅ CRITICAL: Add unique Message-ID for proper threading
+  mime += `Message-ID: <${generateMessageId()}>\r\n`
+
+  // Standard headers
   mime += `To: ${to.join(', ')}\r\n`
   if (cc && cc.length > 0) {
     mime += `Cc: ${cc.join(', ')}\r\n`
@@ -731,7 +741,7 @@ function createMimeMessage(emailData: SendEmailData): string {
   }
   mime += `Subject: ${subject}\r\n`
 
-  // Threading headers for replies
+  // ✅ CRITICAL: Threading headers for replies (RFC 2822 compliance)
   if (inReplyTo) {
     mime += `In-Reply-To: ${inReplyTo}\r\n`
   }
@@ -747,6 +757,19 @@ function createMimeMessage(emailData: SendEmailData): string {
   mime += bodyHtml
 
   return mime
+}
+
+/**
+ * ✅ NEW: Generate RFC 2822 compliant Message-ID
+ * @returns Unique Message-ID string
+ */
+function generateMessageId(): string {
+  const timestamp = Date.now()
+  const random = Math.random().toString(36).substring(2, 15)
+  // ✅ FIX: Use proper domain for RFC 2822 compliance
+  const domain = 'crm.salesheet.com' // Professional domain for better deliverability
+  // ✅ CRITICAL: RFC 2822 requires angle brackets around Message-ID
+  return `<${timestamp}.${random}@${domain}>`
 }
 
 /**
@@ -773,6 +796,8 @@ export async function sendEmail(accessToken: string, emailData: SendEmailData): 
       to: emailData.to,
       subject: emailData.subject,
       hasHtml: !!emailData.bodyHtml,
+      isReply: !!emailData.inReplyTo,
+      threadId: emailData.threadId,
     })
 
     // Create MIME message
@@ -781,6 +806,17 @@ export async function sendEmail(accessToken: string, emailData: SendEmailData): 
     // Encode to base64url
     const encodedMessage = encodeEmailMessage(mimeMessage)
 
+    // ✅ ENHANCED: Prepare request body with optional threadId for replies
+    const requestBody: any = {
+      raw: encodedMessage,
+    }
+
+    // ✅ CRITICAL: Include threadId for Gmail API threading
+    if (emailData.threadId) {
+      requestBody.threadId = emailData.threadId
+      logger.info('[Gmail API] Including threadId for reply:', emailData.threadId)
+    }
+
     // Send via Gmail API
     const response = await fetch(`${GMAIL_API_BASE_URL}/users/me/messages/send`, {
       method: 'POST',
@@ -788,9 +824,7 @@ export async function sendEmail(accessToken: string, emailData: SendEmailData): 
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        raw: encodedMessage,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
@@ -803,6 +837,7 @@ export async function sendEmail(accessToken: string, emailData: SendEmailData): 
     logger.info('[Gmail API] Email sent successfully:', {
       messageId: result.id,
       threadId: result.threadId,
+      wasReply: !!emailData.threadId,
     })
 
     return {

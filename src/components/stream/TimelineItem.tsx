@@ -759,11 +759,95 @@ const TimelineItem = React.memo(function TimelineItem({
         ? originalSubject 
         : `Re: ${originalSubject}`;
 
-      // Send reply via Gmail API
+      // ✅ ENHANCED: Send reply with proper threading headers
+      // Use the same enhanced threading logic as TimelineComposer
+      let inReplyTo: string | undefined;
+      let references: string | undefined;
+      let threadId: string | undefined;
+      
+      // ✅ CRITICAL: Only use real Gmail threadId (not artificial ones)
+      logger.log("🔍 TimelineItem.handleSendReply - Threading Debug:", {
+        hasTargetEmail: !!targetEmail,
+        targetEmailId: targetEmail?.id,
+        targetEmailThreadId: targetEmail?.threadId,
+        fromEmail,
+        replySubject
+      });
+
+      if (targetEmail?.threadId && 
+          !targetEmail.threadId.includes('optimistic-') &&
+          !targetEmail.threadId.includes('subject-') &&
+          !targetEmail.threadId.includes('new-conversation-') &&
+          targetEmail.threadId !== 'reply-thread') {
+        
+        threadId = targetEmail.threadId;
+        
+        // ✅ CRITICAL: Use REAL RFC 2822 Message-ID for threading
+        let messageId: string;
+        // Check if targetEmail has messageId property (it's a GmailEmail)
+        const gmailEmail = targetEmail as any; // Type assertion for Gmail email
+        if (gmailEmail.messageId && typeof gmailEmail.messageId === 'string') {
+          // Use the actual Message-ID from the email headers
+          messageId = gmailEmail.messageId;
+        } else {
+          // Fallback: Convert Gmail ID to proper Message-ID format  
+          messageId = `<${targetEmail.id}@gmail.googleapis.com>`;
+        }
+        inReplyTo = messageId;
+        
+        // ✅ CRITICAL: Build References chain per RFC 2822 (according to guide)
+        // 1. Get References from the original email (if any)
+        // 2. Add the Message-ID of the original email to the chain
+        let originalReferences = '';
+        if (gmailEmail.references && typeof gmailEmail.references === 'string') {
+          originalReferences = gmailEmail.references.trim();
+        }
+        
+        // Build the complete References chain: original references + current email's Message-ID
+        if (originalReferences) {
+          references = `${originalReferences} ${messageId}`;
+        } else {
+          // First reply - start the References chain with the original Message-ID
+          references = messageId;
+        }
+        
+        logger.log("🔗 Setting up reply threading from TimelineItem:", {
+          originalEmailId: targetEmail.id,
+          threadId,
+          inReplyTo,
+          references,
+          originalReferences,
+          hasOriginalReferences: !!originalReferences,
+          hasMessageId: !!gmailEmail.messageId,
+          messageIdValue: gmailEmail.messageId,
+          isRealGmailThread: true
+        });
+      } else {
+        logger.log("⚠️ Cannot use threading for this reply:", {
+          threadId: targetEmail?.threadId,
+          reasoning: "No valid Gmail threadId available"
+        });
+      }
+
+      // ✅ FINAL LOGGING: Check what we're actually sending to Gmail API
+      logger.log("📧 TimelineItem - Sending email with threading parameters:", {
+        to: [fromEmail],
+        subject: replySubject,
+        hasContent: !!replyContent,
+        inReplyTo,
+        references,
+        threadId,
+        allParametersSet: !!(inReplyTo && references && threadId)
+      });
+
+      // Send reply via Gmail API with threading
       const result = await gmailStore.service.sendEmail({
         to: [fromEmail],
         subject: replySubject,
         bodyHtml: replyContent,
+        inReplyTo,
+        references,
+        threadId // ✅ CRITICAL: Pass threadId for Gmail API threading
       });
 
       // ✅ Create optimistic reply email for immediate feedback

@@ -11,6 +11,7 @@ interface DatabaseEmail {
   id: string
   gmail_id: string
   gmail_thread_id?: string | null // ✅ ADD: Thread ID from Gmail
+  message_id?: string | null // ✅ ADD: RFC 2822 Message-ID
   subject: string
   snippet: string
   body_text?: string | null
@@ -187,6 +188,7 @@ const useEmailsStore = create<EmailsStore>()(
         return {
           id: dbEmail.gmail_id,
           threadId: dbEmail.gmail_thread_id || '', // ✅ FIX: Map real threadId from database
+          messageId: dbEmail.message_id || undefined, // ✅ ADD: Include RFC 2822 Message-ID
           snippet: dbEmail.snippet,
           subject: dbEmail.subject,
           from: {
@@ -230,7 +232,7 @@ const useEmailsStore = create<EmailsStore>()(
             .from('emails')
             .select(
               `
-              id, gmail_id, gmail_thread_id, subject, snippet, body_text, body_html,
+              id, gmail_id, gmail_thread_id, message_id, subject, snippet, body_text, body_html,
               from_email, from_name, to_emails, cc_emails, bcc_emails,
               date, is_read, is_important, labels, has_attachments,
               attachment_count, created_at, updated_at,

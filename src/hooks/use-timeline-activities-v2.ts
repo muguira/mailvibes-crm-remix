@@ -164,29 +164,47 @@ const groupEmailsByThread = (emailActivities: TimelineActivity[]): TimelineActiv
         threadGroups.get(threadId)!.push(email)
       }
     } else {
-      // Multiple emails with same subject - these should be grouped together
-      // Create a subject-based thread ID
-      const subjectThreadId = `subject-${btoa(baseSubject)
-        .replace(/[^a-zA-Z0-9]/g, '')
-        .substring(0, 12)}`
+      // ✅ FIX: Multiple emails with same subject should NOT be automatically grouped
+      // Only group emails if they have the same REAL threadId from Gmail
+      // Otherwise, treat each email as standalone even if they have similar subjects
 
-      console.log(
-        `🔗 [Timeline] Consolidating ${emailsWithSameSubject.length} emails with subject "${baseSubject}" into thread ${subjectThreadId}`,
-        {
-          emails: emailsWithSameSubject.map(e => ({
-            id: e.id,
-            originalThreadId: e.threadId,
-            subject: e.subject,
-            from: e.from?.email,
-            timestamp: e.timestamp,
-          })),
-        },
-      )
+      const emailsByRealThreadId = new Map<string, TimelineActivity[]>()
 
-      if (!threadGroups.has(subjectThreadId)) {
-        threadGroups.set(subjectThreadId, [])
-      }
-      threadGroups.get(subjectThreadId)!.push(...emailsWithSameSubject)
+      emailsWithSameSubject.forEach(email => {
+        const realThreadId = email.threadId
+
+        // Only group if they have a valid, non-artificial threadId
+        if (
+          realThreadId &&
+          !realThreadId.includes('optimistic-') &&
+          !realThreadId.includes('subject-') &&
+          !realThreadId.includes('new-conversation-') &&
+          realThreadId !== 'reply-thread'
+        ) {
+          if (!emailsByRealThreadId.has(realThreadId)) {
+            emailsByRealThreadId.set(realThreadId, [])
+          }
+          emailsByRealThreadId.get(realThreadId)!.push(email)
+        } else {
+          // Email without real threadId - keep as standalone
+          standaloneEmails.push(email)
+        }
+      })
+
+      // Add emails with real threadIds to thread groups
+      emailsByRealThreadId.forEach((emails, threadId) => {
+        if (!threadGroups.has(threadId)) {
+          threadGroups.set(threadId, [])
+        }
+        threadGroups.get(threadId)!.push(...emails)
+      })
+
+      console.log(`🔗 [Timeline] Processed ${emailsWithSameSubject.length} emails with subject "${baseSubject}"`, {
+        realThreadGroups: emailsByRealThreadId.size,
+        standaloneFromThisSubject:
+          emailsWithSameSubject.length - Array.from(emailsByRealThreadId.values()).flat().length,
+        reasoning: 'Only grouping emails with real Gmail threadIds, not creating artificial groups',
+      })
     }
   })
 

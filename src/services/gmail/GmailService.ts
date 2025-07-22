@@ -253,6 +253,9 @@ export class GmailService {
     subject: string
     bodyHtml: string
     contactId?: string
+    inReplyTo?: string // ✅ ADD: For threading replies
+    references?: string // ✅ ADD: For threading replies
+    threadId?: string // ✅ ADD: For Gmail API threading
   }): Promise<{ messageId: string; threadId?: string }> {
     this.ensureNotDisposed()
     this.updateActivity()
