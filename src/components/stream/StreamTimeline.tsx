@@ -222,7 +222,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     return 'Usuario';
   }, [user?.user_metadata?.full_name, user?.email]);
 
-  // ✅ PERFORMANCE: Memoized first interaction date calculation
+  // ✅ PERFORMANCE: Memoized first interaction date calculation - FIXED to return Date object
   const getFirstInteractionDate = useCallback(() => {
     if (activities.length === 0) return null;
     
@@ -231,16 +231,36 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     if (!oldestActivity) return null;
     
     try {
-      const date = new Date(oldestActivity.timestamp);
+      return new Date(oldestActivity.timestamp);
+    } catch (error) {
+      return null;
+    }
+  }, [activities]);
+
+  // ✅ FIX: Separate functions for date formatting
+  const formatFirstInteractionDateSpanish = useCallback((date: Date) => {
+    try {
       return date.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
       });
     } catch (error) {
-      return null;
+      return 'Fecha inválida';
     }
-  }, [activities]);
+  }, []);
+
+  const formatFirstInteractionDateEnglish = useCallback((date: Date) => {
+    try {
+      return date.toLocaleDateString('en-US', {
+        day: 'numeric',
+        month: 'long', 
+        year: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  }, []);
 
   // Handle expand composer
   const handleExpandComposer = useCallback(() => {
@@ -410,14 +430,16 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
                           <Users className="w-3 h-3 text-teal-600" />
                         </div>
                         <span className="font-medium">
-                          {getFirstInteractionDate()}
+                          {(() => {
+                            const firstDate = getFirstInteractionDate();
+                            return firstDate ? formatFirstInteractionDateSpanish(firstDate) : 'Fecha no disponible';
+                          })()}
                         </span>
                         <div className="text-xs text-gray-500">
-                          {new Date(getFirstInteractionDate()!).toLocaleDateString('en-US', {
-                            day: 'numeric',
-                            month: 'long', 
-                            year: 'numeric'
-                          })}
+                          {(() => {
+                            const firstDate = getFirstInteractionDate();
+                            return firstDate ? formatFirstInteractionDateEnglish(firstDate) : 'Date not available';
+                          })()}
                         </div>
                       </div>
                       
