@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Loader2, FileText, Sparkles, Copy, Check } from 'lucide-react';
-// import { useEmailAI } from '@/hooks/useEmailAI'; // ✅ DISABLED for performance testing
+import { useEmailAI } from '@/hooks/useEmailAI'; // ✅ RE-ENABLED with optimized hook
 import { TimelineActivity } from '@/hooks/use-timeline-activities-v2';
 import { ContactInfo } from '@/services/ai';
 import { cn } from '@/lib/utils';
@@ -26,82 +26,76 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [summaryData, setSummaryData] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   
-  // ✅ DISABLED: Temporarily remove useEmailAI to eliminate performance bottleneck
-  // const { 
-  //   summarizeThread, 
-  //   summary, 
-  //   isConfigured,
-  //   initializationError,
-  //   provider
-  // } = useEmailAI({
-  //   showToasts: false // We'll handle toasts manually for better control
-  // });
-
-  // Mock disabled state
-  const summary = { 
-    data: null, 
-    loading: false, 
-    error: null, 
-    fromCache: false, 
-    provider: 'disabled' 
-  };
-  const isConfigured = false;
-  const initializationError = { message: 'AI temporarily disabled for performance testing' };
+  // ✅ RE-ENABLED: Using optimized useEmailAI hook
+  const { 
+    summarizeThread, 
+    isConfigured,
+    initializationError
+  } = useEmailAI({
+    showToasts: false // We'll handle toasts manually for better control
+  });
 
   const getDisabledReason = (): string | null => {
     if (emails.length === 0) return "No emails to summarize";
-    if (initializationError) return `AI disabled: ${initializationError.message}`;
+    if (initializationError) return `AI initialization failed: ${initializationError.message}`;
     if (!isConfigured) return "AI not configured - add VITE_GEMINI_API_KEY to your .env file";
     if (disabled) return "Feature temporarily disabled";
-    if (summary.loading) return "Generating summary...";
+    if (isGenerating) return "Generating summary...";
     return null;
   };
 
   const handleSummarize = async () => {
-    // ✅ DISABLED: All AI summarization temporarily disabled
-    toast({
-      title: 'AI Summary Disabled',
-      description: 'AI features are temporarily disabled for performance testing',
-      variant: 'default'
-    });
-    return;
+    const disabledReason = getDisabledReason();
+    if (disabledReason) {
+      toast({
+        title: 'Cannot generate summary',
+        description: disabledReason,
+        variant: 'destructive'
+      });
+      return;
+    }
 
-    // Original implementation commented out
-    // const disabledReason = getDisabledReason();
-    // if (disabledReason) {
-    //   toast({
-    //     title: 'Cannot generate summary',
-    //     description: disabledReason,
-    //     variant: 'destructive'
-    //   });
-    //   return;
-    // }
-    // 
-    // try {
-    //   await summarizeThread(emails, contactInfo);
-    //   
-    //   if (summary.data) {
-    //     toast({
-    //       title: 'Summary generated!',
-    //       description: 'AI has created a summary of the email thread.',
-    //     });
-    //   }
-    // } catch (error) {
-    //   console.error('Failed to generate summary:', error);
-    //   toast({
-    //     title: 'Summary failed',
-    //     description: 'Failed to generate email summary. Please try again.',
-    //     variant: 'destructive'
-    //   });
-    // }
+    setIsGenerating(true);
+    try {
+      const result = await summarizeThread(emails, contactInfo);
+      
+      if (result) {
+        setSummaryData(result);
+        toast({
+          title: 'Summary generated!',
+          description: 'AI has created a summary of the email thread.',
+        });
+        
+        if (!isOpen) {
+          setIsOpen(true);
+        }
+      } else {
+        toast({
+          title: 'Summary failed',
+          description: 'Failed to generate email summary. Please try again.',
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      console.error('Failed to generate summary:', error);
+      toast({
+        title: 'Summary failed',
+        description: 'Failed to generate email summary. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const copyToClipboard = async () => {
-    if (!summary.data) return;
+    if (!summaryData) return;
     
     try {
-      await navigator.clipboard.writeText(summary.data);
+      await navigator.clipboard.writeText(summaryData);
       setCopied(true);
       toast({
         title: 'Copied!',
@@ -122,18 +116,18 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
   const isDisabled = !!disabledReason;
 
   const triggerButton = variant === 'button' ? (
-          <Button
-        onClick={handleSummarize}
-        disabled={!!getDisabledReason()}
-        size="sm"
-        variant="outline"
-        className={cn(
-          "h-8 px-3 text-xs",
-          className
-        )}
-        title={getDisabledReason() || "Generate AI summary of this conversation"}
-      >
-      {summary.loading ? (
+    <Button
+      onClick={handleSummarize}
+      disabled={isDisabled}
+      size="sm"
+      variant="outline"
+      className={cn(
+        "h-8 px-3 text-xs",
+        className
+      )}
+      title={getDisabledReason() || "Generate AI summary of this conversation"}
+    >
+      {isGenerating ? (
         <Loader2 className="w-3 h-3 animate-spin" />
       ) : (
         <Sparkles className="w-3 h-3" />
@@ -141,17 +135,17 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
       <span className="ml-1">Summarize</span>
     </Button>
   ) : (
-          <button
-        onClick={handleSummarize}
-        disabled={!!getDisabledReason()}
-        className={cn(
-          "flex items-center gap-1 text-xs transition-all duration-300 ease-in-out hover:scale-105",
-          "text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed",
-          className
-        )}
-        title={getDisabledReason() || "Generate AI summary of this conversation"}
-      >
-      {summary.loading ? (
+    <button
+      onClick={handleSummarize}
+      disabled={isDisabled}
+      className={cn(
+        "flex items-center gap-1 text-xs transition-all duration-300 ease-in-out hover:scale-105",
+        "text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed",
+        className
+      )}
+      title={getDisabledReason() || "Generate AI summary of this conversation"}
+    >
+      {isGenerating ? (
         <Loader2 className="w-3 h-3 animate-spin" />
       ) : (
         <Sparkles className="w-3 h-3" />
@@ -171,7 +165,7 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-blue-600" />
             Email Conversation Summary
-            {summary.fromCache && (
+            {summaryData && (
               <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
                 Cached
               </span>
@@ -180,7 +174,7 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
         </DialogHeader>
         
         <div className="flex-1 overflow-y-auto">
-          {summary.loading ? (
+          {isGenerating ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-4" />
@@ -190,34 +184,14 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
                 </p>
               </div>
             </div>
-          ) : summary.error ? (
-            <div className="py-8 text-center">
-              <div className="text-red-600 mb-2">
-                <FileText className="w-8 h-8 mx-auto opacity-50" />
-              </div>
-              <p className="text-sm text-red-600 font-medium mb-1">
-                Failed to generate summary
-              </p>
-              <p className="text-xs text-gray-500">
-                {summary.error.message}
-              </p>
-              <Button
-                onClick={handleSummarize}
-                variant="outline"
-                size="sm"
-                className="mt-4"
-              >
-                Try Again
-              </Button>
-            </div>
-          ) : summary.data ? (
+          ) : summaryData ? (
             <div className="space-y-4">
                                {/* Summary content */}
                  <div className="prose prose-sm max-w-none">
                    <div 
                      className="text-gray-800 leading-relaxed"
                      dangerouslySetInnerHTML={{ 
-                       __html: markdownToHtml(summary.data) 
+                       __html: markdownToHtml(summaryData) 
                      }} 
                    />
                  </div>
@@ -230,9 +204,9 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
                   </span>
                   <div className="flex items-center gap-2">
                     <span className="text-blue-600">
-                      Generated by {summary.provider}
+                      Generated by AI
                     </span>
-                    {summary.fromCache && (
+                    {summaryData && (
                       <span className="bg-gray-100 px-2 py-1 rounded text-gray-600">
                         From cache
                       </span>

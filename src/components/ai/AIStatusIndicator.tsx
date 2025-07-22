@@ -1,5 +1,5 @@
 import React from 'react';
-// import { useEmailAI } from '@/hooks/useEmailAI'; // ✅ DISABLED for performance testing
+import { useEmailAI } from '@/hooks/useEmailAI'; // ✅ RE-ENABLED with optimized hook
 import { Sparkles, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -14,36 +14,18 @@ export const AIStatusIndicator: React.FC<AIStatusIndicatorProps> = ({
   showLabel = true,
   variant = 'default'
 }) => {
-  // ✅ DISABLED: Temporarily remove useEmailAI to eliminate performance bottleneck
-  // const {
-  //   isLoading,
-  //   isConfigured,
-  //   initializationError,
-  //   provider
-  // } = useEmailAI();
-
-  // Mock disabled state
-  const isLoading = false;
-  const isConfigured = false;
-  const initializationError = { message: 'AI temporarily disabled for performance testing' };
-  const provider = { name: 'disabled' };
+  // ✅ RE-ENABLED: Using optimized useEmailAI hook  
+  const {
+    isConfigured,
+    initializationError,
+    provider
+  } = useEmailAI();
 
   const getStatus = () => {
-    if (isLoading) {
-      return {
-        icon: Loader2,
-        label: 'Initializing AI...',
-        color: 'text-blue-500',
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-200',
-        animate: 'animate-spin'
-      };
-    }
-
     if (initializationError) {
       return {
         icon: AlertCircle,
-        label: `AI Disabled: ${initializationError.message}`,
+        label: `AI Error: ${initializationError.message}`,
         color: 'text-red-500',
         bgColor: 'bg-red-50',
         borderColor: 'border-red-200'
@@ -76,7 +58,7 @@ export const AIStatusIndicator: React.FC<AIStatusIndicatorProps> = ({
     return (
       <div className={cn('flex items-center gap-1', className)}>
         <Icon 
-          className={cn('h-3 w-3', status.color, status.animate)} 
+          className={cn('h-3 w-3', status.color)} 
         />
         {showLabel && (
           <span className={cn('text-xs', status.color)}>
@@ -95,7 +77,7 @@ export const AIStatusIndicator: React.FC<AIStatusIndicatorProps> = ({
       status.color,
       className
     )}>
-      <Icon className={cn('h-3 w-3', status.animate)} />
+      <Icon className="h-3 w-3" />
       {showLabel && <span>{status.label}</span>}
     </div>
   );
