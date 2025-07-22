@@ -38,8 +38,11 @@ export const AcceptInvitation: React.FC = () => {
   useEffect(() => {
     if (effectiveInvitationId) {
       loadInvitationDetails();
+    } else if (user && !effectiveInvitationId) {
+      // If user is logged in but no invitation ID/token, redirect to dashboard
+      navigate('/');
     }
-  }, [effectiveInvitationId]);
+  }, [effectiveInvitationId, user, navigate]);
 
   const loadInvitationDetails = async () => {
     try {
@@ -128,7 +131,8 @@ export const AcceptInvitation: React.FC = () => {
       setAccepting(true);
       setError(null);
 
-      await acceptInvitation(effectiveInvitationId!);
+      // Use the invitation ID for acceptance (not the token)
+      await acceptInvitation(invitation.id);
       setSuccess(true);
 
       // Redirect to dashboard after a short delay
@@ -136,7 +140,7 @@ export const AcceptInvitation: React.FC = () => {
         navigate('/');
       }, 2000);
 
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     } finally {
       setAccepting(false);

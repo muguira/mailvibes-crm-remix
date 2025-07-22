@@ -108,11 +108,12 @@ function App() {
                       background: '#fff',
                       color: '#333',
                       border: '1px solid #e5e7eb',
-                      marginBottom: '8px', // Add spacing between toasts
                     },
                   }}
                   className="sm:!top-4 !top-16"
-                  gap={12}
+                  gap={16}
+                  duration={4000}
+                  visibleToasts={3}
                 />
               </div>
             </Router>

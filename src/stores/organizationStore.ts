@@ -680,19 +680,28 @@ export const useOrganizationStore = create<OrganizationStore>()(
       },
 
       // Accept invitation
-      acceptInvitation: async (invitationId: string) => {
+      acceptInvitation: async (invitationIdOrToken: string) => {
         try {
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) throw new Error('User not authenticated');
 
-          // Get invitation details
-          const { data: invitation, error: inviteError } = await supabase
+          // First, try to get invitation details by ID or token
+          let query = supabase
             .from('organization_invitations')
             .select('*')
-            .eq('id', invitationId)
             .eq('email', user.email)
-            .eq('status', 'pending')
-            .single();
+            .eq('status', 'pending');
+
+          // Check if it's a UUID (invitation ID) or a token
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(invitationIdOrToken);
+          
+          if (isUuid) {
+            query = query.eq('id', invitationIdOrToken);
+          } else {
+            query = query.eq('token', invitationIdOrToken);
+          }
+
+          const { data: invitation, error: inviteError } = await query.single();
 
           if (inviteError) throw inviteError;
           if (!invitation) throw new Error('Invitation not found or already processed');
@@ -702,42 +711,73 @@ export const useOrganizationStore = create<OrganizationStore>()(
             throw new Error('Invitation has expired');
           }
 
-          // Create organization member
-          const { error: memberError } = await supabase
+          // Check if user is already a member of this organization
+          const { data: existingMember } = await supabase
             .from('organization_members')
-            .insert([{
-              user_id: user.id,
-              organization_id: invitation.organization_id,
-              role: invitation.role,
-            }]);
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('organization_id', invitation.organization_id)
+            .single();
 
-          if (memberError) throw memberError;
+          if (existingMember) {
+            // User is already a member, just update their current organization
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .update({ current_organization: invitation.organization_id })
+              .eq('id', user.id);
 
-          // Update invitation status
-          const { error: updateError } = await supabase
-            .from('organization_invitations')
-            .update({ 
-              status: 'accepted',
-              accepted_at: new Date().toISOString()
-            })
-            .eq('id', invitationId);
+            if (profileError) throw profileError;
 
-          if (updateError) throw updateError;
+            // Update invitation status
+            const { error: updateError } = await supabase
+              .from('organization_invitations')
+              .update({ 
+                status: 'accepted',
+                accepted_at: new Date().toISOString()
+              })
+              .eq('id', invitation.id);
 
-          // Update user's current organization
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({ current_organization: invitation.organization_id })
-            .eq('id', user.id);
+            if (updateError) throw updateError;
 
-          if (profileError) throw profileError;
+            toast.success('You are already a member of this organization. Switched to the organization.');
+          } else {
+            // Create organization member
+            const { error: memberError } = await supabase
+              .from('organization_members')
+              .insert([{
+                user_id: user.id,
+                organization_id: invitation.organization_id,
+                role: invitation.role,
+              }]);
+
+            if (memberError) throw memberError;
+
+            // Update invitation status
+            const { error: updateError } = await supabase
+              .from('organization_invitations')
+              .update({ 
+                status: 'accepted',
+                accepted_at: new Date().toISOString()
+              })
+              .eq('id', invitation.id);
+
+            if (updateError) throw updateError;
+
+            // Update user's current organization
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .update({ current_organization: invitation.organization_id })
+              .eq('id', user.id);
+
+            if (profileError) throw profileError;
+
+            toast.success('Successfully joined organization!');
+          }
 
           // Reload organization data
           await get().loadOrganization();
 
-          toast.success('Successfully joined organization!');
-
-        } catch (error) {
+        } catch (error: any) {
           toast.error(`Failed to accept invitation: ${error.message}`);
           throw error;
         }
@@ -844,4 +884,4 @@ export const useOptimisticUpdates = () => {
 export const useOrganizationErrors = () => {
   const store = useOrganizationStore();
   return store.errors;
-}; 
+};
