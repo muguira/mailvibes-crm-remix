@@ -220,7 +220,7 @@ export const usePerformanceBenchmark = () => {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `mailvibes-crm-phase1-benchmark-${Date.now()}.json`
+    a.download = `salessheet-crm-phase1-benchmark-${Date.now()}.json`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)

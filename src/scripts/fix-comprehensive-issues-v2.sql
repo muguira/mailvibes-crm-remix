@@ -193,7 +193,7 @@ GRANT EXECUTE ON FUNCTION send_organization_invitations(UUID, TEXT[], TEXT, TEXT
 UPDATE organizations 
 SET max_members = 25, 
     member_count = 1
-WHERE domain = 'mailvibes.io';
+WHERE domain = 'salessheet.io';
 
 -- 7. Verify everything is working
 DO $$
@@ -214,7 +214,7 @@ BEGIN
     END IF;
     
     -- Check organization
-    IF EXISTS (SELECT 1 FROM organizations WHERE domain = 'mailvibes.io' AND max_members = 25) THEN
+    IF EXISTS (SELECT 1 FROM organizations WHERE domain = 'salessheet.io' AND max_members = 25) THEN
         RAISE NOTICE '✓ Organization capacity updated';
     ELSE
         RAISE NOTICE '✗ Organization capacity not updated';
@@ -233,4 +233,4 @@ SELECT
     (SELECT COUNT(*) FROM organization_members WHERE organization_id = organizations.id) as actual_members,
     (SELECT COUNT(*) FROM organization_invitations WHERE organization_id = organizations.id AND status = 'pending') as pending_invitations
 FROM organizations 
-WHERE domain = 'mailvibes.io'; 
+WHERE domain = 'salessheet.io'; 

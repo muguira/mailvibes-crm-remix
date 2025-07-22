@@ -88,21 +88,21 @@ ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
 
 -- Step 7: Clean up duplicate organizations
 DELETE FROM organizations 
-WHERE domain IN ('www.mailvibes.io', 'www.MailVibes.io')
-AND name = 'MailVibes';
+WHERE domain IN ('www.salessheet.io', 'www.SalesSheet.ai.io')
+AND name = 'SalesSheet.ai';
 
--- Step 8: Fix andres@mailvibes.io profile to ensure current_organization is set
+-- Step 8: Fix andres@salessheet.io profile to ensure current_organization is set
 UPDATE profiles 
 SET current_organization = (
     SELECT om.organization_id 
     FROM organization_members om
     JOIN organizations o ON om.organization_id = o.id
     WHERE om.user_id = profiles.id
-    AND o.domain = 'mailvibes.io'
+    AND o.domain = 'salessheet.io'
     LIMIT 1
 )
 WHERE id = (
-    SELECT id FROM auth.users WHERE email = 'andres@mailvibes.io'
+    SELECT id FROM auth.users WHERE email = 'andres@salessheet.io'
 );
 
 -- Step 9: Verify the fix
@@ -153,4 +153,4 @@ FROM auth.users u
 LEFT JOIN profiles p ON u.id = p.id
 LEFT JOIN organization_members om ON u.id = om.user_id
 LEFT JOIN organizations o ON om.organization_id = o.id
-WHERE u.email = 'andres@mailvibes.io'; 
+WHERE u.email = 'andres@salessheet.io'; 

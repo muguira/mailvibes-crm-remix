@@ -191,7 +191,7 @@ GRANT EXECUTE ON FUNCTION send_organization_invitations(UUID, TEXT[], TEXT, TEXT
 UPDATE organizations 
 SET max_members = 25, 
     member_count = 1
-WHERE domain = 'mailvibes.io';
+WHERE domain = 'salessheet.io';
 
 -- 6. Verify everything is working
 SELECT 
@@ -203,7 +203,7 @@ SELECT
     (SELECT COUNT(*) FROM organization_members WHERE organization_id = organizations.id) as actual_members,
     (SELECT COUNT(*) FROM organization_invitations WHERE organization_id = organizations.id AND status = 'pending') as pending_invitations
 FROM organizations 
-WHERE domain = 'mailvibes.io';
+WHERE domain = 'salessheet.io';
 
 -- 7. Test the RPC functions exist
 SELECT 

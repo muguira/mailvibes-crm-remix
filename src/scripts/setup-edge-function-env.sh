@@ -18,7 +18,7 @@ echo "Setting RESEND_API_KEY..."
 supabase secrets set RESEND_API_KEY=$RESEND_API_KEY
 
 echo "Setting FROM_EMAIL..."
-supabase secrets set FROM_EMAIL=hello@mailvibes.io
+supabase secrets set FROM_EMAIL=hello@salessheet.io
 
 echo "Setting PUBLIC_APP_URL..."
 supabase secrets set PUBLIC_APP_URL=http://localhost:3000

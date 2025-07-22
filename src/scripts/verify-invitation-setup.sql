@@ -36,7 +36,7 @@ BEGIN
     END IF;
 END $$;
 
--- 5. Verify andres@mailvibes.io membership and organization
+-- 5. Verify andres@salessheet.io membership and organization
 SELECT 
     u.id as user_id,
     u.email,
@@ -47,4 +47,4 @@ SELECT
 FROM auth.users u
 JOIN organization_members om ON u.id = om.user_id
 JOIN organizations o ON om.organization_id = o.id
-WHERE u.email = 'andres@mailvibes.io'; 
+WHERE u.email = 'andres@salessheet.io'; 

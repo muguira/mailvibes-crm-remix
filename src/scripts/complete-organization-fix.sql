@@ -68,7 +68,7 @@ WHERE email IN ('james.wilson@example.com', 'lisa.martinez@example.com');
 -- Delete mock users from organization_members (if they exist)
 DELETE FROM organization_members 
 WHERE user_id NOT IN (
-    SELECT id FROM auth.users WHERE email = 'andres@mailvibes.io'
+    SELECT id FROM auth.users WHERE email = 'andres@salessheet.io'
 );
 
 -- Step 3: Fix Andres's email and setup
@@ -81,21 +81,21 @@ BEGIN
     -- Get Andres's user ID
     SELECT id INTO v_user_id 
     FROM auth.users 
-    WHERE email = 'andres@mailvibes.io' 
+    WHERE email = 'andres@salessheet.io' 
     LIMIT 1;
     
     IF v_user_id IS NULL THEN
-        RAISE EXCEPTION 'User andres@mailvibes.io not found';
+        RAISE EXCEPTION 'User andres@salessheet.io not found';
     END IF;
     
-    -- Get MailVibes organization
+    -- Get SalesSheet.ai organization
     SELECT id INTO v_org_id 
     FROM organizations 
-    WHERE domain = 'mailvibes.io' 
+    WHERE domain = 'salessheet.io' 
     LIMIT 1;
     
     IF v_org_id IS NULL THEN
-        RAISE EXCEPTION 'MailVibes organization not found';
+        RAISE EXCEPTION 'SalesSheet.ai organization not found';
     END IF;
     
     -- Update profile to ensure current_organization is set
@@ -109,7 +109,7 @@ BEGIN
     ON CONFLICT (user_id, organization_id) 
     DO UPDATE SET role = 'admin', updated_at = NOW();
     
-    RAISE NOTICE 'Successfully set up andres@mailvibes.io as admin';
+    RAISE NOTICE 'Successfully set up andres@salessheet.io as admin';
 END $$;
 
 -- Step 4: Create RPC function that completely bypasses RLS
@@ -230,7 +230,7 @@ FROM auth.users u
 LEFT JOIN profiles p ON u.id = p.id
 LEFT JOIN organization_members om ON u.id = om.user_id
 LEFT JOIN organizations o ON om.organization_id = o.id
-WHERE u.email = 'andres@mailvibes.io';
+WHERE u.email = 'andres@salessheet.io';
 
 -- Show all remaining policies
 SELECT 

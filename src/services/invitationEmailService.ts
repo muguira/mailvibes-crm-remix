@@ -25,7 +25,7 @@ export class InvitationEmailService {
     this.baseUrl = window.location.origin;
     this.resendApiKey = import.meta.env.VITE_RESEND_API_KEY || import.meta.env.RESEND_API_KEY || '';
     this.fromEmail = import.meta.env.VITE_FROM_EMAIL || import.meta.env.SMTP_FROM_EMAIL || 'hello@salessheet.ai';
-    this.publicAppUrl = import.meta.env.VITE_PUBLIC_APP_URL || import.meta.env.PUBLIC_APP_URL || 'https://sales-sheet.vercel.app/';
+    this.publicAppUrl = import.meta.env.VITE_PUBLIC_APP_URL || import.meta.env.PUBLIC_APP_URL || 'https://app.salessheet.ai/';
   }
 
   /**
@@ -306,13 +306,13 @@ export class InvitationEmailService {
           <div class="container">
             <div class="header">
               <h1>You're invited to join ${data.organizationName}!</h1>
-              <p>Team collaboration made simple with MailVibes CRM</p>
+              <p>Team collaboration made simple with SalesSheet.ai CRM</p>
             </div>
             
             <div class="content">
               <h2>Welcome!</h2>
               
-              <p><strong>${data.inviterName}</strong> has invited you to join <strong>${data.organizationName}</strong> on MailVibes CRM.</p>
+              <p><strong>${data.inviterName}</strong> has invited you to join <strong>${data.organizationName}</strong> on SalesSheet.ai CRM.</p>
               
               <div class="invite-details">
                 <h3>Invitation Details</h3>
@@ -364,7 +364,7 @@ export class InvitationEmailService {
             </div>
             
             <div class="footer">
-              <p><strong>MailVibes CRM</strong> - Customer Relationship Management Made Simple</p>
+              <p><strong>SalesSheet.ai</strong> - Customer Relationship Management Made Simple</p>
               <p>This invitation was sent by ${data.organizationName}.</p>
               <p>If you didn't expect this invitation, you can safely ignore this email.</p>
             </div>

@@ -6,9 +6,9 @@ curl -X POST https://nihnthenxxbkvoisatop.supabase.co/functions/v1/send-invitati
   -H "Content-Type: application/json" \
   -d '{
     "to": "test@example.com",
-    "organizationName": "MailVibes",
+    "organizationName": "SalesSheet.ai",
     "inviterName": "Andres Rodriguez",
-    "inviterEmail": "andres@mailvibes.io",
+    "inviterEmail": "andres@salessheet.io",
     "role": "user",
     "invitationToken": "test-token-123",
     "personalMessage": "Welcome to our team!",

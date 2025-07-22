@@ -19,7 +19,7 @@ export function initializeHiddenColumnsDebug() {
 
     try {
       // Get localStorage data
-      const zustandStore = localStorage.getItem('mailvibes-crm-store')
+      const zustandStore = localStorage.getItem('salessheet-crm-store')
       let parsedStore = null
 
       if (zustandStore) {
@@ -103,7 +103,7 @@ export function initializeHiddenColumnsDebug() {
     console.group('🔧 FIXING HIDDEN COLUMNS STATE')
 
     try {
-      const zustandStore = localStorage.getItem('mailvibes-crm-store')
+      const zustandStore = localStorage.getItem('salessheet-crm-store')
       if (!zustandStore) {
         console.log('❌ No Zustand store found')
         return
@@ -138,7 +138,7 @@ export function initializeHiddenColumnsDebug() {
       parsedStore.state.columns = cleanedColumns
 
       // Save back to localStorage
-      localStorage.setItem('mailvibes-crm-store', JSON.stringify(parsedStore))
+      localStorage.setItem('salessheet-crm-store', JSON.stringify(parsedStore))
 
       console.log('✅ Fixed state:', {
         removedFromVisible: intersection,

@@ -1,9 +1,9 @@
 // Quick fix to show the invite button
-// Since we know andres@mailvibes.io is an admin, we'll hardcode this for now
+// Since we know andres@salessheet.io is an admin, we'll hardcode this for now
 
 import React from 'react';
 
-export const ADMIN_EMAILS = ['andres@mailvibes.io'];
+export const ADMIN_EMAILS = ['andres@salessheet.io'];
 
 export const checkIsAdmin = async () => {
   const { supabase } = await import('@/lib/supabaseClient');

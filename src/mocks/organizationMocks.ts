@@ -28,7 +28,7 @@ const hoursAgo = (hours: number): string => {
 export const mockOrganization: Organization = {
   id: "org_1",
   name: "Mailvibes CRM",
-  domain: "mailvibes.com",
+  domain: "salessheet.com",
   created_at: daysAgo(90),
   updated_at: daysAgo(1),
   plan: "pro",
@@ -39,7 +39,7 @@ export const mockOrganization: Organization = {
 // Mock Current User Profile
 export const mockCurrentUser: UserProfile = {
   id: "user_1",
-  email: "andres@mailvibes.com",
+  email: "andres@salessheet.com",
   first_name: "Andres",
   last_name: "Rodriguez",
   avatar_url: undefined,
@@ -63,7 +63,7 @@ export const mockMembers: OrganizationMember[] = [
     updated_at: daysAgo(90),
     user: {
       id: "user_1",
-      email: "andres@mailvibes.com",
+      email: "andres@salessheet.com",
       first_name: "Andres",
       last_name: "Rodriguez",
       avatar_url: undefined,
@@ -82,7 +82,7 @@ export const mockMembers: OrganizationMember[] = [
     updated_at: daysAgo(20),
     user: {
       id: "user_2",
-      email: "sarah.chen@mailvibes.com",
+      email: "sarah.chen@salessheet.com",
       first_name: "Sarah",
       last_name: "Chen",
       avatar_url: undefined,
@@ -101,7 +101,7 @@ export const mockMembers: OrganizationMember[] = [
     updated_at: daysAgo(30),
     user: {
       id: "user_3",
-      email: "mike.johnson@mailvibes.com",
+      email: "mike.johnson@salessheet.com",
       first_name: "Mike",
       last_name: "Johnson",
       avatar_url: undefined,
@@ -120,7 +120,7 @@ export const mockMembers: OrganizationMember[] = [
     updated_at: daysAgo(15),
     user: {
       id: "user_4",
-      email: "emma.davis@mailvibes.com",
+      email: "emma.davis@salessheet.com",
       first_name: "Emma",
       last_name: "Davis",
       avatar_url: undefined,
@@ -144,7 +144,7 @@ export const mockInvitations: OrganizationInvitation[] = [
     updated_at: daysAgo(3),
     inviter: {
       id: "user_1",
-      email: "andres@mailvibes.com",
+      email: "andres@salessheet.com",
       first_name: "Andres",
       last_name: "Rodriguez"
     }
@@ -162,7 +162,7 @@ export const mockInvitations: OrganizationInvitation[] = [
     updated_at: daysAgo(1),
     inviter: {
       id: "user_2",
-      email: "sarah.chen@mailvibes.com",
+      email: "sarah.chen@salessheet.com",
       first_name: "Sarah",
       last_name: "Chen"
     }

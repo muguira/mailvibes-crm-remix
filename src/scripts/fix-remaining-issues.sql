@@ -1,6 +1,6 @@
 -- Fix remaining issues after RLS fix
 
--- 1. Fix the joined date for andres@mailvibes.io
+-- 1. Fix the joined date for andres@salessheet.io
 DO $$
 DECLARE
     v_user_id UUID;
@@ -10,12 +10,12 @@ BEGIN
     -- Get user ID
     SELECT id, created_at INTO v_user_id, v_created_at
     FROM auth.users 
-    WHERE email = 'andres@mailvibes.io';
+    WHERE email = 'andres@salessheet.io';
     
     -- Get organization ID
     SELECT id INTO v_org_id
     FROM organizations 
-    WHERE domain = 'mailvibes.io';
+    WHERE domain = 'salessheet.io';
     
     -- Update organization_members with proper created_at
     UPDATE organization_members 
@@ -24,7 +24,7 @@ BEGIN
     WHERE user_id = v_user_id 
     AND organization_id = v_org_id;
     
-    RAISE NOTICE 'Fixed joined date for andres@mailvibes.io';
+    RAISE NOTICE 'Fixed joined date for andres@salessheet.io';
 END $$;
 
 -- 2. Add invited_by column to organization_invitations if it doesn't exist
@@ -114,7 +114,7 @@ SELECT
     om.role
 FROM organization_members om
 JOIN auth.users u ON om.user_id = u.id
-WHERE u.email = 'andres@mailvibes.io';
+WHERE u.email = 'andres@salessheet.io';
 
 -- Show organization_invitations structure
 SELECT 

@@ -113,7 +113,7 @@ export const CreateOrganizationModal: React.FC<CreateOrganizationModalProps> = (
               <Input
                 id="organization-name"
                 type="text"
-                placeholder="e.g., MailVibes, Acme Corp"
+                placeholder="e.g., SalesSheet.ai, Acme Corp"
                 value={organizationName}
                 onChange={(e) => setOrganizationName(e.target.value)}
                 disabled={creatingOrganization}
