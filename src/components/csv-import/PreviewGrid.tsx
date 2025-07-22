@@ -1,18 +1,49 @@
-import React from 'react'
+import { formatValue } from '@/helpers/csv'
 import { ListFieldDefinition } from '@/utils/buildFieldDefinitions'
 import { ParsedCsvResult } from '@/utils/parseCsv'
 
+/**
+ * Props for the PreviewGrid component
+ */
 interface PreviewGridProps {
+  /** Parsed CSV data containing headers and rows */
   parsedData: ParsedCsvResult
+  /** List field definitions with CSV mappings */
   listFieldDefinitions: ListFieldDefinition[]
+  /** Maximum number of rows to display in preview */
   maxRows?: number
 }
 
+/**
+ * A table component that previews how list data will appear after CSV import.
+ *
+ * This component renders a table showing the mapped list fields as columns
+ * and a limited number of data rows from the CSV. It helps users understand
+ * how their field mappings will translate to the final list structure.
+ *
+ * Features:
+ * - Table format with proper headers and data cells
+ * - Configurable row limit for preview
+ * - Type-aware value formatting (numbers, dates, etc.)
+ * - Empty state handling
+ * - Row count indicator for large datasets
+ * - Responsive table with overflow handling
+ * - Proper data type formatting
+ *
+ * @example
+ * ```tsx
+ * <PreviewGrid
+ *   parsedData={csvData}
+ *   listFieldDefinitions={mappedFields}
+ *   maxRows={3}
+ * />
+ * ```
+ */
 export function PreviewGrid({ parsedData, listFieldDefinitions, maxRows = 5 }: PreviewGridProps) {
-  // Filter list fields that have CSV mappings
+  /** List fields that have been mapped to CSV columns */
   const mappedListFields = listFieldDefinitions.filter(field => field.csvField)
 
-  // Create rows from parsed data (limit to maxRows)
+  /** Limited set of rows for preview display */
   const displayRows = parsedData.rows.slice(0, maxRows)
 
   // If no data, return empty state
@@ -56,21 +87,4 @@ export function PreviewGrid({ parsedData, listFieldDefinitions, maxRows = 5 }: P
       )}
     </div>
   )
-}
-
-function formatValue(value: string, type: string): string {
-  if (!value) return '-'
-
-  switch (type) {
-    case 'number':
-      const num = parseFloat(value)
-      return isNaN(num) ? value : num.toLocaleString()
-    case 'date':
-      const date = new Date(value)
-      return isNaN(date.getTime()) ? value : date.toLocaleDateString()
-    case 'list':
-      return value // Already a string, just display it
-    default:
-      return value
-  }
 }

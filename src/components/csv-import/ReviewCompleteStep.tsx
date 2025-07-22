@@ -1,37 +1,75 @@
-import React from 'react'
-import { User, Building2, Pencil } from 'lucide-react'
-import { ParsedCsvResult } from '@/utils/parseCsv'
-import { FieldMapping, mapColumnsToContact } from '@/utils/mapColumnsToContact'
-import { AccountFieldMapping, mapColumnsToAccount } from '@/utils/mapColumnsToAccount'
-import { ListFieldDefinition } from '@/utils/buildFieldDefinitions'
-import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { ListFieldDefinition } from '@/utils/buildFieldDefinitions'
+import { AccountFieldMapping, mapColumnsToAccount } from '@/utils/mapColumnsToAccount'
+import { FieldMapping, mapColumnsToContact } from '@/utils/mapColumnsToContact'
+import { ParsedCsvResult } from '@/utils/parseCsv'
+import { Building2, Pencil, User } from 'lucide-react'
 import { PreviewGrid } from './PreviewGrid'
 
+/**
+ * Props for the ReviewCompleteStep component
+ */
 interface ReviewCompleteStepProps {
+  /** Parsed CSV data containing headers and rows */
   parsedData: ParsedCsvResult
+  /** Contact field mappings from step 2 */
   contactFieldMappings: FieldMapping[]
+  /** Account field mappings from step 3 */
   accountFieldMappings: AccountFieldMapping[]
+  /** List field definitions from step 4 */
   listFieldDefinitions: ListFieldDefinition[]
+  /** Type of relationships (contacts or accounts) */
   relationType: 'contacts' | 'accounts'
+  /** Callback fired when user wants to edit a previous step */
   onEditStep: (step: number) => void
 }
 
+/**
+ * Final review step component in the CSV import wizard.
+ *
+ * This component provides a comprehensive overview of all the mappings and
+ * configurations made in previous steps before executing the import. Users
+ * can review their choices and make last-minute edits if needed.
+ *
+ * Features:
+ * - Summary of contact property mappings with preview data
+ * - Summary of account property mappings with preview data
+ * - Preview grid of list fields with actual CSV data
+ * - Edit buttons for each step to allow corrections
+ * - Visual cards with icons for contact and account data
+ * - Live preview using first row of CSV data
+ * - Organized layout with clear sections
+ *
+ * @example
+ * ```tsx
+ * <ReviewCompleteStep
+ *   parsedData={csvData}
+ *   contactFieldMappings={contactMappings}
+ *   accountFieldMappings={accountMappings}
+ *   listFieldDefinitions={listFields}
+ *   relationType="accounts"
+ *   onEditStep={(step) => setCurrentStep(step)}
+ * />
+ * ```
+ */
 export function ReviewCompleteStep({
   parsedData,
   contactFieldMappings,
   accountFieldMappings,
   listFieldDefinitions,
-  relationType,
   onEditStep,
 }: ReviewCompleteStepProps) {
-  // Get first row for preview
+  /** First row of CSV data used for preview examples */
   const firstRow = parsedData.rows[0] || {}
+  /** Second row of CSV data (not currently used but available for future enhancements) */
   const secondRow = parsedData.rows[1] || {}
+  /** Preview contact object created from first row and current mappings */
   const contactExample = mapColumnsToContact(firstRow, contactFieldMappings)
+  /** Preview account object created from first row and current mappings */
   const accountExample = mapColumnsToAccount(firstRow, accountFieldMappings)
 
-  // Filter list fields that have CSV mappings
+  /** List fields that have been mapped to CSV columns for grid preview */
   const mappedListFields = listFieldDefinitions.filter(field => field.csvField)
 
   return (

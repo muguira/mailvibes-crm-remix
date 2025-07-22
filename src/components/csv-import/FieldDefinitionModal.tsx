@@ -1,19 +1,51 @@
-import React, { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { FieldType } from '@/utils/buildFieldDefinitions'
+import { useState } from 'react'
 
+/**
+ * Props for the FieldDefinitionModal component
+ */
 interface FieldDefinitionModalProps {
+  /** Whether the modal is open */
   isOpen: boolean
+  /** Callback fired when the modal should close */
   onClose: () => void
+  /** Callback fired when the user confirms field creation */
   onConfirm: (fieldName: string, type: FieldType) => void
+  /** Default value for the field name input */
   defaultFieldName?: string
+  /** The CSV field name being mapped */
   csvField: string
 }
 
+/**
+ * Modal dialog for defining custom list fields during CSV import.
+ *
+ * This modal allows users to create new list fields by specifying a field name
+ * and selecting an appropriate data type. It's typically triggered when a user
+ * drags a CSV field to the "Add a Field" placeholder in the list fields step.
+ *
+ * Features:
+ * - Field name input with validation
+ * - Data type selection (text, number, date, list)
+ * - Auto-populated field name based on CSV field
+ * - Form validation and submit handling
+ * - Responsive dialog interface
+ *
+ * @example
+ * ```tsx
+ * <FieldDefinitionModal
+ *   isOpen={modalOpen}
+ *   csvField="budget_amount"
+ *   onClose={() => setModalOpen(false)}
+ *   onConfirm={(name, type) => createListField(name, type)}
+ * />
+ * ```
+ */
 export function FieldDefinitionModal({
   isOpen,
   onClose,
@@ -21,9 +53,15 @@ export function FieldDefinitionModal({
   defaultFieldName = '',
   csvField,
 }: FieldDefinitionModalProps) {
+  /** Current field name input value */
   const [fieldName, setFieldName] = useState(defaultFieldName || csvField)
+  /** Selected field type */
   const [fieldType, setFieldType] = useState<FieldType>('text')
 
+  /**
+   * Handles form submission and field creation
+   * Validates input and calls onConfirm callback
+   */
   const handleConfirm = () => {
     if (fieldName.trim()) {
       onConfirm(fieldName.trim(), fieldType)

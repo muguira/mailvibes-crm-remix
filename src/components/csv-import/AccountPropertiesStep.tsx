@@ -1,51 +1,94 @@
-import React, { useState, useEffect } from 'react'
+import { AccountFieldMapping, hasRequiredAccountMappings, mapColumnsToAccount } from '@/utils/mapColumnsToAccount'
+import { ParsedCsvResult } from '@/utils/parseCsv'
 import {
+  closestCenter,
   DndContext,
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
-  closestCenter,
   PointerSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import { CsvFieldChip } from './CsvFieldChip'
+import { Plus } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { AccountPropertySlot } from './AccountPropertySlot'
+import { CsvFieldChip } from './CsvFieldChip'
 import { LiveAccountCard } from './LiveAccountCard'
 import { NewPropertyModal } from './NewPropertyModal'
-import { ParsedCsvResult } from '@/utils/parseCsv'
-import { mapColumnsToAccount, AccountFieldMapping, hasRequiredAccountMappings } from '@/utils/mapColumnsToAccount'
-import { Plus } from 'lucide-react'
 
+/**
+ * Props for the AccountPropertiesStep component
+ */
 interface AccountPropertiesStepProps {
+  /** Parsed CSV data containing headers and rows */
   parsedData: ParsedCsvResult
+  /** Callback fired when field mappings change */
   onMappingsChange: (mappings: AccountFieldMapping[]) => void
+  /** Callback fired when validation state changes */
   onValidationChange: (isValid: boolean) => void
 }
 
+/**
+ * Interface for custom account properties created by the user
+ */
 interface CustomProperty {
+  /** Unique identifier for the custom property */
   id: string
+  /** Display label for the custom property */
   label: string
 }
 
+/**
+ * Step component for mapping CSV fields to account properties during import process.
+ *
+ * This component provides a drag-and-drop interface for users to map CSV columns
+ * to predefined account properties or create custom account properties.
+ *
+ * Features:
+ * - Drag-and-drop interface using @dnd-kit
+ * - Predefined account properties (name, address, primary contact, industry)
+ * - Custom property creation with modal dialog
+ * - Live preview of mapped account data
+ * - List field checkbox for each mapping
+ * - Real-time validation of required mappings
+ * - Responsive three-column layout
+ *
+ * @example
+ * ```tsx
+ * <AccountPropertiesStep
+ *   parsedData={csvData}
+ *   onMappingsChange={(mappings) => setAccountMappings(mappings)}
+ *   onValidationChange={(isValid) => setCanProceed(isValid)}
+ * />
+ * ```
+ */
 export function AccountPropertiesStep({
   parsedData,
   onMappingsChange,
   onValidationChange,
 }: AccountPropertiesStepProps) {
+  /** Current field mappings between CSV columns and account properties */
   const [mappings, setMappings] = useState<AccountFieldMapping[]>([])
+  /** ID of the currently dragged CSV field for visual feedback */
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
+  /** List of custom properties created by the user */
   const [customProperties, setCustomProperties] = useState<CustomProperty[]>([])
+  /** Whether the new property modal is open */
   const [modalOpen, setModalOpen] = useState(false)
 
-  // Get unmapped fields
+  /** CSV fields that haven't been mapped to any account property yet */
   const unmappedFields = parsedData.headers.filter(header => !mappings.some(m => m.csvField === header))
 
-  // Get first row for preview
+  /** First row of CSV data used for live preview */
   const firstRow = parsedData.rows[0] || {}
+  /** Preview account object based on current mappings */
   const previewAccount = mapColumnsToAccount(firstRow, mappings)
 
-  // Update parent component when mappings change
+  /**
+   * Effect to notify parent component when mappings change
+   * Also validates if required account mappings are present
+   */
   useEffect(() => {
     onMappingsChange(mappings)
     onValidationChange(hasRequiredAccountMappings(mappings))
@@ -59,10 +102,18 @@ export function AccountPropertiesStep({
     }),
   )
 
+  /**
+   * Handles the start of a drag operation
+   * @param event - The drag start event containing the dragged element ID
+   */
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDragId(event.active.id as string)
   }
 
+  /**
+   * Handles the end of a drag operation, creating new field mappings
+   * @param event - The drag end event containing active and over elements
+   */
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     setActiveDragId(null)
@@ -73,7 +124,7 @@ export function AccountPropertiesStep({
     const draggedField = active.id as string
     const droppedOnSlot = over.id as string
 
-    // Add new mapping
+    // Add new mapping, replacing any existing mapping for this property
     const newMapping: AccountFieldMapping = {
       csvField: draggedField,
       accountProperty: droppedOnSlot,
@@ -83,19 +134,38 @@ export function AccountPropertiesStep({
     setMappings(prev => [...prev.filter(m => m.accountProperty !== droppedOnSlot), newMapping])
   }
 
+  /**
+   * Removes a field mapping for a specific account property
+   * @param accountProperty - The property to clear the mapping for
+   */
   const handleClearMapping = (accountProperty: string) => {
     setMappings(prev => prev.filter(m => m.accountProperty !== accountProperty))
   }
 
+  /**
+   * Toggles whether a mapped field should also be added as a list field
+   * @param accountProperty - The property to toggle list field status for
+   * @param checked - Whether the list field option should be enabled
+   */
   const handleListFieldToggle = (accountProperty: string, checked: boolean) => {
     setMappings(prev => prev.map(m => (m.accountProperty === accountProperty ? { ...m, addAsListField: checked } : m)))
   }
 
+  /**
+   * Gets the CSV field mapped to a specific account property
+   * @param property - The account property to look up
+   * @returns The CSV field name or undefined if not mapped
+   */
   const getMappedFieldForProperty = (property: string): string | undefined => {
     const mapping = mappings.find(m => m.accountProperty === property)
     return mapping?.csvField
   }
 
+  /**
+   * Checks if the list field option is enabled for a specific property
+   * @param property - The account property to check
+   * @returns Whether the list field option is checked
+   */
   const isListFieldChecked = (property: string): boolean => {
     const mapping = mappings.find(m => m.accountProperty === property)
     return mapping?.addAsListField || false

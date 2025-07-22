@@ -1,51 +1,93 @@
-import React, { useState, useCallback, useRef } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useAuth } from '@/components/auth'
+import { Breadcrumb, BreadcrumbItem } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Stepper, Step } from '@/components/ui/stepper'
-import { parseCsv, isValidCsvFile, ParsedCsvResult } from '@/utils/parseCsv'
-import { Upload, FileText, ArrowRight, ArrowLeft, Check } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { ContactPropertiesStep } from './ContactPropertiesStep'
-import { AccountPropertiesStep } from './AccountPropertiesStep'
-import { ListFieldsStep } from './ListFieldsStep'
-import { ReviewCompleteStep } from './ReviewCompleteStep'
-import { MultipleRowsActionModal } from './MultipleRowsActionModal'
-import { FieldMapping } from '@/utils/mapColumnsToContact'
-import { AccountFieldMapping } from '@/utils/mapColumnsToAccount'
-import { ListFieldDefinition } from '@/utils/buildFieldDefinitions'
-import { importCsvData, validateImportData } from '@/services/csvImportService'
-import { useAuth } from '@/components/auth'
-import { toast } from 'sonner'
-import { logger } from '@/utils/logger'
 import { LoadingOverlay } from '@/components/ui/loading-spinner'
-import { Breadcrumb, BreadcrumbItem } from '@/components/ui/breadcrumb'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Stepper } from '@/components/ui/stepper'
+import { WIZARD_STEPS } from '@/constants/csv'
+import { cn } from '@/lib/utils'
+import { importCsvData, validateImportData } from '@/services/csvImportService'
+import { ListFieldDefinition } from '@/utils/buildFieldDefinitions'
+import { logger } from '@/utils/logger'
+import { AccountFieldMapping } from '@/utils/mapColumnsToAccount'
+import { FieldMapping } from '@/utils/mapColumnsToContact'
+import { isValidCsvFile, parseCsv, ParsedCsvResult } from '@/utils/parseCsv'
+import { ArrowLeft, ArrowRight, Check, FileText, Upload } from 'lucide-react'
+import React, { useCallback, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
+import { AccountPropertiesStep } from './AccountPropertiesStep'
+import { ContactPropertiesStep } from './ContactPropertiesStep'
+import { ListFieldsStep } from './ListFieldsStep'
+import { MultipleRowsActionModal } from './MultipleRowsActionModal'
+import { ReviewCompleteStep } from './ReviewCompleteStep'
 
-const WIZARD_STEPS: Step[] = [
-  { id: 'file-select', title: 'Select a File' },
-  { id: 'contact-props', title: 'Contact Props' },
-  { id: 'account-props', title: 'Account Props' },
-  { id: 'list-fields', title: 'List Fields' },
-  { id: 'review-complete', title: 'Review & Complete' },
-]
-
+/**
+ * Props for the CsvImportWizard component
+ */
 export interface CsvImportWizardProps {
+  /** Callback fired when the import process is completed successfully */
   onComplete?: (data: ImportData, listId: string | null) => void
 }
 
+/**
+ * Interface representing all data collected during the import process
+ */
 export interface ImportData {
+  /** The uploaded CSV file */
   file: File
+  /** Name for the new list to be created */
   listName: string
+  /** Whether the list relates to contacts or accounts */
   relationType: 'contacts' | 'accounts'
+  /** Parsed CSV data with headers and rows */
   parsedData: ParsedCsvResult
+  /** Mappings between CSV fields and contact properties */
   contactFieldMappings: FieldMapping[]
+  /** Mappings between CSV fields and account properties */
   accountFieldMappings: AccountFieldMapping[]
+  /** Definitions for list fields to be created */
   listFieldDefinitions: ListFieldDefinition[]
 }
 
+/**
+ * A comprehensive wizard component for importing CSV data into the CRM system.
+ *
+ * This multi-step wizard guides users through the entire CSV import process,
+ * from file upload to final data import with complete field mapping capabilities.
+ *
+ * Features:
+ * - 5-step wizard interface with progress tracking
+ * - File upload with drag-and-drop support
+ * - CSV parsing and validation
+ * - Contact and account property mapping
+ * - List field definitions and management
+ * - Live data preview throughout the process
+ * - Multiple rows per account handling options
+ * - Progress tracking during import
+ * - Breadcrumb navigation
+ * - Responsive layout with sidebar stepper
+ *
+ * Steps:
+ * 1. File Selection - Upload CSV and configure basic settings
+ * 2. Contact Properties - Map CSV fields to contact properties
+ * 3. Account Properties - Map CSV fields to account properties
+ * 4. List Fields - Define custom list fields
+ * 5. Review & Complete - Final review and import execution
+ *
+ * @example
+ * ```tsx
+ * <CsvImportWizard
+ *   onComplete={(importData, listId) => {
+ *     console.log('Import completed:', importData)
+ *     navigate(`/lists/${listId}`)
+ *   }}
+ * />
+ * ```
+ */
 export function CsvImportWizard({ onComplete }: CsvImportWizardProps) {
   const { user } = useAuth()
   const navigate = useNavigate()

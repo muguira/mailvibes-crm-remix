@@ -1,19 +1,55 @@
-import React, { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useState } from 'react'
 
+/**
+ * Props for the NewPropertyModal component
+ */
 interface NewPropertyModalProps {
+  /** Whether the modal is open */
   isOpen: boolean
+  /** Callback fired when the modal should close */
   onClose: () => void
+  /** Callback fired when the user confirms property creation */
   onConfirm: (propertyName: string) => void
+  /** Custom title for the modal */
   title?: string
 }
 
+/**
+ * Modal dialog for creating new custom properties during CSV import.
+ *
+ * This simple modal allows users to create new account or contact properties
+ * by providing a name. It's typically used when users want to map CSV fields
+ * to properties that don't exist in the predefined set.
+ *
+ * Features:
+ * - Simple text input for property name
+ * - Input validation (requires non-empty name)
+ * - Enter key support for quick submission
+ * - Automatic input clearing on close
+ * - Customizable modal title
+ *
+ * @example
+ * ```tsx
+ * <NewPropertyModal
+ *   isOpen={modalOpen}
+ *   title="Create New Account Property"
+ *   onClose={() => setModalOpen(false)}
+ *   onConfirm={(name) => createCustomProperty(name)}
+ * />
+ * ```
+ */
 export function NewPropertyModal({ isOpen, onClose, onConfirm, title = 'Create New Property' }: NewPropertyModalProps) {
+  /** Current property name input value */
   const [propertyName, setPropertyName] = useState('')
 
+  /**
+   * Handles form submission and property creation
+   * Validates input and calls onConfirm callback
+   */
   const handleConfirm = () => {
     if (propertyName.trim()) {
       onConfirm(propertyName.trim())
@@ -22,6 +58,9 @@ export function NewPropertyModal({ isOpen, onClose, onConfirm, title = 'Create N
     }
   }
 
+  /**
+   * Handles modal close with input cleanup
+   */
   const handleClose = () => {
     setPropertyName('')
     onClose()

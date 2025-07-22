@@ -1,41 +1,76 @@
-import React, { useState, useEffect } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  FieldType,
+  ListFieldDefinition,
+  buildFieldDefinition,
+  convertAccountMappingsToListFields,
+  validateFieldCount,
+} from '@/utils/buildFieldDefinitions'
+import { AccountFieldMapping } from '@/utils/mapColumnsToAccount'
+import { ParsedCsvResult } from '@/utils/parseCsv'
 import {
   DndContext,
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
-  closestCenter,
   PointerSensor,
+  closestCenter,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import { CsvFieldChip } from './CsvFieldChip'
-import { ListFieldSlot } from './ListFieldSlot'
-import { FieldDefinitionModal } from './FieldDefinitionModal'
-import { ParsedCsvResult } from '@/utils/parseCsv'
-import { AccountFieldMapping } from '@/utils/mapColumnsToAccount'
-import {
-  ListFieldDefinition,
-  FieldType,
-  buildFieldDefinition,
-  convertAccountMappingsToListFields,
-  validateFieldCount,
-} from '@/utils/buildFieldDefinitions'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertTriangle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CsvFieldChip } from './CsvFieldChip'
+import { FieldDefinitionModal } from './FieldDefinitionModal'
+import { ListFieldSlot } from './ListFieldSlot'
 
+/**
+ * Props for the ListFieldsStep component
+ */
 interface ListFieldsStepProps {
+  /** Parsed CSV data containing headers and rows */
   parsedData: ParsedCsvResult
+  /** Account field mappings from previous step */
   accountFieldMappings: AccountFieldMapping[]
+  /** Type of relationships (contacts or accounts) */
   relationType: 'contacts' | 'accounts'
+  /** Callback fired when list field definitions change */
   onFieldsChange: (fields: ListFieldDefinition[]) => void
+  /** Callback fired when validation state changes */
   onValidationChange: (isValid: boolean) => void
 }
 
+/**
+ * Step component for defining list fields during CSV import process.
+ *
+ * This component allows users to create custom list fields by mapping CSV columns
+ * to new field definitions. It automatically includes account fields marked as
+ * list fields and provides a required "Relationship Name" field.
+ *
+ * Features:
+ * - Drag-and-drop interface for field creation
+ * - Required "Relationship Name" field mapping
+ * - Automatic inclusion of account list fields
+ * - Custom field creation via modal dialog
+ * - Field count validation and warnings
+ * - Live preview of example field data
+ * - Field removal capabilities
+ * - Three-column responsive layout
+ *
+ * @example
+ * ```tsx
+ * <ListFieldsStep
+ *   parsedData={csvData}
+ *   accountFieldMappings={accountMappings}
+ *   relationType="accounts"
+ *   onFieldsChange={(fields) => setListFields(fields)}
+ *   onValidationChange={(isValid) => setCanProceed(isValid)}
+ * />
+ * ```
+ */
 export function ListFieldsStep({
   parsedData,
   accountFieldMappings,
-  relationType,
   onFieldsChange,
   onValidationChange,
 }: ListFieldsStepProps) {

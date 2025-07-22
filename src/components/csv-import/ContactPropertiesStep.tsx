@@ -1,47 +1,88 @@
-import React, { useState, useEffect } from 'react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { FieldMapping, hasRequiredMappings, mapColumnsToContact } from '@/utils/mapColumnsToContact'
+import { ParsedCsvResult } from '@/utils/parseCsv'
 import {
+  closestCenter,
   DndContext,
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
-  closestCenter,
   PointerSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import { CsvFieldChip } from './CsvFieldChip'
+import { useEffect, useState } from 'react'
 import { ContactPropertySlot } from './ContactPropertySlot'
+import { CsvFieldChip } from './CsvFieldChip'
 import { LiveContactCard } from './LiveContactCard'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ParsedCsvResult } from '@/utils/parseCsv'
-import { mapColumnsToContact, FieldMapping, hasRequiredMappings } from '@/utils/mapColumnsToContact'
 
+/**
+ * Props for the ContactPropertiesStep component
+ */
 interface ContactPropertiesStepProps {
+  /** Parsed CSV data containing headers and rows */
   parsedData: ParsedCsvResult
+  /** Callback fired when field mappings change */
   onMappingsChange: (mappings: FieldMapping[]) => void
+  /** Callback fired when validation state changes */
   onValidationChange: (isValid: boolean) => void
 }
 
+/**
+ * Type definition for name field handling options
+ */
 type NameType = 'full' | 'first' | 'last'
 
+/**
+ * Step component for mapping CSV fields to contact properties during import process.
+ *
+ * This component provides a comprehensive drag-and-drop interface for mapping CSV columns
+ * to contact properties with special handling for name fields and multiple email addresses.
+ *
+ * Features:
+ * - Drag-and-drop interface using @dnd-kit
+ * - Predefined contact properties (name, email, phone, address, social links)
+ * - Special name handling (full name, first/last name split)
+ * - Dynamic additional email fields
+ * - Live preview of mapped contact data
+ * - Real-time validation of required mappings (name + email)
+ * - Responsive three-column layout
+ *
+ * @example
+ * ```tsx
+ * <ContactPropertiesStep
+ *   parsedData={csvData}
+ *   onMappingsChange={(mappings) => setContactMappings(mappings)}
+ *   onValidationChange={(isValid) => setCanProceed(isValid)}
+ * />
+ * ```
+ */
 export function ContactPropertiesStep({
   parsedData,
   onMappingsChange,
   onValidationChange,
 }: ContactPropertiesStepProps) {
+  /** Current field mappings between CSV columns and contact properties */
   const [mappings, setMappings] = useState<FieldMapping[]>([])
+  /** Type of name field mapping (full, first, or last name) */
   const [nameType, setNameType] = useState<NameType | null>(null)
+  /** ID of the currently dragged CSV field for visual feedback */
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
+  /** Array of additional email field indices created by user */
   const [additionalEmails, setAdditionalEmails] = useState<number[]>([])
 
-  // Get unmapped fields
+  /** CSV fields that haven't been mapped to any contact property yet */
   const unmappedFields = parsedData.headers.filter(header => !mappings.some(m => m.csvField === header))
 
-  // Get first row for preview
+  /** First row of CSV data used for live preview */
   const firstRow = parsedData.rows[0] || {}
+  /** Preview contact object based on current mappings */
   const previewContact = mapColumnsToContact(firstRow, mappings)
 
-  // Update parent component when mappings change
+  /**
+   * Effect to notify parent component when mappings change
+   * Also validates if required contact mappings are present (name + email)
+   */
   useEffect(() => {
     onMappingsChange(mappings)
     onValidationChange(hasRequiredMappings(mappings))

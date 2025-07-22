@@ -1,18 +1,53 @@
-import React from 'react'
-import { Building2 } from 'lucide-react'
 import { AccountInsert } from '@/utils/mapColumnsToAccount'
+import { Building2 } from 'lucide-react'
 
+/**
+ * Interface for custom property values displayed in the preview
+ */
 interface CustomPropertyValue {
+  /** Unique identifier for the custom property */
   id: string
+  /** Display label for the property */
   label: string
+  /** Current value from CSV data */
   value?: string
 }
 
+/**
+ * Props for the LiveAccountCard component
+ */
 interface LiveAccountCardProps {
+  /** Account data mapped from CSV fields */
   account: Partial<AccountInsert>
+  /** Additional custom properties to display */
   customProperties?: CustomPropertyValue[]
 }
 
+/**
+ * A live preview card component displaying how account data will appear after import.
+ *
+ * This component shows a real-time preview of account information based on the
+ * current field mappings, using data from the first row of the CSV file.
+ * It helps users visualize the result of their mapping choices.
+ *
+ * Features:
+ * - Live preview updates based on field mappings
+ * - Display of standard account fields (name, address, contact, industry)
+ * - Support for custom properties
+ * - Building icon for visual consistency
+ * - Responsive layout with overflow handling
+ * - Placeholder text for unmapped fields
+ *
+ * @example
+ * ```tsx
+ * <LiveAccountCard
+ *   account={previewAccount}
+ *   customProperties={[
+ *     { id: 'revenue', label: 'Annual Revenue', value: '$1M' }
+ *   ]}
+ * />
+ * ```
+ */
 export function LiveAccountCard({ account, customProperties = [] }: LiveAccountCardProps) {
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 max-h-[calc(100vh-300px)] overflow-y-hidden">

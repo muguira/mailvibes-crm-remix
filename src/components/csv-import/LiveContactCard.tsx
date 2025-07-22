@@ -1,12 +1,42 @@
-import React from 'react'
-import { User } from 'lucide-react'
 import { ContactInsert } from '@/utils/mapColumnsToContact'
+import { User } from 'lucide-react'
 
+/**
+ * Props for the LiveContactCard component
+ */
 interface LiveContactCardProps {
+  /** Contact data mapped from CSV fields */
   contact: Partial<ContactInsert>
+  /** Additional email addresses with their indices and values */
   additionalEmails?: Array<{ index: number; value?: string }>
 }
 
+/**
+ * A live preview card component displaying how contact data will appear after import.
+ *
+ * This component shows a real-time preview of contact information based on the
+ * current field mappings, using data from the first row of the CSV file.
+ * It helps users visualize the result of their mapping choices.
+ *
+ * Features:
+ * - Live preview updates based on field mappings
+ * - Display of standard contact fields (name, email, phone, address, social)
+ * - Support for multiple email addresses
+ * - User icon for visual consistency
+ * - Responsive layout with overflow handling
+ * - Placeholder text for unmapped fields
+ * - Proper text wrapping for long values
+ *
+ * @example
+ * ```tsx
+ * <LiveContactCard
+ *   contact={previewContact}
+ *   additionalEmails={[
+ *     { index: 1, value: 'secondary@example.com' }
+ *   ]}
+ * />
+ * ```
+ */
 export function LiveContactCard({ contact, additionalEmails = [] }: LiveContactCardProps) {
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4 max-h-[calc(100vh-500px)]">

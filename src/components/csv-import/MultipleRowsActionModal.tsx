@@ -1,19 +1,59 @@
-import React, { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { AlertCircle } from 'lucide-react'
+import { useState } from 'react'
 
+/**
+ * Props for the MultipleRowsActionModal component
+ */
 interface MultipleRowsActionModalProps {
+  /** Whether the modal is open */
   isOpen: boolean
+  /** Callback fired when the modal should close */
   onClose: () => void
+  /** Callback fired when the user confirms their choice */
   onConfirm: (action: 'multiple' | 'merge') => void
 }
 
+/**
+ * Modal dialog for handling CSV files with multiple rows per account.
+ *
+ * This modal appears when the import wizard detects that the CSV contains
+ * multiple rows for the same account. It presents users with two options
+ * for handling this scenario and explains the implications of each choice.
+ *
+ * Features:
+ * - Clear explanation of the issue with example data
+ * - Two distinct handling options with detailed descriptions
+ * - Visual warnings about potential data loss
+ * - Example table showing the problematic data structure
+ * - Radio button selection with confirmation
+ *
+ * Options:
+ * - Multiple relationships: Create separate relationships for each row
+ * - Merge data: Combine rows into single relationship with multiple contacts
+ *
+ * @example
+ * ```tsx
+ * <MultipleRowsActionModal
+ *   isOpen={showModal}
+ *   onClose={() => setShowModal(false)}
+ *   onConfirm={(action) => {
+ *     setHandlingMethod(action)
+ *     proceedWithImport()
+ *   }}
+ * />
+ * ```
+ */
 export function MultipleRowsActionModal({ isOpen, onClose, onConfirm }: MultipleRowsActionModalProps) {
+  /** Currently selected action for handling multiple rows */
   const [selectedAction, setSelectedAction] = useState<'multiple' | 'merge'>('multiple')
 
+  /**
+   * Handles form submission and confirms the selected action
+   */
   const handleConfirm = () => {
     onConfirm(selectedAction)
     onClose()

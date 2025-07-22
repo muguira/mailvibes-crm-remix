@@ -1,21 +1,57 @@
-import React from 'react'
-import { useDroppable } from '@dnd-kit/core'
 import { cn } from '@/lib/utils'
+import { useDroppable } from '@dnd-kit/core'
 import { Plus } from 'lucide-react'
+import React from 'react'
 
+/**
+ * Props for the ContactPropertySlot component
+ */
 interface ContactPropertySlotProps {
+  /** Unique identifier for the droppable slot */
   id: string
+  /** Display label for the contact property */
   label: string
+  /** Whether this property is required for validation */
   required?: boolean
+  /** The mapped CSV field name, if any */
   value?: string
+  /** Custom content to render instead of value */
   children?: React.ReactNode
+  /** Callback fired when the mapping is cleared */
   onClear?: () => void
 }
 
+/**
+ * A droppable slot component for mapping CSV fields to contact properties.
+ *
+ * This component provides a drop zone where users can drag CSV fields to map them
+ * to specific contact properties. It includes visual feedback for drag states,
+ * displays mapped values, and provides a clear button for removing mappings.
+ *
+ * Features:
+ * - Droppable zone with visual feedback on hover
+ * - Required field indication
+ * - Clear button for removing mappings
+ * - Support for custom content rendering (used for name type selector)
+ * - Disabled state when already mapped
+ * - Visual plus icon when hovering with draggable item
+ *
+ * @example
+ * ```tsx
+ * <ContactPropertySlot
+ *   id="email"
+ *   label="Email Address"
+ *   required
+ *   value={mappedField}
+ *   onClear={() => clearMapping('email')}
+ * />
+ * ```
+ */
 export function ContactPropertySlot({ id, label, required, value, children, onClear }: ContactPropertySlotProps) {
-  // Determine if the slot has content (either value or children)
+  /** Whether the slot has content (either a mapped value or custom children) */
   const hasContent = value || children
 
+  /** Droppable hook for handling drag and drop operations */
   const { isOver, setNodeRef } = useDroppable({
     id,
     disabled: !!hasContent, // Disable droppable when slot already has content

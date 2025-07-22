@@ -1,21 +1,61 @@
-import React from 'react'
-import { useDroppable } from '@dnd-kit/core'
-import { cn } from '@/lib/utils'
-import { Plus } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
+import { cn } from '@/lib/utils'
+import { useDroppable } from '@dnd-kit/core'
+import { Plus } from 'lucide-react'
+import React from 'react'
 
+/**
+ * Props for the AccountPropertySlot component
+ */
 interface AccountPropertySlotProps {
+  /** Unique identifier for the droppable slot */
   id: string
+  /** Display label for the account property */
   label: string
+  /** Whether this property is required for validation */
   required?: boolean
+  /** The mapped CSV field name, if any */
   value?: string
+  /** Custom content to render instead of value */
   children?: React.ReactNode
+  /** Callback fired when the mapping is cleared */
   onClear?: () => void
+  /** Whether to show the list field checkbox */
   showListFieldCheckbox?: boolean
+  /** Whether the list field checkbox is checked */
   isListFieldChecked?: boolean
+  /** Callback fired when list field checkbox is toggled */
   onListFieldToggle?: (checked: boolean) => void
 }
 
+/**
+ * A droppable slot component for mapping CSV fields to account properties.
+ *
+ * This component provides a drop zone where users can drag CSV fields to map them
+ * to specific account properties. It includes visual feedback for drag states,
+ * displays mapped values, and provides options for list field inclusion.
+ *
+ * Features:
+ * - Droppable zone with visual feedback on hover
+ * - Required field indication
+ * - Clear button for removing mappings
+ * - List field checkbox option
+ * - Support for custom content rendering
+ * - Disabled state when already mapped
+ *
+ * @example
+ * ```tsx
+ * <AccountPropertySlot
+ *   id="name"
+ *   label="Account Name"
+ *   required
+ *   value={mappedField}
+ *   onClear={() => clearMapping('name')}
+ *   isListFieldChecked={isListField}
+ *   onListFieldToggle={(checked) => toggleListField('name', checked)}
+ * />
+ * ```
+ */
 export function AccountPropertySlot({
   id,
   label,
@@ -27,9 +67,10 @@ export function AccountPropertySlot({
   isListFieldChecked = false,
   onListFieldToggle,
 }: AccountPropertySlotProps) {
-  // Determine if the slot has content (either value or children)
+  /** Whether the slot has content (either a mapped value or custom children) */
   const hasContent = value || children
 
+  /** Droppable hook for handling drag and drop operations */
   const { isOver, setNodeRef } = useDroppable({
     id,
     disabled: !!hasContent, // Disable droppable when slot already has content

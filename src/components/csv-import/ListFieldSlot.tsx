@@ -1,31 +1,74 @@
-import React from 'react'
-import { useDroppable } from '@dnd-kit/core'
 import { cn } from '@/lib/utils'
-import { Plus, Trash2 } from 'lucide-react'
 import { FieldType } from '@/utils/buildFieldDefinitions'
+import { useDroppable } from '@dnd-kit/core'
+import { Plus } from 'lucide-react'
 
+/**
+ * Props for the ListFieldSlot component
+ */
 interface ListFieldSlotProps {
+  /** Unique identifier for the droppable slot */
   id: string
+  /** Display name for the list field */
   fieldName: string
+  /** The mapped CSV field name, if any */
   csvField?: string
+  /** Data type of the field */
   fieldType?: FieldType
+  /** Whether this field is required */
   required?: boolean
+  /** Callback fired when the field should be removed */
   onRemove?: () => void
+  /** Whether this is a placeholder slot for adding new fields */
   isPlaceholder?: boolean
 }
 
+/**
+ * A droppable slot component for list fields in the CSV import wizard.
+ *
+ * This component can function as either a placeholder for adding new fields
+ * or as a mapped field slot showing the CSV field assignment. It provides
+ * visual feedback for drag operations and allows field removal.
+ *
+ * Features:
+ * - Dual mode: placeholder or mapped field display
+ * - Droppable zone with visual feedback
+ * - Required field indication
+ * - Remove button for mapped fields
+ * - Consistent styling with other property slots
+ * - Plus icon for add placeholder state
+ *
+ * @example
+ * ```tsx
+ * // Placeholder slot
+ * <ListFieldSlot
+ *   id="add-field"
+ *   fieldName="Add a Field"
+ *   isPlaceholder
+ * />
+ *
+ * // Mapped field slot
+ * <ListFieldSlot
+ *   id="deal-amount"
+ *   fieldName="Deal Amount"
+ *   csvField="amount"
+ *   fieldType="number"
+ *   onRemove={() => removeField('deal-amount')}
+ * />
+ * ```
+ */
 export function ListFieldSlot({
   id,
   fieldName,
   csvField,
-  fieldType = 'text',
   required,
   onRemove,
   isPlaceholder = false,
 }: ListFieldSlotProps) {
+  /** Droppable hook for handling drag and drop operations */
   const { isOver, setNodeRef } = useDroppable({
     id,
-    disabled: !isPlaceholder && !!csvField,
+    disabled: !isPlaceholder && !!csvField, // Only disabled if not placeholder and already has mapping
   })
 
   if (isPlaceholder) {
