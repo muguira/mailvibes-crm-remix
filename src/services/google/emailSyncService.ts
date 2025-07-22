@@ -483,6 +483,7 @@ export class EmailSyncService {
           contact_id: contactId,
           gmail_id: email.id,
           gmail_thread_id: email.threadId,
+          message_id: email.messageId, // ✅ ADD: Save RFC 2822 Message-ID for threading
           subject: email.subject,
           snippet: email.snippet,
           body_text: email.bodyText,

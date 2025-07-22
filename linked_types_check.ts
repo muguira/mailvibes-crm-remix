@@ -331,7 +331,6 @@ export type Database = {
           is_starred: boolean | null
           is_trash: boolean | null
           labels: Json | null
-          message_id: string | null
           reply_to: string | null
           size_bytes: number | null
           snippet: string | null
@@ -366,7 +365,6 @@ export type Database = {
           is_starred?: boolean | null
           is_trash?: boolean | null
           labels?: Json | null
-          message_id?: string | null
           reply_to?: string | null
           size_bytes?: number | null
           snippet?: string | null
@@ -401,7 +399,6 @@ export type Database = {
           is_starred?: boolean | null
           is_trash?: boolean | null
           labels?: Json | null
-          message_id?: string | null
           reply_to?: string | null
           size_bytes?: number | null
           snippet?: string | null

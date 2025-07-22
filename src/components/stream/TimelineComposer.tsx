@@ -50,6 +50,12 @@ interface TimelineComposerProps {
   syncStatus?: 'idle' | 'syncing' | 'completed' | 'failed';
   emailsCount?: number;
   hasMoreEmails?: boolean;
+  // ✅ NEW: Reply context props
+  replyContext?: {
+    isReply: true;
+    originalEmail: GmailEmail;
+    originalSubject: string;
+  };
 }
 
 // Custom DateTime picker component
@@ -172,7 +178,8 @@ export default function TimelineComposer({
   onSyncEmailHistory,
   syncStatus = 'idle',
   emailsCount = 0,
-  hasMoreEmails = false
+  hasMoreEmails = false,
+  replyContext
 }: TimelineComposerProps) {
   const [text, setText] = useState("");
   const [selectedActivityType, setSelectedActivityType] = useState('note');
@@ -190,7 +197,7 @@ export default function TimelineComposer({
     to: contactEmail || '',
     cc: '',
     bcc: '',
-    subject: ''
+    subject: replyContext ? `Re: ${replyContext.originalSubject}` : ''
   });
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [showPermissionsAlert, setShowPermissionsAlert] = useState(false);
@@ -375,64 +382,110 @@ export default function TimelineComposer({
         throw new Error('Gmail service not initialized');
       }
 
-      // Send email via Gmail API
+      // ✅ ENHANCED: Use reply context for accurate threading detection
+      let inReplyTo: string | undefined;
+      let references: string | undefined;
+      let threadId: string | undefined;
+      
+      if (replyContext) {
+        // ✅ ACCURATE: This is a confirmed reply from reply button
+        const originalEmail = replyContext.originalEmail;
+        
+        // ✅ CRITICAL: Only use real Gmail threadId (not artificial ones)
+        if (originalEmail.threadId && 
+            !originalEmail.threadId.includes('optimistic-') &&
+            !originalEmail.threadId.includes('subject-') &&
+            !originalEmail.threadId.includes('new-conversation-') &&
+            originalEmail.threadId !== 'reply-thread') {
+          
+          threadId = originalEmail.threadId;
+          
+          // ✅ CRITICAL: Use REAL RFC 2822 Message-ID for threading
+          let messageId: string;
+          if (originalEmail.messageId) {
+            // Use the actual Message-ID from the email headers
+            messageId = originalEmail.messageId;
+          } else {
+            // Fallback: Convert Gmail ID to proper Message-ID format
+            messageId = `<${originalEmail.id}@gmail.googleapis.com>`;
+          }
+          inReplyTo = messageId;
+          
+          // ✅ CRITICAL: Build References chain per RFC 2822 (following guide requirements)
+          // Guide: "Se debe recuperar la cabecera References del correo electrónico original"
+          // Guide: "Se debe añadir el Message-ID del correo electrónico original a esta lista"
+          let originalReferences = '';
+          if (originalEmail.references && typeof originalEmail.references === 'string') {
+            originalReferences = originalEmail.references.trim();
+          }
+          
+          // Build the complete References chain: original references + current email's Message-ID
+          if (originalReferences) {
+            references = `${originalReferences} ${messageId}`;
+          } else {
+            // First reply - start the References chain with the original Message-ID
+            references = messageId;
+          }
+          
+          logger.log("🔗 Setting up email threading for confirmed reply:", {
+            originalEmailId: originalEmail.id,
+            originalSubject: replyContext.originalSubject,
+            threadId,
+            inReplyTo,
+            references,
+            originalReferences,
+            hasOriginalReferences: !!originalReferences,
+            referencesCount: references?.split(' ').length || 0,
+            isRealGmailThread: true
+          });
+        } else {
+          logger.log("⚠️ Original email has artificial threadId, not using threading:", {
+            threadId: originalEmail.threadId,
+            reasoning: "Artificial threadId detected"
+          });
+        }
+      } else {
+        // ✅ NEW EMAILS: No threading for emails from main composer
+        logger.log("📧 Creating new email (no threading):", {
+          subject: emailFields.subject,
+          reasoning: "Email from main composer, not a reply"
+        });
+      }
+
+      // Send email via Gmail API with threading support
       const result = await gmailService.sendEmail({
         to: [emailFields.to],
         cc: emailFields.cc ? [emailFields.cc] : undefined,
         bcc: emailFields.bcc ? [emailFields.bcc] : undefined,
         subject: emailFields.subject,
         bodyHtml: text,
-        contactId: effectiveContactId
+        contactId: effectiveContactId,
+        inReplyTo,
+        references,
+        threadId // ✅ CRITICAL: Pass threadId for Gmail API threading
       });
 
       // ✅ NEW: Create optimistic email for immediate UI feedback
       if (effectiveContactEmail && addOptimisticEmail) {
-        // ✅ ENHANCED: Detect if this is a reply and find the correct threadId
-        let detectedThreadId = 'optimistic-thread';
+        // ✅ ENHANCED: Use appropriate threadId based on context
+        let detectedThreadId: string;
         
-        if (emailFields.subject.startsWith('Re: ')) {
-          // This is a reply - try to find the original email's threadId
-          const originalSubject = emailFields.subject.replace(/^Re:\s*/, '');
-          
-          // Search for original email by subject - improved search
-          let originalEmail = emails.find(email => {
-            const emailSubject = email.subject?.replace(/^Re:\s*/, '');
-            return emailSubject === originalSubject;
+        if (replyContext && threadId) {
+          // ✅ REPLY: Use the real Gmail threadId we detected
+          detectedThreadId = result.threadId || threadId;
+          logger.log("🔗 Using threadId for confirmed reply:", {
+            threadId: detectedThreadId,
+            gmailResponseThreadId: result.threadId,
+            originalThreadId: threadId
           });
-          
-          // If found, use its threadId - could be from existing thread
-          if (originalEmail && originalEmail.threadId) {
-            detectedThreadId = originalEmail.threadId;
-            logger.log("🔗 Detected reply to existing email:", {
-              originalSubject,
-              foundEmailSubject: originalEmail.subject,
-              originalThreadId: originalEmail.threadId,
-              originalEmailId: originalEmail.id
-            });
-          } else {
-            // ✅ IMPROVED: Use same pattern as timeline grouping for consistency
-            const subjectHash = btoa(originalSubject).replace(/[^a-zA-Z0-9]/g, '').substring(0, 12);
-            detectedThreadId = `subject-${subjectHash}`;
-            
-            logger.log("🔗 Creating subject-based thread for reply:", {
-              originalSubject,
-              newThreadId: detectedThreadId,
-              contactEmail: effectiveContactEmail,
-              reasoning: "Will group with other emails with same subject using timeline pattern"
-            });
-          }
         } else {
-          // ✅ NEW: For new conversations, create a subject-based threadId for future grouping
-          if (emailFields.subject) {
-            const subjectHash = btoa(emailFields.subject).replace(/[^a-zA-Z0-9]/g, '').substring(0, 12);
-            detectedThreadId = `subject-${subjectHash}`;
-            
-            logger.log("🔗 Creating subject-based thread for new conversation:", {
-              subject: emailFields.subject,
-              newThreadId: detectedThreadId,
-              reasoning: "Future replies will group with this thread using timeline pattern"
-            });
-          }
+          // ✅ NEW EMAIL: Always create unique threadId to prevent artificial grouping
+          detectedThreadId = result.threadId || `new-conversation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          logger.log("📧 Creating unique thread for new email:", {
+            subject: emailFields.subject,
+            newThreadId: detectedThreadId,
+            reasoning: "New email from main composer should be independent"
+          });
         }
 
         const optimisticEmail: GmailEmail = {
