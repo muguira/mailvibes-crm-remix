@@ -32,7 +32,6 @@ import { GmailEmail } from '@/services/google/gmailApi';
 import { useContactEmails } from '@/hooks/use-contact-emails-v2';
 import { logger } from '@/utils/logger';
 import { EmailSummaryButton } from '@/components/ai/EmailSummaryButton';
-import { AIDebugPanel } from '@/components/debug/AIDebugPanel';
 import { AIReplyButtons } from '@/components/ai/AIReplyButtons';
 
 
@@ -1472,13 +1471,6 @@ const TimelineItem = React.memo(function TimelineItem({
           {/* Show more/less button and Reply button */}
           {(activityProps.displayContent || activity.bodyHtml || activity.bodyText) && (
             <div className="flex items-center gap-3">
-                        {/* TEMPORARY DEBUG PANEL - REMOVE AFTER DEBUGGING */}
-          {(activity.source === 'gmail' && (activity.type === 'email' || activity.type === 'email_thread')) && (
-            <div className="mb-2">
-              <AIDebugPanel />
-            </div>
-          )}
-
                         {/* AI Summary button - show for emails and email threads */}
           {(activity.source === 'gmail' && (activity.type === 'email' || activity.type === 'email_thread')) && (
               <EmailSummaryButton
