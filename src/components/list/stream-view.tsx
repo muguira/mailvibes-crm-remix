@@ -2,13 +2,14 @@ import { CustomButton } from '@/components/ui/custom-button'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { Mail, RefreshCw } from 'lucide-react'
 import { useStreamView } from './hooks/use-stream-view'
-import { ActivityStream } from './stream/activity-stream'
 import { ContactSidebarHeader } from './stream/contact-sidebar-header'
 import { ContactsList } from './stream/contacts-list'
 import { CreateContactDialog } from './stream/create-contact-dialog'
 import { DetailsPanel } from './stream/details-panel'
 import { EmptyState } from './stream/empty-state'
 import { ContactData } from './types'
+// ✅ CRITICAL FIX: Import StreamTimeline instead of ActivityStream
+import StreamTimeline from '@/components/stream/StreamTimeline'
 
 interface StreamViewProps {
   contacts?: ContactData[]
@@ -74,11 +75,48 @@ export function StreamView({ listName, listId }: StreamViewProps) {
               </div>
             )}
 
-            <ActivityStream
-              selectedContact={selectedContact as any}
-              activities={formattedActivities}
-              onAddComment={handleAddComment}
-            />
+            {/* ✅ CRITICAL FIX: Replace ActivityStream with StreamTimeline */}
+            {selectedContact.email ? (
+              <>
+                {/* ✅ DEBUG: Log contact info for debugging */}
+                {(() => {
+                  console.log('🔍 [StreamView] Rendering StreamTimeline with:', {
+                    contactId: selectedContact.id,
+                    contactEmail: selectedContact.email,
+                    contactName: selectedContact.name,
+                    hasEmail: !!selectedContact.email,
+                    selectedContactFull: selectedContact,
+                  })
+                  return null
+                })()}
+                <StreamTimeline
+                  contactId={selectedContact.id}
+                  contactEmail={selectedContact.email}
+                  contactName={selectedContact.name}
+                />
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center p-8 text-center">
+                <div>
+                  <h3 className="text-lg font-semibold">No Email Available</h3>
+                  <p className="text-sm text-slate-medium mt-2">
+                    This contact doesn't have an email address. Add one to see email timeline.
+                  </p>
+                  <CustomButton
+                    onClick={() => {
+                      // Focus on email field in details panel
+                      const emailField = document.querySelector('input[type="email"]') as HTMLInputElement
+                      if (emailField) {
+                        emailField.focus()
+                      }
+                    }}
+                    className="mt-4 bg-teal-primary hover:bg-teal-primary/90 text-white"
+                  >
+                    Add Email Address
+                  </CustomButton>
+                </div>
+              </div>
+            )}
           </div>
 
           <DetailsPanel

@@ -98,6 +98,7 @@ export function useStreamView(listId?: string) {
     id: contact.id,
     name: contact.name,
     company: contact.company,
+    email: contact.email, // ✅ CRITICAL FIX: Include email field
     lastActivity: contact.last_activity ? new Date(contact.last_activity).toLocaleDateString() : 'No activity',
     activities: [],
     fields: contact.data || {},
