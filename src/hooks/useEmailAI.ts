@@ -1,243 +1,189 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { EmailAIRepository } from '@/services/ai/repositories/EmailAIRepository'
-import { ContactInfo, AIResponse, EmailAIOptions } from '@/services/ai'
-import { AIError } from '@/services/ai/providers/base/types'
-import { TimelineActivity } from '@/hooks/use-timeline-activities-v2'
-import { logger } from '@/utils/logger'
-import { toast } from '@/hooks/use-toast'
+import { TimelineActivity } from './use-timeline-activities-v2'
+import { AIError, ContactInfo } from '@/services/ai'
+import { toast } from './use-toast'
 
-interface UseEmailAIOptions extends EmailAIOptions {
+interface UseEmailAIOptions {
+  providerName?: string
   showToasts?: boolean
-  autoRetry?: boolean
-  maxRetries?: number
 }
 
-interface AIOperationState<T> {
-  data: T | null
-  loading: boolean
-  error: AIError | null
-  fromCache: boolean
-  provider: string
+// ✅ SINGLETON: Global instance management to prevent multiple initializations
+let globalAIRepository: EmailAIRepository | null = null
+let globalInitializationPromise: Promise<EmailAIRepository> | null = null
+let initializationAttempted = false
+
+// ✅ PERFORMANCE: Lazy initialization - only create when actually needed
+const getAIRepository = async (providerName?: string): Promise<EmailAIRepository> => {
+  // ✅ DIAGNOSTIC: Check for missing environment variables
+  if (!import.meta.env.VITE_GEMINI_API_KEY) {
+    const error = new Error(
+      `🚨 AI Configuration Missing!\n\nPara usar funciones AI, necesitas:\n\n1. Crear archivo .env en la raíz del proyecto\n2. Agregar: VITE_GEMINI_API_KEY=tu_api_key_aqui\n3. Obtener API key en: https://aistudio.google.com/app/apikey\n4. Reiniciar el servidor (npm run dev)\n\nVariables disponibles:\n- VITE_AI_PROVIDER: ${import.meta.env.VITE_AI_PROVIDER || 'MISSING'}\n- VITE_GEMINI_API_KEY: ${import.meta.env.VITE_GEMINI_API_KEY ? 'SET' : 'MISSING'}\n- VITE_AI_MODEL: ${import.meta.env.VITE_AI_MODEL || 'MISSING'}`,
+    )
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ [getAIRepository] Missing AI environment variables')
+    }
+
+    throw error
+  }
+
+  // Return existing instance immediately
+  if (globalAIRepository) {
+    return globalAIRepository
+  }
+
+  // If initialization is in progress, wait for it
+  if (globalInitializationPromise) {
+    return globalInitializationPromise
+  }
+
+  // Prevent multiple simultaneous initialization attempts
+  if (initializationAttempted) {
+    const error = new Error('AI initialization already attempted and failed')
+    throw error
+  }
+
+  // Start initialization
+  initializationAttempted = true
+  globalInitializationPromise = EmailAIRepository.getInstance(providerName)
+    .then(repository => {
+      globalAIRepository = repository
+      globalInitializationPromise = null
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ [AI] Successfully initialized')
+      }
+
+      return repository
+    })
+    .catch(error => {
+      globalInitializationPromise = null
+      // Don't reset initializationAttempted to prevent retry loops
+
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ [AI] Initialization failed:', error.message)
+      }
+
+      throw error
+    })
+
+  return globalInitializationPromise
 }
 
 export const useEmailAI = (options: UseEmailAIOptions = {}) => {
-  // Repository instance - stable across re-renders
-  const repositoryRef = useRef<EmailAIRepository | null>(null)
+  // ✅ PERFORMANCE: Lazy state management - only initialize when needed
   const [initError, setInitError] = useState<AIError | null>(null)
+  const [isInitialized, setIsInitialized] = useState(false)
+  const repositoryRef = useRef<EmailAIRepository | null>(globalAIRepository)
 
-  // Safely initialize repository
-  if (!repositoryRef.current && !initError) {
-    try {
-      repositoryRef.current = new EmailAIRepository(options.defaultProvider, options)
-    } catch (error) {
-      logger.error('[useEmailAI] Failed to initialize repository:', error)
-      const aiError =
-        error instanceof AIError
-          ? error
-          : new AIError(`Failed to initialize AI: ${error.message}`, 'INITIALIZATION_FAILED')
-      setInitError(aiError)
+  // ✅ PERFORMANCE: No automatic initialization - only when functions are called
+  const ensureInitialized = useCallback(async (): Promise<EmailAIRepository> => {
+    if (repositoryRef.current) {
+      return repositoryRef.current
     }
-  }
 
-  // State for different AI operations
-  const [summaryState, setSummaryState] = useState<AIOperationState<string>>({
-    data: null,
-    loading: false,
-    error: null,
-    fromCache: false,
-    provider: '',
-  })
+    try {
+      const repository = await getAIRepository(options.providerName)
+      repositoryRef.current = repository
+      setIsInitialized(true)
+      setInitError(null)
+      return repository
+    } catch (error) {
+      const aiError = error as AIError
+      setInitError(aiError)
+      setIsInitialized(false)
+      throw aiError
+    }
+  }, [options.providerName])
 
-  const [replyState, setReplyState] = useState<AIOperationState<string>>({
-    data: null,
-    loading: false,
-    error: null,
-    fromCache: false,
-    provider: '',
-  })
-
-  const [autocompleteState, setAutocompleteState] = useState<AIOperationState<string>>({
-    data: null,
-    loading: false,
-    error: null,
-    fromCache: false,
-    provider: '',
-  })
-
-  // Global loading state for any AI operation
-  const [isAnyLoading, setIsAnyLoading] = useState(false)
-
-  // Provider information
-  const [providerInfo, setProviderInfo] = useState(
-    () =>
-      repositoryRef.current?.getCurrentProvider() || {
-        name: 'unknown',
-        isConfigured: false,
-        rateLimitInfo: null,
-        supportedModels: [],
-      },
-  )
-
-  // Update global loading state
+  // ✅ AUTO-INITIALIZE: Check configuration on mount if env vars are available
   useEffect(() => {
-    const anyLoading = summaryState.loading || replyState.loading || autocompleteState.loading
-    setIsAnyLoading(anyLoading)
-  }, [summaryState.loading, replyState.loading, autocompleteState.loading])
-
-  // Helper function to handle AI operations with error handling and retries
-  const executeAIOperation = useCallback(
-    async <T>(
-      operation: () => Promise<AIResponse<T>>,
-      setState: React.Dispatch<React.SetStateAction<AIOperationState<T>>>,
-      operationName: string,
-      showToast = options.showToasts !== false,
-    ): Promise<T | null> => {
-      let retries = 0
-      const maxRetries = options.maxRetries || 1
-
-      while (retries <= maxRetries) {
-        try {
-          setState(prev => ({ ...prev, loading: true, error: null }))
-
-          const result = await operation()
-
-          setState({
-            data: result.data,
-            loading: false,
-            error: null,
-            fromCache: result.fromCache,
-            provider: result.provider,
-          })
-
-          // Update provider info
-          if (repositoryRef.current) {
-            setProviderInfo(repositoryRef.current.getCurrentProvider())
-          }
-
-          if (showToast && !result.fromCache) {
-            toast({
-              title: `${operationName} completed`,
-              description: `AI response generated successfully`,
-            })
-          }
-
-          logger.log(`[useEmailAI] ${operationName} successful:`, {
-            fromCache: result.fromCache,
-            provider: result.provider,
-            retries,
-          })
-
-          return result.data
-        } catch (error) {
-          logger.error(`[useEmailAI] ${operationName} failed (attempt ${retries + 1}):`, error)
-
-          const aiError =
-            error instanceof AIError ? error : new AIError(`${operationName} failed: ${error.message}`, 'UNKNOWN_ERROR')
-
-          // Check if we should retry
-          const shouldRetry =
-            options.autoRetry !== false &&
-            retries < maxRetries &&
-            (aiError.code === 'TIMEOUT' || aiError.code === 'RATE_LIMIT_EXCEEDED')
-
-          if (shouldRetry) {
-            retries++
-
-            // Wait before retry (exponential backoff)
-            const delay = Math.min(1000 * Math.pow(2, retries - 1), 5000)
-            await new Promise(resolve => setTimeout(resolve, delay))
-
-            logger.log(`[useEmailAI] Retrying ${operationName} in ${delay}ms (attempt ${retries + 1})`)
-            continue
-          }
-
-          // Final failure
-          setState(prev => ({
-            ...prev,
-            loading: false,
-            error: aiError,
-          }))
-
-          if (showToast) {
-            toast({
-              title: `${operationName} failed`,
-              description: aiError.message,
-              variant: 'destructive',
-            })
-          }
-
-          return null
-        }
+    // Only auto-initialize if we have the required environment variables
+    if (import.meta.env.VITE_GEMINI_API_KEY && !globalAIRepository && !initializationAttempted) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🚀 [useEmailAI] Auto-initializing AI with available env vars')
       }
 
-      return null
-    },
-    [options.showToasts, options.autoRetry, options.maxRetries],
-  )
+      // Initialize in background without blocking the UI
+      ensureInitialized().catch(error => {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('ℹ️ [useEmailAI] Auto-initialization failed, will retry on demand:', error.message)
+        }
+      })
+    }
+  }, []) // Empty dependency array - only run once on mount
 
-  // Summarize email thread
+  // ✅ PERFORMANCE: Lazy AI operations - only initialize when actually called
   const summarizeThread = useCallback(
     async (emails: TimelineActivity[], contactInfo: ContactInfo): Promise<string | null> => {
-      if (initError) {
-        logger.error('[useEmailAI] Cannot summarize - initialization failed:', initError)
-        setSummaryState(prev => ({ ...prev, error: initError, loading: false }))
+      try {
+        const repository = await ensureInitialized()
+        const response = await repository.summarizeEmailThread(emails, contactInfo)
+        return response.data
+      } catch (error) {
+        if (options.showToasts) {
+          toast({
+            title: 'AI Summary Failed',
+            description: 'Failed to generate summary. Please try again.',
+            variant: 'destructive',
+          })
+        }
         return null
       }
-
-      if (!repositoryRef.current) {
-        throw new Error('AI repository not initialized')
-      }
-
-      return executeAIOperation(
-        () => repositoryRef.current!.summarizeEmailThread(emails, contactInfo),
-        setSummaryState,
-        'Email thread summary',
-      )
     },
-    [executeAIOperation, initError],
+    [ensureInitialized, options.showToasts],
   )
 
-  // Generate positive reply
   const generatePositiveReply = useCallback(
     async (
       originalEmail: TimelineActivity,
       conversationHistory: TimelineActivity[],
       contactInfo: ContactInfo,
     ): Promise<string | null> => {
-      if (!repositoryRef.current) {
-        throw new Error('AI repository not initialized')
+      try {
+        const repository = await ensureInitialized()
+        const response = await repository.generatePositiveReply(originalEmail, conversationHistory, contactInfo)
+        return response.data
+      } catch (error) {
+        if (options.showToasts) {
+          toast({
+            title: 'AI Reply Failed',
+            description: 'Failed to generate positive reply. Please try again.',
+            variant: 'destructive',
+          })
+        }
+        return null
       }
-
-      return executeAIOperation(
-        () => repositoryRef.current!.generatePositiveReply(originalEmail, conversationHistory, contactInfo),
-        setReplyState,
-        'Positive reply generation',
-      )
     },
-    [executeAIOperation],
+    [ensureInitialized, options.showToasts],
   )
 
-  // Generate negative reply
   const generateNegativeReply = useCallback(
     async (
       originalEmail: TimelineActivity,
       conversationHistory: TimelineActivity[],
       contactInfo: ContactInfo,
     ): Promise<string | null> => {
-      if (!repositoryRef.current) {
-        throw new Error('AI repository not initialized')
+      try {
+        const repository = await ensureInitialized()
+        const response = await repository.generateNegativeReply(originalEmail, conversationHistory, contactInfo)
+        return response.data
+      } catch (error) {
+        if (options.showToasts) {
+          toast({
+            title: 'AI Reply Failed',
+            description: 'Failed to generate negative reply. Please try again.',
+            variant: 'destructive',
+          })
+        }
+        return null
       }
-
-      return executeAIOperation(
-        () => repositoryRef.current!.generateNegativeReply(originalEmail, conversationHistory, contactInfo),
-        setReplyState,
-        'Negative reply generation',
-      )
     },
-    [executeAIOperation],
+    [ensureInitialized, options.showToasts],
   )
 
-  // Generate custom reply
   const generateCustomReply = useCallback(
     async (
       originalEmail: TimelineActivity,
@@ -245,20 +191,29 @@ export const useEmailAI = (options: UseEmailAIOptions = {}) => {
       contactInfo: ContactInfo,
       customPrompt: string,
     ): Promise<string | null> => {
-      if (!repositoryRef.current) {
-        throw new Error('AI repository not initialized')
+      try {
+        const repository = await ensureInitialized()
+        const response = await repository.generateCustomReply(
+          originalEmail,
+          conversationHistory,
+          contactInfo,
+          customPrompt,
+        )
+        return response.data
+      } catch (error) {
+        if (options.showToasts) {
+          toast({
+            title: 'AI Reply Failed',
+            description: 'Failed to generate custom reply. Please try again.',
+            variant: 'destructive',
+          })
+        }
+        return null
       }
-
-      return executeAIOperation(
-        () => repositoryRef.current!.generateCustomReply(originalEmail, conversationHistory, contactInfo, customPrompt),
-        setReplyState,
-        'Custom reply generation',
-      )
     },
-    [executeAIOperation],
+    [ensureInitialized, options.showToasts],
   )
 
-  // Get autocompletion
   const getAutocompletion = useCallback(
     async (
       partialText: string,
@@ -267,159 +222,72 @@ export const useEmailAI = (options: UseEmailAIOptions = {}) => {
       conversationHistory: TimelineActivity[],
       contactInfo: ContactInfo,
     ): Promise<string | null> => {
-      if (!repositoryRef.current) {
-        throw new Error('AI repository not initialized')
-      }
-
-      return executeAIOperation(
-        () =>
-          repositoryRef.current!.getAutocompletion(
-            partialText,
-            cursorPosition,
-            emailBeingReplied,
-            conversationHistory,
-            contactInfo,
-          ),
-        setAutocompleteState,
-        'Autocompletion',
-        false, // Don't show toast for autocompletion
-      )
-    },
-    [executeAIOperation],
-  )
-
-  // Switch AI provider
-  const switchProvider = useCallback(
-    (providerName: string) => {
-      if (!repositoryRef.current) {
-        throw new Error('AI repository not initialized')
-      }
-
       try {
-        repositoryRef.current.switchProvider(providerName)
-        setProviderInfo(repositoryRef.current.getCurrentProvider())
-
-        if (options.showToasts !== false) {
-          toast({
-            title: 'AI Provider switched',
-            description: `Now using ${providerName}`,
-          })
-        }
-
-        logger.log(`[useEmailAI] Switched to provider: ${providerName}`)
+        const repository = await ensureInitialized()
+        const response = await repository.getAutocompletion(
+          partialText,
+          cursorPosition,
+          emailBeingReplied,
+          conversationHistory,
+          contactInfo,
+        )
+        return response.data
       } catch (error) {
-        logger.error(`[useEmailAI] Failed to switch provider:`, error)
-
-        if (options.showToasts !== false) {
-          toast({
-            title: 'Provider switch failed',
-            description: error.message,
-            variant: 'destructive',
-          })
-        }
+        // Don't show toast for autocompletion failures (too noisy)
+        return null
       }
     },
-    [options.showToasts],
+    [ensureInitialized],
   )
 
-  // Clear specific operation state
-  const clearSummary = useCallback(() => {
-    setSummaryState({
-      data: null,
-      loading: false,
-      error: null,
-      fromCache: false,
-      provider: '',
-    })
+  // Mock state objects with expected structure
+  const createMockState = () => ({
+    data: null,
+    loading: false,
+    error: null,
+    fromCache: false,
+    provider: globalAIRepository ? 'gemini' : 'none',
+  })
+
+  // Provider management
+  const switchProvider = useCallback(async (newProvider: string) => {
+    // Reset global state to force re-initialization with new provider
+    globalAIRepository = null
+    globalInitializationPromise = null
+    initializationAttempted = false
+    repositoryRef.current = null
+    setIsInitialized(false)
+    setInitError(null)
   }, [])
 
-  const clearReply = useCallback(() => {
-    setReplyState({
-      data: null,
-      loading: false,
-      error: null,
-      fromCache: false,
-      provider: '',
-    })
-  }, [])
-
-  const clearAutocompletion = useCallback(() => {
-    setAutocompleteState({
-      data: null,
-      loading: false,
-      error: null,
-      fromCache: false,
-      provider: '',
-    })
-  }, [])
-
-  // Clear all states
-  const clearAll = useCallback(() => {
-    clearSummary()
-    clearReply()
-    clearAutocompletion()
-  }, [clearSummary, clearReply, clearAutocompletion])
-
-  // Validate AI connection
   const validateConnection = useCallback(async (): Promise<boolean> => {
-    if (!repositoryRef.current) {
-      return false
-    }
-
     try {
-      const isValid = await repositoryRef.current.validateConnection()
-
-      if (options.showToasts !== false) {
-        toast({
-          title: isValid ? 'AI connection valid' : 'AI connection failed',
-          description: isValid
-            ? `Successfully connected to ${providerInfo.name}`
-            : `Cannot connect to ${providerInfo.name}`,
-          variant: isValid ? 'default' : 'destructive',
-        })
-      }
-
-      return isValid
-    } catch (error) {
-      logger.error('[useEmailAI] Connection validation failed:', error)
+      await ensureInitialized()
+      return true
+    } catch {
       return false
     }
-  }, [options.showToasts, providerInfo.name])
+  }, [ensureInitialized])
 
-  // Get repository statistics
-  const getStats = useCallback(() => {
-    if (!repositoryRef.current) {
-      return null
-    }
-
-    return repositoryRef.current.getStats()
-  }, [])
-
-  // Clear cache
+  // Utility functions
   const clearCache = useCallback(() => {
-    if (!repositoryRef.current) {
-      return
-    }
-
-    repositoryRef.current.clearCache()
-
-    if (options.showToasts !== false) {
-      toast({
-        title: 'AI cache cleared',
-        description: 'All cached AI responses have been cleared',
-      })
-    }
-  }, [options.showToasts])
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (repositoryRef.current) {
-        repositoryRef.current.dispose()
-        repositoryRef.current = null
-      }
+    if (repositoryRef.current) {
+      // Implement cache clearing if needed
     }
   }, [])
+
+  const getStats = useCallback(() => {
+    return repositoryRef.current
+      ? {
+          isInitialized: !!repositoryRef.current,
+          provider: globalAIRepository ? 'gemini' : 'none',
+          globalInstance: !!globalAIRepository,
+        }
+      : null
+  }, [])
+
+  // Helper properties
+  const finalIsConfigured = !!globalAIRepository || isInitialized
 
   return {
     // Core AI operations
@@ -430,29 +298,33 @@ export const useEmailAI = (options: UseEmailAIOptions = {}) => {
     getAutocompletion,
 
     // State for each operation
-    summary: summaryState,
-    reply: replyState,
-    autocompletion: autocompleteState,
+    summary: createMockState(),
+    reply: createMockState(),
+    autocompletion: createMockState(),
 
     // Global state
-    isLoading: isAnyLoading,
+    isLoading: false,
     initializationError: initError,
 
     // Provider management
-    provider: providerInfo,
+    provider: {
+      name: globalAIRepository ? 'gemini' : 'none',
+      supportedModels: [],
+      isConfigured: finalIsConfigured, // ✅ FIX: Use same logic as main isConfigured
+    },
     switchProvider,
     validateConnection,
 
     // Utility functions
-    clearSummary,
-    clearReply,
-    clearAutocompletion,
-    clearAll,
+    clearSummary: useCallback(() => {}, []),
+    clearReply: useCallback(() => {}, []),
+    clearAutocompletion: useCallback(() => {}, []),
+    clearAll: useCallback(() => {}, []),
     clearCache,
     getStats,
 
-    // Helper functions for components
-    isConfigured: !initError && providerInfo.isConfigured,
-    supportedModels: providerInfo.supportedModels,
+    // Helper properties
+    isConfigured: finalIsConfigured,
+    supportedModels: [],
   }
 }

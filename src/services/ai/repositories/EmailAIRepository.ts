@@ -1,37 +1,113 @@
-import { AIProvider } from '../providers/base/AIProvider'
-import { AIResponse, AIError, EmailAIOptions, ContactInfo } from '../providers/base/types'
 import { AIProviderFactory } from '../factories/AIProviderFactory'
 import { EmailContextBuilder } from '../context/EmailContextBuilder'
+import { AIProvider } from '../providers/base/AIProvider'
+import { AIResponse, AIError } from '../providers/base/types'
+import { ContactInfo, EmailAIOptions } from '../index'
 import { TimelineActivity } from '@/hooks/use-timeline-activities-v2'
 import { logger } from '@/utils/logger'
+
+// ✅ SINGLETON: Global instance to prevent multiple AI Provider initializations
+let globalRepository: EmailAIRepository | null = null
+let globalRepositoryPromise: Promise<EmailAIRepository> | null = null
+
+interface ProviderInfo {
+  name: string
+  isConfigured: boolean
+  rateLimitInfo: any
+  supportedModels: string[]
+}
+
+interface RepositoryStats {
+  totalRequests: number
+  cacheHits: number
+  cacheMisses: number
+  providerSwitches: number
+  totalProviders: number
+}
 
 interface CachedAIResponse<T> {
   data: T
   timestamp: number
-  expiresAt: number
   provider: string
-  cacheKey: string
 }
 
+/**
+ * EmailAIRepository - Manages AI operations for email-related tasks
+ * Now implemented as a singleton to prevent multiple provider initializations
+ */
 export class EmailAIRepository {
   private provider: AIProvider
   private contextBuilder: EmailContextBuilder
-  private cache: Map<string, CachedAIResponse<any>> = new Map()
+  private requestCache: Map<string, CachedAIResponse<any>>
+  private stats: RepositoryStats
   private options: EmailAIOptions
+  private cacheTTL: number = 15 * 60 * 1000 // 15 minutes
 
-  constructor(providerName?: string, options: EmailAIOptions = {}) {
-    this.options = {
-      cacheEnabled: true,
-      cacheTTL: 10 * 60 * 1000, // 10 minutes
-      rateLimitEnabled: true,
-      maxRequestsPerMinute: 10,
-      ...options,
+  // ✅ SINGLETON: Private constructor to prevent direct instantiation
+  private constructor(providerName?: string, options: EmailAIOptions = {}) {
+    this.options = options
+    this.requestCache = new Map()
+    this.stats = {
+      totalRequests: 0,
+      cacheHits: 0,
+      cacheMisses: 0,
+      providerSwitches: 0,
+      totalProviders: 1,
     }
 
-    this.provider = AIProviderFactory.create(providerName || this.options.defaultProvider)
     this.contextBuilder = new EmailContextBuilder()
 
-    logger.log('[EmailAIRepository] Initialized with provider:', this.provider.name)
+    try {
+      this.provider = AIProviderFactory.create(providerName || 'gemini')
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[EmailAIRepository] Singleton instance created successfully')
+      }
+    } catch (error) {
+      logger.error('[EmailAIRepository] Failed to initialize provider:', error)
+      throw new AIError(`Failed to initialize AI provider: ${error.message}`, 'INITIALIZATION_FAILED')
+    }
+  }
+
+  // ✅ SINGLETON: Public static method to get the singleton instance
+  public static async getInstance(providerName?: string, options: EmailAIOptions = {}): Promise<EmailAIRepository> {
+    // If instance already exists, return it
+    if (globalRepository) {
+      return globalRepository
+    }
+
+    // If initialization is in progress, wait for it
+    if (globalRepositoryPromise) {
+      return globalRepositoryPromise
+    }
+
+    // Create the singleton instance
+    globalRepositoryPromise = new Promise((resolve, reject) => {
+      try {
+        globalRepository = new EmailAIRepository(providerName, options)
+        resolve(globalRepository)
+        globalRepositoryPromise = null // Clear the promise
+      } catch (error) {
+        globalRepositoryPromise = null
+        reject(error)
+      }
+    })
+
+    return globalRepositoryPromise
+  }
+
+  // ✅ SINGLETON: Method to check if instance exists without creating one
+  public static hasInstance(): boolean {
+    return globalRepository !== null
+  }
+
+  // ✅ SINGLETON: Method to reset singleton (for testing/cleanup)
+  public static reset(): void {
+    if (globalRepository) {
+      globalRepository.dispose()
+      globalRepository = null
+    }
+    globalRepositoryPromise = null
   }
 
   /**
@@ -366,9 +442,9 @@ export class EmailAIRepository {
     return {
       provider: this.getCurrentProvider(),
       cache: {
-        size: this.cache.size,
+        size: this.requestCache.size,
         enabled: this.options.cacheEnabled,
-        ttl: this.options.cacheTTL,
+        ttl: this.cacheTTL,
       },
       options: this.options,
     }
@@ -378,7 +454,7 @@ export class EmailAIRepository {
    * Clear cache
    */
   clearCache(): void {
-    this.cache.clear()
+    this.requestCache.clear()
     logger.log('[EmailAIRepository] Cache cleared')
   }
 
@@ -416,13 +492,13 @@ export class EmailAIRepository {
   }
 
   private getFromCache<T>(key: string): CachedAIResponse<T> | null {
-    const cached = this.cache.get(key)
+    const cached = this.requestCache.get(key)
 
     if (!cached) return null
 
     // Check expiration
-    if (Date.now() > cached.expiresAt) {
-      this.cache.delete(key)
+    if (Date.now() > cached.timestamp + this.cacheTTL) {
+      this.requestCache.delete(key)
       return null
     }
 
@@ -430,18 +506,16 @@ export class EmailAIRepository {
   }
 
   private setCache<T>(key: string, data: T, provider: string): void {
-    const expiresAt = Date.now() + (this.options.cacheTTL || 10 * 60 * 1000)
+    const timestamp = Date.now()
 
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      expiresAt,
+    this.requestCache.set(key, {
+      data: data,
+      timestamp,
       provider,
-      cacheKey: key,
     })
 
     // Simple cleanup: remove expired entries when cache gets large
-    if (this.cache.size > 100) {
+    if (this.requestCache.size > 100) {
       this.cleanupExpiredCache()
     }
   }
@@ -450,9 +524,9 @@ export class EmailAIRepository {
     const now = Date.now()
     let removedCount = 0
 
-    for (const [key, cached] of this.cache.entries()) {
-      if (now > cached.expiresAt) {
-        this.cache.delete(key)
+    for (const [key, cached] of this.requestCache.entries()) {
+      if (now > cached.timestamp + this.cacheTTL) {
+        this.requestCache.delete(key)
         removedCount++
       }
     }
@@ -467,7 +541,7 @@ export class EmailAIRepository {
    */
   dispose(): void {
     this.provider?.dispose()
-    this.cache.clear()
+    this.requestCache.clear()
     logger.log('[EmailAIRepository] Repository disposed')
   }
 }
