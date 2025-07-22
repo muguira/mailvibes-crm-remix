@@ -28,6 +28,8 @@ import { GmailErrorCode } from './types'
 interface DatabaseEmail {
   id: string
   gmail_id: string
+  gmail_thread_id?: string | null
+  message_id?: string | null // ✅ ADD: RFC 2822 Message-ID
   subject: string
   snippet: string
   body_text?: string | null
@@ -695,7 +697,7 @@ export class EmailService {
         .from('emails')
         .select(
           `
-          id, gmail_id, subject, snippet, body_text, body_html,
+          id, gmail_id, gmail_thread_id, message_id, subject, snippet, body_text, body_html,
           from_email, from_name, to_emails, cc_emails, bcc_emails,
           date, is_read, is_important, labels, has_attachments,
           attachment_count, created_at, updated_at,
@@ -803,7 +805,8 @@ export class EmailService {
   private convertDatabaseEmail(dbEmail: DatabaseEmail): GmailEmail {
     return {
       id: dbEmail.gmail_id,
-      threadId: '', // Not stored in current schema
+      threadId: dbEmail.gmail_thread_id || '', // ✅ FIX: Use real threadId from database
+      messageId: dbEmail.message_id || undefined, // ✅ ADD: Include RFC 2822 Message-ID
       snippet: dbEmail.snippet,
       subject: dbEmail.subject,
       from: {
@@ -884,6 +887,7 @@ export class EmailService {
           contact_id: contactId,
           gmail_id: email.id,
           gmail_thread_id: email.threadId,
+          message_id: email.messageId, // ✅ ADD: Save RFC 2822 Message-ID for threading
           subject: email.subject,
           snippet: email.snippet,
           body_text: email.bodyText,
@@ -1015,6 +1019,7 @@ export class EmailService {
     contactId?: string
     inReplyTo?: string
     references?: string
+    threadId?: string // ✅ ADD: For Gmail API threading
   }): Promise<SendEmailResponse> {
     this.ensureNotDisposed()
     this.updateActivity()
@@ -1044,6 +1049,7 @@ export class EmailService {
         bodyHtml: emailData.bodyHtml,
         inReplyTo: emailData.inReplyTo,
         references: emailData.references,
+        threadId: emailData.threadId, // ✅ ADD: Pass threadId for threading
       }
 
       // Send email via Gmail API
