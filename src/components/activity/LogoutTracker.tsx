@@ -1,11 +1,8 @@
-import { useEffect } from 'react'
-import { useActivity } from '@/contexts/ActivityContext'
 import { supabase } from '@/integrations/supabase/client'
 import { logger } from '@/utils/logger'
+import { useEffect } from 'react'
 
 export function LogoutTracker() {
-  const { logLogout } = useActivity()
-
   useEffect(() => {
     // Subscribe to auth state changes
     const {
@@ -22,7 +19,7 @@ export function LogoutTracker() {
     return () => {
       subscription.unsubscribe()
     }
-  }, [logLogout])
+  }, [])
 
   return null // This component doesn't render anything
 }

@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
 import { useActivity } from '@/contexts/ActivityContext'
 import { supabase } from '@/integrations/supabase/client'
 import { logger } from '@/utils/logger'
+import { useEffect } from 'react'
 
 export function LoginTracker() {
   const { logLogin } = useActivity()
