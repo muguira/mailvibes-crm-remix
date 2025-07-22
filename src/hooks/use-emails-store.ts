@@ -101,6 +101,10 @@ interface EmailsActions {
   cleanupStaleOptimisticEmails: (contactEmail: string, maxAgeMinutes?: number) => void
   deduplicateEmails: (contactEmail: string) => void // ✅ NEW: Smart deduplication
 
+  // ✅ PERFORMANCE: Cache management and cleanup functions
+  performGlobalCleanup: () => void
+  preloadFrequentContacts: () => Promise<void>
+
   // Getters
   getEmailsForContact: (contactEmail: string) => GmailEmail[]
   getLoadingState: (contactEmail: string) => boolean
@@ -128,6 +132,7 @@ type EmailsStore = ContactEmailsState & EmailsActions
  * - Background historical sync without blocking UI
  * - Per-contact state management
  * - Performance optimized with centralized state
+ * - ✅ NEW: Automatic cache cleanup and optimistic email management
  */
 const useEmailsStore = create<EmailsStore>()(
   subscribeWithSelector(
@@ -696,52 +701,147 @@ const useEmailsStore = create<EmailsStore>()(
         logger.info(`[EmailsStore] Removed optimistic email ${optimisticEmailId} for ${contactEmail}`)
       },
 
-      // ✅ NEW: Cleanup old optimistic emails (fallback in case sync fails)
-      cleanupStaleOptimisticEmails: (contactEmail: string, maxAgeMinutes: number = 2) => {
-        const cutoffTime = Date.now() - maxAgeMinutes * 60 * 1000
-
+      // ✅ PERFORMANCE: Enhanced cleanup and cache management functions
+      cleanupStaleOptimisticEmails: (contactEmail: string, maxAgeMinutes: number = 5) => {
         set(state => {
-          const existingEmails = state.emailsByContact[contactEmail] || []
-          const optimisticIds = state.optimisticEmails[contactEmail] || new Set()
+          const emails = state.emailsByContact[contactEmail] || []
+          const optimisticEmailIds = state.optimisticEmails[contactEmail] || new Set()
 
-          // Find stale optimistic emails
+          if (emails.length === 0 || optimisticEmailIds.size === 0) return
+
+          const now = Date.now()
+          const cutoffTime = now - maxAgeMinutes * 60 * 1000
           const staleOptimisticIds: string[] = []
 
-          existingEmails.forEach(email => {
-            if (optimisticIds.has(email.id) && email.id.startsWith('optimistic-')) {
-              // Extract timestamp from optimistic ID (format: optimistic-{timestamp}-{random})
-              const timestampMatch = email.id.match(/optimistic-(\d+)-/)
-              if (timestampMatch) {
-                const emailTimestamp = parseInt(timestampMatch[1])
-                if (emailTimestamp < cutoffTime) {
+          // Find stale optimistic emails
+          emails.forEach((email, index) => {
+            if (optimisticEmailIds.has(email.id) && email.id.includes('optimistic-')) {
+              try {
+                const emailDate = new Date(email.date).getTime()
+                if (emailDate < cutoffTime) {
                   staleOptimisticIds.push(email.id)
                 }
+              } catch (error) {
+                // If date parsing fails, consider it stale
+                staleOptimisticIds.push(email.id)
               }
             }
           })
 
           // Remove stale optimistic emails
           if (staleOptimisticIds.length > 0) {
-            state.emailsByContact[contactEmail] = existingEmails.filter(email => !staleOptimisticIds.includes(email.id))
+            state.emailsByContact[contactEmail] = emails.filter(email => !staleOptimisticIds.includes(email.id))
 
+            // Update optimistic tracking
             staleOptimisticIds.forEach(id => {
-              if (state.optimisticEmails[contactEmail]) {
-                state.optimisticEmails[contactEmail].delete(id)
-              }
+              optimisticEmailIds.delete(id)
             })
 
-            if (state.optimisticEmails[contactEmail]?.size === 0) {
+            if (optimisticEmailIds.size === 0) {
               delete state.optimisticEmails[contactEmail]
             }
 
-            logger.info(
-              `[EmailsStore] Cleaned up ${staleOptimisticIds.length} stale optimistic emails for ${contactEmail}`,
-            )
+            if (process.env.NODE_ENV === 'development') {
+              logger.info(
+                `[EmailsStore] Cleaned up ${staleOptimisticIds.length} stale optimistic emails for ${contactEmail}`,
+                { removedIds: staleOptimisticIds, maxAgeMinutes },
+              )
+            }
           }
         })
       },
 
-      // ✅ NEW: Smart deduplication - remove optimistic emails when real ones arrive
+      // ✅ PERFORMANCE: Global cache cleanup to prevent memory leaks
+      performGlobalCleanup: () => {
+        set(state => {
+          const MAX_CONTACTS_IN_CACHE = 50
+          const MAX_EMAILS_PER_CONTACT = 200
+
+          // Get all contact emails sorted by last access time
+          const contactEntries = Object.entries(state.emailsByContact)
+          const lastSyncEntries = Object.entries(state.lastSyncAt)
+
+          // If we have too many contacts cached, remove oldest ones
+          if (contactEntries.length > MAX_CONTACTS_IN_CACHE) {
+            const sortedByLastSync = contactEntries.sort(([contactA], [contactB]) => {
+              const timeA = lastSyncEntries.find(([c]) => c === contactA)?.[1]?.getTime() || 0
+              const timeB = lastSyncEntries.find(([c]) => c === contactB)?.[1]?.getTime() || 0
+              return timeA - timeB // Oldest first
+            })
+
+            const contactsToRemove = sortedByLastSync
+              .slice(0, contactEntries.length - MAX_CONTACTS_IN_CACHE)
+              .map(([contact]) => contact)
+
+            contactsToRemove.forEach(contactEmail => {
+              delete state.emailsByContact[contactEmail]
+              delete state.paginationByContact[contactEmail]
+              delete state.loading.fetching[contactEmail]
+              delete state.loading.syncing[contactEmail]
+              delete state.loading.loadingMore[contactEmail]
+              delete state.errors.fetch[contactEmail]
+              delete state.errors.sync[contactEmail]
+              delete state.syncStatus[contactEmail]
+              delete state.lastSyncAt[contactEmail]
+              delete state.optimisticEmails[contactEmail]
+            })
+
+            if (process.env.NODE_ENV === 'development') {
+              logger.info(`[EmailsStore] Cleaned up ${contactsToRemove.length} old contacts from cache`)
+            }
+          }
+
+          // Limit emails per contact to prevent memory bloat
+          Object.entries(state.emailsByContact).forEach(([contactEmail, emails]) => {
+            if (emails.length > MAX_EMAILS_PER_CONTACT) {
+              // Keep most recent emails
+              const sortedEmails = [...emails].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              state.emailsByContact[contactEmail] = sortedEmails.slice(0, MAX_EMAILS_PER_CONTACT)
+
+              if (process.env.NODE_ENV === 'development') {
+                logger.info(
+                  `[EmailsStore] Trimmed ${emails.length - MAX_EMAILS_PER_CONTACT} old emails for ${contactEmail}`,
+                )
+              }
+            }
+          })
+
+          // Clean up all optimistic emails for cache management
+          Object.keys(state.optimisticEmails).forEach(contactEmail => {
+            get().cleanupStaleOptimisticEmails(contactEmail, 5) // 5 minutes max age
+          })
+        })
+      },
+
+      // ✅ PERFORMANCE: Smart cache preloading for frequently accessed contacts
+      preloadFrequentContacts: async () => {
+        const { currentUserId, lastSyncAt } = get()
+        if (!currentUserId) return
+
+        // Get contacts sorted by frequency of access (based on lastSyncAt)
+        const contactsByFrequency = Object.entries(lastSyncAt)
+          .sort(([, a], [, b]) => (b?.getTime() || 0) - (a?.getTime() || 0))
+          .slice(0, 10) // Top 10 most recent contacts
+          .map(([contact]) => contact)
+
+        // Preload first page of emails for these contacts if not already loaded
+        const preloadPromises = contactsByFrequency.map(async contactEmail => {
+          const emails = get().emailsByContact[contactEmail]
+          if (!emails || emails.length === 0) {
+            try {
+              await get().loadEmailsFromDatabase(contactEmail, 0, 10) // Load first 10 emails
+            } catch (error) {
+              // Silently fail preloading
+              if (process.env.NODE_ENV === 'development') {
+                logger.warn(`[EmailsStore] Failed to preload emails for ${contactEmail}:`, error)
+              }
+            }
+          }
+        })
+
+        await Promise.allSettled(preloadPromises)
+      },
+
       deduplicateEmails: (contactEmail: string) => {
         set(state => {
           const existingEmails = state.emailsByContact[contactEmail] || []
@@ -900,6 +1000,57 @@ const useEmailsStore = create<EmailsStore>()(
     })),
   ),
 )
+
+// ✅ PERFORMANCE: Global cache cleanup system
+let globalCleanupInterval: NodeJS.Timeout | null = null
+
+// Initialize automatic cleanup when first store instance is created
+const initializeGlobalCleanup = () => {
+  if (globalCleanupInterval) return
+
+  // Run cleanup every 5 minutes
+  globalCleanupInterval = setInterval(
+    () => {
+      try {
+        const store = useEmailsStore.getState()
+
+        // Only run cleanup if store is actively being used
+        if (store.isInitialized && Object.keys(store.emailsByContact).length > 0) {
+          store.performGlobalCleanup()
+
+          // Also preload frequent contacts if not too much memory usage
+          if (Object.keys(store.emailsByContact).length < 20) {
+            store.preloadFrequentContacts()
+          }
+        }
+      } catch (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[EmailsStore] Global cleanup error:', error)
+        }
+      }
+    },
+    5 * 60 * 1000,
+  ) // 5 minutes
+
+  // Cleanup on page unload
+  if (typeof window !== 'undefined') {
+    const cleanup = () => {
+      if (globalCleanupInterval) {
+        clearInterval(globalCleanupInterval)
+        globalCleanupInterval = null
+      }
+    }
+
+    window.addEventListener('beforeunload', cleanup)
+    window.addEventListener('pagehide', cleanup)
+  }
+}
+
+// Start cleanup system
+if (typeof window !== 'undefined') {
+  // Delay initialization to avoid blocking initial load
+  setTimeout(initializeGlobalCleanup, 2000)
+}
 
 /**
  * Custom hook to use the emails store
