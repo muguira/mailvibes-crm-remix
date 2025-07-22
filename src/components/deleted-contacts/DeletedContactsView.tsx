@@ -1,10 +1,5 @@
-import React, { useState } from 'react'
-import { useDeletedContacts } from '@/hooks/supabase/use-deleted-contacts'
-import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2, RefreshCw, Trash2, ArrowLeft, ExternalLink } from 'lucide-react'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   Dialog,
   DialogContent,
@@ -13,8 +8,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useNavigate } from 'react-router-dom'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { useDeletedContacts } from '@/hooks/supabase/use-deleted-contacts'
 import { toast } from '@/hooks/use-toast'
+import { format } from 'date-fns'
+import { ArrowLeft, ExternalLink, Loader2, RefreshCw, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export function DeletedContactsView() {
   const navigate = useNavigate()

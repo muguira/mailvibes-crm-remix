@@ -1,44 +1,94 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  TrendingUp,
-  TrendingDown,
-  Activity,
-  Clock,
-  MemoryStick,
-  Zap,
-  Download,
-  Play,
-  Square,
-  RotateCcw,
-  CheckCircle,
-  AlertTriangle,
-} from 'lucide-react'
 import { usePerformanceBenchmark } from '@/hooks/use-performance-benchmark'
 import { cn } from '@/lib/utils'
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Download,
+  MemoryStick,
+  Play,
+  RotateCcw,
+  Square,
+  TrendingDown,
+  TrendingUp,
+  Zap,
+} from 'lucide-react'
+import React, { useCallback, useEffect, useState } from 'react'
 
 interface PerformanceTestingDashboardProps {
   isVisible?: boolean
   onClose?: () => void
 }
 
+/**
+ * A comprehensive performance testing and monitoring dashboard for React components.
+ *
+ * This advanced debug tool provides real-time performance monitoring, automated testing
+ * scenarios, and detailed benchmarking capabilities for Phase 1 optimizations in the CRM.
+ * It's designed for development teams to validate performance improvements and track metrics.
+ *
+ * Features:
+ * - **Real-time Monitoring**: Live performance metrics with 1-second updates
+ * - **Automated Test Scenarios**: Pre-configured tests for different use cases
+ * - **Baseline vs Optimized Comparison**: Side-by-side performance analysis
+ * - **Export Capabilities**: CSV/JSON export of benchmark data
+ * - **Phase 1 Validation**: Specific tests for EditableLeadsGrid, MainGridView, StreamViewLayout
+ * - **Visual Performance Indicators**: Charts, trends, and improvement percentages
+ * - **Memory Usage Tracking**: Monitor memory consumption during tests
+ * - **Test Scenario Management**: Run, stop, and reset testing scenarios
+ *
+ * Test Scenarios Included:
+ * - Large dataset rendering (1000+ items)
+ * - Rapid user interactions simulation
+ * - Memory stress testing
+ * - Component mounting/unmounting cycles
+ *
+ * Metrics Tracked:
+ * - Render count and frequency
+ * - Average render time
+ * - Total execution time
+ * - Memory usage
+ * - Performance improvement percentages
+ *
+ * @example
+ * ```tsx
+ * // Include in development environment
+ * {process.env.NODE_ENV === 'development' && (
+ *   <PerformanceTestingDashboard
+ *     isVisible={showDashboard}
+ *     onClose={() => setShowDashboard(false)}
+ *   />
+ * )}
+ *
+ * // Or add as a route for dedicated testing
+ * <Route path="/debug/performance" element={<PerformanceTestingDashboard isVisible />} />
+ * ```
+ */
 export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardProps> = ({
   isVisible = false,
   onClose,
 }) => {
+  /** Whether performance testing is currently active */
   const [isTestingActive, setIsTestingActive] = useState(false)
+  /** Currently running test scenario identifier */
   const [currentTest, setCurrentTest] = useState<string | null>(null)
+  /** Array of completed test results and reports */
   const [testResults, setTestResults] = useState<any[]>([])
+  /** Real-time performance metrics updated every second during testing */
   const [liveMetrics, setLiveMetrics] = useState<Record<string, any>>({})
 
+  /**
+   * Performance benchmark hook providing all testing utilities
+   * Includes recording, comparison, reporting, and export functions
+   */
   const {
     recordBaseline,
     recordOptimized,
-    comparePerformance,
     generatePhase1Report,
     testScenarios,
     runAutomatedTests,
@@ -47,7 +97,10 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
     resetBenchmarks,
   } = usePerformanceBenchmark()
 
-  // Live metrics monitoring
+  /**
+   * Effect for live metrics monitoring during active testing
+   * Updates metrics every second to provide real-time feedback
+   */
   useEffect(() => {
     if (!isTestingActive) return
 
@@ -59,6 +112,10 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
     return () => clearInterval(interval)
   }, [isTestingActive, getCurrentMetrics])
 
+  /**
+   * Initiates performance testing session
+   * Resets previous results and prepares automated test scenarios
+   */
   const handleStartTesting = useCallback(async () => {
     setIsTestingActive(true)
     setTestResults([])
@@ -68,15 +125,23 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
     console.log('🧪 Testing scenarios prepared:', scenarios)
   }, [runAutomatedTests, resetBenchmarks])
 
+  /**
+   * Stops active testing session and generates final performance report
+   * Includes all metrics collected during the testing period
+   */
   const handleStopTesting = useCallback(() => {
     setIsTestingActive(false)
     setCurrentTest(null)
 
-    // Generate final report
+    // Generate final report with all collected metrics
     const report = generatePhase1Report()
     setTestResults(prev => [...prev, report])
   }, [generatePhase1Report])
 
+  /**
+   * Resets all testing data and metrics to start fresh
+   * Clears benchmarks, results, live metrics, and current test state
+   */
   const handleResetTests = useCallback(() => {
     resetBenchmarks()
     setTestResults([])
@@ -84,11 +149,21 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
     setCurrentTest(null)
   }, [resetBenchmarks])
 
+  /**
+   * Exports all benchmark data to downloadable format
+   * Includes CSV/JSON export of performance metrics and comparisons
+   */
   const handleExportResults = useCallback(() => {
     exportBenchmarkData()
   }, [exportBenchmarkData])
 
-  // Simulate recording test metrics (would be called by components during testing)
+  /**
+   * Simulates component performance metrics for testing purposes
+   * Generates realistic performance data for baseline and optimized scenarios
+   *
+   * @param componentName - Name of the component being tested
+   * @param isOptimized - Whether to simulate optimized or baseline performance
+   */
   const simulateTestMetrics = useCallback(
     (componentName: string, isOptimized: boolean) => {
       const renderCount = Math.floor(Math.random() * 100) + 50
@@ -106,6 +181,11 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
     [recordBaseline, recordOptimized],
   )
 
+  /**
+   * Gets CSS color class based on performance improvement percentage
+   * @param value - Performance improvement percentage
+   * @returns CSS class for color styling
+   */
   const getImprovementColor = (value: number) => {
     if (value > 30) return 'text-green-600'
     if (value > 15) return 'text-yellow-600'
@@ -113,16 +193,23 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
     return 'text-red-600'
   }
 
+  /**
+   * Gets appropriate trend icon based on performance change
+   * @param value - Performance improvement value
+   * @returns React icon component
+   */
   const getImprovementIcon = (value: number) => {
     if (value > 0) return <TrendingUp className="w-4 h-4" />
     return <TrendingDown className="w-4 h-4" />
   }
 
+  // Early return if dashboard is not visible
   if (!isVisible) return null
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+        {/* Dashboard Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <div>
             <h2 className="text-xl font-semibold">Performance Testing Dashboard</h2>
@@ -138,8 +225,10 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
           </div>
         </div>
 
+        {/* Dashboard Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-100px)]">
           <Tabs defaultValue="overview" className="w-full">
+            {/* Tab Navigation */}
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="scenarios">Test Scenarios</TabsTrigger>
@@ -147,8 +236,10 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
               <TabsTrigger value="live">Live Metrics</TabsTrigger>
             </TabsList>
 
+            {/* Overview Tab - Project status and optimization summary */}
             <TabsContent value="overview" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Phase 1 Status Card */}
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Phase 1 Status</CardTitle>
@@ -160,6 +251,7 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
                   </CardContent>
                 </Card>
 
+                {/* Expected Improvement Card */}
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Expected Improvement</CardTitle>
@@ -171,6 +263,7 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
                   </CardContent>
                 </Card>
 
+                {/* Test Coverage Card */}
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Test Coverage</CardTitle>
@@ -183,6 +276,7 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
                 </Card>
               </div>
 
+              {/* Optimization Summary Card */}
               <Card>
                 <CardHeader>
                   <CardTitle>Optimization Summary</CardTitle>
@@ -232,9 +326,11 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
               </Card>
             </TabsContent>
 
+            {/* Test Scenarios Tab - Configure and run performance tests */}
             <TabsContent value="scenarios" className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium">Test Scenarios</h3>
+                {/* Test Control Buttons */}
                 <div className="flex gap-2">
                   <Button onClick={handleStartTesting} disabled={isTestingActive} className="flex items-center gap-2">
                     <Play className="w-4 h-4" />
@@ -350,6 +446,7 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
               </Card>
             </TabsContent>
 
+            {/* Results Tab - Display completed test results and comparisons */}
             <TabsContent value="results" className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium">Test Results</h3>
@@ -422,11 +519,13 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
               )}
             </TabsContent>
 
+            {/* Live Metrics Tab - Real-time performance monitoring */}
             <TabsContent value="live" className="space-y-4">
               <h3 className="text-lg font-medium">Live Performance Metrics</h3>
 
               {isTestingActive ? (
                 <div className="space-y-4">
+                  {/* Active Testing Indicator */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
@@ -442,6 +541,7 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
                     </CardContent>
                   </Card>
 
+                  {/* Real-time Metrics Cards */}
                   {Object.entries(liveMetrics).map(([key, metrics]: [string, any]) => (
                     <Card key={key}>
                       <CardHeader>

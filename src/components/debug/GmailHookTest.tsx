@@ -1,39 +1,77 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react'
-import { useGmail } from '@/hooks/gmail'
 import { useAuth } from '@/components/auth'
+import { useGmail } from '@/hooks/gmail'
+import React, { useMemo, useRef, useState } from 'react'
 
 /**
- * Test component to verify Gmail hooks don't cause infinite loops
- * This should be temporarily added to a safe route for testing
+ * A comprehensive test component for debugging and validating Gmail hooks performance.
+ *
+ * This debug component is designed to detect and prevent infinite loops in Gmail hooks,
+ * monitor render performance, and provide manual testing controls for Gmail integration.
+ * It's specifically built for development and testing environments.
+ *
+ * Features:
+ * - Infinite loop detection with render count monitoring
+ * - Manual testing controls for Gmail operations
+ * - Live performance metrics display
+ * - Auto-initialize testing capabilities
+ * - Console logging for debugging
+ * - Visual warnings for high render counts
+ * - Hook options memoization to prevent unnecessary re-renders
+ *
+ * Test Scenarios:
+ * - Manual account loading test
+ * - Auto-initialize behavior validation
+ * - Render count monitoring (should stay under 50)
+ * - Hook stability verification
+ *
+ * @example
+ * ```tsx
+ * // Add to a development route for testing
+ * <Route path="/debug/gmail" component={GmailHookTest} />
+ *
+ * // Or include temporarily in app for debugging
+ * {process.env.NODE_ENV === 'development' && <GmailHookTest />}
+ * ```
  */
 export const GmailHookTest: React.FC = () => {
+  /** Current authenticated user from auth context */
   const { user } = useAuth()
+  /** Whether manual testing has been initiated */
   const [testStarted, setTestStarted] = useState(false)
 
-  // Use useRef to count renders without causing re-renders
+  /**
+   * Ref to track render count without causing re-renders
+   * Used to detect potential infinite loops (threshold: 50 renders)
+   */
   const renderCountRef = useRef(0)
   renderCountRef.current += 1
 
-  // Memoize Gmail hook options to prevent recreating the object
+  /**
+   * Memoized Gmail hook options to prevent object recreation
+   * Prevents unnecessary re-renders by maintaining reference equality
+   */
   const gmailOptions = useMemo(
     () => ({
       userId: user?.id,
-      autoInitialize: false, // Start with disabled
+      autoInitialize: false, // Start with disabled to test manual control
       enableLogging: true,
     }),
     [user?.id],
   )
 
-  // Test useGmail hook with autoInitialize disabled
+  /** Gmail hook instance being tested for stability and performance */
   const gmail = useGmail(gmailOptions)
 
-  // Manual test controls
+  /**
+   * Initiates manual testing of Gmail hook operations
+   * Tests the loadAccounts function for stability and error handling
+   */
   const startTest = async () => {
     setTestStarted(true)
     console.log('🧪 Starting Gmail hook test...')
 
     try {
-      // Try to load accounts manually
+      // Try to load accounts manually to test hook stability
       await gmail.loadAccounts()
       console.log('✅ loadAccounts completed without loops')
     } catch (error) {
@@ -41,6 +79,11 @@ export const GmailHookTest: React.FC = () => {
     }
   }
 
+  /**
+   * Tests auto-initialize behavior by reloading the page
+   * This simulates component re-mounting with autoInitialize: true
+   * TODO: Replace with proper re-mounting test in future iterations
+   */
   const testAutoInitialize = () => {
     console.log('🧪 Testing with autoInitialize...')
     // This would require re-mounting the component with autoInitialize: true
