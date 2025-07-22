@@ -1,24 +1,55 @@
-import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Loader2, ThumbsUp, ThumbsDown, MessageSquare, Send, Sparkles } from 'lucide-react'
-import { useEmailAI } from '@/hooks/useEmailAI' // ✅ RE-ENABLED with optimized hook
 import { TimelineActivity } from '@/hooks/use-timeline-activities-v2'
-import { ContactInfo } from '@/services/ai'
-import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
+import { useEmailAI } from '@/hooks/useEmailAI'
+import { cn } from '@/lib/utils'
+import { ContactInfo } from '@/services/ai'
+import { Loader2, MessageSquare, Send, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react'
+import React, { useState } from 'react'
 
+/**
+ * Props for the AIReplyButtons component
+ */
 interface AIReplyButtonsProps {
+  /** The original email activity that needs a reply */
   originalEmail: TimelineActivity
+  /** Optional conversation history for better context-aware replies */
   conversationHistory?: TimelineActivity[]
+  /** Contact information to personalize the AI-generated reply */
   contactInfo: ContactInfo
+  /** Callback fired when AI generates a reply successfully */
   onReplyGenerated: (replyContent: string) => void
+  /** Additional CSS classes to apply to the component */
   className?: string
+  /** Whether the reply buttons should be disabled */
   disabled?: boolean
 }
 
+/**
+ * A React component that provides AI-powered email reply generation with multiple response types.
+ *
+ * Features:
+ * - Three types of replies: Positive, Negative, and Custom
+ * - Context-aware generation using conversation history and contact info
+ * - Loading states and error handling
+ * - Customizable prompts through dialog interface
+ * - Toast notifications for user feedback
+ * - Accessibility features and keyboard navigation
+ *
+ * @example
+ * ```tsx
+ * <AIReplyButtons
+ *   originalEmail={emailActivity}
+ *   conversationHistory={previousEmails}
+ *   contactInfo={contact}
+ *   onReplyGenerated={(reply) => setReplyContent(reply)}
+ *   disabled={false}
+ * />
+ * ```
+ */
 export const AIReplyButtons: React.FC<AIReplyButtonsProps> = ({
   originalEmail,
   conversationHistory = [],
@@ -27,16 +58,23 @@ export const AIReplyButtons: React.FC<AIReplyButtonsProps> = ({
   className,
   disabled = false,
 }) => {
+  /** State to track which type of reply is currently being generated */
   const [generatingType, setGeneratingType] = useState<'positive' | 'negative' | 'custom' | null>(null)
+  /** State to control the visibility of the custom prompt modal */
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false)
+  /** State to store the user's custom prompt input */
   const [customPrompt, setCustomPrompt] = useState('')
 
   // ✅ RE-ENABLED: Using optimized useEmailAI hook
   const { generatePositiveReply, generateNegativeReply, generateCustomReply, isConfigured, initializationError } =
     useEmailAI({
-      showToasts: false, // We'll handle toasts manually
+      showToasts: false, // We'll handle toasts manually for better control
     })
 
+  /**
+   * Determines if the reply buttons should be disabled and provides a reason
+   * @returns String with disabled reason or null if buttons should be enabled
+   */
   const getDisabledReason = (): string | null => {
     if (!originalEmail) return 'No email selected'
     if (initializationError) return `AI initialization failed: ${initializationError.message}`
@@ -46,6 +84,10 @@ export const AIReplyButtons: React.FC<AIReplyButtonsProps> = ({
     return null
   }
 
+  /**
+   * Handles generation of a positive/agreeable email reply
+   * Uses AI to create an affirmative response based on the original email context
+   */
   const handlePositiveReply = async () => {
     const disabledReason = getDisabledReason()
     if (disabledReason) {
@@ -85,6 +127,10 @@ export const AIReplyButtons: React.FC<AIReplyButtonsProps> = ({
     }
   }
 
+  /**
+   * Handles generation of a negative/declining email reply
+   * Uses AI to create a polite but declining response based on the original email context
+   */
   const handleNegativeReply = async () => {
     const disabledReason = getDisabledReason()
     if (disabledReason) {
@@ -124,6 +170,10 @@ export const AIReplyButtons: React.FC<AIReplyButtonsProps> = ({
     }
   }
 
+  /**
+   * Handles generation of a custom email reply based on user's specific prompt
+   * Validates prompt input and uses AI to create a response following the custom instructions
+   */
   const handleCustomReply = async () => {
     if (!customPrompt.trim()) {
       toast({
@@ -174,11 +224,12 @@ export const AIReplyButtons: React.FC<AIReplyButtonsProps> = ({
     }
   }
 
+  /** Computed state indicating if any reply type is currently being generated */
   const isGenerating = generatingType !== null
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      {/* Positive Reply Button */}
+      {/* Positive Reply Button - Generates agreeable/affirmative responses */}
       <button
         className={cn(
           'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
@@ -194,7 +245,7 @@ export const AIReplyButtons: React.FC<AIReplyButtonsProps> = ({
         <span className="ml-1 text-xs">Positive</span>
       </button>
 
-      {/* Negative Reply Button */}
+      {/* Negative Reply Button - Generates polite declining responses */}
       <button
         className={cn(
           'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
@@ -210,7 +261,7 @@ export const AIReplyButtons: React.FC<AIReplyButtonsProps> = ({
         <span className="ml-1 text-xs">Negative</span>
       </button>
 
-      {/* Custom Prompt Button */}
+      {/* Custom Prompt Button - Opens dialog for user-defined reply instructions */}
       <Dialog open={isCustomModalOpen} onOpenChange={setIsCustomModalOpen}>
         <DialogTrigger asChild>
           <Button
@@ -284,7 +335,7 @@ export const AIReplyButtons: React.FC<AIReplyButtonsProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Status indicator for non-configured state */}
+      {/* Status indicator - Shows when AI is not properly configured */}
       {!isConfigured && (
         <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-yellow-50 text-yellow-700 border-yellow-200">
           <span className="text-xs">AI Not Configured</span>

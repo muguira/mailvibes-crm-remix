@@ -1,13 +1,13 @@
-import React, { useState } from 'react'
+import { markdownToHtml } from '@/components/markdown/utils/markdownConverter'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Loader2, FileText, Sparkles, Copy, Check } from 'lucide-react'
-import { useEmailAI } from '@/hooks/useEmailAI' // ✅ RE-ENABLED with optimized hook
 import { TimelineActivity } from '@/hooks/use-timeline-activities-v2'
-import { ContactInfo } from '@/services/ai'
-import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
-import { markdownToHtml } from '@/components/markdown/utils/markdownConverter'
+import { useEmailAI } from '@/hooks/useEmailAI'
+import { cn } from '@/lib/utils'
+import { ContactInfo } from '@/services/ai'
+import { Check, Copy, FileText, Loader2, Sparkles } from 'lucide-react'
+import React, { useState } from 'react'
 
 interface EmailSummaryButtonProps {
   emails: TimelineActivity[]
@@ -17,6 +17,37 @@ interface EmailSummaryButtonProps {
   disabled?: boolean
 }
 
+/**
+ * A React component that provides AI-powered email conversation summarization.
+ *
+ * Features:
+ * - Generates intelligent summaries of email threads using AI
+ * - Two visual variants: button style or link style
+ * - Modal dialog interface for displaying summaries
+ * - Caching of generated summaries for performance
+ * - Copy to clipboard functionality
+ * - Loading states and error handling
+ * - Markdown rendering support for formatted summaries
+ * - Toast notifications for user feedback
+ * - Accessibility features and proper ARIA attributes
+ *
+ * @example
+ * ```tsx
+ * // Button variant
+ * <EmailSummaryButton
+ *   emails={conversationEmails}
+ *   contactInfo={contact}
+ *   variant="button"
+ * />
+ *
+ * // Link variant (default)
+ * <EmailSummaryButton
+ *   emails={emailThread}
+ *   contactInfo={contactData}
+ *   className="custom-style"
+ * />
+ * ```
+ */
 export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
   emails,
   contactInfo,
@@ -24,16 +55,24 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
   variant = 'link',
   disabled = false,
 }) => {
+  /** State to control the visibility of the summary modal dialog */
   const [isOpen, setIsOpen] = useState(false)
+  /** State to track if the summary has been copied to clipboard (for UI feedback) */
   const [copied, setCopied] = useState(false)
+  /** State to store the generated summary content (cached for performance) */
   const [summaryData, setSummaryData] = useState<string | null>(null)
+  /** State to track if a summary is currently being generated */
   const [isGenerating, setIsGenerating] = useState(false)
 
-  // ✅ RE-ENABLED: Using optimized useEmailAI hook
+  // ✅ RE-ENABLED: Using optimized useEmailAI hook for summary generation
   const { summarizeThread, isConfigured, initializationError } = useEmailAI({
     showToasts: false, // We'll handle toasts manually for better control
   })
 
+  /**
+   * Determines if the summary button should be disabled and provides a user-friendly reason
+   * @returns String with disabled reason or null if button should be enabled
+   */
   const getDisabledReason = (): string | null => {
     if (emails.length === 0) return 'No emails to summarize'
     if (initializationError) return `AI initialization failed: ${initializationError.message}`
@@ -43,6 +82,10 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
     return null
   }
 
+  /**
+   * Handles the email thread summarization process
+   * Validates prerequisites, calls AI service, manages loading states, and handles success/error cases
+   */
   const handleSummarize = async () => {
     const disabledReason = getDisabledReason()
     if (disabledReason) {
@@ -65,6 +108,7 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
           description: 'AI has created a summary of the email thread.',
         })
 
+        // Auto-open dialog if not already open
         if (!isOpen) {
           setIsOpen(true)
         }
@@ -87,6 +131,10 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
     }
   }
 
+  /**
+   * Copies the generated summary to the user's clipboard
+   * Provides visual feedback and handles potential clipboard API failures
+   */
   const copyToClipboard = async () => {
     if (!summaryData) return
 
@@ -98,6 +146,7 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
         description: 'Summary copied to clipboard.',
       })
 
+      // Reset copied state after 2 seconds for UI feedback
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
       toast({
@@ -108,9 +157,15 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
     }
   }
 
+  /** Current disabled reason if any, or null if button should be enabled */
   const disabledReason = getDisabledReason()
+  /** Boolean indicating if the button should be disabled */
   const isDisabled = !!disabledReason
 
+  /**
+   * Trigger button component that varies based on the 'variant' prop
+   * Renders either as a Button component or a styled button element
+   */
   const triggerButton =
     variant === 'button' ? (
       <Button
@@ -149,11 +204,13 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-blue-600" />
             Email Conversation Summary
+            {/* Show cache indicator when summary is already generated */}
             {summaryData && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Cached</span>}
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto">
+          {/* Loading state - Show while AI is generating summary */}
           {isGenerating ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
@@ -165,8 +222,9 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
               </div>
             </div>
           ) : summaryData ? (
+            /* Summary display state - Show generated content with actions */
             <div className="space-y-4">
-              {/* Summary content */}
+              {/* Summary content - Rendered as HTML from markdown */}
               <div className="prose prose-sm max-w-none">
                 <div
                   className="text-gray-800 leading-relaxed"
@@ -176,7 +234,7 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
                 />
               </div>
 
-              {/* Metadata */}
+              {/* Metadata section - Shows email count, contact info, and generation source */}
               <div className="border-t pt-4 text-xs text-gray-500 space-y-1">
                 <div className="flex justify-between items-center">
                   <span>
@@ -189,7 +247,7 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
                 </div>
               </div>
 
-              {/* Actions */}
+              {/* Action buttons - Copy to clipboard */}
               <div className="flex justify-end pt-2 border-t">
                 <Button onClick={copyToClipboard} variant="outline" size="sm" className="text-xs">
                   {copied ? (
@@ -207,6 +265,7 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
               </div>
             </div>
           ) : (
+            /* Empty state - Show when no summary has been generated yet */
             <div className="py-8 text-center text-gray-500">
               <FileText className="w-12 h-12 mx-auto opacity-30 mb-4" />
               <p className="text-sm">Click "Summarize" to generate an AI summary of this conversation</p>
