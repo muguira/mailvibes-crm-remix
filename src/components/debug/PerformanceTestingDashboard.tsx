@@ -1,40 +1,40 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Activity, 
-  Clock, 
-  MemoryStick, 
+import React, { useState, useEffect, useCallback } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  Clock,
+  MemoryStick,
   Zap,
   Download,
   Play,
   Square,
   RotateCcw,
   CheckCircle,
-  AlertTriangle
-} from 'lucide-react';
-import { usePerformanceBenchmark } from '@/hooks/use-performance-benchmark';
-import { cn } from '@/lib/utils';
+  AlertTriangle,
+} from 'lucide-react'
+import { usePerformanceBenchmark } from '@/hooks/use-performance-benchmark'
+import { cn } from '@/lib/utils'
 
 interface PerformanceTestingDashboardProps {
-  isVisible?: boolean;
-  onClose?: () => void;
+  isVisible?: boolean
+  onClose?: () => void
 }
 
 export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardProps> = ({
   isVisible = false,
-  onClose
+  onClose,
 }) => {
-  const [isTestingActive, setIsTestingActive] = useState(false);
-  const [currentTest, setCurrentTest] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<any[]>([]);
-  const [liveMetrics, setLiveMetrics] = useState<Record<string, any>>({});
-  
+  const [isTestingActive, setIsTestingActive] = useState(false)
+  const [currentTest, setCurrentTest] = useState<string | null>(null)
+  const [testResults, setTestResults] = useState<any[]>([])
+  const [liveMetrics, setLiveMetrics] = useState<Record<string, any>>({})
+
   const {
     recordBaseline,
     recordOptimized,
@@ -44,80 +44,81 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
     runAutomatedTests,
     exportBenchmarkData,
     getCurrentMetrics,
-    resetBenchmarks
-  } = usePerformanceBenchmark();
+    resetBenchmarks,
+  } = usePerformanceBenchmark()
 
   // Live metrics monitoring
   useEffect(() => {
-    if (!isTestingActive) return;
+    if (!isTestingActive) return
 
     const interval = setInterval(() => {
-      const metrics = getCurrentMetrics();
-      setLiveMetrics(metrics);
-    }, 1000);
+      const metrics = getCurrentMetrics()
+      setLiveMetrics(metrics)
+    }, 1000)
 
-    return () => clearInterval(interval);
-  }, [isTestingActive, getCurrentMetrics]);
+    return () => clearInterval(interval)
+  }, [isTestingActive, getCurrentMetrics])
 
   const handleStartTesting = useCallback(async () => {
-    setIsTestingActive(true);
-    setTestResults([]);
-    resetBenchmarks();
-    
-    const scenarios = await runAutomatedTests();
-    console.log('🧪 Testing scenarios prepared:', scenarios);
-  }, [runAutomatedTests, resetBenchmarks]);
+    setIsTestingActive(true)
+    setTestResults([])
+    resetBenchmarks()
+
+    const scenarios = await runAutomatedTests()
+    console.log('🧪 Testing scenarios prepared:', scenarios)
+  }, [runAutomatedTests, resetBenchmarks])
 
   const handleStopTesting = useCallback(() => {
-    setIsTestingActive(false);
-    setCurrentTest(null);
-    
+    setIsTestingActive(false)
+    setCurrentTest(null)
+
     // Generate final report
-    const report = generatePhase1Report();
-    setTestResults(prev => [...prev, report]);
-  }, [generatePhase1Report]);
+    const report = generatePhase1Report()
+    setTestResults(prev => [...prev, report])
+  }, [generatePhase1Report])
 
   const handleResetTests = useCallback(() => {
-    resetBenchmarks();
-    setTestResults([]);
-    setLiveMetrics({});
-    setCurrentTest(null);
-  }, [resetBenchmarks]);
+    resetBenchmarks()
+    setTestResults([])
+    setLiveMetrics({})
+    setCurrentTest(null)
+  }, [resetBenchmarks])
 
   const handleExportResults = useCallback(() => {
-    exportBenchmarkData();
-  }, [exportBenchmarkData]);
+    exportBenchmarkData()
+  }, [exportBenchmarkData])
 
   // Simulate recording test metrics (would be called by components during testing)
-  const simulateTestMetrics = useCallback((componentName: string, isOptimized: boolean) => {
-    const renderCount = Math.floor(Math.random() * 100) + 50;
-    const totalTime = Math.random() * 1000 + 200;
-    const optimizations = isOptimized ? [
-      'useCallback optimization',
-      'useMemo optimization', 
-      'React.memo wrapper'
-    ] : ['baseline'];
+  const simulateTestMetrics = useCallback(
+    (componentName: string, isOptimized: boolean) => {
+      const renderCount = Math.floor(Math.random() * 100) + 50
+      const totalTime = Math.random() * 1000 + 200
+      const optimizations = isOptimized
+        ? ['useCallback optimization', 'useMemo optimization', 'React.memo wrapper']
+        : ['baseline']
 
-    if (isOptimized) {
-      recordOptimized(componentName, renderCount, totalTime, optimizations);
-    } else {
-      recordBaseline(componentName, renderCount, totalTime);
-    }
-  }, [recordBaseline, recordOptimized]);
+      if (isOptimized) {
+        recordOptimized(componentName, renderCount, totalTime, optimizations)
+      } else {
+        recordBaseline(componentName, renderCount, totalTime)
+      }
+    },
+    [recordBaseline, recordOptimized],
+  )
 
   const getImprovementColor = (value: number) => {
-    if (value > 30) return 'text-green-600';
-    if (value > 15) return 'text-yellow-600';
-    if (value > 0) return 'text-blue-600';
-    return 'text-red-600';
-  };
+    if (value > 30) return 'text-green-600'
+    if (value > 15) return 'text-yellow-600'
+    if (value > 0) return 'text-blue-600'
+    return 'text-red-600'
+  }
 
   const getImprovementIcon = (value: number) => {
-    if (value > 0) return <TrendingUp className="w-4 h-4" />;
-    return <TrendingDown className="w-4 h-4" />;
-  };
+    if (value > 0) return <TrendingUp className="w-4 h-4" />
+    return <TrendingDown className="w-4 h-4" />
+  }
 
-  if (!isVisible) return null;
+  if (!isVisible) return null
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -128,10 +129,12 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
             <p className="text-sm text-gray-500">Phase 1 Optimization Validation</p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={isTestingActive ? "destructive" : "secondary"}>
-              {isTestingActive ? "Testing Active" : "Ready"}
+            <Badge variant={isTestingActive ? 'destructive' : 'secondary'}>
+              {isTestingActive ? 'Testing Active' : 'Ready'}
             </Badge>
-            <Button variant="ghost" size="sm" onClick={onClose}>×</Button>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              ×
+            </Button>
           </div>
         </div>
 
@@ -191,26 +194,26 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
                       name: 'EditableLeadsGrid',
                       optimizations: ['useCallback handlers', 'useMemo renderNameLink', 'Performance monitoring'],
                       expectedImprovement: '40-60%',
-                      status: 'completed'
+                      status: 'completed',
                     },
                     {
-                      name: 'MainGridView', 
+                      name: 'MainGridView',
                       optimizations: ['React.memo Cell', 'Memoized formatters', 'useCallback handlers'],
                       expectedImprovement: '35-50%',
-                      status: 'completed'
+                      status: 'completed',
                     },
                     {
                       name: 'StreamViewLayout',
                       optimizations: ['useMemo activities', 'Optimized contact handling', 'Event handler optimization'],
                       expectedImprovement: '30-45%',
-                      status: 'completed'
-                    }
-                  ].map((component) => (
+                      status: 'completed',
+                    },
+                  ].map(component => (
                     <div key={component.name} className="flex items-start justify-between p-4 border rounded-lg">
                       <div>
                         <h4 className="font-medium">{component.name}</h4>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {component.optimizations.map((opt) => (
+                          {component.optimizations.map(opt => (
                             <Badge key={opt} variant="outline" className="text-xs">
                               {opt}
                             </Badge>
@@ -218,9 +221,7 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-medium text-green-600">
-                          {component.expectedImprovement}
-                        </div>
+                        <div className="text-sm font-medium text-green-600">{component.expectedImprovement}</div>
                         <Badge variant="default" className="mt-1">
                           {component.status}
                         </Badge>
@@ -235,15 +236,11 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium">Test Scenarios</h3>
                 <div className="flex gap-2">
-                  <Button 
-                    onClick={handleStartTesting}
-                    disabled={isTestingActive}
-                    className="flex items-center gap-2"
-                  >
+                  <Button onClick={handleStartTesting} disabled={isTestingActive} className="flex items-center gap-2">
                     <Play className="w-4 h-4" />
                     Start Testing
                   </Button>
-                  <Button 
+                  <Button
                     onClick={handleStopTesting}
                     disabled={!isTestingActive}
                     variant="destructive"
@@ -252,11 +249,7 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
                     <Square className="w-4 h-4" />
                     Stop Testing
                   </Button>
-                  <Button 
-                    onClick={handleResetTests}
-                    variant="outline"
-                    className="flex items-center gap-2"
-                  >
+                  <Button onClick={handleResetTests} variant="outline" className="flex items-center gap-2">
                     <RotateCcw className="w-4 h-4" />
                     Reset
                   </Button>
@@ -265,15 +258,15 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
 
               <div className="grid gap-4">
                 {Object.entries(testScenarios).map(([key, scenario]) => (
-                  <Card key={key} className={cn(
-                    "cursor-pointer transition-colors",
-                    currentTest === key && "ring-2 ring-blue-500"
-                  )}>
+                  <Card
+                    key={key}
+                    className={cn('cursor-pointer transition-colors', currentTest === key && 'ring-2 ring-blue-500')}
+                  >
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-base">{scenario.name}</CardTitle>
-                        <Badge variant={currentTest === key ? "default" : "secondary"}>
-                          {currentTest === key ? "Active" : "Ready"}
+                        <Badge variant={currentTest === key ? 'default' : 'secondary'}>
+                          {currentTest === key ? 'Active' : 'Ready'}
                         </Badge>
                       </div>
                       <CardDescription>{scenario.description}</CardDescription>
@@ -293,11 +286,7 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
                           <div>{scenario.expectedImprovement.renderTime}% faster</div>
                         </div>
                         <div className="flex justify-end">
-                          <Button 
-                            size="sm" 
-                            onClick={() => setCurrentTest(key)}
-                            disabled={!isTestingActive}
-                          >
+                          <Button size="sm" onClick={() => setCurrentTest(key)} disabled={!isTestingActive}>
                             Run Test
                           </Button>
                         </div>
@@ -314,43 +303,43 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="grid grid-cols-2 gap-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => simulateTestMetrics('EditableLeadsGrid', false)}
                       disabled={isTestingActive}
                     >
                       Record Grid Baseline
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => simulateTestMetrics('EditableLeadsGrid', true)}
                       disabled={isTestingActive}
                     >
                       Record Grid Optimized
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => simulateTestMetrics('MainGridView', false)}
                       disabled={isTestingActive}
                     >
                       Record MainGrid Baseline
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => simulateTestMetrics('MainGridView', true)}
                       disabled={isTestingActive}
                     >
                       Record MainGrid Optimized
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => simulateTestMetrics('StreamViewLayout', false)}
                       disabled={isTestingActive}
                     >
                       Record Stream Baseline
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => simulateTestMetrics('StreamViewLayout', true)}
                       disabled={isTestingActive}
                     >
@@ -364,10 +353,7 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
             <TabsContent value="results" className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium">Test Results</h3>
-                <Button 
-                  onClick={handleExportResults}
-                  className="flex items-center gap-2"
-                >
+                <Button onClick={handleExportResults} className="flex items-center gap-2">
                   <Download className="w-4 h-4" />
                   Export Results
                 </Button>
@@ -384,16 +370,16 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
               ) : (
                 <div className="space-y-4">
                   {Object.entries(getCurrentMetrics()).map(([key, metrics]: [string, any]) => {
-                    const componentName = key.split('_')[0];
-                    const isOptimized = key.includes('optimized');
-                    
+                    const componentName = key.split('_')[0]
+                    const isOptimized = key.includes('optimized')
+
                     return (
                       <Card key={key}>
                         <CardHeader>
                           <CardTitle className="flex items-center gap-2">
                             {componentName}
-                            <Badge variant={isOptimized ? "default" : "secondary"}>
-                              {isOptimized ? "Optimized" : "Baseline"}
+                            <Badge variant={isOptimized ? 'default' : 'secondary'}>
+                              {isOptimized ? 'Optimized' : 'Baseline'}
                             </Badge>
                           </CardTitle>
                         </CardHeader>
@@ -430,7 +416,7 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
                           </div>
                         </CardContent>
                       </Card>
-                    );
+                    )
                   })}
                 </div>
               )}
@@ -438,7 +424,7 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
 
             <TabsContent value="live" className="space-y-4">
               <h3 className="text-lg font-medium">Live Performance Metrics</h3>
-              
+
               {isTestingActive ? (
                 <div className="space-y-4">
                   <Card>
@@ -450,12 +436,12 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
                     </CardHeader>
                     <CardContent>
                       <div className="text-sm text-gray-600">
-                        Monitor your components in real-time as you interact with them.
-                        Check the browser console for detailed performance logs.
+                        Monitor your components in real-time as you interact with them. Check the browser console for
+                        detailed performance logs.
                       </div>
                     </CardContent>
                   </Card>
-                  
+
                   {Object.entries(liveMetrics).map(([key, metrics]: [string, any]) => (
                     <Card key={key}>
                       <CardHeader>
@@ -490,7 +476,7 @@ export const PerformanceTestingDashboard: React.FC<PerformanceTestingDashboardPr
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default PerformanceTestingDashboard; 
+export default PerformanceTestingDashboard

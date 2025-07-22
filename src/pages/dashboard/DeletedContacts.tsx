@@ -1,6 +1,6 @@
-import { DeletedContactsView } from '@/components/deleted-contacts/DeletedContactsView';
-import { TopNavbar } from "@/components/layout/top-navbar";
-import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
+import { DeletedContactsView } from '@/components/deleted-contacts/DeletedContactsView'
+import { TopNavbar } from '@/components/layout/top-navbar'
+import { ErrorBoundary } from '@/components/error-boundary/ErrorBoundary'
 
 export default function DeletedContactsPage() {
   return (
@@ -12,5 +12,5 @@ export default function DeletedContactsPage() {
         </div>
       </div>
     </ErrorBoundary>
-  );
+  )
 }

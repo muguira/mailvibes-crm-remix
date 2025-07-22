@@ -1,25 +1,24 @@
-
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { CustomButton } from "@/components/ui/custom-button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChangeRecord } from "@/hooks/supabase";
-import { format } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { CustomButton } from '@/components/ui/custom-button'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { ChangeRecord } from '@/hooks/supabase'
+import { format } from 'date-fns'
 
 interface HistoryDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  changes: ChangeRecord[];
+  isOpen: boolean
+  onClose: () => void
+  changes: ChangeRecord[]
 }
 
 export function HistoryDialog({ isOpen, onClose, changes }: HistoryDialogProps) {
   // Format a date string for display
   const formatDate = (dateString: string) => {
     try {
-      return format(new Date(dateString), 'MMM d, h:mm a');
+      return format(new Date(dateString), 'MMM d, h:mm a')
     } catch (e) {
-      return 'Invalid date';
+      return 'Invalid date'
     }
-  };
+  }
 
   // Get initials from name
   const getInitials = (name: string) => {
@@ -28,8 +27,8 @@ export function HistoryDialog({ isOpen, onClose, changes }: HistoryDialogProps) 
       .map(part => part[0])
       .join('')
       .toUpperCase()
-      .slice(0, 2);
-  };
+      .slice(0, 2)
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -49,9 +48,7 @@ export function HistoryDialog({ isOpen, onClose, changes }: HistoryDialogProps) 
                       <AvatarFallback>{getInitials(change.user_name || '')}</AvatarFallback>
                     </Avatar>
                     <span className="font-medium">{change.user_name || 'Unknown User'}</span>
-                    <span className="text-xs text-slate-500">
-                      {formatDate(change.changed_at)}
-                    </span>
+                    <span className="text-xs text-slate-500">{formatDate(change.changed_at)}</span>
                   </div>
                   <div className="ml-8 mt-1">
                     <p className="text-sm">
@@ -66,11 +63,9 @@ export function HistoryDialog({ isOpen, onClose, changes }: HistoryDialogProps) 
           )}
         </div>
         <DialogFooter>
-          <CustomButton onClick={onClose}>
-            Close
-          </CustomButton>
+          <CustomButton onClick={onClose}>Close</CustomButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

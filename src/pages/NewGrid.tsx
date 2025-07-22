@@ -1,7 +1,6 @@
-
-import React from 'react';
-import { TopNavbar } from "@/components/layout/top-navbar";
-import { EditableLeadsGrid } from '@/components/grid-view/EditableLeadsGrid';
+import React from 'react'
+import { TopNavbar } from '@/components/layout/top-navbar'
+import { EditableLeadsGrid } from '@/components/grid-view/EditableLeadsGrid'
 
 const NewGrid: React.FC = () => {
   return (
@@ -11,7 +10,7 @@ const NewGrid: React.FC = () => {
         <EditableLeadsGrid />
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default NewGrid;
+export default NewGrid

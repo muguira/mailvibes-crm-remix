@@ -1,1 +1,1 @@
-export { CreateOrganizationModal } from './CreateOrganizationModal'; 
+export { CreateOrganizationModal } from './CreateOrganizationModal'

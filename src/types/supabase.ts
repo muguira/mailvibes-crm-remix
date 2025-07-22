@@ -1,10 +1,4 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export interface Database {
   public: {
@@ -36,11 +30,11 @@ export interface Database {
         }
         Relationships: [
           {
-            foreignKeyName: "leads_rows_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
+            foreignKeyName: 'leads_rows_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
         ]
       }
       user_lists: {
@@ -70,11 +64,11 @@ export interface Database {
         }
         Relationships: [
           {
-            foreignKeyName: "user_lists_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
+            foreignKeyName: 'user_lists_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
         ]
       }
       grid_data: {
@@ -107,11 +101,11 @@ export interface Database {
         }
         Relationships: [
           {
-            foreignKeyName: "grid_data_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
+            foreignKeyName: 'grid_data_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
         ]
       }
       tasks: {
@@ -122,13 +116,13 @@ export interface Database {
           deadline?: string
           contact?: string
           description?: string
-          display_status: "upcoming" | "overdue" | "completed"
-          status: "on-track" | "at-risk" | "off-track"
-          type: "follow-up" | "respond" | "task" | "cross-functional"
+          display_status: 'upcoming' | 'overdue' | 'completed'
+          status: 'on-track' | 'at-risk' | 'off-track'
+          type: 'follow-up' | 'respond' | 'task' | 'cross-functional'
           tag?: string
           created_at: string
           updated_at: string
-          priority?: "low" | "medium" | "high"
+          priority?: 'low' | 'medium' | 'high'
         }
         Insert: {
           id?: string
@@ -137,13 +131,13 @@ export interface Database {
           deadline?: string
           contact?: string
           description?: string
-          display_status?: "upcoming" | "overdue" | "completed"
-          status?: "on-track" | "at-risk" | "off-track"
-          type?: "follow-up" | "respond" | "task" | "cross-functional"
+          display_status?: 'upcoming' | 'overdue' | 'completed'
+          status?: 'on-track' | 'at-risk' | 'off-track'
+          type?: 'follow-up' | 'respond' | 'task' | 'cross-functional'
           tag?: string
           created_at?: string
           updated_at?: string
-          priority?: "low" | "medium" | "high"
+          priority?: 'low' | 'medium' | 'high'
         }
         Update: {
           id?: string
@@ -152,13 +146,13 @@ export interface Database {
           deadline?: string
           contact?: string
           description?: string
-          display_status?: "upcoming" | "overdue" | "completed"
-          status?: "on-track" | "at-risk" | "off-track"
-          type?: "follow-up" | "respond" | "task" | "cross-functional"
+          display_status?: 'upcoming' | 'overdue' | 'completed'
+          status?: 'on-track' | 'at-risk' | 'off-track'
+          type?: 'follow-up' | 'respond' | 'task' | 'cross-functional'
           tag?: string
           created_at?: string
           updated_at?: string
-          priority?: "low" | "medium" | "high"
+          priority?: 'low' | 'medium' | 'high'
         }
       }
       contacts: {
@@ -340,11 +334,11 @@ export interface Database {
         }
         Relationships: [
           {
-            foreignKeyName: "comments_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
+            foreignKeyName: 'comments_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
         ]
       }
       user_activity_comments: {
@@ -368,17 +362,17 @@ export interface Database {
         }
         Relationships: [
           {
-            foreignKeyName: "user_activity_comments_comment_id_fkey"
-            columns: ["comment_id"]
-            referencedRelation: "comments"
-            referencedColumns: ["id"]
+            foreignKeyName: 'user_activity_comments_comment_id_fkey'
+            columns: ['comment_id']
+            referencedRelation: 'comments'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "user_activity_comments_user_activity_id_fkey"
-            columns: ["user_activity_id"]
-            referencedRelation: "user_activities"
-            referencedColumns: ["id"]
-          }
+            foreignKeyName: 'user_activity_comments_user_activity_id_fkey'
+            columns: ['user_activity_id']
+            referencedRelation: 'user_activities'
+            referencedColumns: ['id']
+          },
         ]
       }
     }

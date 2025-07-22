@@ -1,5 +1,5 @@
-export { GmailImportWizard } from "./GmailImportWizard";
-export { GmailAccountSelectStep } from "./GmailAccountSelectStep";
+export { GmailImportWizard } from './GmailImportWizard'
+export { GmailAccountSelectStep } from './GmailAccountSelectStep'
 
 // Re-export types
-export type { GmailImportWizardProps, ImportData } from "./GmailImportWizard";
+export type { GmailImportWizardProps, ImportData } from './GmailImportWizard'

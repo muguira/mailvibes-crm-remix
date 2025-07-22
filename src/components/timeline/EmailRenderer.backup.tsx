@@ -1,47 +1,65 @@
-import React from 'react';
-import DOMPurify from 'dompurify';
-import './email-renderer.css';
+import React from 'react'
+import DOMPurify from 'dompurify'
+import './email-renderer.css'
 
 interface EmailRendererProps {
-  bodyHtml?: string;
-  bodyText?: string;
-  subject?: string;
+  bodyHtml?: string
+  bodyText?: string
+  subject?: string
 }
 
 const EmailRenderer: React.FC<EmailRendererProps> = ({ bodyHtml, bodyText, subject }) => {
   // Configure DOMPurify for safe HTML rendering
   const sanitizeConfig = {
     ALLOWED_TAGS: [
-      'p', 'div', 'span', 'br', 'strong', 'b', 'em', 'i', 'u', 
-      'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'blockquote', 'pre', 'code', 'table', 'thead', 'tbody', 'tr', 'td', 'th'
+      'p',
+      'div',
+      'span',
+      'br',
+      'strong',
+      'b',
+      'em',
+      'i',
+      'u',
+      'a',
+      'ul',
+      'ol',
+      'li',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'blockquote',
+      'pre',
+      'code',
+      'table',
+      'thead',
+      'tbody',
+      'tr',
+      'td',
+      'th',
     ],
-    ALLOWED_ATTR: [
-      'href', 'target', 'rel', 'class', 'style', 'id', 'title', 'alt'
-    ],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'id', 'title', 'alt'],
     ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
     ADD_ATTR: ['target'],
     FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input', 'button'],
-    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover']
-  };
+    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
+  }
 
   const renderContent = () => {
     // Try to render HTML first if available
     if (bodyHtml && bodyHtml.trim()) {
       try {
-        const sanitizedHtml = DOMPurify.sanitize(bodyHtml, sanitizeConfig);
-        
+        const sanitizedHtml = DOMPurify.sanitize(bodyHtml, sanitizeConfig)
+
         // Check if sanitized HTML has meaningful content
         if (sanitizedHtml && sanitizedHtml.trim() !== '') {
-          return (
-            <div 
-              className="email-html-content"
-              dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
-            />
-          );
+          return <div className="email-html-content" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
         }
       } catch (error) {
-        console.warn('Error sanitizing email HTML:', error);
+        console.warn('Error sanitizing email HTML:', error)
       }
     }
 
@@ -56,7 +74,7 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({ bodyHtml, bodyText, subje
             </React.Fragment>
           ))}
         </div>
-      );
+      )
     }
 
     // No content available
@@ -64,8 +82,8 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({ bodyHtml, bodyText, subje
       <div className="email-no-content">
         <em>No content available</em>
       </div>
-    );
-  };
+    )
+  }
 
   return (
     <div className="email-renderer">
@@ -74,11 +92,9 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({ bodyHtml, bodyText, subje
           <strong>{subject}</strong>
         </div>
       )}
-      <div className="email-body">
-        {renderContent()}
-      </div>
+      <div className="email-body">{renderContent()}</div>
     </div>
-  );
-};
+  )
+}
 
-export default EmailRenderer; 
+export default EmailRenderer

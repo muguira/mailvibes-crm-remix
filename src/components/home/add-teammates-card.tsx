@@ -1,36 +1,24 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Users, 
-  Plus, 
-  ArrowRight, 
-  UserPlus, 
-  Clock,
-  CheckCircle,
-  Building2
-} from 'lucide-react';
-import { 
-  useOrganizationData, 
-  useOrganizationStats, 
-  useOrganizationLoadingStates 
-} from '@/stores/organizationStore';
+import React from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Users, Plus, ArrowRight, UserPlus, Clock, CheckCircle, Building2 } from 'lucide-react'
+import { useOrganizationData, useOrganizationStats, useOrganizationLoadingStates } from '@/stores/organizationStore'
 
 export const AddTeammatesCard: React.FC = () => {
-  const navigate = useNavigate();
-  const { organization, members, invitations } = useOrganizationData();
-  const stats = useOrganizationStats();
-  const loadingStates = useOrganizationLoadingStates();
+  const navigate = useNavigate()
+  const { organization, members, invitations } = useOrganizationData()
+  const stats = useOrganizationStats()
+  const loadingStates = useOrganizationLoadingStates()
 
   const handleNavigateToUsers = () => {
-    navigate('/settings/organization/users');
-  };
+    navigate('/settings/organization/users')
+  }
 
   const handleInviteUsers = () => {
-    navigate('/settings/organization/users');
-  };
+    navigate('/settings/organization/users')
+  }
 
   // Don't show if organization is not loaded yet
   if (loadingStates.loadingOrganization || !organization) {
@@ -42,13 +30,13 @@ export const AddTeammatesCard: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   // Different content based on team size
-  const isNewTeam = stats.totalMembers <= 1;
-  const hasCapacity = stats.hasCapacity;
-  const pendingInvites = stats.pendingInvitations;
+  const isNewTeam = stats.totalMembers <= 1
+  const hasCapacity = stats.hasCapacity
+  const pendingInvites = stats.pendingInvitations
 
   return (
     <Card className="bg-gradient-to-br from-[#E8F5F3] to-[#D1F2ED] border-[#00A991]/20 shadow-sm hover:shadow-md transition-all duration-200 w-full">
@@ -61,18 +49,15 @@ export const AddTeammatesCard: React.FC = () => {
                 <UserPlus className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">
-                  {isNewTeam ? 'Invite Your Team' : 'Grow Your Team'}
-                </h3>
+                <h3 className="font-semibold text-gray-900">{isNewTeam ? 'Invite Your Team' : 'Grow Your Team'}</h3>
                 <p className="text-sm text-gray-600">
-                  {isNewTeam 
+                  {isNewTeam
                     ? 'Start collaborating with your teammates'
-                    : 'Invite more colleagues to join your workspace'
-                  }
+                    : 'Invite more colleagues to join your workspace'}
                 </p>
               </div>
             </div>
-            
+
             {/* Organization Icon */}
             <div className="p-2 bg-white/50 rounded-lg">
               <Building2 className="w-5 h-5 text-[#00A991]" />
@@ -85,9 +70,7 @@ export const AddTeammatesCard: React.FC = () => {
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
                 <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium text-gray-900">
-                  {stats.activeMembers}
-                </span>
+                <span className="text-sm font-medium text-gray-900">{stats.activeMembers}</span>
               </div>
               <span className="text-xs text-gray-600">member{stats.activeMembers === 1 ? '' : 's'}</span>
             </div>
@@ -97,9 +80,7 @@ export const AddTeammatesCard: React.FC = () => {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   <Clock className="w-4 h-4 text-amber-500" />
-                  <span className="text-sm font-medium text-gray-900">
-                    {pendingInvites}
-                  </span>
+                  <span className="text-sm font-medium text-gray-900">{pendingInvites}</span>
                 </div>
                 <span className="text-xs text-gray-600">pending</span>
               </div>
@@ -107,10 +88,7 @@ export const AddTeammatesCard: React.FC = () => {
 
             {/* Capacity */}
             <div className="flex items-center gap-2">
-              <Badge 
-                variant={hasCapacity ? "secondary" : "destructive"}
-                className="text-xs"
-              >
+              <Badge variant={hasCapacity ? 'secondary' : 'destructive'} className="text-xs">
                 {stats.totalMembers}/{organization.max_members}
               </Badge>
               <span className="text-xs text-gray-600">capacity</span>
@@ -121,12 +99,10 @@ export const AddTeammatesCard: React.FC = () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-gray-600">Team Growth</span>
-              <span className="text-gray-900 font-medium">
-                {Math.round(stats.capacityUsed)}%
-              </span>
+              <span className="text-gray-900 font-medium">{Math.round(stats.capacityUsed)}%</span>
             </div>
             <div className="w-full bg-white/50 rounded-full h-2">
-              <div 
+              <div
                 className="bg-[#00A991] h-2 rounded-full transition-all duration-300"
                 style={{ width: `${Math.min(stats.capacityUsed, 100)}%` }}
               />
@@ -155,7 +131,7 @@ export const AddTeammatesCard: React.FC = () => {
                 Manage Team
               </Button>
             )}
-            
+
             <Button
               onClick={handleNavigateToUsers}
               variant="ghost"
@@ -182,12 +158,13 @@ export const AddTeammatesCard: React.FC = () => {
               </div>
             ) : (
               <div className="text-xs text-gray-600">
-                🎯 <strong>{organization.plan}</strong> plan • {organization.max_members - stats.totalMembers} spots available
+                🎯 <strong>{organization.plan}</strong> plan • {organization.max_members - stats.totalMembers} spots
+                available
               </div>
             )}
           </div>
         </div>
       </CardContent>
     </Card>
-  );
-}; 
+  )
+}

@@ -1,5 +1,5 @@
 // Auth Provider Component
-export { AuthProvider } from "./AuthProvider";
+export { AuthProvider } from './AuthProvider'
 
 // Auth Store and Hooks
 export {
@@ -11,8 +11,8 @@ export {
   useCurrentUser,
   useAuthLoading,
   useAuthErrors,
-} from "@/hooks/useAuthStore";
+} from '@/hooks/useAuthStore'
 
 // Example Components
-export { AuthExample } from "./AuthExample";
-export { MigrationExample } from "./MigrationExample";
+export { AuthExample } from './AuthExample'
+export { MigrationExample } from './MigrationExample'

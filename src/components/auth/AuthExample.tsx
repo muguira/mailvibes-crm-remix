@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from "react";
-import { useAuthStore } from "@/hooks/useAuthStore";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import React, { useState, useEffect } from 'react'
+import { useAuthStore } from '@/hooks/useAuthStore'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 
 /**
  * Example component demonstrating how to use the Auth slice
- * 
+ *
  * This component shows:
  * - How to access auth state
  * - How to perform auth operations
@@ -31,58 +31,58 @@ export const AuthExample: React.FC = () => {
     getUserRole,
     hasPermission,
     initialize,
-  } = useAuthStore();
+  } = useAuthStore()
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isSignUp, setIsSignUp] = useState(false)
 
   // Initialize auth on component mount
   useEffect(() => {
     if (!isInitialized) {
-      initialize();
+      initialize()
     }
-  }, [isInitialized, initialize]);
+  }, [isInitialized, initialize])
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+    e.preventDefault()
+
     try {
       if (isSignUp) {
-        await signUp({ email, password });
+        await signUp({ email, password })
       } else {
-        await signIn({ email, password });
+        await signIn({ email, password })
       }
-      
+
       // Clear form on success
-      setEmail("");
-      setPassword("");
+      setEmail('')
+      setPassword('')
     } catch (error) {
       // Error is handled by the store and shown via toast
-      console.error("Auth error:", error);
+      console.error('Auth error:', error)
     }
-  };
+  }
 
   const handleResetPassword = async () => {
     if (!email) {
-      alert("Please enter your email address");
-      return;
+      alert('Please enter your email address')
+      return
     }
-    
+
     try {
-      await resetPassword(email);
+      await resetPassword(email)
     } catch (error) {
-      console.error("Password reset error:", error);
+      console.error('Password reset error:', error)
     }
-  };
+  }
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await signOut()
     } catch (error) {
-      console.error("Sign out error:", error);
+      console.error('Sign out error:', error)
     }
-  };
+  }
 
   if (!isInitialized) {
     return (
@@ -94,7 +94,7 @@ export const AuthExample: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   if (isAuthenticated()) {
@@ -112,44 +112,34 @@ export const AuthExample: React.FC = () => {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Email Verified:</span>
-              <Badge variant={isEmailVerified ? "default" : "destructive"}>
-                {isEmailVerified ? "Yes" : "No"}
-              </Badge>
+              <Badge variant={isEmailVerified ? 'default' : 'destructive'}>{isEmailVerified ? 'Yes' : 'No'}</Badge>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Role:</span>
-              <Badge variant="outline">{getUserRole() || "No role"}</Badge>
+              <Badge variant="outline">{getUserRole() || 'No role'}</Badge>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Admin Permission:</span>
-              <Badge variant={hasPermission("admin") ? "default" : "secondary"}>
-                {hasPermission("admin") ? "Yes" : "No"}
+              <Badge variant={hasPermission('admin') ? 'default' : 'secondary'}>
+                {hasPermission('admin') ? 'Yes' : 'No'}
               </Badge>
             </div>
           </div>
-          
-          <Button 
-            onClick={handleSignOut} 
-            disabled={loading.signingOut}
-            className="w-full"
-            variant="outline"
-          >
-            {loading.signingOut ? "Signing out..." : "Sign Out"}
+
+          <Button onClick={handleSignOut} disabled={loading.signingOut} className="w-full" variant="outline">
+            {loading.signingOut ? 'Signing out...' : 'Sign Out'}
           </Button>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
-        <CardTitle>{isSignUp ? "Create Account" : "Sign In"}</CardTitle>
+        <CardTitle>{isSignUp ? 'Create Account' : 'Sign In'}</CardTitle>
         <CardDescription>
-          {isSignUp 
-            ? "Create a new account to get started" 
-            : "Sign in to your existing account"
-          }
+          {isSignUp ? 'Create a new account to get started' : 'Sign in to your existing account'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -162,12 +152,12 @@ export const AuthExample: React.FC = () => {
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={e => setEmail(e.target.value)}
               placeholder="Enter your email"
               required
             />
           </div>
-          
+
           <div className="space-y-2">
             <label htmlFor="password" className="text-sm font-medium">
               Password
@@ -176,7 +166,7 @@ export const AuthExample: React.FC = () => {
               id="password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={e => setPassword(e.target.value)}
               placeholder="Enter your password"
               required
             />
@@ -185,33 +175,28 @@ export const AuthExample: React.FC = () => {
           {/* Error display */}
           {(errors.signIn || errors.signUp) && (
             <Alert variant="destructive">
-              <AlertDescription>
-                {errors.signIn || errors.signUp}
-              </AlertDescription>
+              <AlertDescription>{errors.signIn || errors.signUp}</AlertDescription>
             </Alert>
           )}
 
           {/* Loading state */}
           {(loading.signingIn || loading.signingUp) && (
             <Alert>
-              <AlertDescription>
-                {loading.signingIn ? "Signing in..." : "Creating account..."}
-              </AlertDescription>
+              <AlertDescription>{loading.signingIn ? 'Signing in...' : 'Creating account...'}</AlertDescription>
             </Alert>
           )}
 
           <div className="space-y-2">
-            <Button 
-              type="submit" 
-              disabled={loading.signingIn || loading.signingUp}
-              className="w-full"
-            >
-              {loading.signingIn || loading.signingUp 
-                ? (loading.signingIn ? "Signing in..." : "Creating account...")
-                : (isSignUp ? "Create Account" : "Sign In")
-              }
+            <Button type="submit" disabled={loading.signingIn || loading.signingUp} className="w-full">
+              {loading.signingIn || loading.signingUp
+                ? loading.signingIn
+                  ? 'Signing in...'
+                  : 'Creating account...'
+                : isSignUp
+                  ? 'Create Account'
+                  : 'Sign In'}
             </Button>
-            
+
             <Button
               type="button"
               variant="outline"
@@ -219,7 +204,7 @@ export const AuthExample: React.FC = () => {
               disabled={loading.signingIn || loading.signingUp}
               className="w-full"
             >
-              {isSignUp ? "Already have an account? Sign In" : "Need an account? Sign Up"}
+              {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
             </Button>
           </div>
         </form>
@@ -234,11 +219,11 @@ export const AuthExample: React.FC = () => {
               disabled={loading.resettingPassword || !email}
               className="w-full text-sm"
             >
-              {loading.resettingPassword ? "Sending reset email..." : "Forgot password?"}
+              {loading.resettingPassword ? 'Sending reset email...' : 'Forgot password?'}
             </Button>
           </div>
         )}
       </CardContent>
     </Card>
-  );
-}; 
+  )
+}

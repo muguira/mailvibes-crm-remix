@@ -1,6 +1,5 @@
-
-export * from './checkbox-cell';
-export * from './url-cell';
-export * from './status-cell';
-export * from './text-cell';
-export * from './edit-cell';
+export * from './checkbox-cell'
+export * from './url-cell'
+export * from './status-cell'
+export * from './text-cell'
+export * from './edit-cell'

@@ -1,22 +1,21 @@
-
-import { ActivityItem } from "./activity-item";
-import { ActivityType } from "../types";
+import { ActivityItem } from './activity-item'
+import { ActivityType } from '../types'
 
 interface ActivityListProps {
   activities: {
-    id: string;
-    type: ActivityType;
-    timestamp: string;
-    content: string;
+    id: string
+    type: ActivityType
+    timestamp: string
+    content: string
     user: {
-      name: string;
-      initials: string;
-    };
+      name: string
+      initials: string
+    }
     field?: {
-      name: string;
-      value: string;
-    };
-  }[];
+      name: string
+      value: string
+    }
+  }[]
 }
 
 export function ActivityList({ activities }: ActivityListProps) {
@@ -25,14 +24,14 @@ export function ActivityList({ activities }: ActivityListProps) {
       <div className="text-center text-slate-medium p-4">
         No activities yet. Add a comment or update information to see activity.
       </div>
-    );
+    )
   }
-  
+
   return (
     <div className="space-y-4">
-      {activities.map((activity) => (
+      {activities.map(activity => (
         <ActivityItem key={activity.id} activity={activity} />
       ))}
     </div>
-  );
+  )
 }

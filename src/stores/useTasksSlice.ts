@@ -1,4 +1,4 @@
-import { StateCreator } from "zustand";
+import { StateCreator } from 'zustand'
 import {
   ITaskWithMetadata,
   TCreateTaskInput,
@@ -8,15 +8,15 @@ import {
   TTaskStore,
   ITaskErrorState,
   ITaskRetryConfig,
-} from "@/types/store/task";
-import { TStore } from "@/types/store/store";
-import { Task } from "@/types/task";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { withRetrySupabase } from "@/utils/supabaseRetry";
-import { logger } from "@/utils/logger";
-import { isPast, parseISO, startOfDay } from "date-fns";
-import { INITIAL_TASK_STATE, RESET_TASK_STATE } from "@/constants/store/task";
+} from '@/types/store/task'
+import { TStore } from '@/types/store/store'
+import { Task } from '@/types/task'
+import { supabase } from '@/integrations/supabase/client'
+import { toast } from '@/hooks/use-toast'
+import { withRetrySupabase } from '@/utils/supabaseRetry'
+import { logger } from '@/utils/logger'
+import { isPast, parseISO, startOfDay } from 'date-fns'
+import { INITIAL_TASK_STATE, RESET_TASK_STATE } from '@/constants/store/task'
 
 /**
  * Tasks slice for Zustand store
@@ -45,7 +45,7 @@ import { INITIAL_TASK_STATE, RESET_TASK_STATE } from "@/constants/store/task";
  */
 export const useTasksSlice: StateCreator<
   TStore,
-  [["zustand/subscribeWithSelector", never], ["zustand/immer", never]],
+  [['zustand/subscribeWithSelector', never], ['zustand/immer', never]],
   [],
   TTaskStore
 > = (set, get) => ({
@@ -57,33 +57,32 @@ export const useTasksSlice: StateCreator<
    * @returns Promise that resolves when initialization is complete
    */
   initialize: async () => {
-    const user = get().authUser;
+    const user = get().authUser
     if (!user) {
-      logger.error("Cannot initialize tasks: No authenticated user");
-      return;
+      logger.error('Cannot initialize tasks: No authenticated user')
+      return
     }
 
-    set((state) => {
-      state.loading.fetching = true;
-      state.errors.fetch = null;
-    });
+    set(state => {
+      state.loading.fetching = true
+      state.errors.fetch = null
+    })
 
     try {
-      await get().fetchTasks();
-      set((state) => {
-        state.isInitialized = true;
-        state.lastSyncAt = new Date().toISOString();
-      });
+      await get().fetchTasks()
+      set(state => {
+        state.isInitialized = true
+        state.lastSyncAt = new Date().toISOString()
+      })
     } catch (error) {
-      logger.error("Error initializing tasks:", error);
-      set((state) => {
-        state.errors.fetch =
-          error instanceof Error ? error.message : "Failed to initialize tasks";
-      });
+      logger.error('Error initializing tasks:', error)
+      set(state => {
+        state.errors.fetch = error instanceof Error ? error.message : 'Failed to initialize tasks'
+      })
     } finally {
-      set((state) => {
-        state.loading.fetching = false;
-      });
+      set(state => {
+        state.loading.fetching = false
+      })
     }
   },
 
@@ -92,9 +91,9 @@ export const useTasksSlice: StateCreator<
    * Clears all tasks, local tasks, errors, and loading states
    */
   reset: () => {
-    set((state) => {
-      Object.assign(state, RESET_TASK_STATE);
-    });
+    set(state => {
+      Object.assign(state, RESET_TASK_STATE)
+    })
   },
 
   /**
@@ -102,76 +101,68 @@ export const useTasksSlice: StateCreator<
    * @param isCreating - The flag to set
    */
   setIsTaskBeingCreated: (isCreating: boolean) => {
-    set((state) => {
-      state.isTaskBeingCreated = isCreating;
-    });
+    set(state => {
+      state.isTaskBeingCreated = isCreating
+    })
   },
 
   /**
    * Fetch tasks from the database for the current user
    */
   fetchTasks: async () => {
-    const user = get().authUser;
+    const user = get().authUser
     if (!user) {
-      logger.error("Cannot fetch tasks: No authenticated user");
-      return;
+      logger.error('Cannot fetch tasks: No authenticated user')
+      return
     }
 
-    set((state) => {
-      state.loading.fetching = true;
-      state.errors.fetch = null;
-    });
+    set(state => {
+      state.loading.fetching = true
+      state.errors.fetch = null
+    })
 
     try {
       const result = await withRetrySupabase<any[]>(
         async () =>
-          await supabase
-            .from("tasks")
-            .select("*")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false }),
-        get().retryConfig
-      );
+          await supabase.from('tasks').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+        get().retryConfig,
+      )
 
-      const { data, error } = result;
+      const { data, error } = result
 
-      if (error) throw error;
+      if (error) throw error
 
       const tasks = (data || []).map((task: any) => {
-        if (task.display_status === "completed" || !task.deadline) return task;
+        if (task.display_status === 'completed' || !task.deadline) return task
 
-        const deadlineDate = parseISO(task.deadline);
-        if (
-          isPast(startOfDay(deadlineDate)) &&
-          task.display_status !== "overdue"
-        ) {
-          return { ...task, display_status: "overdue" };
+        const deadlineDate = parseISO(task.deadline)
+        if (isPast(startOfDay(deadlineDate)) && task.display_status !== 'overdue') {
+          return { ...task, display_status: 'overdue' }
         }
-        return task;
-      }) as ITaskWithMetadata[];
+        return task
+      }) as ITaskWithMetadata[]
 
-      set((state) => {
-        state.tasks = tasks;
-        state.lastSyncAt = new Date().toISOString();
-      });
+      set(state => {
+        state.tasks = tasks
+        state.lastSyncAt = new Date().toISOString()
+      })
 
-      get().categorizeTasks();
+      get().categorizeTasks()
     } catch (error) {
-      logger.error("Error fetching tasks:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to fetch tasks";
-      set((state) => {
-        state.errors.fetch = errorMessage;
-      });
+      logger.error('Error fetching tasks:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch tasks'
+      set(state => {
+        state.errors.fetch = errorMessage
+      })
       toast({
-        title: "Error fetching tasks",
+        title: 'Error fetching tasks',
         description: errorMessage,
-        variant: "destructive",
-      });
+        variant: 'destructive',
+      })
     } finally {
-      set((state) => {
-        state.loading.fetching = false;
-      });
+      set(state => {
+        state.loading.fetching = false
+      })
     }
   },
 
@@ -180,14 +171,12 @@ export const useTasksSlice: StateCreator<
    * @param task - The task to create
    * @returns The created task
    */
-  createTask: async (
-    task: Omit<TCreateTaskInput, "user_id">
-  ): Promise<ITaskWithMetadata> => {
-    const user = get().authUser;
+  createTask: async (task: Omit<TCreateTaskInput, 'user_id'>): Promise<ITaskWithMetadata> => {
+    const user = get().authUser
     if (!user) {
-      const error = new Error("Cannot create task: No authenticated user");
-      logger.error(error);
-      throw error;
+      const error = new Error('Cannot create task: No authenticated user')
+      logger.error(error)
+      throw error
     }
 
     // Crear una versión temporal de la tarea con un ID temporal
@@ -199,18 +188,18 @@ export const useTasksSlice: StateCreator<
       contact: task.contact || null,
       description: task.description || null,
       tag: task.tag || null,
-      status: task.status || ("on-track" as const),
+      status: task.status || ('on-track' as const),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      display_status: "upcoming",
-      type: "task",
-    };
+      display_status: 'upcoming',
+      type: 'task',
+    }
 
     // Agregar inmediatamente la tarea temporal al estado
-    set((state) => {
-      state.tasks.unshift(tempTask);
-    });
-    get().categorizeTasks();
+    set(state => {
+      state.tasks.unshift(tempTask)
+    })
+    get().categorizeTasks()
 
     try {
       // Preparar la tarea para Supabase
@@ -221,59 +210,53 @@ export const useTasksSlice: StateCreator<
         contact: task.contact || null,
         description: task.description || null,
         tag: task.tag || null,
-        status: task.status || ("on-track" as const),
-      };
+        status: task.status || ('on-track' as const),
+      }
 
       // Intentar crear en Supabase
-      const { data: supabaseTask, error } = await supabase
-        .from("tasks")
-        .insert([taskForSupabase])
-        .select()
-        .single();
+      const { data: supabaseTask, error } = await supabase.from('tasks').insert([taskForSupabase]).select().single()
 
-      if (error) throw error;
+      if (error) throw error
 
       // Reemplazar la tarea temporal con la versión de Supabase
-      set((state) => {
-        const taskIndex = state.tasks.findIndex((t) => t.id === tempTask.id);
+      set(state => {
+        const taskIndex = state.tasks.findIndex(t => t.id === tempTask.id)
         if (taskIndex !== -1) {
-          state.tasks[taskIndex] = supabaseTask as ITaskWithMetadata;
+          state.tasks[taskIndex] = supabaseTask as ITaskWithMetadata
         }
-        state.loading.creating = false;
-      });
+        state.loading.creating = false
+      })
 
-      get().categorizeTasks();
+      get().categorizeTasks()
 
       // Mostrar notificación de éxito
       toast({
-        title: "Task created successfully",
+        title: 'Task created successfully',
         description: `Task "${task.title}" has been created.`,
-        variant: "default",
-      });
+        variant: 'default',
+      })
 
-      return supabaseTask as ITaskWithMetadata;
+      return supabaseTask as ITaskWithMetadata
     } catch (error) {
       // En caso de error, eliminar la tarea temporal
-      set((state) => {
-        state.tasks = state.tasks.filter((t) => t.id !== tempTask.id);
-        state.loading.creating = false;
-        state.errors.create =
-          error instanceof Error ? error.message : "Failed to create task";
-      });
+      set(state => {
+        state.tasks = state.tasks.filter(t => t.id !== tempTask.id)
+        state.loading.creating = false
+        state.errors.create = error instanceof Error ? error.message : 'Failed to create task'
+      })
 
-      get().categorizeTasks();
+      get().categorizeTasks()
 
-      logger.error("Error creating task:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to create task";
+      logger.error('Error creating task:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create task'
 
       toast({
-        title: "Error creating task",
+        title: 'Error creating task',
         description: errorMessage,
-        variant: "destructive",
-      });
+        variant: 'destructive',
+      })
 
-      throw error;
+      throw error
     }
   },
 
@@ -282,20 +265,18 @@ export const useTasksSlice: StateCreator<
    * @param task - The task to update
    * @returns The updated task
    */
-  updateTask: async (
-    task: Omit<TUpdateTaskInput, "user_id">
-  ): Promise<ITaskWithMetadata> => {
-    const user = get().authUser;
+  updateTask: async (task: Omit<TUpdateTaskInput, 'user_id'>): Promise<ITaskWithMetadata> => {
+    const user = get().authUser
     if (!user) {
-      const error = new Error("Cannot update task: No authenticated user");
-      logger.error(error);
-      throw error;
+      const error = new Error('Cannot update task: No authenticated user')
+      logger.error(error)
+      throw error
     }
 
-    set((state) => {
-      state.loading.updating = true;
-      state.errors.update = null;
-    });
+    set(state => {
+      state.loading.updating = true
+      state.errors.update = null
+    })
 
     try {
       const taskWithMetadata = {
@@ -307,51 +288,50 @@ export const useTasksSlice: StateCreator<
         description: task.description || null,
         tag: task.tag || null,
         priority: task.priority || null,
-      };
+      }
 
       const { data, error } = await supabase
-        .from("tasks")
+        .from('tasks')
         .update(taskWithMetadata)
-        .eq("id", task.id)
-        .eq("user_id", user.id)
-        .select("*");
+        .eq('id', task.id)
+        .eq('user_id', user.id)
+        .select('*')
 
-      if (error) throw error;
+      if (error) throw error
 
-      const updatedTask = data[0] as ITaskWithMetadata;
+      const updatedTask = data[0] as ITaskWithMetadata
 
-      set((state) => {
-        const index = state.tasks.findIndex((t) => t.id === task.id);
+      set(state => {
+        const index = state.tasks.findIndex(t => t.id === task.id)
         if (index !== -1) {
-          state.tasks[index] = updatedTask;
+          state.tasks[index] = updatedTask
         }
-      });
+      })
 
-      get().categorizeTasks();
+      get().categorizeTasks()
 
       toast({
-        title: "Task updated",
-        description: "Your task has been updated successfully",
-      });
+        title: 'Task updated',
+        description: 'Your task has been updated successfully',
+      })
 
-      return updatedTask;
+      return updatedTask
     } catch (error) {
-      logger.error("Error updating task:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to update task";
-      set((state) => {
-        state.errors.update = errorMessage;
-      });
+      logger.error('Error updating task:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update task'
+      set(state => {
+        state.errors.update = errorMessage
+      })
       toast({
-        title: "Error updating task",
+        title: 'Error updating task',
         description: errorMessage,
-        variant: "destructive",
-      });
-      throw error;
+        variant: 'destructive',
+      })
+      throw error
     } finally {
-      set((state) => {
-        state.loading.updating = false;
-      });
+      set(state => {
+        state.loading.updating = false
+      })
     }
   },
 
@@ -361,51 +341,46 @@ export const useTasksSlice: StateCreator<
    * @returns The deleted task
    */
   deleteTask: async (taskId: string): Promise<void> => {
-    const state = get();
-    const task = state.getTaskById(taskId);
-    if (!task) return;
+    const state = get()
+    const task = state.getTaskById(taskId)
+    if (!task) return
 
-    set((state) => {
-      state.loading.deleting = true;
-      state.errors.delete = null;
-    });
+    set(state => {
+      state.loading.deleting = true
+      state.errors.delete = null
+    })
 
     try {
-      const { error } = await supabase
-        .from("tasks")
-        .delete()
-        .eq("id", taskId)
-        .eq("user_id", task.user_id);
+      const { error } = await supabase.from('tasks').delete().eq('id', taskId).eq('user_id', task.user_id)
 
-      if (error) throw error;
+      if (error) throw error
 
-      set((state) => {
-        state.tasks = state.tasks.filter((t) => t.id !== taskId);
-      });
+      set(state => {
+        state.tasks = state.tasks.filter(t => t.id !== taskId)
+      })
 
-      get().categorizeTasks();
+      get().categorizeTasks()
 
       toast({
-        title: "Task deleted",
-        description: "Your task has been deleted successfully",
-      });
+        title: 'Task deleted',
+        description: 'Your task has been deleted successfully',
+      })
     } catch (error) {
-      logger.error("Error deleting task:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to delete task";
-      set((state) => {
-        state.errors.delete = errorMessage;
-      });
+      logger.error('Error deleting task:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete task'
+      set(state => {
+        state.errors.delete = errorMessage
+      })
       toast({
-        title: "Error deleting task",
+        title: 'Error deleting task',
         description: errorMessage,
-        variant: "destructive",
-      });
-      throw error;
+        variant: 'destructive',
+      })
+      throw error
     } finally {
-      set((state) => {
-        state.loading.deleting = false;
-      });
+      set(state => {
+        state.loading.deleting = false
+      })
     }
   },
 
@@ -415,12 +390,12 @@ export const useTasksSlice: StateCreator<
    * @param status - The new status to set for the task
    * @returns Promise that resolves when the task status is updated
    */
-  changeTaskStatus: async (taskId: string, status: Task["display_status"]) => {
-    const state = get();
-    const task = state.getTaskById(taskId);
-    if (!task) return;
+  changeTaskStatus: async (taskId: string, status: Task['display_status']) => {
+    const state = get()
+    const task = state.getTaskById(taskId)
+    if (!task) return
 
-    await state.updateTask({ ...task, display_status: status });
+    await state.updateTask({ ...task, display_status: status })
   },
 
   /**
@@ -431,25 +406,25 @@ export const useTasksSlice: StateCreator<
    * @returns Promise that resolves when the task deadline is updated
    */
   changeTaskDeadline: async (taskId: string, deadline: string | undefined) => {
-    const state = get();
-    const task = state.getTaskById(taskId);
-    if (!task) return;
+    const state = get()
+    const task = state.getTaskById(taskId)
+    if (!task) return
 
-    let newStatus = task.display_status;
+    let newStatus = task.display_status
     if (deadline) {
-      const deadlineDate = parseISO(deadline);
+      const deadlineDate = parseISO(deadline)
       if (isPast(startOfDay(deadlineDate))) {
-        newStatus = "overdue";
-      } else if (task.display_status === "overdue") {
-        newStatus = "upcoming";
+        newStatus = 'overdue'
+      } else if (task.display_status === 'overdue') {
+        newStatus = 'upcoming'
       }
     }
 
     await state.updateTask({
       ...task,
-      deadline: deadline || "",
+      deadline: deadline || '',
       display_status: newStatus,
-    });
+    })
   },
 
   /**
@@ -458,13 +433,13 @@ export const useTasksSlice: StateCreator<
    * @param taskId - The ID of the task to mark as overdue
    */
   markTaskOverdue: (taskId: string) => {
-    set((state) => {
-      const task = state.tasks.find((t) => t.id === taskId);
+    set(state => {
+      const task = state.tasks.find(t => t.id === taskId)
       if (task) {
-        task.display_status = "overdue";
+        task.display_status = 'overdue'
       }
-    });
-    get().categorizeTasks();
+    })
+    get().categorizeTasks()
   },
 
   /**
@@ -473,9 +448,9 @@ export const useTasksSlice: StateCreator<
    * @param task - The task to add to local state
    */
   addLocalTask: (task: ITaskWithMetadata) => {
-    set((state) => {
-      state.localTasks.unshift(task);
-    });
+    set(state => {
+      state.localTasks.unshift(task)
+    })
   },
 
   /**
@@ -484,9 +459,9 @@ export const useTasksSlice: StateCreator<
    * @param taskId - The ID of the task to remove from local state
    */
   removeLocalTask: (taskId: string) => {
-    set((state) => {
-      state.localTasks = state.localTasks.filter((t) => t.id !== taskId);
-    });
+    set(state => {
+      state.localTasks = state.localTasks.filter(t => t.id !== taskId)
+    })
   },
 
   /**
@@ -496,12 +471,12 @@ export const useTasksSlice: StateCreator<
    * @param updates - Partial task data to merge with existing task
    */
   updateLocalTask: (taskId: string, updates: Partial<ITaskWithMetadata>) => {
-    set((state) => {
-      const index = state.localTasks.findIndex((t) => t.id === taskId);
+    set(state => {
+      const index = state.localTasks.findIndex(t => t.id === taskId)
       if (index !== -1) {
-        Object.assign(state.localTasks[index], updates);
+        Object.assign(state.localTasks[index], updates)
       }
-    });
+    })
   },
 
   /**
@@ -509,9 +484,9 @@ export const useTasksSlice: StateCreator<
    * Used to clean up optimistic updates after successful operations
    */
   clearLocalTasks: () => {
-    set((state) => {
-      state.localTasks = [];
-    });
+    set(state => {
+      state.localTasks = []
+    })
   },
 
   /**
@@ -519,18 +494,16 @@ export const useTasksSlice: StateCreator<
    * Updates the categorizedTasks object with upcoming, overdue, and completed tasks
    */
   categorizeTasks: () => {
-    const state = get();
-    const allTasks = [...state.localTasks, ...state.tasks];
+    const state = get()
+    const allTasks = [...state.localTasks, ...state.tasks]
 
-    set((state) => {
+    set(state => {
       state.categorizedTasks = {
-        upcoming: allTasks.filter((task) => task.display_status === "upcoming"),
-        overdue: allTasks.filter((task) => task.display_status === "overdue"),
-        completed: allTasks.filter(
-          (task) => task.display_status === "completed"
-        ),
-      };
-    });
+        upcoming: allTasks.filter(task => task.display_status === 'upcoming'),
+        overdue: allTasks.filter(task => task.display_status === 'overdue'),
+        completed: allTasks.filter(task => task.display_status === 'completed'),
+      }
+    })
   },
 
   /**
@@ -538,29 +511,26 @@ export const useTasksSlice: StateCreator<
    * Compares task deadlines with current date and updates status if needed
    */
   checkOverdueTasks: () => {
-    const state = get();
-    let hasChanges = false;
+    const state = get()
+    let hasChanges = false
 
-    state.tasks.forEach((task) => {
-      if (task.display_status === "completed" || !task.deadline) return;
+    state.tasks.forEach(task => {
+      if (task.display_status === 'completed' || !task.deadline) return
 
-      const deadlineDate = parseISO(task.deadline);
-      if (
-        isPast(startOfDay(deadlineDate)) &&
-        task.display_status !== "overdue"
-      ) {
-        set((state) => {
-          const taskIndex = state.tasks.findIndex((t) => t.id === task.id);
+      const deadlineDate = parseISO(task.deadline)
+      if (isPast(startOfDay(deadlineDate)) && task.display_status !== 'overdue') {
+        set(state => {
+          const taskIndex = state.tasks.findIndex(t => t.id === task.id)
           if (taskIndex !== -1) {
-            state.tasks[taskIndex].display_status = "overdue";
+            state.tasks[taskIndex].display_status = 'overdue'
           }
-        });
-        hasChanges = true;
+        })
+        hasChanges = true
       }
-    });
+    })
 
     if (hasChanges) {
-      get().categorizeTasks();
+      get().categorizeTasks()
     }
   },
 
@@ -570,9 +540,9 @@ export const useTasksSlice: StateCreator<
    * @param filters - Partial filters object to apply
    */
   setFilters: (filters: Partial<ITaskFilters>) => {
-    set((state) => {
-      Object.assign(state.filters, filters);
-    });
+    set(state => {
+      Object.assign(state.filters, filters)
+    })
   },
 
   /**
@@ -580,9 +550,9 @@ export const useTasksSlice: StateCreator<
    * @param options - Sort options specifying field and direction
    */
   setSortOptions: (options: ITaskSortOptions) => {
-    set((state) => {
-      state.sortOptions = options;
-    });
+    set(state => {
+      state.sortOptions = options
+    })
   },
 
   /**
@@ -591,27 +561,17 @@ export const useTasksSlice: StateCreator<
    * @returns Array of tasks that match the current filters
    */
   getFilteredTasks: () => {
-    const state = get();
-    const { tasks, filters } = state;
+    const state = get()
+    const { tasks, filters } = state
 
-    return tasks.filter((task) => {
-      if (filters.status && !filters.status.includes(task.display_status))
-        return false;
-      if (filters.type && !filters.type.includes(task.type)) return false;
-      if (
-        filters.priority &&
-        task.priority &&
-        !filters.priority.includes(task.priority)
-      )
-        return false;
-      if (
-        filters.hasDeadline !== undefined &&
-        !!task.deadline !== filters.hasDeadline
-      )
-        return false;
-      if (filters.contactId && task.contact !== filters.contactId) return false;
-      return true;
-    });
+    return tasks.filter(task => {
+      if (filters.status && !filters.status.includes(task.display_status)) return false
+      if (filters.type && !filters.type.includes(task.type)) return false
+      if (filters.priority && task.priority && !filters.priority.includes(task.priority)) return false
+      if (filters.hasDeadline !== undefined && !!task.deadline !== filters.hasDeadline) return false
+      if (filters.contactId && task.contact !== filters.contactId) return false
+      return true
+    })
   },
 
   /**
@@ -621,10 +581,8 @@ export const useTasksSlice: StateCreator<
    * @returns The task if found, undefined otherwise
    */
   getTaskById: (taskId: string) => {
-    const state = get();
-    return [...state.localTasks, ...state.tasks].find(
-      (task) => task.id === taskId
-    );
+    const state = get()
+    return [...state.localTasks, ...state.tasks].find(task => task.id === taskId)
   },
 
   /**
@@ -633,10 +591,8 @@ export const useTasksSlice: StateCreator<
    * @returns Array of tasks associated with the contact
    */
   getTasksByContact: (contactId: string) => {
-    const state = get();
-    return [...state.localTasks, ...state.tasks].filter(
-      (task) => task.contact === contactId
-    );
+    const state = get()
+    return [...state.localTasks, ...state.tasks].filter(task => task.contact === contactId)
   },
 
   /**
@@ -644,11 +600,9 @@ export const useTasksSlice: StateCreator<
    * @param type - The type of tasks to find (task, follow-up, respond, cross-functional)
    * @returns Array of tasks of the specified type
    */
-  getTasksByType: (type: Task["type"]) => {
-    const state = get();
-    return [...state.localTasks, ...state.tasks].filter(
-      (task) => task.type === type
-    );
+  getTasksByType: (type: Task['type']) => {
+    const state = get()
+    return [...state.localTasks, ...state.tasks].filter(task => task.type === type)
   },
 
   /**
@@ -656,8 +610,8 @@ export const useTasksSlice: StateCreator<
    * @returns Array of tasks with 'upcoming' status
    */
   getUpcomingTasks: () => {
-    const state = get();
-    return state.categorizedTasks.upcoming;
+    const state = get()
+    return state.categorizedTasks.upcoming
   },
 
   /**
@@ -665,8 +619,8 @@ export const useTasksSlice: StateCreator<
    * @returns Array of tasks with 'overdue' status
    */
   getOverdueTasks: () => {
-    const state = get();
-    return state.categorizedTasks.overdue;
+    const state = get()
+    return state.categorizedTasks.overdue
   },
 
   /**
@@ -674,8 +628,8 @@ export const useTasksSlice: StateCreator<
    * @returns Array of tasks with 'completed' status
    */
   getCompletedTasks: () => {
-    const state = get();
-    return state.categorizedTasks.completed;
+    const state = get()
+    return state.categorizedTasks.completed
   },
 
   /**
@@ -684,37 +638,29 @@ export const useTasksSlice: StateCreator<
    * @returns Object containing task statistics and breakdowns
    */
   getTaskStats: () => {
-    const state = get();
-    const allTasks = [...state.localTasks, ...state.tasks];
+    const state = get()
+    const allTasks = [...state.localTasks, ...state.tasks]
 
     const stats = {
       total: allTasks.length,
-      upcoming: allTasks.filter((t) => t.display_status === "upcoming").length,
-      overdue: allTasks.filter((t) => t.display_status === "overdue").length,
-      completed: allTasks.filter((t) => t.display_status === "completed")
-        .length,
-      byType: {} as Record<Task["type"], number>,
-      byPriority: {} as Record<Task["priority"], number>,
-    };
+      upcoming: allTasks.filter(t => t.display_status === 'upcoming').length,
+      overdue: allTasks.filter(t => t.display_status === 'overdue').length,
+      completed: allTasks.filter(t => t.display_status === 'completed').length,
+      byType: {} as Record<Task['type'], number>,
+      byPriority: {} as Record<Task['priority'], number>,
+    }
 
-    const types: Task["type"][] = [
-      "task",
-      "follow-up",
-      "respond",
-      "cross-functional",
-    ];
-    types.forEach((type) => {
-      stats.byType[type] = allTasks.filter((t) => t.type === type).length;
-    });
+    const types: Task['type'][] = ['task', 'follow-up', 'respond', 'cross-functional']
+    types.forEach(type => {
+      stats.byType[type] = allTasks.filter(t => t.type === type).length
+    })
 
-    const priorities: Task["priority"][] = ["low", "medium", "high"];
-    priorities.forEach((priority) => {
-      stats.byPriority[priority] = allTasks.filter(
-        (t) => t.priority === priority
-      ).length;
-    });
+    const priorities: Task['priority'][] = ['low', 'medium', 'high']
+    priorities.forEach(priority => {
+      stats.byPriority[priority] = allTasks.filter(t => t.priority === priority).length
+    })
 
-    return stats;
+    return stats
   },
 
   /**
@@ -722,9 +668,9 @@ export const useTasksSlice: StateCreator<
    * @param operation - The operation error to clear (fetch, create, update, delete)
    */
   clearError: (operation: keyof ITaskErrorState) => {
-    set((state) => {
-      state.errors[operation] = null;
-    });
+    set(state => {
+      state.errors[operation] = null
+    })
   },
 
   /**
@@ -732,9 +678,9 @@ export const useTasksSlice: StateCreator<
    * Resets all operation errors to null
    */
   clearAllErrors: () => {
-    set((state) => {
-      state.errors = { fetch: null, create: null, update: null, delete: null };
-    });
+    set(state => {
+      state.errors = { fetch: null, create: null, update: null, delete: null }
+    })
   },
 
   /**
@@ -742,8 +688,8 @@ export const useTasksSlice: StateCreator<
    * @param config - Partial retry configuration to merge with existing config
    */
   setRetryConfig: (config: Partial<ITaskRetryConfig>) => {
-    set((state) => {
-      Object.assign(state.retryConfig, config);
-    });
+    set(state => {
+      Object.assign(state.retryConfig, config)
+    })
   },
-});
+})

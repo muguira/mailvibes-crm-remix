@@ -1,21 +1,20 @@
-
-import { GridCell } from "./grid-cell";
-import { SaveIndicator } from "./save-indicator";
-import { ColumnDef } from "./grid/types";
-import { Pencil } from "lucide-react";
+import { GridCell } from './grid-cell'
+import { SaveIndicator } from './save-indicator'
+import { ColumnDef } from './grid/types'
+import { Pencil } from 'lucide-react'
 
 interface GridRowProps {
-  rowData: { id: string; originalIndex?: number; [key: string]: any };
-  rowNumber: number;
-  frozenColumns: ColumnDef[];
-  scrollableColumns: ColumnDef[];
-  frozenColsTemplate: string;
-  scrollableColsTemplate: string;
-  activeCell: { row: string; col: string } | null;
-  showSaveIndicator: { row: string; col: string } | null;
-  onCellClick: (rowId: string, colKey: string, colType?: string, options?: string[]) => void;
-  onCellChange: (rowId: string, colKey: string, value: any, type: string) => void;
-  renderRowActions?: (rowId: string) => React.ReactNode;
+  rowData: { id: string; originalIndex?: number; [key: string]: any }
+  rowNumber: number
+  frozenColumns: ColumnDef[]
+  scrollableColumns: ColumnDef[]
+  frozenColsTemplate: string
+  scrollableColsTemplate: string
+  activeCell: { row: string; col: string } | null
+  showSaveIndicator: { row: string; col: string } | null
+  onCellClick: (rowId: string, colKey: string, colType?: string, options?: string[]) => void
+  onCellChange: (rowId: string, colKey: string, value: any, type: string) => void
+  renderRowActions?: (rowId: string) => React.ReactNode
 }
 
 export function GridRow({
@@ -29,27 +28,20 @@ export function GridRow({
   showSaveIndicator,
   onCellClick,
   onCellChange,
-  renderRowActions
+  renderRowActions,
 }: GridRowProps) {
-  const isActive = activeCell?.row === rowData.id;
-  
+  const isActive = activeCell?.row === rowData.id
+
   // Use originalIndex if available or default to rowNumber
-  const displayRowNumber = rowData.originalIndex !== undefined 
-    ? rowData.originalIndex + 1 
-    : rowNumber;
+  const displayRowNumber = rowData.originalIndex !== undefined ? rowData.originalIndex + 1 : rowNumber
 
   return (
-    <div 
-      className={`grid-row ${isActive ? 'active-row' : ''}`}
-      data-row-id={rowData.id}
-    >
+    <div className={`grid-row ${isActive ? 'active-row' : ''}`} data-row-id={rowData.id}>
       {/* Row number cell - absolute number across all pages */}
-      <div className="row-number-cell">
-        {displayRowNumber}
-      </div>
+      <div className="row-number-cell">{displayRowNumber}</div>
 
       {/* Frozen columns (if any) */}
-      {frozenColumns.map((column) => (
+      {frozenColumns.map(column => (
         <GridCell
           key={`${rowData.id}-${column.key}`}
           rowId={rowData.id}
@@ -60,13 +52,13 @@ export function GridRow({
           colors={column.colors}
           isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
           onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
-          onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
+          onChange={value => onCellChange(rowData.id, column.key, value, column.type)}
           showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
         />
       ))}
 
       {/* Scrollable columns */}
-      {scrollableColumns.map((column) => (
+      {scrollableColumns.map(column => (
         <GridCell
           key={`${rowData.id}-${column.key}`}
           rowId={rowData.id}
@@ -77,7 +69,7 @@ export function GridRow({
           colors={column.colors}
           isActive={activeCell?.row === rowData.id && activeCell?.col === column.key}
           onClick={() => onCellClick(rowData.id, column.key, column.type, column.options)}
-          onChange={(value) => onCellChange(rowData.id, column.key, value, column.type)}
+          onChange={value => onCellChange(rowData.id, column.key, value, column.type)}
           showSaveIndicator={showSaveIndicator?.row === rowData.id && showSaveIndicator?.col === column.key}
         />
       ))}
@@ -85,5 +77,5 @@ export function GridRow({
       {/* Render row actions if provided */}
       {renderRowActions && renderRowActions(rowData.id)}
     </div>
-  );
+  )
 }

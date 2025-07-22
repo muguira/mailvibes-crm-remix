@@ -1,71 +1,55 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import {
-  Home,
-  List,
-  BarChart,
-  Settings,
-  Bell,
-  ChevronLeft,
-  ChevronRight,
-  HelpCircle,
-  Users
-} from "lucide-react";
+import { useState } from 'react'
+import { NavLink } from 'react-router-dom'
+import { cn } from '@/lib/utils'
+import { Home, List, BarChart, Settings, Bell, ChevronLeft, ChevronRight, HelpCircle, Users } from 'lucide-react'
 
 const SidebarItem = ({
   icon: Icon,
   label,
   to,
-  collapsed
+  collapsed,
 }: {
-  icon: React.ElementType;
-  label: string;
-  to: string;
-  collapsed: boolean;
+  icon: React.ElementType
+  label: string
+  to: string
+  collapsed: boolean
 }) => {
   return (
     <NavLink
       to={to}
       className={({ isActive }) =>
         cn(
-          "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-          isActive
-            ? "bg-teal-primary text-white"
-            : "text-white/80 hover:bg-navy-light/50 hover:text-white",
-          collapsed && "justify-center"
+          'flex items-center gap-3 px-3 py-2 rounded-md transition-colors',
+          isActive ? 'bg-teal-primary text-white' : 'text-white/80 hover:bg-navy-light/50 hover:text-white',
+          collapsed && 'justify-center',
         )
       }
     >
       <Icon size={20} />
       {!collapsed && <span className="font-medium">{label}</span>}
     </NavLink>
-  );
-};
+  )
+}
 
 export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(false)
 
   return (
     <div
       className={cn(
-        "bg-navy-deep text-white flex flex-col h-screen transition-all duration-300 border-r border-navy-light/20",
-        collapsed ? "w-16" : "w-60"
+        'bg-navy-deep text-white flex flex-col h-screen transition-all duration-300 border-r border-navy-light/20',
+        collapsed ? 'w-16' : 'w-60',
       )}
     >
       {/* Logo area */}
       <div className="flex items-center p-4 border-b border-navy-light/20">
         {collapsed ? (
           <div className="mx-auto text-teal-primary">
-            <span className="text-teal-primary text-2xl font-bold">
-              $
-            </span>
+            <span className="text-teal-primary text-2xl font-bold">$</span>
           </div>
         ) : (
           <div className="flex items-center">
-            <span className="text-teal-primary text-2xl font-bold">
-              $
-            </span>
+            <span className="text-teal-primary text-2xl font-bold">$</span>
             <span className="ml-2 font-semibold text-lg">SalesSheets</span>
           </div>
         )}
@@ -100,5 +84,5 @@ export function Sidebar() {
         </button>
       </div>
     </div>
-  );
+  )
 }

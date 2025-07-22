@@ -1,52 +1,47 @@
-import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { SettingsLayout } from '@/components/settings/SettingsLayout';
-import { 
-  InviteUsersModal, 
-  RoleChangeDropdown, 
-  RemoveMemberDialog,
-  InvitationActions 
-} from '@/components/settings';
-import { 
-  useOrganizationData, 
+import React, { useEffect, useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { SettingsLayout } from '@/components/settings/SettingsLayout'
+import { InviteUsersModal, RoleChangeDropdown, RemoveMemberDialog, InvitationActions } from '@/components/settings'
+import {
+  useOrganizationData,
   useOrganizationActions,
   useOrganizationLoadingStates,
   useOrganizationErrors,
   useOptimisticUpdates,
-  useOrganizationStats
-} from '@/stores/organizationStore';
-import { toast } from 'sonner';
-import { 
-  Users, 
-  Plus, 
-  MoreVertical, 
-  AlertCircle, 
+  useOrganizationStats,
+} from '@/stores/organizationStore'
+import { toast } from 'sonner'
+import {
+  Users,
+  Plus,
+  MoreVertical,
+  AlertCircle,
   Clock,
   CheckCircle,
   UserCheck,
   Mail,
   RefreshCw,
   TrendingUp,
-  Shield
-} from 'lucide-react';
-import { OrganizationMember, InviteUserForm } from '@/types/organization';
-import organizationMocks from '@/mocks/organizationMocks';
-import { supabase } from '@/integrations/supabase/client';
+  Shield,
+} from 'lucide-react'
+import { OrganizationMember, InviteUserForm } from '@/types/organization'
+import organizationMocks from '@/mocks/organizationMocks'
+import { supabase } from '@/integrations/supabase/client'
 
 const OrganizationUsers: React.FC = () => {
   // State
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [memberToRemove, setMemberToRemove] = useState<OrganizationMember | null>(null);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
+  const [memberToRemove, setMemberToRemove] = useState<OrganizationMember | null>(null)
 
   // Store data and actions
-  const { organization, members, invitations, lastUpdated } = useOrganizationData();
-  const loadingStates = useOrganizationLoadingStates();
-  const errors = useOrganizationErrors();
-  const optimisticUpdates = useOptimisticUpdates();
-  const stats = useOrganizationStats();
-  
+  const { organization, members, invitations, lastUpdated } = useOrganizationData()
+  const loadingStates = useOrganizationLoadingStates()
+  const errors = useOrganizationErrors()
+  const optimisticUpdates = useOptimisticUpdates()
+  const stats = useOrganizationStats()
+
   const {
     loadOrganization,
     inviteUsers,
@@ -55,138 +50,135 @@ const OrganizationUsers: React.FC = () => {
     resendInvitation,
     cancelInvitation,
     clearError,
-    refreshData
-  } = useOrganizationActions();
+    refreshData,
+  } = useOrganizationActions()
 
   // Current user info for permissions
-  const [currentUserRole, setCurrentUserRole] = useState<string>('user');
-  
+  const [currentUserRole, setCurrentUserRole] = useState<string>('user')
+
   // Get actual user role
   useEffect(() => {
     const getUserRole = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (user && members.length > 0) {
-        const currentMember = members.find(m => m.user_id === user.id);
+        const currentMember = members.find(m => m.user_id === user.id)
         // Since we know you're the admin, let's ensure it's set correctly
         if (user.email === 'andres@mailvibes.io') {
-          setCurrentUserRole('admin');
+          setCurrentUserRole('admin')
         } else {
-          setCurrentUserRole(currentMember?.role || 'user');
+          setCurrentUserRole(currentMember?.role || 'user')
         }
       }
-    };
-    getUserRole();
-  }, [members]);
+    }
+    getUserRole()
+  }, [members])
 
   // Load organization data on mount
   useEffect(() => {
     if (!organization && !loadingStates.loadingOrganization) {
-      loadOrganization();
+      loadOrganization()
     }
-  }, [organization, loadingStates.loadingOrganization, loadOrganization]);
+  }, [organization, loadingStates.loadingOrganization, loadOrganization])
 
   // Handle invite users
   const handleInviteUsers = async (formData: InviteUserForm) => {
     try {
-      await inviteUsers(formData);
+      await inviteUsers(formData)
       toast.success(
         `${formData.emails.length} invitation${formData.emails.length === 1 ? '' : 's'} sent successfully!`,
         {
-          description: 'Users will receive an email with instructions to join your organization.'
-        }
-      );
+          description: 'Users will receive an email with instructions to join your organization.',
+        },
+      )
     } catch (error: any) {
       toast.error('Failed to send invitations', {
-        description: error.message
-      });
-      throw error;
+        description: error.message,
+      })
+      throw error
     }
-  };
+  }
 
   // Handle role change
   const handleRoleChange = async (memberId: string, newRole: 'admin' | 'user') => {
     try {
-      await updateMemberRole(memberId, newRole);
-      const member = members.find(m => m.id === memberId);
+      await updateMemberRole(memberId, newRole)
+      const member = members.find(m => m.id === memberId)
       toast.success('Role updated successfully', {
-        description: `${member?.user.first_name} ${member?.user.last_name} is now ${newRole === 'admin' ? 'an admin' : 'a user'}`
-      });
+        description: `${member?.user.first_name} ${member?.user.last_name} is now ${newRole === 'admin' ? 'an admin' : 'a user'}`,
+      })
     } catch (error: any) {
       toast.error('Failed to update role', {
-        description: error.message
-      });
-      throw error;
+        description: error.message,
+      })
+      throw error
     }
-  };
+  }
 
   // Handle remove member
   const handleRemoveMember = async (memberId: string) => {
     try {
-      const member = members.find(m => m.id === memberId);
-      await removeMember(memberId);
+      const member = members.find(m => m.id === memberId)
+      await removeMember(memberId)
       toast.success('Member removed', {
-        description: `${member?.user.first_name} ${member?.user.last_name} has been removed from your organization`
-      });
+        description: `${member?.user.first_name} ${member?.user.last_name} has been removed from your organization`,
+      })
     } catch (error: any) {
       toast.error('Failed to remove member', {
-        description: error.message
-      });
-      throw error;
+        description: error.message,
+      })
+      throw error
     }
-  };
+  }
 
   // Handle resend invitation
   const handleResendInvitation = async (invitationId: string) => {
     try {
-      await resendInvitation(invitationId);
-      const invitation = invitations.find(inv => inv.id === invitationId);
+      await resendInvitation(invitationId)
+      const invitation = invitations.find(inv => inv.id === invitationId)
       toast.success('Invitation resent', {
-        description: `New invitation sent to ${invitation?.email}`
-      });
+        description: `New invitation sent to ${invitation?.email}`,
+      })
     } catch (error: any) {
       toast.error('Failed to resend invitation', {
-        description: error.message
-      });
-      throw error;
+        description: error.message,
+      })
+      throw error
     }
-  };
+  }
 
   // Handle cancel invitation
   const handleCancelInvitation = async (invitationId: string) => {
     try {
-      const invitation = invitations.find(inv => inv.id === invitationId);
-      await cancelInvitation(invitationId);
+      const invitation = invitations.find(inv => inv.id === invitationId)
+      await cancelInvitation(invitationId)
       toast.success('Invitation canceled', {
-        description: `Invitation for ${invitation?.email} has been canceled`
-      });
+        description: `Invitation for ${invitation?.email} has been canceled`,
+      })
     } catch (error: any) {
       toast.error('Failed to cancel invitation', {
-        description: error.message
-      });
-      throw error;
+        description: error.message,
+      })
+      throw error
     }
-  };
+  }
 
   // Handle refresh
   const handleRefresh = async () => {
     try {
-      await refreshData();
-      toast.success('Data refreshed successfully');
+      await refreshData()
+      toast.success('Data refreshed successfully')
     } catch (error) {
-      toast.error('Failed to refresh data');
+      toast.error('Failed to refresh data')
     }
-  };
+  }
 
   // Get effective members (including optimistic updates)
-  const effectiveMembers = members.filter(member => 
-    !optimisticUpdates.pendingRemovals.includes(member.id)
-  );
+  const effectiveMembers = members.filter(member => !optimisticUpdates.pendingRemovals.includes(member.id))
 
   // Get effective invitations (including optimistic updates)
-  const effectiveInvitations = [
-    ...invitations,
-    ...optimisticUpdates.pendingInvitations
-  ];
+  const effectiveInvitations = [...invitations, ...optimisticUpdates.pendingInvitations]
 
   // Show loading state
   if (loadingStates.loadingOrganization && !organization) {
@@ -203,7 +195,7 @@ const OrganizationUsers: React.FC = () => {
           </CardContent>
         </Card>
       </SettingsLayout>
-    );
+    )
   }
 
   // Show error state
@@ -221,11 +213,7 @@ const OrganizationUsers: React.FC = () => {
                   <Button onClick={loadOrganization} variant="outline">
                     Try Again
                   </Button>
-                  <Button 
-                    onClick={() => clearError('loadOrganization')} 
-                    variant="ghost"
-                    size="sm"
-                  >
+                  <Button onClick={() => clearError('loadOrganization')} variant="ghost" size="sm">
                     Dismiss Error
                   </Button>
                 </div>
@@ -234,10 +222,10 @@ const OrganizationUsers: React.FC = () => {
           </CardContent>
         </Card>
       </SettingsLayout>
-    );
+    )
   }
 
-  const canManageUsers = currentUserRole === 'admin';
+  const canManageUsers = currentUserRole === 'admin'
 
   return (
     <SettingsLayout title="Settings">
@@ -301,7 +289,7 @@ const OrganizationUsers: React.FC = () => {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -310,14 +298,12 @@ const OrganizationUsers: React.FC = () => {
                 disabled={loadingStates.loadingOrganization}
                 className="flex items-center gap-2"
               >
-                <RefreshCw 
-                  className={`w-4 h-4 ${loadingStates.loadingOrganization ? 'animate-spin' : ''}`} 
-                />
+                <RefreshCw className={`w-4 h-4 ${loadingStates.loadingOrganization ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
-              
+
               {canManageUsers && (
-                <Button 
+                <Button
                   onClick={() => setIsInviteModalOpen(true)}
                   className="flex items-center gap-2 bg-[#00A991] hover:bg-[#008A7A]"
                   disabled={loadingStates.invitingUsers || !stats.hasCapacity}
@@ -375,32 +361,28 @@ const OrganizationUsers: React.FC = () => {
           {/* Active Members */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                Active Members ({effectiveMembers.length})
-              </h3>
+              <h3 className="text-lg font-medium text-gray-900">Active Members ({effectiveMembers.length})</h3>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 {organization?.member_count} of {organization?.max_members} members
               </div>
             </div>
-            
+
             <div className="space-y-3">
-              {effectiveMembers.map((member) => {
-                const isCurrentUser = member.user_id === organizationMocks.currentUser.id;
-                const isUpdatingRole = loadingStates.updatingRole[member.id];
-                const isRemoving = loadingStates.removingMember[member.id];
-                const roleError = errors.updateRole?.[member.id];
-                const removeError = errors.removeMember?.[member.id];
-                const pendingRole = optimisticUpdates.pendingRoleChanges[member.id];
-                const isPendingRemoval = optimisticUpdates.pendingRemovals.includes(member.id);
-                
+              {effectiveMembers.map(member => {
+                const isCurrentUser = member.user_id === organizationMocks.currentUser.id
+                const isUpdatingRole = loadingStates.updatingRole[member.id]
+                const isRemoving = loadingStates.removingMember[member.id]
+                const roleError = errors.updateRole?.[member.id]
+                const removeError = errors.removeMember?.[member.id]
+                const pendingRole = optimisticUpdates.pendingRoleChanges[member.id]
+                const isPendingRemoval = optimisticUpdates.pendingRemovals.includes(member.id)
+
                 return (
-                  <div 
-                    key={member.id} 
+                  <div
+                    key={member.id}
                     className={`flex items-center justify-between p-4 border rounded-lg transition-all ${
-                      isPendingRemoval 
-                        ? 'border-red-200 bg-red-50 opacity-50' 
-                        : 'border-gray-200 hover:border-gray-300'
+                      isPendingRemoval ? 'border-red-200 bg-red-50 opacity-50' : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <div className="flex items-center gap-4">
@@ -415,23 +397,19 @@ const OrganizationUsers: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      
+
                       {/* User Info */}
                       <div>
                         <div className="font-medium text-gray-900">
                           {member.user.first_name} {member.user.last_name}
-                          {isCurrentUser && (
-                            <span className="ml-2 text-xs text-gray-500">(You)</span>
-                          )}
+                          {isCurrentUser && <span className="ml-2 text-xs text-gray-500">(You)</span>}
                           {isPendingRemoval && (
                             <Badge variant="destructive" className="ml-2 text-xs">
                               Removing...
                             </Badge>
                           )}
                         </div>
-                        <div className="text-sm text-gray-600">
-                          {member.user.email}
-                        </div>
+                        <div className="text-sm text-gray-600">{member.user.email}</div>
                         <div className="flex items-center gap-2 mt-1">
                           <UserCheck className="w-3 h-3 text-green-500" />
                           <span className="text-xs text-gray-500">
@@ -443,7 +421,7 @@ const OrganizationUsers: React.FC = () => {
                             </Badge>
                           )}
                         </div>
-                        
+
                         {/* Error Messages */}
                         {roleError && (
                           <div className="text-xs text-red-600 mt-1 flex items-center gap-1">
@@ -496,7 +474,7 @@ const OrganizationUsers: React.FC = () => {
                       )}
                     </div>
                   </div>
-                );
+                )
               })}
             </div>
           </div>
@@ -513,38 +491,40 @@ const OrganizationUsers: React.FC = () => {
                   Awaiting acceptance
                 </div>
               </div>
-              
+
               <div className="space-y-3">
-                {effectiveInvitations.map((invitation) => {
-                  const isExpired = new Date(invitation.expires_at) < new Date();
+                {effectiveInvitations.map(invitation => {
+                  const isExpired = new Date(invitation.expires_at) < new Date()
                   const daysUntilExpiry = Math.ceil(
-                    (new Date(invitation.expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-                  );
-                  const isOptimistic = optimisticUpdates.pendingInvitations.some(pi => pi.id === invitation.id);
-                  const isResending = loadingStates.resendingInvitation[invitation.id];
-                  const isCanceling = loadingStates.cancelingInvitation[invitation.id];
-                  
+                    (new Date(invitation.expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+                  )
+                  const isOptimistic = optimisticUpdates.pendingInvitations.some(pi => pi.id === invitation.id)
+                  const isResending = loadingStates.resendingInvitation[invitation.id]
+                  const isCanceling = loadingStates.cancelingInvitation[invitation.id]
+
                   return (
-                    <div 
-                      key={invitation.id} 
+                    <div
+                      key={invitation.id}
                       className={`flex items-center justify-between p-4 border rounded-lg ${
-                        isOptimistic 
-                          ? 'border-blue-200 bg-blue-50' 
-                          : isExpired 
-                            ? 'border-red-200 bg-red-50' 
+                        isOptimistic
+                          ? 'border-blue-200 bg-blue-50'
+                          : isExpired
+                            ? 'border-red-200 bg-red-50'
                             : 'border-amber-200 bg-amber-50'
                       }`}
                     >
                       <div className="flex items-center gap-4">
                         {/* Avatar */}
                         <div className="relative">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-medium ${
-                            isOptimistic
-                              ? 'bg-blue-100 text-blue-600'
-                              : isExpired 
-                                ? 'bg-red-100 text-red-600' 
-                                : 'bg-amber-100 text-amber-600'
-                          }`}>
+                          <div
+                            className={`w-10 h-10 rounded-full flex items-center justify-center font-medium ${
+                              isOptimistic
+                                ? 'bg-blue-100 text-blue-600'
+                                : isExpired
+                                  ? 'bg-red-100 text-red-600'
+                                  : 'bg-amber-100 text-amber-600'
+                            }`}
+                          >
                             {invitation.email.charAt(0).toUpperCase()}
                           </div>
                           {(isResending || isCanceling) && (
@@ -553,7 +533,7 @@ const OrganizationUsers: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        
+
                         {/* Invitation Info */}
                         <div>
                           <div className="font-medium text-gray-900">
@@ -573,10 +553,10 @@ const OrganizationUsers: React.FC = () => {
                             ) : (
                               <Mail className="w-3 h-3 text-amber-500" />
                             )}
-                            <span className={`text-xs ${
-                              isExpired ? 'text-red-600' : 'text-amber-600'
-                            }`}>
-                              {isExpired ? 'Expired' : `Expires in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? '' : 's'}`}
+                            <span className={`text-xs ${isExpired ? 'text-red-600' : 'text-amber-600'}`}>
+                              {isExpired
+                                ? 'Expired'
+                                : `Expires in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? '' : 's'}`}
                             </span>
                           </div>
                         </div>
@@ -584,11 +564,11 @@ const OrganizationUsers: React.FC = () => {
 
                       <div className="flex items-center gap-3">
                         {/* Role Badge */}
-                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                          invitation.role === 'admin' 
-                            ? 'bg-purple-100 text-purple-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
+                        <span
+                          className={`px-3 py-1 text-xs font-medium rounded-full ${
+                            invitation.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
                           {invitation.role === 'admin' ? 'Admin' : 'User'}
                         </span>
 
@@ -603,7 +583,7 @@ const OrganizationUsers: React.FC = () => {
                         )}
                       </div>
                     </div>
-                  );
+                  )
                 })}
               </div>
             </div>
@@ -618,7 +598,7 @@ const OrganizationUsers: React.FC = () => {
                 Start building your team by inviting colleagues to join your organization.
               </p>
               {canManageUsers && (
-                <Button 
+                <Button
                   onClick={() => setIsInviteModalOpen(true)}
                   className="bg-[#00A991] hover:bg-[#008A7A]"
                   disabled={!stats.hasCapacity}
@@ -648,7 +628,7 @@ const OrganizationUsers: React.FC = () => {
         loading={memberToRemove ? loadingStates.removingMember[memberToRemove.id] : false}
       />
     </SettingsLayout>
-  );
-};
+  )
+}
 
-export default OrganizationUsers; 
+export default OrganizationUsers

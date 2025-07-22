@@ -1,49 +1,49 @@
-import React, { Component, ReactNode } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { logger } from '@/utils/logger';
+import React, { Component, ReactNode } from 'react'
+import { AlertCircle, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { logger } from '@/utils/logger'
 
 interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
-  onReset?: () => void;
-  sectionName?: string;
+  children: ReactNode
+  fallback?: ReactNode
+  onReset?: () => void
+  sectionName?: string
 }
 
 interface State {
-  hasError: boolean;
-  error: Error | null;
-  errorInfo: React.ErrorInfo | null;
+  hasError: boolean
+  error: Error | null
+  errorInfo: React.ErrorInfo | null
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
+    super(props)
+    this.state = { hasError: false, error: null, errorInfo: null }
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error, errorInfo: null };
+    return { hasError: true, error, errorInfo: null }
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    logger.critical(`Error in ${this.props.sectionName || 'component'}:`, error, errorInfo);
-    this.setState({ errorInfo });
-    
+    logger.critical(`Error in ${this.props.sectionName || 'component'}:`, error, errorInfo)
+    this.setState({ errorInfo })
+
     // You could also log to an error reporting service here
     // logErrorToService(error, errorInfo);
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null });
-    this.props.onReset?.();
-  };
+    this.setState({ hasError: false, error: null, errorInfo: null })
+    this.props.onReset?.()
+  }
 
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
-        return <>{this.props.fallback}</>;
+        return <>{this.props.fallback}</>
       }
 
       return (
@@ -53,13 +53,11 @@ export class ErrorBoundary extends Component<Props, State> {
               <div className="rounded-full bg-destructive/10 p-3">
                 <AlertCircle className="h-6 w-6 text-destructive" />
               </div>
-              
+
               <div className="space-y-2">
-                <h3 className="text-lg font-semibold">
-                  Something went wrong
-                </h3>
+                <h3 className="text-lg font-semibold">Something went wrong</h3>
                 <p className="text-sm text-muted-foreground">
-                  {this.props.sectionName 
+                  {this.props.sectionName
                     ? `An error occurred in the ${this.props.sectionName} section.`
                     : 'An unexpected error occurred.'}
                 </p>
@@ -71,9 +69,7 @@ export class ErrorBoundary extends Component<Props, State> {
                     Error details
                   </summary>
                   <div className="mt-2 space-y-2">
-                    <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-                      {this.state.error.toString()}
-                    </pre>
+                    <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">{this.state.error.toString()}</pre>
                     {this.state.errorInfo && (
                       <pre className="text-xs bg-muted p-2 rounded overflow-x-auto max-h-40 overflow-y-auto">
                         {this.state.errorInfo.componentStack}
@@ -83,20 +79,16 @@ export class ErrorBoundary extends Component<Props, State> {
                 </details>
               )}
 
-              <Button 
-                onClick={this.handleReset}
-                variant="default"
-                className="gap-2"
-              >
+              <Button onClick={this.handleReset} variant="default" className="gap-2">
                 <RefreshCw className="h-4 w-4" />
                 Try Again
               </Button>
             </div>
           </Card>
         </div>
-      );
+      )
     }
 
-    return this.props.children;
+    return this.props.children
   }
-} 
+}

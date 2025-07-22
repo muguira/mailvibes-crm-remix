@@ -1,44 +1,43 @@
-
-import { RefObject, useRef, useEffect } from "react";
-import { ColumnDef, ColumnType } from "./grid/types";
-import { GridHeadersSection } from "./grid/components/grid-headers-section";
-import { AddColumnButton } from "./grid/components/add-column-button";
-import { logger } from '@/utils/logger';
+import { RefObject, useRef, useEffect } from 'react'
+import { ColumnDef, ColumnType } from './grid/types'
+import { GridHeadersSection } from './grid/components/grid-headers-section'
+import { AddColumnButton } from './grid/components/add-column-button'
+import { logger } from '@/utils/logger'
 
 interface GridHeadersProps {
-  frozenColumns: ColumnDef[];
-  scrollableColumns: ColumnDef[];
-  frozenColsTemplate: string;
-  scrollableColsTemplate: string;
-  editingHeader: string | null;
-  setEditingHeader: (key: string | null) => void;
-  draggedColumn: string | null;
-  dragOverColumn: string | null;
-  headerRef: RefObject<HTMLDivElement>;
-  isAddingColumn: boolean;
-  setIsAddingColumn: (isAdding: boolean) => void;
+  frozenColumns: ColumnDef[]
+  scrollableColumns: ColumnDef[]
+  frozenColsTemplate: string
+  scrollableColsTemplate: string
+  editingHeader: string | null
+  setEditingHeader: (key: string | null) => void
+  draggedColumn: string | null
+  dragOverColumn: string | null
+  headerRef: RefObject<HTMLDivElement>
+  isAddingColumn: boolean
+  setIsAddingColumn: (isAdding: boolean) => void
   newColumn: {
-    header: string;
-    type: ColumnType;
-    options?: string[];
-    colors?: Record<string, string>;
-  };
+    header: string
+    type: ColumnType
+    options?: string[]
+    colors?: Record<string, string>
+  }
   setNewColumn: (newCol: {
-    header: string;
-    type: ColumnType;
-    options?: string[];
-    colors?: Record<string, string>;
-  }) => void;
-  addColumn: () => void;
-  onHeaderDoubleClick: (colKey: string) => void;
-  onRenameColumn: (colKey: string, newName: string) => void;
-  onDuplicateColumn: (column: ColumnDef) => void;
-  onMoveColumn: (colKey: string, direction: 'left' | 'right') => void;
-  onSortColumn: (colKey: string, direction: 'asc' | 'desc') => void;
-  onDeleteColumn: (colKey: string) => void;
-  onDragStart: (key: string) => void;
-  onDragOver: (e: React.DragEvent, key: string) => void;
-  onDrop: (key: string) => void;
+    header: string
+    type: ColumnType
+    options?: string[]
+    colors?: Record<string, string>
+  }) => void
+  addColumn: () => void
+  onHeaderDoubleClick: (colKey: string) => void
+  onRenameColumn: (colKey: string, newName: string) => void
+  onDuplicateColumn: (column: ColumnDef) => void
+  onMoveColumn: (colKey: string, direction: 'left' | 'right') => void
+  onSortColumn: (colKey: string, direction: 'asc' | 'desc') => void
+  onDeleteColumn: (colKey: string) => void
+  onDragStart: (key: string) => void
+  onDragOver: (e: React.DragEvent, key: string) => void
+  onDrop: (key: string) => void
 }
 
 export function GridHeaders({
@@ -64,58 +63,62 @@ export function GridHeaders({
   onDeleteColumn,
   onDragStart,
   onDragOver,
-  onDrop
+  onDrop,
 }: GridHeadersProps) {
   // Local ref to help with head cell visibility
-  const localHeaderRef = useRef<HTMLDivElement>(null);
-  
+  const localHeaderRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
-    logger.log("GridHeaders rendering with columns:", { 
-      frozen: frozenColumns, 
-      scrollable: scrollableColumns 
-    });
-    
+    logger.log('GridHeaders rendering with columns:', {
+      frozen: frozenColumns,
+      scrollable: scrollableColumns,
+    })
+
     // Force visibility of header cells
     const ensureHeadersVisible = () => {
       if (headerRef.current) {
         // Use setAttribute for !important styles
-        headerRef.current.setAttribute('style', 'visibility: visible !important; opacity: 1 !important;');
-        
-        const headerCells = headerRef.current.querySelectorAll('.grid-header-cell');
+        headerRef.current.setAttribute('style', 'visibility: visible !important; opacity: 1 !important;')
+
+        const headerCells = headerRef.current.querySelectorAll('.grid-header-cell')
         headerCells.forEach(cell => {
-          (cell as HTMLElement).setAttribute('style', 'visibility: visible !important; opacity: 1 !important;');
-          
-          const headerText = cell.querySelector('span');
+          ;(cell as HTMLElement).setAttribute('style', 'visibility: visible !important; opacity: 1 !important;')
+
+          const headerText = cell.querySelector('span')
           if (headerText) {
-            (headerText as HTMLElement).setAttribute('style', 
-              'visibility: visible !important; opacity: 1 !important; display: inline-block !important;');
+            ;(headerText as HTMLElement).setAttribute(
+              'style',
+              'visibility: visible !important; opacity: 1 !important; display: inline-block !important;',
+            )
           }
-        });
+        })
       }
-      
+
       // Ensure add column button is visible
-      const addColumnButton = document.querySelector('.add-column-cell');
+      const addColumnButton = document.querySelector('.add-column-cell')
       if (addColumnButton) {
-        (addColumnButton as HTMLElement).setAttribute('style', 
-          'visibility: visible !important; opacity: 1 !important; display: flex !important;');
+        ;(addColumnButton as HTMLElement).setAttribute(
+          'style',
+          'visibility: visible !important; opacity: 1 !important; display: flex !important;',
+        )
       }
-    };
-    
+    }
+
     // Execute multiple times to ensure it works
-    setTimeout(ensureHeadersVisible, 0);
-    setTimeout(ensureHeadersVisible, 100);
-    setTimeout(ensureHeadersVisible, 300);
-  }, [frozenColumns, scrollableColumns, headerRef]);
+    setTimeout(ensureHeadersVisible, 0)
+    setTimeout(ensureHeadersVisible, 100)
+    setTimeout(ensureHeadersVisible, 300)
+  }, [frozenColumns, scrollableColumns, headerRef])
 
   return (
-    <div 
+    <div
       className="grid-headers-container sticky top-0 z-10 bg-white"
       ref={localHeaderRef}
       style={{ visibility: 'visible', opacity: 1 }}
     >
       {/* Row number header */}
       <div className="row-number-header"></div>
-      
+
       {/* Headers container */}
       <div className="flex flex-1 overflow-visible">
         {/* Frozen header columns */}
@@ -132,22 +135,25 @@ export function GridHeaders({
             onDeleteColumn={onDeleteColumn}
             isFrozen={true}
             style={{
-              boxShadow: "5px 0 5px -2px rgba(0,0,0,0.05)",
-              position: "sticky",
-              left: "40px", // Account for row number
-              display: "flex",
+              boxShadow: '5px 0 5px -2px rgba(0,0,0,0.05)',
+              position: 'sticky',
+              left: '40px', // Account for row number
+              display: 'flex',
               visibility: 'visible',
               opacity: 1,
-              zIndex: 15
+              zIndex: 15,
             }}
           />
         )}
 
         {/* Scrollable header columns */}
-        <div className="flex flex-1 overflow-visible relative" style={{ 
-          marginLeft: frozenColumns && frozenColumns.length > 0 ? 0 : "40px", // Adjust margin if no frozen columns
-          position: 'relative'
-        }}>
+        <div
+          className="flex flex-1 overflow-visible relative"
+          style={{
+            marginLeft: frozenColumns && frozenColumns.length > 0 ? 0 : '40px', // Adjust margin if no frozen columns
+            position: 'relative',
+          }}
+        >
           <GridHeadersSection
             columns={scrollableColumns}
             editingHeader={editingHeader}
@@ -176,5 +182,5 @@ export function GridHeaders({
         </div>
       </div>
     </div>
-  );
+  )
 }

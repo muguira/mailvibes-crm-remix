@@ -1,10 +1,9 @@
-
-import React from 'react';
-import { cn } from "@/lib/utils";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import React from 'react'
+import { cn } from '@/lib/utils'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 
 interface TabStripProps {
-  className?: string;
+  className?: string
 }
 
 export default function TabStrip({ className = '' }: TabStripProps) {
@@ -16,7 +15,7 @@ export default function TabStrip({ className = '' }: TabStripProps) {
           <TabsTrigger value="associations">Associations</TabsTrigger>
           <TabsTrigger value="about">About</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="stream" className="py-4 text-muted-foreground">
           Stream tab content coming soon...
         </TabsContent>
@@ -28,5 +27,5 @@ export default function TabStrip({ className = '' }: TabStripProps) {
         </TabsContent>
       </Tabs>
     </div>
-  );
+  )
 }

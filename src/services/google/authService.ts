@@ -8,11 +8,8 @@ import {
   GoogleUserInfo,
   AuthFlowError,
   AuthErrorType,
-} from "@/types/google";
-import {
-  GOOGLE_OAUTH_URLS,
-  GOOGLE_OAUTH_SCOPES,
-} from "@/constants/store/google";
+} from '@/types/google'
+import { GOOGLE_OAUTH_URLS, GOOGLE_OAUTH_SCOPES } from '@/constants/store/google'
 
 import {
   generatePKCEParams,
@@ -21,10 +18,10 @@ import {
   retrievePKCEParams,
   clearPKCEParams,
   validateState,
-} from "./pkceService";
-import { saveTokens, deleteTokens } from "./tokenService";
-import { supabase } from "@/integrations/supabase/client";
-import * as tokenService from "./tokenService";
+} from './pkceService'
+import { saveTokens, deleteTokens } from './tokenService'
+import { supabase } from '@/integrations/supabase/client'
+import * as tokenService from './tokenService'
 
 /**
  * Gmail OAuth2 Authentication Service
@@ -37,50 +34,43 @@ import * as tokenService from "./tokenService";
  * @param scopes - Array of OAuth scopes (optional, defaults to Gmail scopes)
  * @returns Authorization URL string
  */
-export async function buildAuthUrl(
-  redirectUri: string,
-  scopes: string[] = [...GOOGLE_OAUTH_SCOPES]
-): Promise<string> {
+export async function buildAuthUrl(redirectUri: string, scopes: string[] = [...GOOGLE_OAUTH_SCOPES]): Promise<string> {
   try {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
     if (!clientId) {
-      throw new Error("Google Client ID not configured");
+      throw new Error('Google Client ID not configured')
     }
 
     // Generate PKCE parameters
-    const pkceParams = await generatePKCEParams();
-    const state = generateState();
+    const pkceParams = await generatePKCEParams()
+    const state = generateState()
 
     // Store PKCE parameters for later validation
-    storePKCEParams(pkceParams, state);
+    storePKCEParams(pkceParams, state)
 
     // Build authorization URL
     const authParams: AuthUrlParams = {
       client_id: clientId,
       redirect_uri: redirectUri,
-      response_type: "code",
-      scope: scopes.join(" "),
+      response_type: 'code',
+      scope: scopes.join(' '),
       code_challenge: pkceParams.code_challenge,
-      code_challenge_method: "S256",
+      code_challenge_method: 'S256',
       state: state,
-      access_type: "offline",
-      prompt: "select_account consent",
-      include_granted_scopes: "true",
-    };
+      access_type: 'offline',
+      prompt: 'select_account consent',
+      include_granted_scopes: 'true',
+    }
 
-    const url = new URL(GOOGLE_OAUTH_URLS.AUTH);
+    const url = new URL(GOOGLE_OAUTH_URLS.AUTH)
     Object.entries(authParams).forEach(([key, value]) => {
-      url.searchParams.append(key, value);
-    });
+      url.searchParams.append(key, value)
+    })
 
-    return url.toString();
+    return url.toString()
   } catch (error) {
-    console.error("Error building auth URL:", error);
-    throw createAuthError(
-      "invalid_request",
-      "Failed to build authorization URL",
-      error
-    );
+    console.error('Error building auth URL:', error)
+    throw createAuthError('invalid_request', 'Failed to build authorization URL', error)
   }
 }
 
@@ -93,34 +83,28 @@ export async function buildAuthUrl(
 export const exchangeCodeForTokens = async (
   code: string,
   codeVerifier: string,
-  redirectUri: string
+  redirectUri: string,
 ): Promise<TokenResponse & { email?: string; user_info?: GoogleUserInfo }> => {
   try {
-    console.log("[Gmail Auth] Starting token exchange...");
+    console.log('[Gmail Auth] Starting token exchange...')
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await supabase.auth.getUser()
     if (!user) {
-      throw new Error("User not authenticated");
+      throw new Error('User not authenticated')
     }
 
     // Use production Edge Function URL
-    const edgeFunctionUrl = `${
-      import.meta.env.VITE_SUPABASE_URL
-    }/functions/v1/gmail-oauth-callback`;
+    const edgeFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gmail-oauth-callback`
 
-    console.log("[Gmail Auth] Calling Edge Function at:", edgeFunctionUrl);
+    console.log('[Gmail Auth] Calling Edge Function at:', edgeFunctionUrl)
 
     const response = await fetch(edgeFunctionUrl, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${
-          (
-            await supabase.auth.getSession()
-          ).data.session?.access_token
-        }`,
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
       },
       body: JSON.stringify({
         code,
@@ -128,73 +112,61 @@ export const exchangeCodeForTokens = async (
         redirect_uri: redirectUri,
         user_id: user.id,
       }),
-    });
+    })
 
-    const data = await response.json();
-    console.log("[Gmail Auth] Edge Function response:", data);
+    const data = await response.json()
+    console.log('[Gmail Auth] Edge Function response:', data)
 
     if (!response.ok || !data.success) {
-      console.error("[Gmail Auth] Edge Function error:", data);
-      throw new Error(data.error || "Failed to exchange authorization code");
+      console.error('[Gmail Auth] Edge Function error:', data)
+      throw new Error(data.error || 'Failed to exchange authorization code')
     }
 
-    console.log("[Gmail Auth] Token exchange successful");
+    console.log('[Gmail Auth] Token exchange successful')
     // The Edge Function returns { success: true, data: { access_token, refresh_token, etc } }
-    return data.data;
+    return data.data
   } catch (error) {
-    console.error("[Gmail Auth] Token exchange error:", error);
-    throw error;
+    console.error('[Gmail Auth] Token exchange error:', error)
+    throw error
   }
-};
+}
 
 /**
  * Refreshes an access token using refresh token
  * @param refreshToken - The refresh token
  * @returns Promise<TokenResponse>
  */
-export async function refreshAccessToken(
-  refreshToken: string
-): Promise<TokenResponse> {
+export async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
   try {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
     if (!clientId) {
-      throw new Error("Google Client ID not configured");
+      throw new Error('Google Client ID not configured')
     }
 
     const refreshParams: RefreshTokenParams = {
       client_id: clientId,
       refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    };
-
-    const response = await fetch(GOOGLE_OAUTH_URLS.TOKEN, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams(
-        refreshParams as unknown as Record<string, string>
-      ),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        `Token refresh failed: ${
-          errorData.error_description || response.statusText
-        }`
-      );
+      grant_type: 'refresh_token',
     }
 
-    const tokenData: TokenResponse = await response.json();
-    return tokenData;
+    const response = await fetch(GOOGLE_OAUTH_URLS.TOKEN, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams(refreshParams as unknown as Record<string, string>),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(`Token refresh failed: ${errorData.error_description || response.statusText}`)
+    }
+
+    const tokenData: TokenResponse = await response.json()
+    return tokenData
   } catch (error) {
-    console.error("Error refreshing access token:", error);
-    throw createAuthError(
-      "refresh_failed",
-      "Failed to refresh access token",
-      error
-    );
+    console.error('Error refreshing access token:', error)
+    throw createAuthError('refresh_failed', 'Failed to refresh access token', error)
   }
 }
 
@@ -207,24 +179,22 @@ export async function revokeTokens(accessToken: string): Promise<void> {
   try {
     const revokeParams: RevokeTokenParams = {
       token: accessToken,
-    };
+    }
 
     const response = await fetch(GOOGLE_OAUTH_URLS.REVOKE, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams(
-        revokeParams as unknown as Record<string, string>
-      ),
-    });
+      body: new URLSearchParams(revokeParams as unknown as Record<string, string>),
+    })
 
     if (!response.ok) {
-      console.warn("Token revocation failed:", response.statusText);
+      console.warn('Token revocation failed:', response.statusText)
       // Don't throw error for revocation failures as tokens might already be expired
     }
   } catch (error) {
-    console.error("Error revoking tokens:", error);
+    console.error('Error revoking tokens:', error)
     // Don't throw error for revocation failures
   }
 }
@@ -234,29 +204,23 @@ export async function revokeTokens(accessToken: string): Promise<void> {
  * @param accessToken - Valid access token
  * @returns Promise<GoogleUserInfo>
  */
-export async function getUserInfo(
-  accessToken: string
-): Promise<GoogleUserInfo> {
+export async function getUserInfo(accessToken: string): Promise<GoogleUserInfo> {
   try {
     const response = await fetch(GOOGLE_OAUTH_URLS.USERINFO, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
-    });
+    })
 
     if (!response.ok) {
-      throw new Error(`Failed to get user info: ${response.statusText}`);
+      throw new Error(`Failed to get user info: ${response.statusText}`)
     }
 
-    const userInfo: GoogleUserInfo = await response.json();
-    return userInfo;
+    const userInfo: GoogleUserInfo = await response.json()
+    return userInfo
   } catch (error) {
-    console.error("Error getting user info:", error);
-    throw createAuthError(
-      "network_error",
-      "Failed to get user information",
-      error
-    );
+    console.error('Error getting user info:', error)
+    throw createAuthError('network_error', 'Failed to get user information', error)
   }
 }
 
@@ -272,45 +236,37 @@ export async function handleOAuthCallback(
   code: string,
   state: string,
   redirectUri: string,
-  userId: string
+  userId: string,
 ): Promise<TokenData> {
   try {
     // Validate state parameter
-    const pkceParams = retrievePKCEParams();
+    const pkceParams = retrievePKCEParams()
     if (!pkceParams || !validateState(state, pkceParams.state)) {
-      throw new Error("Invalid state parameter - possible CSRF attack");
+      throw new Error('Invalid state parameter - possible CSRF attack')
     }
 
     // Exchange code for tokens (Edge Function handles saving)
-    const tokenResponse = await exchangeCodeForTokens(
-      code,
-      pkceParams.code_verifier,
-      redirectUri
-    );
+    const tokenResponse = await exchangeCodeForTokens(code, pkceParams.code_verifier, redirectUri)
 
     // Clear PKCE params after successful exchange
-    clearPKCEParams();
+    clearPKCEParams()
 
     // Create token data from response
     const tokenData: TokenData = {
       access_token: tokenResponse.access_token,
-      refresh_token: tokenResponse.refresh_token || "",
+      refresh_token: tokenResponse.refresh_token || '',
       expires_at: new Date(Date.now() + tokenResponse.expires_in * 1000),
       scope: tokenResponse.scope,
-      email: tokenResponse.email || "",
+      email: tokenResponse.email || '',
       user_info: tokenResponse.user_info,
-    };
+    }
 
     // Note: We don't save tokens here because the Edge Function already did it
 
-    return tokenData;
+    return tokenData
   } catch (error) {
-    console.error("Error handling OAuth callback:", error);
-    throw createAuthError(
-      "server_error",
-      "Failed to complete OAuth flow",
-      error
-    );
+    console.error('Error handling OAuth callback:', error)
+    throw createAuthError('server_error', 'Failed to complete OAuth flow', error)
   }
 }
 
@@ -320,20 +276,13 @@ export async function handleOAuthCallback(
  * @param scopes - Array of OAuth scopes (optional)
  * @returns Promise<string> - Authorization URL
  */
-export async function initiateOAuthFlow(
-  redirectUri: string,
-  scopes?: string[]
-): Promise<string> {
+export async function initiateOAuthFlow(redirectUri: string, scopes?: string[]): Promise<string> {
   try {
-    const authUrl = await buildAuthUrl(redirectUri, scopes);
-    return authUrl;
+    const authUrl = await buildAuthUrl(redirectUri, scopes)
+    return authUrl
   } catch (error) {
-    console.error("Error initiating OAuth flow:", error);
-    throw createAuthError(
-      "invalid_request",
-      "Failed to initiate OAuth flow",
-      error
-    );
+    console.error('Error initiating OAuth flow:', error)
+    throw createAuthError('invalid_request', 'Failed to initiate OAuth flow', error)
   }
 }
 
@@ -343,28 +292,21 @@ export async function initiateOAuthFlow(
  * @param email - The Gmail account email
  * @returns Promise<void>
  */
-export async function disconnectGmailAccount(
-  userId: string,
-  email: string
-): Promise<void> {
+export async function disconnectGmailAccount(userId: string, email: string): Promise<void> {
   try {
     // Try to revoke tokens first (best effort)
     try {
       // We would need to get the access token first, but for simplicity
       // we'll just delete from database and let tokens expire naturally
     } catch (error) {
-      console.warn("Could not revoke tokens:", error);
+      console.warn('Could not revoke tokens:', error)
     }
 
     // Delete tokens from database
-    await deleteTokens(userId, email);
+    await deleteTokens(userId, email)
   } catch (error) {
-    console.error("Error disconnecting Gmail account:", error);
-    throw createAuthError(
-      "server_error",
-      "Failed to disconnect Gmail account",
-      error
-    );
+    console.error('Error disconnecting Gmail account:', error)
+    throw createAuthError('server_error', 'Failed to disconnect Gmail account', error)
   }
 }
 
@@ -373,20 +315,20 @@ export async function disconnectGmailAccount(
  * @returns boolean - True if configuration is valid
  */
 export function validateOAuthConfig(): boolean {
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  const redirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI;
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+  const redirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI
 
   if (!clientId) {
-    console.error("VITE_GOOGLE_CLIENT_ID is not configured");
-    return false;
+    console.error('VITE_GOOGLE_CLIENT_ID is not configured')
+    return false
   }
 
   if (!redirectUri) {
-    console.error("VITE_GOOGLE_REDIRECT_URI is not configured");
-    return false;
+    console.error('VITE_GOOGLE_REDIRECT_URI is not configured')
+    return false
   }
 
-  return true;
+  return true
 }
 
 /**
@@ -394,11 +336,11 @@ export function validateOAuthConfig(): boolean {
  * @returns string - The redirect URI
  */
 export function getRedirectUri(): string {
-  const redirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI;
+  const redirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI
   if (!redirectUri) {
-    throw new Error("VITE_GOOGLE_REDIRECT_URI is not configured");
+    throw new Error('VITE_GOOGLE_REDIRECT_URI is not configured')
   }
-  return redirectUri;
+  return redirectUri
 }
 
 /**
@@ -406,26 +348,22 @@ export function getRedirectUri(): string {
  * @returns string[] - Array of OAuth scopes
  */
 export function getConfiguredScopes(): string[] {
-  const scopes = import.meta.env.VITE_GMAIL_API_SCOPES;
+  const scopes = import.meta.env.VITE_GMAIL_API_SCOPES
   if (scopes) {
-    return scopes.split(",").map((scope: string) => scope.trim());
+    return scopes.split(',').map((scope: string) => scope.trim())
   }
-  return [...GOOGLE_OAUTH_SCOPES];
+  return [...GOOGLE_OAUTH_SCOPES]
 }
 
 // Helper function to create standardized auth errors
-function createAuthError(
-  type: AuthErrorType,
-  message: string,
-  originalError?: any
-): AuthFlowError {
+function createAuthError(type: AuthErrorType, message: string, originalError?: any): AuthFlowError {
   return {
     type,
     code: type,
     message,
     originalError,
     details: originalError?.message || originalError,
-  };
+  }
 }
 
 /**
@@ -433,8 +371,8 @@ function createAuthError(
  * @returns boolean - True if current URL contains OAuth callback parameters
  */
 export function isOAuthCallback(): boolean {
-  const urlParams = new URLSearchParams(window.location.search);
-  return urlParams.has("code") && urlParams.has("state");
+  const urlParams = new URLSearchParams(window.location.search)
+  return urlParams.has('code') && urlParams.has('state')
 }
 
 /**
@@ -442,32 +380,32 @@ export function isOAuthCallback(): boolean {
  * @returns Object with code, state, and error if present
  */
 export function extractCallbackParams(): {
-  code?: string;
-  state?: string;
-  error?: string;
-  error_description?: string;
+  code?: string
+  state?: string
+  error?: string
+  error_description?: string
 } {
-  const urlParams = new URLSearchParams(window.location.search);
+  const urlParams = new URLSearchParams(window.location.search)
 
   return {
-    code: urlParams.get("code") || undefined,
-    state: urlParams.get("state") || undefined,
-    error: urlParams.get("error") || undefined,
-    error_description: urlParams.get("error_description") || undefined,
-  };
+    code: urlParams.get('code') || undefined,
+    state: urlParams.get('state') || undefined,
+    error: urlParams.get('error') || undefined,
+    error_description: urlParams.get('error_description') || undefined,
+  }
 }
 
 /**
  * Cleans up OAuth callback parameters from URL
  */
 export function cleanupCallbackUrl(): void {
-  const url = new URL(window.location.href);
-  url.searchParams.delete("code");
-  url.searchParams.delete("state");
-  url.searchParams.delete("error");
-  url.searchParams.delete("error_description");
+  const url = new URL(window.location.href)
+  url.searchParams.delete('code')
+  url.searchParams.delete('state')
+  url.searchParams.delete('error')
+  url.searchParams.delete('error_description')
 
-  window.history.replaceState({}, document.title, url.toString());
+  window.history.replaceState({}, document.title, url.toString())
 }
 
 /**
@@ -477,6 +415,6 @@ export function cleanupCallbackUrl(): void {
 const getUser = async () => {
   const {
     data: { user },
-  } = await supabase.auth.getUser();
-  return user;
-};
+  } = await supabase.auth.getUser()
+  return user
+}

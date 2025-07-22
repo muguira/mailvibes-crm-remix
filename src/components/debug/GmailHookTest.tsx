@@ -1,60 +1,75 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { useGmail } from '@/hooks/gmail';
-import { useAuth } from '@/components/auth';
+import React, { useEffect, useState, useRef, useMemo } from 'react'
+import { useGmail } from '@/hooks/gmail'
+import { useAuth } from '@/components/auth'
 
 /**
  * Test component to verify Gmail hooks don't cause infinite loops
  * This should be temporarily added to a safe route for testing
  */
 export const GmailHookTest: React.FC = () => {
-  const { user } = useAuth();
-  const [testStarted, setTestStarted] = useState(false);
-  
+  const { user } = useAuth()
+  const [testStarted, setTestStarted] = useState(false)
+
   // Use useRef to count renders without causing re-renders
-  const renderCountRef = useRef(0);
-  renderCountRef.current += 1;
+  const renderCountRef = useRef(0)
+  renderCountRef.current += 1
 
   // Memoize Gmail hook options to prevent recreating the object
-  const gmailOptions = useMemo(() => ({
-    userId: user?.id,
-    autoInitialize: false, // Start with disabled
-    enableLogging: true
-  }), [user?.id]);
+  const gmailOptions = useMemo(
+    () => ({
+      userId: user?.id,
+      autoInitialize: false, // Start with disabled
+      enableLogging: true,
+    }),
+    [user?.id],
+  )
 
   // Test useGmail hook with autoInitialize disabled
-  const gmail = useGmail(gmailOptions);
+  const gmail = useGmail(gmailOptions)
 
   // Manual test controls
   const startTest = async () => {
-    setTestStarted(true);
-    console.log('🧪 Starting Gmail hook test...');
-    
+    setTestStarted(true)
+    console.log('🧪 Starting Gmail hook test...')
+
     try {
       // Try to load accounts manually
-      await gmail.loadAccounts();
-      console.log('✅ loadAccounts completed without loops');
+      await gmail.loadAccounts()
+      console.log('✅ loadAccounts completed without loops')
     } catch (error) {
-      console.error('❌ loadAccounts failed:', error);
+      console.error('❌ loadAccounts failed:', error)
     }
-  };
+  }
 
   const testAutoInitialize = () => {
-    console.log('🧪 Testing with autoInitialize...');
+    console.log('🧪 Testing with autoInitialize...')
     // This would require re-mounting the component with autoInitialize: true
-    window.location.reload(); // Temporary - just reload to test
-  };
+    window.location.reload() // Temporary - just reload to test
+  }
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Gmail Hooks Test</h1>
-      
+
       <div className="bg-gray-100 p-4 rounded mb-4">
-        <p><strong>Render Count:</strong> {renderCountRef.current}</p>
-        <p><strong>User ID:</strong> {user?.id || 'Not logged in'}</p>
-        <p><strong>Accounts:</strong> {gmail.accounts.length}</p>
-        <p><strong>Loading:</strong> {JSON.stringify(gmail.loading)}</p>
-        <p><strong>Error:</strong> {gmail.error || 'None'}</p>
-        <p><strong>Connection Status:</strong> {gmail.connectionStatus}</p>
+        <p>
+          <strong>Render Count:</strong> {renderCountRef.current}
+        </p>
+        <p>
+          <strong>User ID:</strong> {user?.id || 'Not logged in'}
+        </p>
+        <p>
+          <strong>Accounts:</strong> {gmail.accounts.length}
+        </p>
+        <p>
+          <strong>Loading:</strong> {JSON.stringify(gmail.loading)}
+        </p>
+        <p>
+          <strong>Error:</strong> {gmail.error || 'None'}
+        </p>
+        <p>
+          <strong>Connection Status:</strong> {gmail.connectionStatus}
+        </p>
       </div>
 
       <div className="space-y-2">
@@ -65,11 +80,8 @@ export const GmailHookTest: React.FC = () => {
         >
           {testStarted ? 'Test Started' : 'Start Manual Test'}
         </button>
-        
-        <button
-          onClick={testAutoInitialize}
-          className="bg-yellow-500 text-white px-4 py-2 rounded ml-2"
-        >
+
+        <button onClick={testAutoInitialize} className="bg-yellow-500 text-white px-4 py-2 rounded ml-2">
           Test Auto-Initialize (Reload)
         </button>
       </div>
@@ -87,5 +99,5 @@ export const GmailHookTest: React.FC = () => {
         </div>
       )}
     </div>
-  );
-}; 
+  )
+}

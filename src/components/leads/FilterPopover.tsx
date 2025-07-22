@@ -1,51 +1,36 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { 
-  Popover, 
-  PopoverContent, 
-  PopoverTrigger 
-} from '@/components/ui/popover';
-import { 
-  Filter, 
-  X, 
-  ChevronLeft, 
-  Check, 
-  CalendarIcon 
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
-import { 
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import React, { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Filter, X, ChevronLeft, Check, CalendarIcon } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Calendar } from '@/components/ui/calendar'
+import { format } from 'date-fns'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
-type FilterType = 'date' | 'status' | 'text' | 'number';
+type FilterType = 'date' | 'status' | 'text' | 'number'
 
 interface FilterOption {
-  id: string;
-  label: string;
-  type: FilterType;
-  options?: string[];
-  colors?: Record<string, string>;
+  id: string
+  label: string
+  type: FilterType
+  options?: string[]
+  colors?: Record<string, string>
 }
 
 interface SelectedFilter {
-  id: string;
-  type: FilterType;
-  value: any;
+  id: string
+  type: FilterType
+  value: any
 }
 
 const FILTER_OPTIONS: FilterOption[] = [
   {
     id: 'closeDate',
     label: 'Close Date',
-    type: 'date'
+    type: 'date',
   },
   {
     id: 'status',
@@ -53,72 +38,72 @@ const FILTER_OPTIONS: FilterOption[] = [
     type: 'status',
     options: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'],
     colors: {
-      'New': '#F2FCE2',
+      New: '#F2FCE2',
       'In Progress': '#D3E4FD',
       'On Hold': '#FEF7CD',
       'Closed Won': '#F2FCE2',
       'Closed Lost': '#FFDEE2',
-    }
+    },
   },
   {
     id: 'revenue',
     label: 'Revenue',
-    type: 'number'
+    type: 'number',
   },
   {
     id: 'owner',
     label: 'Owner',
-    type: 'text'
+    type: 'text',
   },
   {
     id: 'companyName',
     label: 'Company Name',
-    type: 'text'
-  }
-];
+    type: 'text',
+  },
+]
 
 interface FilterPopoverProps {
-  onApplyFilters?: (filters: SelectedFilter[]) => void;
+  onApplyFilters?: (filters: SelectedFilter[]) => void
 }
 
 export default function FilterPopover({ onApplyFilters }: FilterPopoverProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeFilterId, setActiveFilterId] = useState<string | null>(null);
-  const [selectedFilters, setSelectedFilters] = useState<SelectedFilter[]>([]);
-  
+  const [isOpen, setIsOpen] = useState(false)
+  const [activeFilterId, setActiveFilterId] = useState<string | null>(null)
+  const [selectedFilters, setSelectedFilters] = useState<SelectedFilter[]>([])
+
   // Date range state
-  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
-  const [toDate, setToDate] = useState<Date | undefined>(undefined);
-  
+  const [fromDate, setFromDate] = useState<Date | undefined>(undefined)
+  const [toDate, setToDate] = useState<Date | undefined>(undefined)
+
   // Status selection state
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
+
   const handleFilterSelect = (filterId: string) => {
-    setActiveFilterId(filterId);
-  };
-  
+    setActiveFilterId(filterId)
+  }
+
   const handleStatusToggle = (status: string, checked: boolean) => {
     if (checked) {
-      setSelectedStatuses(prev => [...prev, status]);
+      setSelectedStatuses(prev => [...prev, status])
     } else {
-      setSelectedStatuses(prev => prev.filter(s => s !== status));
+      setSelectedStatuses(prev => prev.filter(s => s !== status))
     }
-  };
-  
+  }
+
   const handleApplyFilter = () => {
-    const newFilters = [...selectedFilters];
-    
+    const newFilters = [...selectedFilters]
+
     if (activeFilterId) {
-      const filterOption = FILTER_OPTIONS.find(f => f.id === activeFilterId);
-      
-      if (!filterOption) return;
-      
+      const filterOption = FILTER_OPTIONS.find(f => f.id === activeFilterId)
+
+      if (!filterOption) return
+
       // Remove any existing filter with the same ID
-      const existingIndex = newFilters.findIndex(f => f.id === activeFilterId);
+      const existingIndex = newFilters.findIndex(f => f.id === activeFilterId)
       if (existingIndex >= 0) {
-        newFilters.splice(existingIndex, 1);
+        newFilters.splice(existingIndex, 1)
       }
-      
+
       // Create a new filter based on the type
       if (filterOption.type === 'date' && (fromDate || toDate)) {
         newFilters.push({
@@ -126,47 +111,47 @@ export default function FilterPopover({ onApplyFilters }: FilterPopoverProps) {
           type: 'date',
           value: {
             from: fromDate,
-            to: toDate
-          }
-        });
+            to: toDate,
+          },
+        })
       } else if (filterOption.type === 'status' && selectedStatuses.length > 0) {
         newFilters.push({
           id: activeFilterId,
           type: 'status',
-          value: selectedStatuses
-        });
+          value: selectedStatuses,
+        })
       }
     }
-    
-    setSelectedFilters(newFilters);
-    
+
+    setSelectedFilters(newFilters)
+
     if (onApplyFilters) {
-      onApplyFilters(newFilters);
+      onApplyFilters(newFilters)
     }
-    
-    setIsOpen(false);
-    setActiveFilterId(null);
-    setFromDate(undefined);
-    setToDate(undefined);
-    setSelectedStatuses([]);
-  };
-  
+
+    setIsOpen(false)
+    setActiveFilterId(null)
+    setFromDate(undefined)
+    setToDate(undefined)
+    setSelectedStatuses([])
+  }
+
   const handleRemoveFilter = (filterId: string) => {
-    setSelectedFilters(prev => prev.filter(f => f.id !== filterId));
-  };
-  
+    setSelectedFilters(prev => prev.filter(f => f.id !== filterId))
+  }
+
   const handleClearAllFilters = () => {
-    setSelectedFilters([]);
-    setActiveFilterId(null);
-    setFromDate(undefined);
-    setToDate(undefined);
-    setSelectedStatuses([]);
-    
+    setSelectedFilters([])
+    setActiveFilterId(null)
+    setFromDate(undefined)
+    setToDate(undefined)
+    setSelectedStatuses([])
+
     if (onApplyFilters) {
-      onApplyFilters([]);
+      onApplyFilters([])
     }
-  };
-  
+  }
+
   const renderFilterPanel = () => {
     if (!activeFilterId) {
       return (
@@ -185,26 +170,21 @@ export default function FilterPopover({ onApplyFilters }: FilterPopoverProps) {
             ))}
           </div>
         </div>
-      );
+      )
     }
-    
-    const filter = FILTER_OPTIONS.find(f => f.id === activeFilterId);
-    if (!filter) return null;
-    
+
+    const filter = FILTER_OPTIONS.find(f => f.id === activeFilterId)
+    if (!filter) return null
+
     return (
       <div className="p-3">
         <div className="flex items-center mb-4">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-8 w-8 p-0 mr-2"
-            onClick={() => setActiveFilterId(null)}
-          >
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 mr-2" onClick={() => setActiveFilterId(null)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <h3 className="font-medium">{filter.label}</h3>
         </div>
-        
+
         {filter.type === 'date' && (
           <div className="space-y-4">
             <div>
@@ -212,29 +192,25 @@ export default function FilterPopover({ onApplyFilters }: FilterPopoverProps) {
               <div className="relative">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                      size="sm"
-                    >
+                    <Button variant="outline" className="w-full justify-start text-left font-normal" size="sm">
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {fromDate ? format(fromDate, 'PPP') : "Select start date"}
+                      {fromDate ? format(fromDate, 'PPP') : 'Select start date'}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent 
-                    className="w-auto p-0" 
+                  <PopoverContent
+                    className="w-auto p-0"
                     align="start"
                     style={{
                       width: '320px',
-                      maxWidth: '95vw'
+                      maxWidth: '95vw',
                     }}
                   >
                     <Calendar
                       key={`filter-cal-${Date.now()}`}
                       mode="single"
                       selected={null}
-                      onSelect={(date) => {
-                        setFromDate(date);
+                      onSelect={date => {
+                        setFromDate(date)
                       }}
                       initialFocus
                     />
@@ -242,40 +218,34 @@ export default function FilterPopover({ onApplyFilters }: FilterPopoverProps) {
                 </Popover>
               </div>
             </div>
-            
+
             <div>
               <Label className="text-xs mb-1 block">To</Label>
               <div className="relative">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                      size="sm"
-                    >
+                    <Button variant="outline" className="w-full justify-start text-left font-normal" size="sm">
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {toDate ? format(toDate, 'PPP') : "Select end date"}
+                      {toDate ? format(toDate, 'PPP') : 'Select end date'}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent 
-                    className="w-auto p-0" 
+                  <PopoverContent
+                    className="w-auto p-0"
                     align="start"
                     style={{
-                      width: '320px', 
-                      maxWidth: '95vw'
+                      width: '320px',
+                      maxWidth: '95vw',
                     }}
                   >
                     <Calendar
                       key={`filter-cal-${Date.now()}`}
                       mode="single"
                       selected={null}
-                      onSelect={(date) => {
-                        setToDate(date);
+                      onSelect={date => {
+                        setToDate(date)
                       }}
                       initialFocus
-                      disabled={(date) => 
-                        fromDate ? date < fromDate : false
-                      }
+                      disabled={date => (fromDate ? date < fromDate : false)}
                     />
                   </PopoverContent>
                 </Popover>
@@ -283,7 +253,7 @@ export default function FilterPopover({ onApplyFilters }: FilterPopoverProps) {
             </div>
           </div>
         )}
-        
+
         {filter.type === 'status' && filter.options && (
           <div className="space-y-2">
             {filter.options.map(option => (
@@ -291,12 +261,9 @@ export default function FilterPopover({ onApplyFilters }: FilterPopoverProps) {
                 <Checkbox
                   id={`status-${option}`}
                   checked={selectedStatuses.includes(option)}
-                  onCheckedChange={(checked) => handleStatusToggle(option, !!checked)}
+                  onCheckedChange={checked => handleStatusToggle(option, !!checked)}
                 />
-                <Label
-                  htmlFor={`status-${option}`}
-                  className="flex items-center text-sm cursor-pointer"
-                >
+                <Label htmlFor={`status-${option}`} className="flex items-center text-sm cursor-pointer">
                   <span
                     className="h-3 w-3 rounded-full mr-2"
                     style={{ backgroundColor: filter.colors?.[option] || '#e5e7eb' }}
@@ -307,64 +274,50 @@ export default function FilterPopover({ onApplyFilters }: FilterPopoverProps) {
             ))}
           </div>
         )}
-        
+
         <div className="mt-6 flex items-center justify-end space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setActiveFilterId(null)}
-          >
+          <Button variant="outline" size="sm" onClick={() => setActiveFilterId(null)}>
             Cancel
           </Button>
-          <Button
-            size="sm"
-            onClick={handleApplyFilter}
-          >
+          <Button size="sm" onClick={handleApplyFilter}>
             Apply Filter
           </Button>
         </div>
       </div>
-    );
-  };
-  
-  const getFilterCount = () => selectedFilters.length;
-  
+    )
+  }
+
+  const getFilterCount = () => selectedFilters.length
+
   const getFilterBadges = () => {
     return selectedFilters.map(filter => {
-      const filterOption = FILTER_OPTIONS.find(f => f.id === filter.id);
-      if (!filterOption) return null;
-      
-      let label = '';
-      
+      const filterOption = FILTER_OPTIONS.find(f => f.id === filter.id)
+      if (!filterOption) return null
+
+      let label = ''
+
       if (filter.type === 'date') {
-        const { from, to } = filter.value;
+        const { from, to } = filter.value
         if (from && to) {
-          label = `${format(from, 'MMM d')} - ${format(to, 'MMM d')}`;
+          label = `${format(from, 'MMM d')} - ${format(to, 'MMM d')}`
         } else if (from) {
-          label = `From ${format(from, 'MMM d')}`;
+          label = `From ${format(from, 'MMM d')}`
         } else if (to) {
-          label = `Until ${format(to, 'MMM d')}`;
+          label = `Until ${format(to, 'MMM d')}`
         }
       } else if (filter.type === 'status') {
-        label = filter.value.join(', ');
+        label = filter.value.join(', ')
       }
-      
+
       return (
-        <Badge
-          key={filter.id}
-          variant="outline"
-          className="flex items-center gap-1"
-        >
+        <Badge key={filter.id} variant="outline" className="flex items-center gap-1">
           {filterOption.label}: {label}
-          <X
-            className="h-3 w-3 cursor-pointer"
-            onClick={() => handleRemoveFilter(filter.id)}
-          />
+          <X className="h-3 w-3 cursor-pointer" onClick={() => handleRemoveFilter(filter.id)} />
         </Badge>
-      );
-    });
-  };
-  
+      )
+    })
+  }
+
   return (
     <div>
       <div className="flex items-center gap-2">
@@ -378,45 +331,28 @@ export default function FilterPopover({ onApplyFilters }: FilterPopoverProps) {
               <Filter className="h-4 w-4" />
               Filter
               {getFilterCount() > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="ml-1 h-5 min-w-[20px] bg-primary/20 hover:bg-primary/20"
-                >
+                <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] bg-primary/20 hover:bg-primary/20">
                   {getFilterCount()}
                 </Badge>
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent
-            className="w-72 p-0"
-            align="end"
-          >
+          <PopoverContent className="w-72 p-0" align="end">
             <div className="border-b px-3 py-2 flex items-center justify-between">
               <h3 className="font-medium">Filters</h3>
               {getFilterCount() > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-sm"
-                  onClick={handleClearAllFilters}
-                >
+                <Button variant="ghost" size="sm" className="h-8 px-2 text-sm" onClick={handleClearAllFilters}>
                   Clear all
                 </Button>
               )}
             </div>
-            <ScrollArea className="max-h-80">
-              {renderFilterPanel()}
-            </ScrollArea>
+            <ScrollArea className="max-h-80">{renderFilterPanel()}</ScrollArea>
           </PopoverContent>
         </Popover>
-        
+
         {/* Filter badges */}
-        {getFilterCount() > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {getFilterBadges()}
-          </div>
-        )}
+        {getFilterCount() > 0 && <div className="flex flex-wrap gap-1.5">{getFilterBadges()}</div>}
       </div>
     </div>
-  );
-} 
+  )
+}

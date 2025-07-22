@@ -10,36 +10,33 @@ interface ContactsErrorAlertProps {
   onReconnectSuccess?: () => void
 }
 
-export function ContactsErrorAlert({ 
-  errorCode, 
-  accountEmail, 
-  onReconnectSuccess 
-}: ContactsErrorAlertProps) {
+export function ContactsErrorAlert({ errorCode, accountEmail, onReconnectSuccess }: ContactsErrorAlertProps) {
   const getErrorMessage = (code: number) => {
     switch (code) {
       case -1:
         return {
-          title: "Permisos de Contactos Faltantes",
-          message: "Esta cuenta de Gmail no tiene permisos para acceder a contactos. Necesitas reconectar la cuenta con todos los permisos.",
-          showReconnect: true
+          title: 'Permisos de Contactos Faltantes',
+          message:
+            'Esta cuenta de Gmail no tiene permisos para acceder a contactos. Necesitas reconectar la cuenta con todos los permisos.',
+          showReconnect: true,
         }
       case -2:
         return {
-          title: "Token Inválido",
-          message: "El token de autenticación ha expirado o es inválido. Necesitas reconectar la cuenta.",
-          showReconnect: true
+          title: 'Token Inválido',
+          message: 'El token de autenticación ha expirado o es inválido. Necesitas reconectar la cuenta.',
+          showReconnect: true,
         }
       case -3:
         return {
-          title: "Error de Conexión",
-          message: "No se pudo conectar con Google. Verifica tu conexión a internet e intenta nuevamente.",
-          showReconnect: true
+          title: 'Error de Conexión',
+          message: 'No se pudo conectar con Google. Verifica tu conexión a internet e intenta nuevamente.',
+          showReconnect: true,
         }
       default:
         return {
-          title: "Error Desconocido",
-          message: "Ocurrió un error inesperado. Intenta reconectar la cuenta.",
-          showReconnect: true
+          title: 'Error Desconocido',
+          message: 'Ocurrió un error inesperado. Intenta reconectar la cuenta.',
+          showReconnect: true,
         }
     }
   }
@@ -61,8 +58,8 @@ export function ContactsErrorAlert({
         </div>
         {errorInfo.showReconnect && (
           <GmailConnectDialog onSuccess={onReconnectSuccess}>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               className="border-amber-300 text-amber-700 hover:bg-amber-100 flex items-center gap-2"
             >
@@ -74,4 +71,4 @@ export function ContactsErrorAlert({
       </AlertDescription>
     </Alert>
   )
-} 
+}

@@ -1,118 +1,132 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import { 
-  Mail, 
-  RefreshCw, 
-  TrendingUp, 
-  TrendingDown, 
-  Clock, 
-  Database, 
-  Globe, 
-  CheckCircle, 
-  XCircle, 
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Separator } from '@/components/ui/separator'
+import {
+  Mail,
+  RefreshCw,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  Database,
+  Globe,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Activity,
   BarChart3,
-  Timer
-} from 'lucide-react';
-import { useGmailMetrics } from '@/hooks/gmail/useGmailMetrics';
-import { useGmail } from '@/hooks/gmail';
-import { useAuth } from '@/components/auth';
-import { format, formatDistanceToNow } from 'date-fns';
-import { toast } from 'sonner';
-import { GmailSyncChart } from './GmailSyncChart';
+  Timer,
+} from 'lucide-react'
+import { useGmailMetrics } from '@/hooks/gmail/useGmailMetrics'
+import { useGmail } from '@/hooks/gmail'
+import { useAuth } from '@/components/auth'
+import { format, formatDistanceToNow } from 'date-fns'
+import { toast } from 'sonner'
+import { GmailSyncChart } from './GmailSyncChart'
 
 interface GmailSyncDashboardProps {
-  className?: string;
+  className?: string
 }
 
 export function GmailSyncDashboard({ className }: GmailSyncDashboardProps) {
-  const { user } = useAuth();
-  const { metrics, loading, error, refresh } = useGmailMetrics(30000); // Refresh every 30 seconds
-  const { 
-    hasConnectedAccounts, 
-    refreshAccounts,
-    healthCheck 
-  } = useGmail({ 
-    userId: user?.id, 
-    autoInitialize: true 
-  });
+  const { user } = useAuth()
+  const { metrics, loading, error, refresh } = useGmailMetrics(30000) // Refresh every 30 seconds
+  const { hasConnectedAccounts, refreshAccounts, healthCheck } = useGmail({
+    userId: user?.id,
+    autoInitialize: true,
+  })
 
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
+    setIsRefreshing(true)
     try {
-      await Promise.all([
-        refresh(),
-        refreshAccounts()
-      ]);
-      toast.success('Dashboard refreshed successfully');
+      await Promise.all([refresh(), refreshAccounts()])
+      toast.success('Dashboard refreshed successfully')
     } catch (error) {
-      console.error('Error refreshing dashboard:', error);
-      toast.error('Failed to refresh dashboard');
+      console.error('Error refreshing dashboard:', error)
+      toast.error('Failed to refresh dashboard')
     } finally {
-      setIsRefreshing(false);
+      setIsRefreshing(false)
     }
-  };
+  }
 
   const handleHealthCheck = async () => {
     try {
-      const isHealthy = await healthCheck();
-      toast.success(isHealthy 
-        ? 'Gmail service is healthy and operational' 
-        : 'Gmail service has some issues - check console for details'
-      );
+      const isHealthy = await healthCheck()
+      toast.success(
+        isHealthy
+          ? 'Gmail service is healthy and operational'
+          : 'Gmail service has some issues - check console for details',
+      )
     } catch (error) {
-      console.error('Health check failed:', error);
-      toast.error('Health check failed');
+      console.error('Health check failed:', error)
+      toast.error('Health check failed')
     }
-  };
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
-        return <Badge variant="default" className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Success</Badge>;
+        return (
+          <Badge variant="default" className="bg-green-500">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Success
+          </Badge>
+        )
       case 'failed':
-        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Failed</Badge>;
+        return (
+          <Badge variant="destructive">
+            <XCircle className="w-3 h-3 mr-1" />
+            Failed
+          </Badge>
+        )
       case 'started':
-        return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />In Progress</Badge>;
+        return (
+          <Badge variant="secondary">
+            <Clock className="w-3 h-3 mr-1" />
+            In Progress
+          </Badge>
+        )
       default:
-        return <Badge variant="outline"><AlertCircle className="w-3 h-3 mr-1" />Unknown</Badge>;
+        return (
+          <Badge variant="outline">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Unknown
+          </Badge>
+        )
     }
-  };
+  }
 
   const formatDuration = (ms: number) => {
     // Handle negative or invalid values
-    if (ms < 0 || !isFinite(ms) || isNaN(ms)) return 'Invalid';
-    if (ms < 1000) return `${Math.round(ms)}ms`;
-    if (ms < 60000) return `${Math.round(ms / 1000)}s`;
-    return `${Math.round(ms / 60000)}m`;
-  };
+    if (ms < 0 || !isFinite(ms) || isNaN(ms)) return 'Invalid'
+    if (ms < 1000) return `${Math.round(ms)}ms`
+    if (ms < 60000) return `${Math.round(ms / 1000)}s`
+    return `${Math.round(ms / 60000)}m`
+  }
 
   const formatNumber = (num: number) => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
-  };
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
+    return num.toString()
+  }
 
   const formatContactDisplay = (contactEmail: string) => {
     if (!contactEmail || contactEmail === 'Unknown Contact') {
-      return 'Unknown Contact';
+      return 'Unknown Contact'
     }
-    
+
     // If it's an email, show just the name part
     if (contactEmail.includes('@')) {
-      const namePart = contactEmail.split('@')[0];
-      return namePart.charAt(0).toUpperCase() + namePart.slice(1);
+      const namePart = contactEmail.split('@')[0]
+      return namePart.charAt(0).toUpperCase() + namePart.slice(1)
     }
-    
-    return contactEmail;
-  };
+
+    return contactEmail
+  }
 
   if (!hasConnectedAccounts) {
     return (
@@ -132,7 +146,7 @@ export function GmailSyncDashboard({ className }: GmailSyncDashboardProps) {
           </Alert>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   if (loading) {
@@ -154,7 +168,7 @@ export function GmailSyncDashboard({ className }: GmailSyncDashboardProps) {
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   if (error) {
@@ -171,19 +185,14 @@ export function GmailSyncDashboard({ className }: GmailSyncDashboardProps) {
             <XCircle className="h-4 w-4" />
             <AlertDescription>
               Error loading metrics: {error}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleRefresh}
-                className="ml-2"
-              >
+              <Button variant="outline" size="sm" onClick={handleRefresh} className="ml-2">
                 Retry
               </Button>
             </AlertDescription>
           </Alert>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
@@ -197,22 +206,11 @@ export function GmailSyncDashboard({ className }: GmailSyncDashboardProps) {
               Gmail Sync Dashboard
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleHealthCheck}
-                className="text-xs"
-              >
+              <Button variant="outline" size="sm" onClick={handleHealthCheck} className="text-xs">
                 <Activity className="w-3 h-3 mr-1" />
                 Health Check
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="text-xs"
-              >
+              <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="text-xs">
                 <RefreshCw className={`w-3 h-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
@@ -340,7 +338,8 @@ export function GmailSyncDashboard({ className }: GmailSyncDashboardProps) {
             </p>
           )}
           <div className="text-xs text-gray-400 bg-blue-50 p-2 rounded-lg mt-2">
-            💡 Each sync searches for emails between your connected Gmail account and specific contacts when you view their profiles.
+            💡 Each sync searches for emails between your connected Gmail account and specific contacts when you view
+            their profiles.
           </div>
         </CardHeader>
         <CardContent>
@@ -350,17 +349,18 @@ export function GmailSyncDashboard({ className }: GmailSyncDashboardProps) {
             ) : (
               metrics.recentSyncs.map((sync, index) => {
                 // Extract contact information for better display
-                const targetContact = (sync as any).target_contact || 'Unknown Contact';
-                const description = (sync as any).description || sync.sync_type;
-                const realDuration = (sync as any).real_duration || 0;
-                
+                const targetContact = (sync as any).target_contact || 'Unknown Contact'
+                const description = (sync as any).description || sync.sync_type
+                const realDuration = (sync as any).real_duration || 0
+
                 return (
                   <div key={sync.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-3">
                       {getStatusBadge(sync.status)}
-                      <div> 
+                      <div>
                         <p className="text-xs text-gray-900">
-                          Via {sync.account_email} • {sync.started_at ? format(new Date(sync.started_at), 'MMM d, HH:mm') : 'Unknown time'}
+                          Via {sync.account_email} •{' '}
+                          {sync.started_at ? format(new Date(sync.started_at), 'MMM d, HH:mm') : 'Unknown time'}
                         </p>
                         {description !== sync.sync_type && (
                           <p className="text-xs text-gray-500 italic">{description}</p>
@@ -371,21 +371,15 @@ export function GmailSyncDashboard({ className }: GmailSyncDashboardProps) {
                       {sync.emails_synced !== null && (
                         <p className="text-sm font-medium">{sync.emails_synced} emails</p>
                       )}
-                      {realDuration > 0 && (
-                        <p className="text-xs text-gray-500">
-                          {formatDuration(realDuration)}
-                        </p>
-                      )}
+                      {realDuration > 0 && <p className="text-xs text-gray-500">{formatDuration(realDuration)}</p>}
                     </div>
                   </div>
-                );
+                )
               })
             )}
           </div>
         </CardContent>
       </Card>
-
-
     </div>
-  );
-} 
+  )
+}

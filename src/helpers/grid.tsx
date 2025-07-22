@@ -4,18 +4,18 @@
  * handling data persistence, and configuring default grid settings for the leads grid.
  * It includes functions for saving/loading column configurations, syncing contact data,
  * and extracting dynamic fields from imported data.
- * 
+ *
  * @author Mailvibes CRM Team
  * @version 1.0.0
  */
 
-import { Link } from "react-router-dom";
-import { DEFAULT_COLUMN_WIDTH } from "@/components/grid-view/grid-constants";
-import { Column } from "@/components/grid-view/types";
-import { logger } from "@/utils/logger";
-import { GridRow } from "@/components/grid-view/types";
-import { mockContactsById } from "@/components/stream/sample-data";
-import { renderSocialLink } from "@/components/grid-view/RenderSocialLink";
+import { Link } from 'react-router-dom'
+import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants'
+import { Column } from '@/components/grid-view/types'
+import { logger } from '@/utils/logger'
+import { GridRow } from '@/components/grid-view/types'
+import { mockContactsById } from '@/components/stream/sample-data'
+import { renderSocialLink } from '@/components/grid-view/RenderSocialLink'
 
 // Note: Manual localStorage functions removed in favor of Zustand persist middleware
 // Columns are now automatically persisted via the main store's persist configuration
@@ -35,43 +35,37 @@ import { renderSocialLink } from "@/components/grid-view/RenderSocialLink";
  * }
  * ```
  */
-export const loadColumnsFromSupabase = async (
-  user: any
-): Promise<Column[] | null> => {
-  if (!user) return null;
+export const loadColumnsFromSupabase = async (user: any): Promise<Column[] | null> => {
+  if (!user) return null
 
   try {
-    const { supabase } = await import("@/integrations/supabase/client");
+    const { supabase } = await import('@/integrations/supabase/client')
     const { data, error } = await supabase
-      .from("user_settings" as any) // Type assertion to bypass TypeScript error
-      .select("setting_value")
-      .eq("user_id", user.id)
-      .eq("setting_key", "grid_columns")
-      .single();
+      .from('user_settings' as any) // Type assertion to bypass TypeScript error
+      .select('setting_value')
+      .eq('user_id', user.id)
+      .eq('setting_key', 'grid_columns')
+      .single()
 
     if (error) {
       // Return null for 404 errors or table not found errors
-      if (
-        error.message?.includes("404") ||
-        error.code === "PGRST116" ||
-        error.code === "42P01"
-      ) {
-        return null;
+      if (error.message?.includes('404') || error.code === 'PGRST116' || error.code === '42P01') {
+        return null
       }
       // Only log other errors
-      logger.error("Error loading columns from Supabase:", error);
-      return null;
+      logger.error('Error loading columns from Supabase:', error)
+      return null
     }
 
-    return (data as any)?.setting_value as Column[];
+    return (data as any)?.setting_value as Column[]
   } catch (error) {
     // Silently fail for 404 errors
-    if (!String(error).includes("404") && !String(error).includes("42P01")) {
-      logger.error("Error loading columns from Supabase:", error);
+    if (!String(error).includes('404') && !String(error).includes('42P01')) {
+      logger.error('Error loading columns from Supabase:', error)
     }
-    return null;
+    return null
   }
-};
+}
 
 /**
  * Synchronizes a grid row with the mock contacts store for stream view compatibility
@@ -91,34 +85,34 @@ export const syncContact = (row: GridRow): void => {
     // Create a new contact object if it doesn't exist
     mockContactsById[row.id] = {
       id: row.id,
-      name: row.name || "",
-      email: row.email || "",
-    };
+      name: row.name || '',
+      email: row.email || '',
+    }
   }
 
   // Update the contact object with row values
   mockContactsById[row.id] = {
     ...mockContactsById[row.id],
-    name: row.name || "",
-    email: row.email || "",
-    company: row.company || "",
-    owner: row.owner || "",
+    name: row.name || '',
+    email: row.email || '',
+    company: row.company || '',
+    owner: row.owner || '',
     status: row.status,
     revenue: row.revenue,
-    description: row.description || "",
-    jobTitle: row.jobTitle || "",
-    industry: row.industry || "",
-    phone: row.phone || "",
-    primaryLocation: row.primaryLocation || "",
-    facebook: row.facebook || "",
-    instagram: row.instagram || "",
-    linkedIn: row.linkedin || "",
-    twitter: row.twitter || "",
-    website: row.website || "",
-    associatedDeals: row.associatedDeals || "",
-    source: row.source || "",
-  };
-};
+    description: row.description || '',
+    jobTitle: row.jobTitle || '',
+    industry: row.industry || '',
+    phone: row.phone || '',
+    primaryLocation: row.primaryLocation || '',
+    facebook: row.facebook || '',
+    instagram: row.instagram || '',
+    linkedIn: row.linkedin || '',
+    twitter: row.twitter || '',
+    website: row.website || '',
+    associatedDeals: row.associatedDeals || '',
+    source: row.source || '',
+  }
+}
 
 /**
  * Returns the default column configuration for the leads grid
@@ -130,7 +124,7 @@ export const syncContact = (row: GridRow): void => {
  * - Social media links (with custom renderers)
  * - Revenue (currency type)
  * - Dates (date type)
- * 
+ *
  * @example
  * ```typescript
  * const defaultColumns = getDefaultColumns();
@@ -138,166 +132,166 @@ export const syncContact = (row: GridRow): void => {
  * ```
  */
 export const getDefaultColumns = (): Column[] => [
-    {
-      id: 'name',
-      title: 'Contact',
-        type: 'text',
-      width: 180, // Keep contacts column at 180px
-        editable: true,
-        frozen: true,
-        renderCell: (value, row) => (
-          <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
-            {value}
-          </Link>
-        ),
-      },
-    {
-      id: 'importListName',
-      title: 'List Name',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: false,
-      },
-      {
-        id: 'status',
-      title: 'LEAD STATUS',
-        type: 'status',
-        width: DEFAULT_COLUMN_WIDTH,
-        editable: true,
-        options: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'],
-        colors: {
-        'New': '#E4E5E8',
-        'In Progress': '#DBCDF0',
-        'On Hold': '#C6DEF1',
-        'Closed Won': '#C9E4DE',
-        'Closed Lost': '#F4C6C6',
-      },
+  {
+    id: 'name',
+    title: 'Contact',
+    type: 'text',
+    width: 180, // Keep contacts column at 180px
+    editable: true,
+    frozen: true,
+    renderCell: (value, row) => (
+      <Link to={`/stream-view/${row.id}`} className="text-primary hover:underline">
+        {value}
+      </Link>
+    ),
+  },
+  {
+    id: 'importListName',
+    title: 'List Name',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: false,
+  },
+  {
+    id: 'status',
+    title: 'LEAD STATUS',
+    type: 'status',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+    options: ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost'],
+    colors: {
+      New: '#E4E5E8',
+      'In Progress': '#DBCDF0',
+      'On Hold': '#C6DEF1',
+      'Closed Won': '#C9E4DE',
+      'Closed Lost': '#F4C6C6',
     },
-    {
-      id: 'description',
-      title: 'Description',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'company',
-      title: 'Company',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'jobTitle',
-      title: 'Job Title',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'industry',
-      title: 'Industry',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'phone',
-      title: 'Phone',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'primaryLocation',
-      title: 'Primary Location',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'email',
-      title: 'Email',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-    {
-      id: 'facebook',
-      title: 'Facebook',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-      renderCell: renderSocialLink,
-    },
-    {
-      id: 'instagram',
-      title: 'Instagram',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-      renderCell: renderSocialLink,
-    },
-    {
-      id: 'linkedin',
-      title: 'LinkedIn',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-      renderCell: renderSocialLink,
-    },
-    {
-      id: 'twitter',
-      title: 'X',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-      renderCell: renderSocialLink,
-    },
-    {
-      id: 'associatedDeals',
-      title: 'Associated Deals',
-      type: 'text',
-      width: DEFAULT_COLUMN_WIDTH,
-      editable: true,
-    },
-      {
-        id: 'revenue',
-        title: 'Revenue',
-        type: 'currency',
-        width: DEFAULT_COLUMN_WIDTH,
-        editable: true,
-      currencyType: 'USD',
-      },
-      {
-        id: 'closeDate',
-        title: 'Close Date',
-        type: 'date',
-        width: DEFAULT_COLUMN_WIDTH,
-        editable: true,
-      },
-      {
-        id: 'owner',
-        title: 'Owner',
-        type: 'text',
-        width: DEFAULT_COLUMN_WIDTH,
-        editable: true,
-      },
-      {
-      id: 'source',
-      title: 'Source',
-        type: 'text',
-        width: DEFAULT_COLUMN_WIDTH,
-        editable: true,
-      },
-      {
-        id: 'lastContacted',
-        title: 'Last Contacted',
-        type: 'date',
-        width: DEFAULT_COLUMN_WIDTH,
-      editable: true
-    },
-  ];
+  },
+  {
+    id: 'description',
+    title: 'Description',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'company',
+    title: 'Company',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'jobTitle',
+    title: 'Job Title',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'industry',
+    title: 'Industry',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'phone',
+    title: 'Phone',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'primaryLocation',
+    title: 'Primary Location',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'email',
+    title: 'Email',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'facebook',
+    title: 'Facebook',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+    renderCell: renderSocialLink,
+  },
+  {
+    id: 'instagram',
+    title: 'Instagram',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+    renderCell: renderSocialLink,
+  },
+  {
+    id: 'linkedin',
+    title: 'LinkedIn',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+    renderCell: renderSocialLink,
+  },
+  {
+    id: 'twitter',
+    title: 'X',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+    renderCell: renderSocialLink,
+  },
+  {
+    id: 'associatedDeals',
+    title: 'Associated Deals',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'revenue',
+    title: 'Revenue',
+    type: 'currency',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+    currencyType: 'USD',
+  },
+  {
+    id: 'closeDate',
+    title: 'Close Date',
+    type: 'date',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'owner',
+    title: 'Owner',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'source',
+    title: 'Source',
+    type: 'text',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+  {
+    id: 'lastContacted',
+    title: 'Last Contacted',
+    type: 'date',
+    width: DEFAULT_COLUMN_WIDTH,
+    editable: true,
+  },
+]
 
 /**
  * Extracts dynamic field names from imported data rows
@@ -306,7 +300,7 @@ export const getDefaultColumns = (): Column[] => [
  * @description Analyzes imported data to identify custom fields that should be added
  * as dynamic columns. Filters out standard fields and internal system fields.
  * Checks both direct row properties and nested data objects.
- * 
+ *
  * @example
  * ```typescript
  * const rows = [
@@ -318,27 +312,27 @@ export const getDefaultColumns = (): Column[] => [
  * ```
  */
 export const extractDynamicFields = (rows: any[]): Set<string> => {
-    const dynamicFields = new Set<string>();
-    const standardFields = new Set(getDefaultColumns().map(col => col.id));
-    
-    rows.forEach(row => {
-      // Check fields directly on the row
-      Object.keys(row).forEach(key => {
-        if (!standardFields.has(key) && key !== 'id' && key !== 'data') {
-          dynamicFields.add(key);
-        }
-      });
-      
-      // Check fields in the data object
-      if (row.data && typeof row.data === 'object') {
-        Object.keys(row.data).forEach(key => {
-          // Skip internal fields
-          if (!key.startsWith('_') && key !== 'account' && key !== 'importedAt') {
-            dynamicFields.add(key);
-          }
-        });
+  const dynamicFields = new Set<string>()
+  const standardFields = new Set(getDefaultColumns().map(col => col.id))
+
+  rows.forEach(row => {
+    // Check fields directly on the row
+    Object.keys(row).forEach(key => {
+      if (!standardFields.has(key) && key !== 'id' && key !== 'data') {
+        dynamicFields.add(key)
       }
-    });
-    
-    return dynamicFields;
-  };
+    })
+
+    // Check fields in the data object
+    if (row.data && typeof row.data === 'object') {
+      Object.keys(row.data).forEach(key => {
+        // Skip internal fields
+        if (!key.startsWith('_') && key !== 'account' && key !== 'importedAt') {
+          dynamicFields.add(key)
+        }
+      })
+    }
+  })
+
+  return dynamicFields
+}

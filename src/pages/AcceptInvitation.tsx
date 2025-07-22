@@ -1,50 +1,51 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Building2, Users, CheckCircle, AlertCircle, Clock } from 'lucide-react';
-import { useAuth } from '@/components/auth';
-import { useOrganizationActions } from '@/stores/organizationStore';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useEffect, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Building2, Users, CheckCircle, AlertCircle, Clock } from 'lucide-react'
+import { useAuth } from '@/components/auth'
+import { useOrganizationActions } from '@/stores/organizationStore'
+import { supabase } from '@/integrations/supabase/client'
 
 interface InvitationDetails {
-  id: string;
-  organization_name: string;
-  email: string;
-  role: 'admin' | 'user';
-  status: string;
-  expires_at: string;
-  inviter_name: string;
-  inviter_email: string;
+  id: string
+  organization_name: string
+  email: string
+  role: 'admin' | 'user'
+  status: string
+  expires_at: string
+  inviter_name: string
+  inviter_email: string
 }
 
 export const AcceptInvitation: React.FC = () => {
-  const { invitationId } = useParams<{ invitationId: string }>();
-  const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
-  const { acceptInvitation } = useOrganizationActions();
-  
-  const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [accepting, setAccepting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const { invitationId } = useParams<{ invitationId: string }>()
+  const navigate = useNavigate()
+  const { user, loading: authLoading } = useAuth()
+  const { acceptInvitation } = useOrganizationActions()
+
+  const [invitation, setInvitation] = useState<InvitationDetails | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [accepting, setAccepting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
   useEffect(() => {
     if (invitationId) {
-      loadInvitationDetails();
+      loadInvitationDetails()
     }
-  }, [invitationId]);
+  }, [invitationId])
 
   const loadInvitationDetails = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setLoading(true)
+      setError(null)
 
       const { data, error: inviteError } = await supabase
         .from('organization_invitations')
-        .select(`
+        .select(
+          `
           id,
           email,
           role,
@@ -57,22 +58,23 @@ export const AcceptInvitation: React.FC = () => {
             full_name,
             email
           )
-        `)
+        `,
+        )
         .eq('id', invitationId)
-        .single();
+        .single()
 
       if (inviteError) {
         if (inviteError.code === 'PGRST116') {
-          setError('Invitation not found. It may have been cancelled or already used.');
+          setError('Invitation not found. It may have been cancelled or already used.')
         } else {
-          throw inviteError;
+          throw inviteError
         }
-        return;
+        return
       }
 
       if (!data) {
-        setError('Invitation not found.');
-        return;
+        setError('Invitation not found.')
+        return
       }
 
       setInvitation({
@@ -83,71 +85,71 @@ export const AcceptInvitation: React.FC = () => {
         status: data.status,
         expires_at: data.expires_at,
         inviter_name: data.profiles?.full_name || 'Unknown',
-        inviter_email: data.profiles?.email || 'Unknown'
-      });
-
+        inviter_email: data.profiles?.email || 'Unknown',
+      })
     } catch (err) {
-      console.error('Error loading invitation:', err);
-      setError('Failed to load invitation details.');
+      console.error('Error loading invitation:', err)
+      setError('Failed to load invitation details.')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleAcceptInvitation = async () => {
-    if (!invitation || !user) return;
+    if (!invitation || !user) return
 
     // Check if email matches
     if (user.email !== invitation.email) {
-      setError(`This invitation is for ${invitation.email}, but you're logged in as ${user.email}. Please log in with the correct email address.`);
-      return;
+      setError(
+        `This invitation is for ${invitation.email}, but you're logged in as ${user.email}. Please log in with the correct email address.`,
+      )
+      return
     }
 
     // Check if already processed
     if (invitation.status !== 'pending') {
-      setError('This invitation has already been processed.');
-      return;
+      setError('This invitation has already been processed.')
+      return
     }
 
     // Check if expired
     if (new Date(invitation.expires_at) < new Date()) {
-      setError('This invitation has expired.');
-      return;
+      setError('This invitation has expired.')
+      return
     }
 
     try {
-      setAccepting(true);
-      setError(null);
+      setAccepting(true)
+      setError(null)
 
-      await acceptInvitation(invitationId!);
-      setSuccess(true);
+      await acceptInvitation(invitationId!)
+      setSuccess(true)
 
       // Redirect to dashboard after a short delay
       setTimeout(() => {
-        navigate('/');
-      }, 2000);
-
+        navigate('/')
+      }, 2000)
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     } finally {
-      setAccepting(false);
+      setAccepting(false)
     }
-  };
+  }
 
   const formatRole = (role: string) => {
-    return role === 'admin' ? 'Administrator' : 'Member';
-  };
+    return role === 'admin' ? 'Administrator' : 'Member'
+  }
 
-  const isExpired = invitation && new Date(invitation.expires_at) < new Date();
-  const isProcessed = invitation && invitation.status !== 'pending';
-  const emailMismatch = user && invitation && user.email !== invitation.email;
+  const isExpired = invitation && new Date(invitation.expires_at) < new Date()
+  const isProcessed = invitation && invitation.status !== 'pending'
+  const emailMismatch = user && invitation && user.email !== invitation.email
 
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
-    );
+    )
   }
 
   if (!user) {
@@ -161,19 +163,14 @@ export const AcceptInvitation: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-center text-gray-600">
-              You need to sign in to accept this organization invitation.
-            </p>
-            <Button 
-              onClick={() => navigate('/auth')} 
-              className="w-full"
-            >
+            <p className="text-center text-gray-600">You need to sign in to accept this organization invitation.</p>
+            <Button onClick={() => navigate('/auth')} className="w-full">
               Sign In
             </Button>
           </CardContent>
         </Card>
       </div>
-    );
+    )
   }
 
   if (error && !invitation) {
@@ -191,17 +188,13 @@ export const AcceptInvitation: React.FC = () => {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
-            <Button 
-              onClick={() => navigate('/')} 
-              variant="outline"
-              className="w-full"
-            >
+            <Button onClick={() => navigate('/')} variant="outline" className="w-full">
               Go to Dashboard
             </Button>
           </CardContent>
         </Card>
       </div>
-    );
+    )
   }
 
   if (success) {
@@ -218,14 +211,12 @@ export const AcceptInvitation: React.FC = () => {
             <p className="text-gray-600">
               You've successfully joined <strong>{invitation?.organization_name}</strong>!
             </p>
-            <p className="text-sm text-gray-500">
-              Redirecting you to the dashboard...
-            </p>
+            <p className="text-sm text-gray-500">Redirecting you to the dashboard...</p>
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
           </CardContent>
         </Card>
       </div>
-    );
+    )
   }
 
   return (
@@ -237,16 +228,14 @@ export const AcceptInvitation: React.FC = () => {
             Organization Invitation
           </CardTitle>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           {invitation && (
             <>
               {/* Invitation Details */}
               <div className="space-y-4">
                 <div className="text-center">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {invitation.organization_name}
-                  </h3>
+                  <h3 className="text-lg font-semibold text-gray-900">{invitation.organization_name}</h3>
                   <p className="text-sm text-gray-600">
                     You've been invited by <strong>{invitation.inviter_name}</strong>
                   </p>
@@ -263,9 +252,7 @@ export const AcceptInvitation: React.FC = () => {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Expires:</span>
-                    <span className="font-medium">
-                      {new Date(invitation.expires_at).toLocaleDateString()}
-                    </span>
+                    <span className="font-medium">{new Date(invitation.expires_at).toLocaleDateString()}</span>
                   </div>
                 </div>
 
@@ -307,9 +294,7 @@ export const AcceptInvitation: React.FC = () => {
               {isProcessed && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    This invitation has already been {invitation.status}.
-                  </AlertDescription>
+                  <AlertDescription>This invitation has already been {invitation.status}.</AlertDescription>
                 </Alert>
               )}
 
@@ -317,8 +302,8 @@ export const AcceptInvitation: React.FC = () => {
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    This invitation is for {invitation.email}, but you're logged in as {user.email}. 
-                    Please log in with the correct email address.
+                    This invitation is for {invitation.email}, but you're logged in as {user.email}. Please log in with
+                    the correct email address.
                   </AlertDescription>
                 </Alert>
               )}
@@ -333,11 +318,7 @@ export const AcceptInvitation: React.FC = () => {
               {/* Action Buttons */}
               <div className="space-y-3">
                 {!isExpired && !isProcessed && !emailMismatch && (
-                  <Button 
-                    onClick={handleAcceptInvitation}
-                    disabled={accepting}
-                    className="w-full"
-                  >
+                  <Button onClick={handleAcceptInvitation} disabled={accepting} className="w-full">
                     {accepting ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
@@ -352,11 +333,7 @@ export const AcceptInvitation: React.FC = () => {
                   </Button>
                 )}
 
-                <Button 
-                  onClick={() => navigate('/')} 
-                  variant="outline"
-                  className="w-full"
-                >
+                <Button onClick={() => navigate('/')} variant="outline" className="w-full">
                   {emailMismatch ? 'Sign In with Correct Email' : 'Go to Dashboard'}
                 </Button>
               </div>
@@ -365,5 +342,5 @@ export const AcceptInvitation: React.FC = () => {
         </CardContent>
       </Card>
     </div>
-  );
-}; 
+  )
+}

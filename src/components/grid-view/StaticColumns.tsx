@@ -1,25 +1,27 @@
-import React, { useState } from 'react';
-import { Column, GridRow } from './types';
-import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants';
-import { Link } from 'react-router-dom';
-import { GridCell } from './GridCell';
-import { Pin, PinOff } from 'lucide-react';
-import { logger } from '@/utils/logger';
-import { Checkbox } from '@/components/ui/checkbox';
+import React, { useState } from 'react'
+import { Column, GridRow } from './types'
+import { ROW_HEIGHT, HEADER_HEIGHT, INDEX_COLUMN_WIDTH } from './grid-constants'
+import { Link } from 'react-router-dom'
+import { GridCell } from './GridCell'
+import { Pin, PinOff } from 'lucide-react'
+import { logger } from '@/utils/logger'
+import { Checkbox } from '@/components/ui/checkbox'
 interface StaticColumnsProps {
-  data: GridRow[];
-  frozenColumns: Column[];
-  scrollTop: number;
-  firstRowIndex: number;
-  onCellChange: (rowId: string, columnId: string, value: any) => void;
-  onContextMenu: (columnId: string, position: { x: number; y: number }) => void;
-  onTogglePin: (columnId: string) => void;
-  frozenColumnIds: string[];
-  editingCell: { rowId: string; columnId: string; directTyping?: boolean; clearDateSelection?: boolean } | null;
-  setEditingCell: (cell: { rowId: string; columnId: string; directTyping?: boolean; clearDateSelection?: boolean } | null) => void;
-  selectedRowIds?: Set<string>;
-  onToggleRowSelection?: (rowId: string) => void;
-  onSelectAllRows?: (select: boolean) => void;
+  data: GridRow[]
+  frozenColumns: Column[]
+  scrollTop: number
+  firstRowIndex: number
+  onCellChange: (rowId: string, columnId: string, value: any) => void
+  onContextMenu: (columnId: string, position: { x: number; y: number }) => void
+  onTogglePin: (columnId: string) => void
+  frozenColumnIds: string[]
+  editingCell: { rowId: string; columnId: string; directTyping?: boolean; clearDateSelection?: boolean } | null
+  setEditingCell: (
+    cell: { rowId: string; columnId: string; directTyping?: boolean; clearDateSelection?: boolean } | null,
+  ) => void
+  selectedRowIds?: Set<string>
+  onToggleRowSelection?: (rowId: string) => void
+  onSelectAllRows?: (select: boolean) => void
 }
 
 export function StaticColumns({
@@ -35,34 +37,34 @@ export function StaticColumns({
   setEditingCell,
   selectedRowIds = new Set(),
   onToggleRowSelection,
-  onSelectAllRows
+  onSelectAllRows,
 }: StaticColumnsProps) {
   // State for hover states
-  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
-  const [isHeaderHovered, setIsHeaderHovered] = useState(false);
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null)
+  const [isHeaderHovered, setIsHeaderHovered] = useState(false)
 
   // Handle context menu event
   const handleContextMenu = (e: React.MouseEvent, rowId: string, columnId: string) => {
-    e.preventDefault();
+    e.preventDefault()
     if (onContextMenu) {
-      onContextMenu(columnId, { x: e.clientX, y: e.clientY });
+      onContextMenu(columnId, { x: e.clientX, y: e.clientY })
     }
-  };
+  }
 
   // Handle double click for contact/opportunity editing (could implement inline edit)
   const handleDoubleClick = (rowId: string) => {
-    logger.log('Double clicked contact/opportunity cell:', rowId);
+    logger.log('Double clicked contact/opportunity cell:', rowId)
     // Here you could implement an inline edit functionality
-  };
+  }
 
   // Check if all visible rows are selected
-  const areAllRowsSelected = data.length > 0 && data.every(row => selectedRowIds.has(row.id));
+  const areAllRowsSelected = data.length > 0 && data.every(row => selectedRowIds.has(row.id))
 
   // Exit early if no opportunity/contact column
-  if (frozenColumns.length === 0) return null;
+  if (frozenColumns.length === 0) return null
 
   // Calcular el ancho total de columnas fijas (index + las demás)
-  const totalFrozenWidth = INDEX_COLUMN_WIDTH + frozenColumns.reduce((w, c) => w + (c.width || 150), 0);
+  const totalFrozenWidth = INDEX_COLUMN_WIDTH + frozenColumns.reduce((w, c) => w + (c.width || 150), 0)
 
   return (
     <div
@@ -70,7 +72,7 @@ export function StaticColumns({
       style={{
         width: `${totalFrozenWidth}px`,
         position: 'relative',
-        zIndex: 45
+        zIndex: 45,
       }}
     >
       {/* Header row */}
@@ -88,7 +90,7 @@ export function StaticColumns({
             alignItems: 'center',
             background: '#f9fafb',
             borderRight: '1px solid #e5e7eb',
-            borderBottom: '1px solid #e5e7eb',  
+            borderBottom: '1px solid #e5e7eb',
             fontWeight: 500,
             fontSize: '0.75rem',
             color: '#6b7280',
@@ -101,11 +103,11 @@ export function StaticColumns({
           onClick={() => onSelectAllRows?.(data.length > 0 && !areAllRowsSelected)}
         >
           {isHeaderHovered ? (
-            <Checkbox 
+            <Checkbox
               checked={areAllRowsSelected}
-              onCheckedChange={(checked) => onSelectAllRows?.(checked === true)}
+              onCheckedChange={checked => onSelectAllRows?.(checked === true)}
               className="h-4 w-4"
-              onClick={(e) => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
             />
           ) : (
             '#'
@@ -135,24 +137,23 @@ export function StaticColumns({
               cursor: 'pointer',
             }}
             onContextMenu={e => {
-              e.preventDefault();
-              if (onContextMenu) onContextMenu(col.id, { x: e.clientX, y: e.clientY });
+              e.preventDefault()
+              if (onContextMenu) onContextMenu(col.id, { x: e.clientX, y: e.clientY })
             }}
           >
             <span
               className={`pin-icon mr-2 md:ml-2 md:mr-0 md:order-last ${frozenColumnIds.includes(col.id) ? 'text-brand-teal' : 'text-gray-400'} md:group-hover:opacity-100 md:opacity-0 hidden md:block`}
-              style={{ 
-                cursor: 'pointer', 
+              style={{
+                cursor: 'pointer',
                 transition: 'opacity 0.2s',
-                display: col.id === 'name' ? 'none' : 'flex'
+                display: col.id === 'name' ? 'none' : 'flex',
               }}
-              onClick={e => { e.stopPropagation(); onTogglePin(col.id); }}
+              onClick={e => {
+                e.stopPropagation()
+                onTogglePin(col.id)
+              }}
             >
-              {frozenColumnIds.includes(col.id) ? (
-                <PinOff size={16} />
-              ) : (
-                <Pin size={16} />
-              )}
+              {frozenColumnIds.includes(col.id) ? <PinOff size={16} /> : <Pin size={16} />}
             </span>
             <span style={{ flex: 1 }}>{col.title}</span>
           </div>
@@ -168,7 +169,7 @@ export function StaticColumns({
           position: 'relative',
           borderBottom: '1px solid #e5e7eb',
           top: 0,
-          width: '100%'
+          width: '100%',
         }}
       >
         {data.map((row, index) => (
@@ -210,11 +211,11 @@ export function StaticColumns({
               onClick={() => onToggleRowSelection?.(row.id)}
             >
               {hoveredRowId === row.id || selectedRowIds.has(row.id) ? (
-                <Checkbox 
+                <Checkbox
                   checked={selectedRowIds.has(row.id)}
                   onCheckedChange={() => onToggleRowSelection?.(row.id)}
                   className="h-4 w-4"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={e => e.stopPropagation()}
                 />
               ) : (
                 firstRowIndex + index + 1
@@ -262,5 +263,5 @@ export function StaticColumns({
         ))}
       </div>
     </div>
-  );
-} 
+  )
+}

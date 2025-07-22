@@ -1,49 +1,55 @@
-import React from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileEdit, CalendarPlus, Activity } from 'lucide-react';
-import AboutTab from './AboutTab';
+import React from 'react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { FileEdit, CalendarPlus, Activity } from 'lucide-react'
+import AboutTab from './AboutTab'
 
 interface MobileTabViewProps {
   contact?: {
-    id: string;
-    name?: string;
-    email?: string;
-    phone?: string;
-    owner?: string;
-    lastContacted?: string;
-    lifecycleStage?: string;
-    source?: string;
-    company?: string;
-    industry?: string;
-    jobTitle?: string;
-    address?: string;
-    description?: string;
-    facebook?: string;
-    instagram?: string;
-    linkedin?: string;
-    twitter?: string;
-    website?: string;
-    associatedDeals?: string;
-    primaryLocation?: string;
-    status?: string;
-    data?: Record<string, any>;
-    activities?: Array<any>;
-    [key: string]: any;
-  };
+    id: string
+    name?: string
+    email?: string
+    phone?: string
+    owner?: string
+    lastContacted?: string
+    lifecycleStage?: string
+    source?: string
+    company?: string
+    industry?: string
+    jobTitle?: string
+    address?: string
+    description?: string
+    facebook?: string
+    instagram?: string
+    linkedin?: string
+    twitter?: string
+    website?: string
+    associatedDeals?: string
+    primaryLocation?: string
+    status?: string
+    data?: Record<string, any>
+    activities?: Array<any>
+    [key: string]: any
+  }
 }
 
 export default function MobileTabView({ contact }: MobileTabViewProps) {
   // Mobile activity samples - a subset of the main timeline
-  const mobileSamples = contact?.activities?.slice(0, 3) || [];
-  
+  const mobileSamples = contact?.activities?.slice(0, 3) || []
+
   return (
     <div className="lg:hidden w-full">
       <Tabs defaultValue="activity" className="w-full">
         <TabsList className="w-full border-b border-slate-light/30 rounded-none bg-white">
-          <TabsTrigger value="activity" className="flex-1">Activity</TabsTrigger>
-          <TabsTrigger value="associations" className="flex-1">Associations</TabsTrigger>
-          <TabsTrigger value="about" className="flex-1">About</TabsTrigger>
+          <TabsTrigger value="activity" className="flex-1">
+            Activity
+          </TabsTrigger>
+          <TabsTrigger value="associations" className="flex-1">
+            Associations
+          </TabsTrigger>
+          <TabsTrigger value="about" className="flex-1">
+            About
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="activity" className="p-0 m-0">
@@ -82,7 +88,7 @@ export default function MobileTabView({ contact }: MobileTabViewProps) {
                 <span className="text-xs text-slate-dark">Log Activity</span>
               </button>
             </div>
-            
+
             {/* New: Activity feed (mobile) */}
             <div className="mt-6">
               <h3 className="text-sm font-medium text-slate-dark mb-2">Recent Activity</h3>
@@ -91,7 +97,7 @@ export default function MobileTabView({ contact }: MobileTabViewProps) {
                   mobileSamples.map((activity, index) => (
                     <div key={index} className="bg-white rounded-lg shadow-sm border border-slate-light/30 p-3">
                       <p className="text-sm text-teal-primary font-medium">
-                        {activity.summary || activity.content || "Activity item"}
+                        {activity.summary || activity.content || 'Activity item'}
                       </p>
                     </div>
                   ))
@@ -104,17 +110,17 @@ export default function MobileTabView({ contact }: MobileTabViewProps) {
             </div>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="associations" className="p-0 m-0">
           <div className="p-4">
             <p className="text-slate-medium">No associations found</p>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="about" className="p-0 m-0">
           <AboutTab contact={contact} />
         </TabsContent>
       </Tabs>
     </div>
-  );
+  )
 }

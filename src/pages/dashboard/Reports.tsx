@@ -1,10 +1,20 @@
-
-import { useState } from "react";
-import { TopNavbar } from "@/components/layout/top-navbar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Download } from "lucide-react";
-import { CustomButton } from "@/components/ui/custom-button";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useState } from 'react'
+import { TopNavbar } from '@/components/layout/top-navbar'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Calendar, Download } from 'lucide-react'
+import { CustomButton } from '@/components/ui/custom-button'
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts'
 
 // Sample data for charts
 const activityData = [
@@ -13,7 +23,7 @@ const activityData = [
   { name: 'Ryan DeForest', emails: 301, calls: 59, meetings: 18, followUps: 45 },
   { name: 'Jennifer Raffard', emails: 265, calls: 73, meetings: 27, followUps: 51 },
   { name: 'Edie Robinson', emails: 178, calls: 45, meetings: 19, followUps: 36 },
-];
+]
 
 const pipelineData = [
   { name: 'Discovered', value: 42000 },
@@ -22,7 +32,7 @@ const pipelineData = [
   { name: 'Proposal', value: 43000 },
   { name: 'Negotiation', value: 28000 },
   { name: 'Closed Won', value: 19000 },
-];
+]
 
 const salesData = [
   { month: 'Jan', actual: 18000, forecast: 20000 },
@@ -37,14 +47,13 @@ const salesData = [
   { month: 'Oct', actual: 0, forecast: 42000 },
   { month: 'Nov', actual: 0, forecast: 45000 },
   { month: 'Dec', actual: 0, forecast: 50000 },
-];
+]
 
 const Reports = () => {
-  const [dateRange, setDateRange] = useState("May 1, 2023 - Aug 31, 2023");
+  const [dateRange, setDateRange] = useState('May 1, 2023 - Aug 31, 2023')
 
   return (
     <div className="flex h-screen bg-slate-light/20">
-
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopNavbar />
 
@@ -64,11 +73,7 @@ const Reports = () => {
                     <span>{dateRange}</span>
                   </button>
 
-                  <CustomButton
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
+                  <CustomButton variant="outline" size="sm" className="flex items-center gap-2">
                     <Download size={14} />
                     <span>Export CSV</span>
                   </CustomButton>
@@ -79,10 +84,7 @@ const Reports = () => {
                 <h2 className="text-lg font-semibold mb-4">Activity Leaderboard</h2>
                 <div className="h-80 mb-6">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={activityData}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                    >
+                    <BarChart data={activityData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="name" />
                       <YAxis />
@@ -110,7 +112,7 @@ const Reports = () => {
                     </thead>
                     <tbody>
                       {activityData.map((item, index) => {
-                        const total = item.emails + item.calls + item.meetings + item.followUps;
+                        const total = item.emails + item.calls + item.meetings + item.followUps
                         return (
                           <tr key={index} className="border-b border-slate-light/30">
                             <td className="py-3 px-4">{item.name}</td>
@@ -120,7 +122,7 @@ const Reports = () => {
                             <td className="py-3 px-4 text-right">{item.followUps}</td>
                             <td className="py-3 px-4 text-right font-semibold">{total}</td>
                           </tr>
-                        );
+                        )
                       })}
                     </tbody>
                   </table>
@@ -131,14 +133,11 @@ const Reports = () => {
                 <h2 className="text-lg font-semibold mb-4">Pipeline Value</h2>
                 <div className="h-80 mb-6">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={pipelineData}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                    >
+                    <BarChart data={pipelineData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <Tooltip formatter={(value) => [`$${value}`, 'Value']} />
+                      <Tooltip formatter={value => [`$${value}`, 'Value']} />
                       <Bar dataKey="value" name="Value" fill="#67BBAA" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -179,17 +178,28 @@ const Reports = () => {
                 <h2 className="text-lg font-semibold mb-4">Sales Performance</h2>
                 <div className="h-80 mb-6">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={salesData}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                    >
+                    <LineChart data={salesData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="month" />
                       <YAxis />
-                      <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+                      <Tooltip formatter={value => [`$${value}`, 'Amount']} />
                       <Legend />
-                      <Line type="monotone" dataKey="actual" name="Actual" stroke="#67BBAA" strokeWidth={2} dot={{ r: 4 }} />
-                      <Line type="monotone" dataKey="forecast" name="Forecast" stroke="#F79849" strokeWidth={2} dot={{ r: 4 }} />
+                      <Line
+                        type="monotone"
+                        dataKey="actual"
+                        name="Actual"
+                        stroke="#67BBAA"
+                        strokeWidth={2}
+                        dot={{ r: 4 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="forecast"
+                        name="Forecast"
+                        stroke="#F79849"
+                        strokeWidth={2}
+                        dot={{ r: 4 }}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -206,17 +216,20 @@ const Reports = () => {
                     </thead>
                     <tbody>
                       {salesData.map((item, index) => {
-                        const variance = item.actual - item.forecast;
+                        const variance = item.actual - item.forecast
                         return (
                           <tr key={index} className="border-b border-slate-light/30">
                             <td className="py-3 px-4">{item.month}</td>
                             <td className="py-3 px-4 text-right">${item.actual.toLocaleString()}</td>
                             <td className="py-3 px-4 text-right">${item.forecast.toLocaleString()}</td>
-                            <td className={`py-3 px-4 text-right ${variance >= 0 ? 'text-teal-primary' : 'text-coral'}`}>
-                              {variance >= 0 ? '+' : ''}{variance.toLocaleString()}
+                            <td
+                              className={`py-3 px-4 text-right ${variance >= 0 ? 'text-teal-primary' : 'text-coral'}`}
+                            >
+                              {variance >= 0 ? '+' : ''}
+                              {variance.toLocaleString()}
                             </td>
                           </tr>
-                        );
+                        )
                       })}
                       <tr className="bg-slate-light/10">
                         <td className="py-3 px-4 font-semibold">YTD / Annual</td>
@@ -227,8 +240,11 @@ const Reports = () => {
                           ${salesData.reduce((sum, item) => sum + item.forecast, 0).toLocaleString()}
                         </td>
                         <td className="py-3 px-4 text-right font-semibold">
-                          ${(salesData.reduce((sum, item) => sum + item.actual, 0) -
-                            salesData.reduce((sum, item) => sum + item.forecast, 0)).toLocaleString()}
+                          $
+                          {(
+                            salesData.reduce((sum, item) => sum + item.actual, 0) -
+                            salesData.reduce((sum, item) => sum + item.forecast, 0)
+                          ).toLocaleString()}
                         </td>
                       </tr>
                     </tbody>
@@ -240,7 +256,7 @@ const Reports = () => {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-export default Reports;
+export default Reports

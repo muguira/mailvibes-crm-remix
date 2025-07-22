@@ -1,20 +1,16 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import React from 'react'
+import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react'
 
 interface QuickInviteButtonProps {
-  onClick: () => void;
-  loading?: boolean;
-  disabled?: boolean;
+  onClick: () => void
+  loading?: boolean
+  disabled?: boolean
 }
 
-export const QuickInviteButton: React.FC<QuickInviteButtonProps> = ({ 
-  onClick, 
-  loading = false, 
-  disabled = false 
-}) => {
+export const QuickInviteButton: React.FC<QuickInviteButtonProps> = ({ onClick, loading = false, disabled = false }) => {
   return (
-    <Button 
+    <Button
       onClick={onClick}
       className="flex items-center gap-2 bg-[#00A991] hover:bg-[#008A7A]"
       disabled={disabled || loading}
@@ -31,5 +27,5 @@ export const QuickInviteButton: React.FC<QuickInviteButtonProps> = ({
         </>
       )}
     </Button>
-  );
-}; 
+  )
+}

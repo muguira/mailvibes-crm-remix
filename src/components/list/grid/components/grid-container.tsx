@@ -1,14 +1,9 @@
-
-import { ReactNode } from "react";
+import { ReactNode } from 'react'
 
 interface GridContainerProps {
-  children: ReactNode;
+  children: ReactNode
 }
 
 export function GridContainer({ children }: GridContainerProps) {
-  return (
-    <div className="h-full flex flex-col full-screen-grid">
-      {children}
-    </div>
-  );
+  return <div className="h-full flex flex-col full-screen-grid">{children}</div>
 }

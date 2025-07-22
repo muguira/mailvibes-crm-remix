@@ -1,66 +1,66 @@
-import { useState, useEffect } from "react";
-import { format, parseISO, differenceInDays } from "date-fns";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar } from "@/components/shared/avatar";
-import { Card } from "@/components/ui/card";
-import { useActivityTracking, ActivityItem } from "@/hooks/use-activity-tracking";
-import { Edit, MessageSquare, UserPlus, Plus, Trash2, Filter, BarChart } from "lucide-react";
-import { useAuth } from "@/components/auth";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useState, useEffect } from 'react'
+import { format, parseISO, differenceInDays } from 'date-fns'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Avatar } from '@/components/shared/avatar'
+import { Card } from '@/components/ui/card'
+import { useActivityTracking, ActivityItem } from '@/hooks/use-activity-tracking'
+import { Edit, MessageSquare, UserPlus, Plus, Trash2, Filter, BarChart } from 'lucide-react'
+import { useAuth } from '@/components/auth'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export function FeedPanel() {
-  const [activeTab, setActiveTab] = useState("my-feed");
-  const { activities, isLoading } = useActivityTracking();
-  const { user } = useAuth();
-  const [groupedActivities, setGroupedActivities] = useState<Record<string, ActivityItem[]>>({});
-  
+  const [activeTab, setActiveTab] = useState('my-feed')
+  const { activities, isLoading } = useActivityTracking()
+  const { user } = useAuth()
+  const [groupedActivities, setGroupedActivities] = useState<Record<string, ActivityItem[]>>({})
+
   // Group activities by date
   useEffect(() => {
-    if (!activities.length) return;
-    
-    const grouped: Record<string, ActivityItem[]> = {};
-    
+    if (!activities.length) return
+
+    const grouped: Record<string, ActivityItem[]> = {}
+
     activities.forEach(activity => {
-      const date = new Date(activity.timestamp).toISOString().split('T')[0];
+      const date = new Date(activity.timestamp).toISOString().split('T')[0]
       if (!grouped[date]) {
-        grouped[date] = [];
+        grouped[date] = []
       }
-      grouped[date].push(activity);
-    });
-    
-    setGroupedActivities(grouped);
-  }, [activities]);
-  
+      grouped[date].push(activity)
+    })
+
+    setGroupedActivities(grouped)
+  }, [activities])
+
   // Filter activities based on active tab
   const getFilteredActivities = () => {
-    if (activeTab === "my-feed" && user) {
+    if (activeTab === 'my-feed' && user) {
       // Filter to only show current user's activities
-      return activities.filter(activity => activity.userId === user.id);
+      return activities.filter(activity => activity.userId === user.id)
     }
-    return activities;
-  };
+    return activities
+  }
 
   // Get activity icon based on type
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'cell_edit':
-        return <Edit className="h-4 w-4 text-blue-500" />;
+        return <Edit className="h-4 w-4 text-blue-500" />
       case 'contact_add':
-        return <UserPlus className="h-4 w-4 text-green-500" />;
+        return <UserPlus className="h-4 w-4 text-green-500" />
       case 'column_add':
-        return <Plus className="h-4 w-4 text-teal-primary" />;
+        return <Plus className="h-4 w-4 text-teal-primary" />
       case 'column_delete':
-        return <Trash2 className="h-4 w-4 text-red-500" />;
+        return <Trash2 className="h-4 w-4 text-red-500" />
       case 'filter_change':
-        return <Filter className="h-4 w-4 text-purple-500" />;
+        return <Filter className="h-4 w-4 text-purple-500" />
       case 'note_add':
-        return <MessageSquare className="h-4 w-4 text-orange-500" />;
+        return <MessageSquare className="h-4 w-4 text-orange-500" />
       case 'login':
-        return <BarChart className="h-4 w-4 text-gray-500" />;
+        return <BarChart className="h-4 w-4 text-gray-500" />
       default:
-        return <Edit className="h-4 w-4 text-gray-500" />;
+        return <Edit className="h-4 w-4 text-gray-500" />
     }
-  };
+  }
 
   // Get activity text based on type
   const getActivityText = (activity: ActivityItem) => {
@@ -71,85 +71,83 @@ export function FeedPanel() {
             updated <span className="text-teal-primary">{activity.fieldName}</span> for{' '}
             <span className="text-teal-primary">{getEntityName(activity)}</span>
           </span>
-        );
+        )
       case 'contact_add':
         return (
           <span>
             added a new contact <span className="text-teal-primary">{activity.entityName}</span>
           </span>
-        );
+        )
       case 'column_add':
         return (
           <span>
             added a new column <span className="text-teal-primary">{activity.entityName}</span>
           </span>
-        );
+        )
       case 'column_delete':
         return (
           <span>
             deleted column <span className="text-teal-primary">{activity.entityName}</span>
           </span>
-        );
+        )
       case 'filter_change':
         return (
           <span>
             changed filters in <span className="text-teal-primary">Contacts list</span>
           </span>
-        );
+        )
       case 'note_add':
         return (
           <span>
             added a note to <span className="text-teal-primary">{activity.entityName}</span>
           </span>
-        );
+        )
       case 'login':
-        return <span>logged in to the system</span>;
+        return <span>logged in to the system</span>
       default:
-        return <span>performed an action</span>;
+        return <span>performed an action</span>
     }
-  };
+  }
 
   // Helper to get entity name or default
   const getEntityName = (activity: ActivityItem) => {
-    if (activity.entityName) return activity.entityName;
-    
+    if (activity.entityName) return activity.entityName
+
     // For contact updates without a name, use ID or default
     if (activity.entityId && activity.entityType === 'contact') {
-      return activity.entityId.replace('lead-', 'Contact ');
+      return activity.entityId.replace('lead-', 'Contact ')
     }
-    
-    return 'Unknown';
-  };
+
+    return 'Unknown'
+  }
 
   // Render date header
   const renderDateHeader = (dateString: string) => {
-    const date = parseISO(dateString);
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    const isToday = dateString === today.toISOString().split('T')[0];
-    const isYesterday = dateString === yesterday.toISOString().split('T')[0]; 
-    
-    let dateDisplay;
+    const date = parseISO(dateString)
+    const today = new Date()
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+
+    const isToday = dateString === today.toISOString().split('T')[0]
+    const isYesterday = dateString === yesterday.toISOString().split('T')[0]
+
+    let dateDisplay
     if (isToday) {
-      dateDisplay = 'Today';
+      dateDisplay = 'Today'
     } else if (isYesterday) {
-      dateDisplay = 'Yesterday';
+      dateDisplay = 'Yesterday'
     } else if (differenceInDays(today, date) < 7) {
-      dateDisplay = format(date, 'EEEE'); // e.g. "Monday"
+      dateDisplay = format(date, 'EEEE') // e.g. "Monday"
     } else {
-      dateDisplay = format(date, 'MMM d, yyyy');
+      dateDisplay = format(date, 'MMM d, yyyy')
     }
-    
+
     return (
       <div className="px-4 py-3 bg-[#f3f4f5] border-b border-slate-light/30">
-        <h3 className="text-sm font-medium text-slate-medium">
-          {dateDisplay}
-        </h3>
+        <h3 className="text-sm font-medium text-slate-medium">{dateDisplay}</h3>
       </div>
-    );
-  };
+    )
+  }
 
   if (isLoading) {
     return (
@@ -170,7 +168,7 @@ export function FeedPanel() {
           <div className="px-4 py-3 bg-[#f3f4f5] border-b border-slate-light/30">
             <Skeleton className="h-4 w-16" />
           </div>
-          
+
           {/* Activity items */}
           <div className="divide-y divide-slate-light/30">
             {Array.from({ length: 5 }).map((_, index) => (
@@ -189,12 +187,12 @@ export function FeedPanel() {
           </div>
         </div>
       </Card>
-    );
+    )
   }
-  
-  const filteredActivities = getFilteredActivities();
-  const sortedDates = Object.keys(groupedActivities).sort((a, b) => b.localeCompare(a));
-  
+
+  const filteredActivities = getFilteredActivities()
+  const sortedDates = Object.keys(groupedActivities).sort((a, b) => b.localeCompare(a))
+
   return (
     <Card className="bg-white rounded-lg shadow-sm overflow-hidden h-full flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -209,62 +207,60 @@ export function FeedPanel() {
 
         <div className="overflow-y-auto flex-1">
           {filteredActivities.length === 0 ? (
-            <div className="p-4 text-center text-slate-medium">
-              No activities to display.
-            </div>
+            <div className="p-4 text-center text-slate-medium">No activities to display.</div>
           ) : (
             <>
               {sortedDates.map(date => {
                 const dateActivities = groupedActivities[date]?.filter(
-                  activity => activeTab === "all" || activity.userId === user?.id
-                );
-                
-                if (!dateActivities || dateActivities.length === 0) return null;
-                
+                  activity => activeTab === 'all' || activity.userId === user?.id,
+                )
+
+                if (!dateActivities || dateActivities.length === 0) return null
+
                 return (
                   <div key={date}>
                     {renderDateHeader(date)}
-            <div className="divide-y divide-slate-light/30">
+                    <div className="divide-y divide-slate-light/30">
                       {dateActivities.map(activity => (
                         <ActivityFeedItem key={activity.id} activity={activity} />
-              ))}
-            </div>
-            </div>
-                );
+                      ))}
+                    </div>
+                  </div>
+                )
               })}
             </>
           )}
         </div>
       </Tabs>
     </Card>
-  );
+  )
 }
 
 function ActivityFeedItem({ activity }: { activity: ActivityItem }) {
   // Format timestamp
-  const formattedTime = format(new Date(activity.timestamp), "h:mm a");
-  
+  const formattedTime = format(new Date(activity.timestamp), 'h:mm a')
+
   // Get icon based on activity type
   const getActivityIcon = () => {
     switch (activity.activityType) {
       case 'cell_edit':
-        return <Edit className="h-4 w-4 text-blue-500" />;
+        return <Edit className="h-4 w-4 text-blue-500" />
       case 'contact_add':
-        return <UserPlus className="h-4 w-4 text-green-500" />;
+        return <UserPlus className="h-4 w-4 text-green-500" />
       case 'column_add':
-        return <Plus className="h-4 w-4 text-teal-primary" />;
+        return <Plus className="h-4 w-4 text-teal-primary" />
       case 'column_delete':
-        return <Trash2 className="h-4 w-4 text-red-500" />;
+        return <Trash2 className="h-4 w-4 text-red-500" />
       case 'filter_change':
-        return <Filter className="h-4 w-4 text-purple-500" />;
+        return <Filter className="h-4 w-4 text-purple-500" />
       case 'note_add':
-        return <MessageSquare className="h-4 w-4 text-orange-500" />;
+        return <MessageSquare className="h-4 w-4 text-orange-500" />
       case 'login':
-        return <BarChart className="h-4 w-4 text-gray-500" />;
+        return <BarChart className="h-4 w-4 text-gray-500" />
       default:
-        return <Edit className="h-4 w-4 text-gray-500" />;
+        return <Edit className="h-4 w-4 text-gray-500" />
     }
-  };
+  }
 
   // Get activity description based on type
   const getActivityText = () => {
@@ -272,71 +268,66 @@ function ActivityFeedItem({ activity }: { activity: ActivityItem }) {
       case 'cell_edit':
         return (
           <span>
-            updated <span className="text-teal-primary">{activity.fieldName}</span> 
+            updated <span className="text-teal-primary">{activity.fieldName}</span>
             {activity.entityName && (
-              <> for <span className="text-teal-primary">{activity.entityName}</span></>
+              <>
+                {' '}
+                for <span className="text-teal-primary">{activity.entityName}</span>
+              </>
             )}
           </span>
-        );
+        )
       case 'contact_add':
         return (
           <span>
             added a new contact <span className="text-teal-primary">{activity.entityName}</span>
           </span>
-        );
+        )
       case 'column_add':
         return (
           <span>
             added a new column <span className="text-teal-primary">{activity.entityName}</span>
           </span>
-        );
+        )
       case 'column_delete':
         return (
           <span>
             deleted column <span className="text-teal-primary">{activity.entityName}</span>
           </span>
-        );
+        )
       case 'filter_change':
         return (
           <span>
             changed filters in <span className="text-teal-primary">Contacts list</span>
           </span>
-        );
+        )
       case 'note_add':
         return (
           <span>
             added a note to <span className="text-teal-primary">{activity.entityName}</span>
           </span>
-        );
+        )
       case 'login':
-        return <span>logged in to the system</span>;
+        return <span>logged in to the system</span>
       default:
-        return <span>performed an action</span>;
+        return <span>performed an action</span>
     }
-  };
+  }
 
   // Show changes for cell edit activities
   const renderValueChange = () => {
     if (activity.activityType !== 'cell_edit' && activity.activityType !== 'note_add') {
-      return null;
+      return null
     }
 
     if (activity.activityType === 'note_add' && activity.newValue) {
-      return (
-        <div className="bg-slate-light/10 p-3 rounded-md text-sm mt-2">
-          {activity.newValue}
-    </div>
-  );
-}
+      return <div className="bg-slate-light/10 p-3 rounded-md text-sm mt-2">{activity.newValue}</div>
+    }
 
     // Format old and new values
-    const oldVal = activity.oldValue === undefined || activity.oldValue === null 
-      ? '—' 
-      : activity.oldValue;
-    
-    const newVal = activity.newValue === undefined || activity.newValue === null 
-      ? '—' 
-      : activity.newValue;
+    const oldVal = activity.oldValue === undefined || activity.oldValue === null ? '—' : activity.oldValue
+
+    const newVal = activity.newValue === undefined || activity.newValue === null ? '—' : activity.newValue
 
     return (
       <div className="bg-slate-light/10 p-3 rounded-md text-sm mt-2">
@@ -349,36 +340,28 @@ function ActivityFeedItem({ activity }: { activity: ActivityItem }) {
           <div className="flex-1 text-teal-primary">{newVal}</div>
         </div>
       </div>
-    );
-  };
+    )
+  }
 
   return (
     <div className="p-4 hover:bg-slate-light/10">
       <div className="flex gap-3">
-        <Avatar 
-          name={activity.userName} 
-          initials={activity.userName.substring(0, 2).toUpperCase()} 
-        />
-        
+        <Avatar name={activity.userName} initials={activity.userName.substring(0, 2).toUpperCase()} />
+
         <div className="flex-1">
           <div className="flex items-center gap-1 mb-0.5">
             <span className="font-semibold">{activity.userName}</span>
             <span className="text-slate-medium">{getActivityText()}</span>
           </div>
-          
-          <div className="text-xs text-slate-medium mb-2">
-            {formattedTime}
-          </div>
-          
+
+          <div className="text-xs text-slate-medium mb-2">{formattedTime}</div>
+
           {renderValueChange()}
-          
+
           {activity.entityId && activity.entityType === 'contact' && (
             <div className="mt-3">
               <div className="flex items-center">
-                <Avatar 
-                  name={activity.entityName || activity.entityId} 
-                  size="sm" 
-                />
+                <Avatar name={activity.entityName || activity.entityId} size="sm" />
                 <span className="ml-2 text-sm">
                   {activity.entityName || activity.entityId.replace('lead-', 'Contact ')}
                 </span>
@@ -386,11 +369,9 @@ function ActivityFeedItem({ activity }: { activity: ActivityItem }) {
             </div>
           )}
         </div>
-        
-        <div className="flex items-start pt-1">
-          {getActivityIcon()}
-        </div>
+
+        <div className="flex items-start pt-1">{getActivityIcon()}</div>
       </div>
     </div>
-  );
+  )
 }

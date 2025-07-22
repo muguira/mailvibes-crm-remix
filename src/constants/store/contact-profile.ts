@@ -6,57 +6,57 @@ import {
   IActivityFilters,
   ITimelineOptions,
   TEditMode,
-} from "@/types/store/contact-profile";
+} from '@/types/store/contact-profile'
 
 // =============================================
 // CONSTANTES DE ESTADO INICIAL
 // =============================================
 
 export const INITIAL_CONTACT_DETAILS: IContactDetails = {
-  firstName: "",
-  lastName: "",
+  firstName: '',
+  lastName: '',
   emails: [],
   phones: [],
   addresses: [],
-  linkedin: "",
-  company: "",
-  title: "",
-};
+  linkedin: '',
+  company: '',
+  title: '',
+}
 
-export const INITIAL_EDIT_MODE: TEditMode = null;
+export const INITIAL_EDIT_MODE: TEditMode = null
 
 export const INITIAL_LOADING_STATE: IContactProfileLoadingState = {
   fetching: false,
   updating: false,
   fetchingActivities: false,
   fetchingEmails: false,
-};
+}
 
 export const INITIAL_ERROR_STATE: IContactProfileErrorState = {
   fetch: null,
   update: null,
   fetchActivities: null,
   fetchEmails: null,
-};
+}
 
 export const DEFAULT_RETRY_CONFIG: IContactProfileRetryConfig = {
   maxRetries: 3,
   retryDelay: 1000,
   backoffMultiplier: 2,
-};
+}
 
-export const INITIAL_ACTIVITY_FILTERS: IActivityFilters = {};
+export const INITIAL_ACTIVITY_FILTERS: IActivityFilters = {}
 
 export const DEFAULT_TIMELINE_OPTIONS: ITimelineOptions = {
   includeEmails: true,
   maxEmails: 20,
   autoRefresh: false,
   refreshInterval: 30000, // 30 seconds
-};
+}
 
-export const INITIAL_IS_INITIALIZED = false;
-export const INITIAL_LAST_SYNC_AT: string | null = null;
-export const INITIAL_CURRENT_CONTACT_ID: string | null = null;
+export const INITIAL_IS_INITIALIZED = false
+export const INITIAL_LAST_SYNC_AT: string | null = null
+export const INITIAL_CURRENT_CONTACT_ID: string | null = null
 
 // =============================================
 // ESTADO INICIAL COMPLETO
@@ -87,7 +87,7 @@ export const INITIAL_CONTACT_PROFILE_STATE = {
   contactProfileIsInitialized: INITIAL_IS_INITIALIZED,
   contactProfileLastSyncAt: INITIAL_LAST_SYNC_AT,
   contactProfileCurrentContactId: INITIAL_CURRENT_CONTACT_ID,
-} as const;
+} as const
 
 // =============================================
 // CONSTANTES PARA RESET
@@ -113,33 +113,33 @@ export const RESET_CONTACT_PROFILE_STATE = {
   contactProfileIsInitialized: false,
   contactProfileLastSyncAt: null,
   contactProfileCurrentContactId: null,
-} as const;
+} as const
 
 // =============================================
 // MENSAJES DE ERROR PREDEFINIDOS
 // =============================================
 
 export const CONTACT_PROFILE_ERROR_MESSAGES = {
-  FETCH_FAILED: "Failed to load contact data",
-  UPDATE_FAILED: "Failed to update contact details",
-  CONTACT_NOT_FOUND: "Contact not found",
-  NETWORK_ERROR: "Network error. Please check your connection.",
+  FETCH_FAILED: 'Failed to load contact data',
+  UPDATE_FAILED: 'Failed to update contact details',
+  CONTACT_NOT_FOUND: 'Contact not found',
+  NETWORK_ERROR: 'Network error. Please check your connection.',
   PERMISSION_DENIED: "You don't have permission to access this contact",
-  INVALID_CONTACT_ID: "Invalid contact ID provided",
-  ACTIVITIES_FETCH_FAILED: "Failed to load contact activities",
-  EMAILS_FETCH_FAILED: "Failed to load contact emails",
-} as const;
+  INVALID_CONTACT_ID: 'Invalid contact ID provided',
+  ACTIVITIES_FETCH_FAILED: 'Failed to load contact activities',
+  EMAILS_FETCH_FAILED: 'Failed to load contact emails',
+} as const
 
 // =============================================
 // MENSAJES DE ÉXITO PREDEFINIDOS
 // =============================================
 
 export const CONTACT_PROFILE_SUCCESS_MESSAGES = {
-  UPDATE_SUCCESS: "Contact details have been updated successfully",
-  FETCH_SUCCESS: "Contact data loaded successfully",
-  ACTIVITIES_LOADED: "Contact activities loaded successfully",
-  EMAILS_LOADED: "Contact emails loaded successfully",
-} as const;
+  UPDATE_SUCCESS: 'Contact details have been updated successfully',
+  FETCH_SUCCESS: 'Contact data loaded successfully',
+  ACTIVITIES_LOADED: 'Contact activities loaded successfully',
+  EMAILS_LOADED: 'Contact emails loaded successfully',
+} as const
 
 // =============================================
 // CONFIGURACIONES DE VALIDACIÓN
@@ -153,7 +153,7 @@ export const CONTACT_PROFILE_VALIDATION_CONFIG = {
   EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   PHONE_REGEX: /^[\+]?[1-9][\d]{0,15}$/,
   LINKEDIN_REGEX: /^(https?:\/\/)?([\w]+\.)?linkedin\.com\/(pub|in|profile)/,
-} as const;
+} as const
 
 // =============================================
 // TIMEOUTS Y DELAYS
@@ -165,4 +165,4 @@ export const CONTACT_PROFILE_TIMEOUTS = {
   ACTIVITIES_TIMEOUT: 8000, // 8 seconds
   EMAILS_TIMEOUT: 12000, // 12 seconds
   DEBOUNCE_DELAY: 500, // 500ms for input debouncing
-} as const;
+} as const

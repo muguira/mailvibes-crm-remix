@@ -1,51 +1,50 @@
-import { useAuth } from "@/components/auth";
-import { LogOut, Settings, User } from "lucide-react";
+import { useAuth } from '@/components/auth'
+import { LogOut, Settings, User } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useNavigate } from "react-router-dom";
-import { useRadixPointerEventsFix } from "@/hooks/use-radix-pointer-events-fix";
+} from '@/components/ui/dropdown-menu'
+import { useNavigate } from 'react-router-dom'
+import { useRadixPointerEventsFix } from '@/hooks/use-radix-pointer-events-fix'
 
 export function ProfileMenu() {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-  
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+
   // Fix for Radix UI pointer-events bug that can cause infinite loops
-  const { forceCleanup } = useRadixPointerEventsFix();
+  const { forceCleanup } = useRadixPointerEventsFix()
 
   const handleLogout = async () => {
-    await signOut();
-    navigate("/auth");
-  };
-  
+    await signOut()
+    navigate('/auth')
+  }
+
   const handleLogin = () => {
-    navigate("/auth");
-  };
+    navigate('/auth')
+  }
 
   if (!user) {
     return (
-      <button
-        onClick={handleLogin}
-        className="p-2 rounded-full bg-teal-primary text-white hover:bg-teal-dark"
-      >
+      <button onClick={handleLogin} className="p-2 rounded-full bg-teal-primary text-white hover:bg-teal-dark">
         <User className="h-5 w-5" />
       </button>
-    );
+    )
   }
 
-  const userInitials = user.email ? user.email.substring(0, 2).toUpperCase() : "U";
+  const userInitials = user.email ? user.email.substring(0, 2).toUpperCase() : 'U'
 
   return (
-    <DropdownMenu onOpenChange={(open) => {
-      // Force cleanup when dropdown closes to prevent pointer-events: none bug
-      if (!open) {
-        setTimeout(() => forceCleanup(), 50);
-      }
-    }}>
+    <DropdownMenu
+      onOpenChange={open => {
+        // Force cleanup when dropdown closes to prevent pointer-events: none bug
+        if (!open) {
+          setTimeout(() => forceCleanup(), 50)
+        }
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <button className="p-2 rounded-full bg-navy-deep text-white hover:bg-navy-light flex items-center justify-center h-9 w-9">
           {userInitials}
@@ -56,7 +55,7 @@ export function ProfileMenu() {
           <p className="font-medium">{user.email}</p>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate("/profile")}>
+        <DropdownMenuItem onClick={() => navigate('/profile')}>
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenuItem>
@@ -71,5 +70,5 @@ export function ProfileMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
+  )
 }

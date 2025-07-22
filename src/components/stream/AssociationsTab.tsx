@@ -1,6 +1,5 @@
-
-import React from 'react';
-import { Plus } from 'lucide-react';
+import React from 'react'
+import { Plus } from 'lucide-react'
 
 export default function AssociationsTab() {
   // Associations to render
@@ -10,8 +9,8 @@ export default function AssociationsTab() {
     { type: 'companies' },
     { type: 'contacts' },
     { type: 'deals' },
-    { type: 'tickets' }
-  ];
+    { type: 'tickets' },
+  ]
 
   return (
     <div className="flex flex-col">
@@ -32,5 +31,5 @@ export default function AssociationsTab() {
         </button>
       ))}
     </div>
-  );
+  )
 }

@@ -1,26 +1,25 @@
-
-import { MessageSquare, Check, Edit, Phone } from "lucide-react";
-import { Avatar } from "@/components/shared/avatar";
-import { ActivityItemProps } from "./activity-item-types";
+import { MessageSquare, Check, Edit, Phone } from 'lucide-react'
+import { Avatar } from '@/components/shared/avatar'
+import { ActivityItemProps } from './activity-item-types'
 
 export function ActivityItem({ activity }: ActivityItemProps) {
-  let icon;
-  
+  let icon
+
   switch (activity.type) {
     case 'note':
-      icon = <MessageSquare size={16} className="text-teal-primary" />;
-      break;
+      icon = <MessageSquare size={16} className="text-teal-primary" />
+      break
     case 'update':
-      icon = <Edit size={16} className="text-blue-500" />;
-      break;
+      icon = <Edit size={16} className="text-blue-500" />
+      break
     case 'call':
-      icon = <Phone size={16} className="text-purple-500" />;
-      break;
+      icon = <Phone size={16} className="text-purple-500" />
+      break
     case 'task-complete':
-      icon = <Check size={16} className="text-green-500" />;
-      break;
+      icon = <Check size={16} className="text-green-500" />
+      break
     default:
-      icon = <MessageSquare size={16} />;
+      icon = <MessageSquare size={16} />
   }
 
   return (
@@ -34,9 +33,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
         <div className="flex items-center gap-1">
           {icon}
           {activity.field && (
-            <span className="text-xs bg-slate-light/30 px-1.5 py-0.5 rounded">
-              {activity.field.name} change
-            </span>
+            <span className="text-xs bg-slate-light/30 px-1.5 py-0.5 rounded">{activity.field.name} change</span>
           )}
         </div>
       </div>
@@ -61,5 +58,5 @@ export function ActivityItem({ activity }: ActivityItemProps) {
         </button>
       </div>
     </div>
-  );
+  )
 }

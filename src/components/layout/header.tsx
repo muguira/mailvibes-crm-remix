@@ -1,19 +1,17 @@
-import { Bell, Search, HelpCircle, Settings } from "lucide-react";
-import { CustomButton } from "@/components/ui/custom-button";
-import { ProfileMenu } from "./profile-menu";
+import { Bell, Search, HelpCircle, Settings } from 'lucide-react'
+import { CustomButton } from '@/components/ui/custom-button'
+import { ProfileMenu } from './profile-menu'
 
 interface HeaderProps {
-  title?: string;
+  title?: string
 }
 
 export function Header({ title }: HeaderProps) {
   return (
     <header className="bg-white border-b border-slate-light/30 h-16 flex items-center px-4 justify-between shadow-sm">
       <div className="flex items-center">
-        {title && title !== "SalesSheets Dashboard" && title !== "SalesSheets Report" && (
-          <h1 className="text-xl font-semibold text-navy-deep">
-            {title}
-          </h1>
+        {title && title !== 'SalesSheets Dashboard' && title !== 'SalesSheets Report' && (
+          <h1 className="text-xl font-semibold text-navy-deep">{title}</h1>
         )}
       </div>
 
@@ -38,11 +36,11 @@ export function Header({ title }: HeaderProps) {
         <button className="p-2 rounded-full hover:bg-slate-light/30 text-slate-dark">
           <Settings className="h-5 w-5" />
         </button>
-        
+
         <div className="ml-2 border-l border-slate-light/50 pl-2">
           <ProfileMenu />
         </div>
       </div>
     </header>
-  );
+  )
 }

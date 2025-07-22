@@ -1,55 +1,48 @@
-
-import { useState } from "react";
-import { MessageSquare, Phone, Calendar, Pencil } from "lucide-react";
-import { ContactData } from "../types";
-import { PointsOfContactDialog } from "../dialogs/points-of-contact-dialog";
-import { logger } from '@/utils/logger';
+import { useState } from 'react'
+import { MessageSquare, Phone, Calendar, Pencil } from 'lucide-react'
+import { ContactData } from '../types'
+import { PointsOfContactDialog } from '../dialogs/points-of-contact-dialog'
+import { logger } from '@/utils/logger'
 
 interface ActivityHeaderProps {
-  selectedContact: ContactData;
-  listId?: string;
+  selectedContact: ContactData
+  listId?: string
 }
 
 export function ActivityHeader({ selectedContact, listId }: ActivityHeaderProps) {
-  const [isPointsOfContactOpen, setIsPointsOfContactOpen] = useState(false);
-  
+  const [isPointsOfContactOpen, setIsPointsOfContactOpen] = useState(false)
+
   // Extract domain from company name or email
   const getCompanyDomain = () => {
     if (selectedContact.email) {
-      const emailParts = selectedContact.email.split('@');
-      if (emailParts.length > 1) return emailParts[1];
+      const emailParts = selectedContact.email.split('@')
+      if (emailParts.length > 1) return emailParts[1]
     }
-    
+
     if (selectedContact.company) {
       // Convert company name to a domain-like string
-      return selectedContact.company.toLowerCase().replace(/\s+/g, '') + '.com';
+      return selectedContact.company.toLowerCase().replace(/\s+/g, '') + '.com'
     }
-    
-    return undefined;
-  };
-  
+
+    return undefined
+  }
+
   const handleSaveContacts = (contacts: any[]) => {
     // In a real implementation, this would update the contact's associated contacts
-    logger.log("Saved contacts:", contacts);
-  };
+    logger.log('Saved contacts:', contacts)
+  }
 
   return (
     <div className="p-3 border-b border-slate-light/30 flex items-center justify-between bg-white">
       <div className="flex items-center">
         <h2 className="font-semibold">{selectedContact.name}</h2>
-        {selectedContact.company && (
-          <span className="ml-1 text-slate-medium text-sm">
-            ({selectedContact.company})
-          </span>
-        )}
-        
-        <button 
+        {selectedContact.company && <span className="ml-1 text-slate-medium text-sm">({selectedContact.company})</span>}
+
+        <button
           className="ml-2 text-slate-medium hover:text-teal-primary"
           onClick={() => setIsPointsOfContactOpen(true)}
         >
-          <span className="text-xs underline">
-            {selectedContact.points_of_contact?.length || 0} contact(s)
-          </span>
+          <span className="text-xs underline">{selectedContact.points_of_contact?.length || 0} contact(s)</span>
         </button>
       </div>
 
@@ -64,7 +57,7 @@ export function ActivityHeader({ selectedContact, listId }: ActivityHeaderProps)
           <Calendar size={16} />
         </button>
       </div>
-      
+
       {listId && (
         <PointsOfContactDialog
           isOpen={isPointsOfContactOpen}
@@ -78,5 +71,5 @@ export function ActivityHeader({ selectedContact, listId }: ActivityHeaderProps)
         />
       )}
     </div>
-  );
+  )
 }

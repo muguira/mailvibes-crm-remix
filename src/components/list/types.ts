@@ -1,17 +1,16 @@
-
 // Append to the existing types.ts file
-import { PresenceUser, ChangeRecord } from "@/hooks/supabase";
+import { PresenceUser, ChangeRecord } from '@/hooks/supabase'
 
 export interface ListHeaderProps {
-  listsLoading: boolean;
-  lists: any[];
-  currentListId: string | null;
-  presentUsers: Record<string, PresenceUser>;
-  viewMode: "grid" | "stream";
-  setCurrentListId: (id: string) => void;
-  setIsCreateListOpen: (isOpen: boolean) => void;
-  setIsHistoryOpen: (isOpen: boolean) => void;
-  setViewMode: (mode: "grid" | "stream") => void;
+  listsLoading: boolean
+  lists: any[]
+  currentListId: string | null
+  presentUsers: Record<string, PresenceUser>
+  viewMode: 'grid' | 'stream'
+  setCurrentListId: (id: string) => void
+  setIsCreateListOpen: (isOpen: boolean) => void
+  setIsHistoryOpen: (isOpen: boolean) => void
+  setViewMode: (mode: 'grid' | 'stream') => void
 }
 
 export interface ListsPageProps {
@@ -20,36 +19,36 @@ export interface ListsPageProps {
 
 // Updated ContactData type with added properties
 export interface ContactData {
-  id: string;
-  name: string;
-  company?: string;
-  email?: string;
-  lastActivity?: string;
-  activities?: ActivityItem[];
-  fields?: Record<string, any>;
+  id: string
+  name: string
+  company?: string
+  email?: string
+  lastActivity?: string
+  activities?: ActivityItem[]
+  fields?: Record<string, any>
   points_of_contact?: Array<{
-    id: string;
-    name: string;
-    email?: string;
-    phone?: string;
-  }>;
+    id: string
+    name: string
+    email?: string
+    phone?: string
+  }>
 }
 
 // Add missing ActivityItem type
 export interface ActivityItem {
-  id: string;
-  type: ActivityType;
-  timestamp: string;
-  content: string;
+  id: string
+  type: ActivityType
+  timestamp: string
+  content: string
   user: {
-    name: string;
-    initials: string;
-  };
+    name: string
+    initials: string
+  }
   field?: {
-    name: string;
-    value: string;
-  };
+    name: string
+    value: string
+  }
 }
 
 // Add missing ActivityType enum
-export type ActivityType = "note" | "update" | "call" | "task-complete" | "email";
+export type ActivityType = 'note' | 'update' | 'call' | 'task-complete' | 'email'

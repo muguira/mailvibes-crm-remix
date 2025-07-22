@@ -1,8 +1,7 @@
-
 interface TextCellProps {
-  value: string | number;
+  value: string | number
 }
 
 export function TextCell({ value }: TextCellProps) {
-  return <span>{value}</span>;
+  return <span>{value}</span>
 }

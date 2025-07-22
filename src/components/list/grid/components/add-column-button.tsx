@@ -1,26 +1,25 @@
-
-import { Plus } from "lucide-react";
-import { AddColumnDialog } from "./add-column-dialog";
-import { ColumnType } from "../types";
-import { Button } from "@/components/ui/button";
-import { useEffect, useRef } from "react";
+import { Plus } from 'lucide-react'
+import { AddColumnDialog } from './add-column-dialog'
+import { ColumnType } from '../types'
+import { Button } from '@/components/ui/button'
+import { useEffect, useRef } from 'react'
 
 interface AddColumnButtonProps {
-  isAddingColumn: boolean;
-  setIsAddingColumn: (isAdding: boolean) => void;
+  isAddingColumn: boolean
+  setIsAddingColumn: (isAdding: boolean) => void
   newColumn: {
-    header: string;
-    type: ColumnType;
-    options?: string[];
-    colors?: Record<string, string>;
-  };
+    header: string
+    type: ColumnType
+    options?: string[]
+    colors?: Record<string, string>
+  }
   setNewColumn: (newCol: {
-    header: string;
-    type: ColumnType;
-    options?: string[];
-    colors?: Record<string, string>;
-  }) => void;
-  addColumn: () => void;
+    header: string
+    type: ColumnType
+    options?: string[]
+    colors?: Record<string, string>
+  }) => void
+  addColumn: () => void
 }
 
 export function AddColumnButton({
@@ -28,33 +27,31 @@ export function AddColumnButton({
   setIsAddingColumn,
   newColumn,
   setNewColumn,
-  addColumn
+  addColumn,
 }: AddColumnButtonProps) {
-  const buttonCellRef = useRef<HTMLDivElement>(null);
+  const buttonCellRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     // Force visibility with direct DOM manipulation
     if (buttonCellRef.current) {
-      buttonCellRef.current.setAttribute('style', 
+      buttonCellRef.current.setAttribute(
+        'style',
         'position: sticky; right: 0; z-index: 20; display: flex; justify-content: center; ' +
-        'align-items: center; min-width: 40px; width: 40px; height: var(--row-height, 32px); ' + 
-        'padding: 0; background: #f8f9fa; border-left: 1px solid #e0e5eb; ' +
-        'box-shadow: -2px 0 4px -2px rgba(0,0,0,0.05); visibility: visible; opacity: 1;');
-      
+          'align-items: center; min-width: 40px; width: 40px; height: var(--row-height, 32px); ' +
+          'padding: 0; background: #f8f9fa; border-left: 1px solid #e0e5eb; ' +
+          'box-shadow: -2px 0 4px -2px rgba(0,0,0,0.05); visibility: visible; opacity: 1;',
+      )
+
       // Also ensure the button itself is visible
-      const button = buttonCellRef.current.querySelector('button');
+      const button = buttonCellRef.current.querySelector('button')
       if (button) {
-        button.setAttribute('style', 
-          'visibility: visible; opacity: 1; display: flex;');
+        button.setAttribute('style', 'visibility: visible; opacity: 1; display: flex;')
       }
     }
-  }, []);
+  }, [])
 
   return (
-    <div 
-      className="add-column-cell"
-      ref={buttonCellRef}
-    >
+    <div className="add-column-cell" ref={buttonCellRef}>
       <Button
         type="button"
         variant="ghost"
@@ -66,7 +63,7 @@ export function AddColumnButton({
       >
         <Plus size={14} className="text-teal-primary" />
       </Button>
-      
+
       <AddColumnDialog
         isAddingColumn={isAddingColumn}
         setIsAddingColumn={setIsAddingColumn}
@@ -75,5 +72,5 @@ export function AddColumnButton({
         addColumn={addColumn}
       />
     </div>
-  );
+  )
 }

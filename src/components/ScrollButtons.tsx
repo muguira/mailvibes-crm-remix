@@ -1,12 +1,12 @@
-import React, { RefObject, useCallback } from 'react';
-import { ChevronUp, ChevronDown } from 'lucide-react';
-import './grid-view/styles/scroll-buttons.css';
+import React, { RefObject, useCallback } from 'react'
+import { ChevronUp, ChevronDown } from 'lucide-react'
+import './grid-view/styles/scroll-buttons.css'
 
 interface ScrollButtonsProps {
   /**
    * Ref to the MainGridView component that exposes scrollToTop and scrollToBottom methods
    */
-  targetRef?: RefObject<{ scrollToTop: () => void; scrollToBottom: () => void }>;
+  targetRef?: RefObject<{ scrollToTop: () => void; scrollToBottom: () => void }>
 }
 
 /**
@@ -16,21 +16,21 @@ interface ScrollButtonsProps {
 export const ScrollButtons: React.FC<ScrollButtonsProps> = ({ targetRef }) => {
   const scrollToTop = useCallback(() => {
     if (targetRef?.current?.scrollToTop) {
-      targetRef.current.scrollToTop();
+      targetRef.current.scrollToTop()
     } else {
       // Fallback to window scrolling if no ref is provided
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
-  }, [targetRef]);
+  }, [targetRef])
 
   const scrollToBottom = useCallback(() => {
     if (targetRef?.current?.scrollToBottom) {
-      targetRef.current.scrollToBottom();
+      targetRef.current.scrollToBottom()
     } else {
       // Fallback to window scrolling if no ref is provided
-      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })
     }
-  }, [targetRef]);
+  }, [targetRef])
 
   return (
     <div className="grid-scroll-buttons">
@@ -41,5 +41,5 @@ export const ScrollButtons: React.FC<ScrollButtonsProps> = ({ targetRef }) => {
         <ChevronDown size={20} />
       </button>
     </div>
-  );
-}; 
+  )
+}

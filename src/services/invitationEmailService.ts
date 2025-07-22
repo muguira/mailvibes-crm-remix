@@ -1,37 +1,42 @@
-import { OrganizationInvitation } from '@/types/organization';
-import { supabase } from '@/integrations/supabase/client';
+import { OrganizationInvitation } from '@/types/organization'
+import { supabase } from '@/integrations/supabase/client'
 
 interface InvitationEmailData {
-  recipientEmail: string;
-  recipientName?: string;
-  organizationName: string;
-  inviterName: string;
-  inviterEmail: string;
-  invitationId: string;
-  role: 'admin' | 'user';
-  acceptUrl: string;
-  expiresAt: string;
-  invitationToken: string;
-  personalMessage?: string;
+  recipientEmail: string
+  recipientName?: string
+  organizationName: string
+  inviterName: string
+  inviterEmail: string
+  invitationId: string
+  role: 'admin' | 'user'
+  acceptUrl: string
+  expiresAt: string
+  invitationToken: string
+  personalMessage?: string
 }
 
 export class InvitationEmailService {
-  private baseUrl: string;
-  private resendApiKey: string;
-  private fromEmail: string;
-  private publicAppUrl: string;
+  private baseUrl: string
+  private resendApiKey: string
+  private fromEmail: string
+  private publicAppUrl: string
 
   constructor() {
-    this.baseUrl = window.location.origin;
-    this.resendApiKey = import.meta.env.VITE_RESEND_API_KEY || import.meta.env.RESEND_API_KEY || '';
-    this.fromEmail = import.meta.env.VITE_FROM_EMAIL || import.meta.env.SMTP_FROM_EMAIL || 'hello@salessheet.ai';
-    this.publicAppUrl = import.meta.env.VITE_PUBLIC_APP_URL || import.meta.env.PUBLIC_APP_URL || 'https://sales-sheet.vercel.app/';
+    this.baseUrl = window.location.origin
+    this.resendApiKey = import.meta.env.VITE_RESEND_API_KEY || import.meta.env.RESEND_API_KEY || ''
+    this.fromEmail = import.meta.env.VITE_FROM_EMAIL || import.meta.env.SMTP_FROM_EMAIL || 'hello@salessheet.ai'
+    this.publicAppUrl =
+      import.meta.env.VITE_PUBLIC_APP_URL || import.meta.env.PUBLIC_APP_URL || 'https://sales-sheet.vercel.app/'
   }
 
   /**
    * Send invitation email to new user using Resend
    */
-  async sendInvitationEmail(invitation: OrganizationInvitation, organizationName: string, inviterName: string): Promise<void> {
+  async sendInvitationEmail(
+    invitation: OrganizationInvitation,
+    organizationName: string,
+    inviterName: string,
+  ): Promise<void> {
     const emailData: InvitationEmailData = {
       recipientEmail: invitation.email,
       recipientName: invitation.email.split('@')[0], // Use email prefix as name
@@ -43,7 +48,7 @@ export class InvitationEmailService {
       expiresAt: invitation.expires_at,
       invitationToken: invitation.token || invitation.id, // Use ID as fallback
       personalMessage: invitation.message || undefined,
-    };
+    }
 
     try {
       // Use Supabase Edge Function to send email (avoids CORS issues)
@@ -57,33 +62,32 @@ export class InvitationEmailService {
           invitationToken: emailData.invitationToken,
           personalMessage: emailData.personalMessage,
           expiresAt: emailData.expiresAt,
-        }
-      });
+        },
+      })
 
       if (error) {
-        throw error;
+        throw error
       }
 
-      console.log('✅ Invitation email sent successfully via Edge Function');
-      
+      console.log('✅ Invitation email sent successfully via Edge Function')
+
       // Still show local preview in development
       if (import.meta.env.DEV) {
         console.log('📧 Email Preview:', {
           to: emailData.recipientEmail,
           subject: `Invitation to join ${emailData.organizationName}`,
-          acceptUrl: `${this.publicAppUrl}/accept-invitation?token=${emailData.invitationToken}`
-        });
+          acceptUrl: `${this.publicAppUrl}/accept-invitation?token=${emailData.invitationToken}`,
+        })
       }
-
     } catch (error) {
-      console.error('❌ Failed to send invitation email:', error);
-      
+      console.error('❌ Failed to send invitation email:', error)
+
       // Fallback to simulation in development
       if (import.meta.env.DEV) {
-        console.log('📧 Falling back to email simulation in development');
-        await this.simulateEmailSend(emailData);
+        console.log('📧 Falling back to email simulation in development')
+        await this.simulateEmailSend(emailData)
       } else {
-        throw new Error('Failed to send invitation email');
+        throw new Error('Failed to send invitation email')
       }
     }
   }
@@ -91,7 +95,11 @@ export class InvitationEmailService {
   /**
    * Send reminder email for pending invitation
    */
-  async sendReminderEmail(invitation: OrganizationInvitation, organizationName: string, inviterName: string): Promise<void> {
+  async sendReminderEmail(
+    invitation: OrganizationInvitation,
+    organizationName: string,
+    inviterName: string,
+  ): Promise<void> {
     // Use the same template but with reminder subject
     const emailData: InvitationEmailData = {
       recipientEmail: invitation.email,
@@ -104,19 +112,19 @@ export class InvitationEmailService {
       expiresAt: invitation.expires_at,
       invitationToken: invitation.token || invitation.id, // Use ID as fallback
       personalMessage: invitation.message || undefined,
-    };
+    }
 
     try {
       if (!this.resendApiKey) {
-        console.warn('Resend API key not configured. Falling back to simulation.');
-        await this.simulateEmailSend(emailData);
-        return;
+        console.warn('Resend API key not configured. Falling back to simulation.')
+        await this.simulateEmailSend(emailData)
+        return
       }
 
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.resendApiKey}`,
+          Authorization: `Bearer ${this.resendApiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -125,25 +133,24 @@ export class InvitationEmailService {
           subject: `Reminder: Invitation to join ${emailData.organizationName}`,
           html: this.generateReminderTemplate(emailData),
         }),
-      });
+      })
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Resend API error: ${errorData.message || response.statusText}`);
+        const errorData = await response.json()
+        throw new Error(`Resend API error: ${errorData.message || response.statusText}`)
       }
 
-      const result = await response.json();
-      console.log('✅ Reminder email sent successfully:', result.id);
-      
+      const result = await response.json()
+      console.log('✅ Reminder email sent successfully:', result.id)
     } catch (error) {
-      console.error('❌ Failed to send reminder email:', error);
-      
+      console.error('❌ Failed to send reminder email:', error)
+
       // Fallback to simulation in development
       if (import.meta.env.DEV) {
-        console.log('📧 Falling back to email simulation in development');
-        await this.simulateEmailSend(emailData);
+        console.log('📧 Falling back to email simulation in development')
+        await this.simulateEmailSend(emailData)
       } else {
-        throw new Error('Failed to send reminder email');
+        throw new Error('Failed to send reminder email')
       }
     }
   }
@@ -152,8 +159,8 @@ export class InvitationEmailService {
    * Generate invitation email HTML template
    */
   private generateEmailTemplate(data: InvitationEmailData): string {
-    const expiresDate = new Date(data.expiresAt).toLocaleDateString();
-    
+    const expiresDate = new Date(data.expiresAt).toLocaleDateString()
+
     return `
       <!DOCTYPE html>
       <html>
@@ -341,15 +348,16 @@ export class InvitationEmailService {
               <div class="permissions">
                 <h3>What you can do as a ${data.role === 'admin' ? 'Administrator' : 'Team Member'}:</h3>
                 <ul>
-                  ${data.role === 'admin' 
-                    ? `
+                  ${
+                    data.role === 'admin'
+                      ? `
                       <li>Manage team members and send invitations</li>
                       <li>Access all organization settings and billing</li>
                       <li>View, edit, and manage all contacts and data</li>
                       <li>Set up integrations and customize workflows</li>
                       <li>Generate reports and analytics</li>
                     `
-                    : `
+                      : `
                       <li>View and edit contacts and customer data</li>
                       <li>Collaborate with team members on deals</li>
                       <li>Access shared lists, reports, and dashboards</li>
@@ -371,24 +379,18 @@ export class InvitationEmailService {
           </div>
         </body>
       </html>
-    `;
+    `
   }
 
   /**
    * Generate reminder email template
    */
   private generateReminderTemplate(data: InvitationEmailData): string {
-    const template = this.generateEmailTemplate(data);
-    return template.replace(
-      'You\'re invited to join',
-      'Reminder: You\'re invited to join'
-    ).replace(
-      '<h2>Welcome!</h2>',
-      '<h2>Friendly Reminder</h2>'
-    ).replace(
-      'has invited you to join',
-      'previously invited you to join'
-    );
+    const template = this.generateEmailTemplate(data)
+    return template
+      .replace("You're invited to join", "Reminder: You're invited to join")
+      .replace('<h2>Welcome!</h2>', '<h2>Friendly Reminder</h2>')
+      .replace('has invited you to join', 'previously invited you to join')
   }
 
   /**
@@ -396,34 +398,37 @@ export class InvitationEmailService {
    */
   private async simulateEmailSend(data: InvitationEmailData): Promise<void> {
     // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
     // Log email content for development
-    console.log('📧 Invitation Email Simulation:');
-    console.log('To:', data.recipientEmail);
-    console.log('Subject: Invitation to join', data.organizationName);
-    console.log('Accept URL:', data.acceptUrl);
-    console.log('Expires:', data.expiresAt);
-    
+    console.log('📧 Invitation Email Simulation:')
+    console.log('To:', data.recipientEmail)
+    console.log('Subject: Invitation to join', data.organizationName)
+    console.log('Accept URL:', data.acceptUrl)
+    console.log('Expires:', data.expiresAt)
+
     // In development, show the acceptance link for easy testing
     if (import.meta.env.DEV) {
-      console.log('🔗 Test this invitation by visiting:', data.acceptUrl);
+      console.log('🔗 Test this invitation by visiting:', data.acceptUrl)
     }
   }
 }
 
 // Export singleton instance
-export const invitationEmailService = new InvitationEmailService();
+export const invitationEmailService = new InvitationEmailService()
 
 // Helper function to send invitations (used by the store)
-export const sendInvitationEmails = async (invitations: OrganizationInvitation[], organizationName: string): Promise<void> => {
-  const promises = invitations.map(invitation => 
+export const sendInvitationEmails = async (
+  invitations: OrganizationInvitation[],
+  organizationName: string,
+): Promise<void> => {
+  const promises = invitations.map(invitation =>
     invitationEmailService.sendInvitationEmail(
-      invitation, 
-      organizationName, 
-      invitation.inviter.first_name || invitation.inviter.email
-    )
-  );
-  
-  await Promise.all(promises);
-}; 
+      invitation,
+      organizationName,
+      invitation.inviter.first_name || invitation.inviter.email,
+    ),
+  )
+
+  await Promise.all(promises)
+}

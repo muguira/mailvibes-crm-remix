@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+dist/
+build/
+
+# Generated files
+*.generated.*
+pnpm-lock.yaml
+package-lock.json
+bun.lockb
+*.map
+
+# Config files that should keep their format
+.env*
+*.md
+*.sql
+
+# Large type files
+linked_types_*.ts
+types_check.ts
+updated_types.ts
+
+# Specific directories
+.vite/
+.cursor/
+supabase/migrations/
+
+# CSS files (let's keep their current format for now)
+*.css 

@@ -1,30 +1,24 @@
-
-import { RefObject } from "react";
-import { 
-  useGridColumns, 
-  useGridData, 
-  useColumnActions, 
-  useDragDrop, 
-  useCellInteractions, 
-  useHistory, 
-  useNewColumn
-} from "./hooks";
-import { ColumnDef, ColumnType } from "./types";
-import { logger } from '@/utils/logger';
+import { RefObject } from 'react'
+import {
+  useGridColumns,
+  useGridData,
+  useColumnActions,
+  useDragDrop,
+  useCellInteractions,
+  useHistory,
+  useNewColumn,
+} from './hooks'
+import { ColumnDef, ColumnType } from './types'
+import { logger } from '@/utils/logger'
 
 interface GridSetupProps {
-  initialColumns: ColumnDef[];
-  initialData: any[];
-  headerRef: React.RefObject<HTMLDivElement>;
-  bodyRef: React.RefObject<HTMLDivElement>;
+  initialColumns: ColumnDef[]
+  initialData: any[]
+  headerRef: React.RefObject<HTMLDivElement>
+  bodyRef: React.RefObject<HTMLDivElement>
 }
 
-export function useGridSetup({ 
-  initialColumns, 
-  initialData,
-  headerRef,
-  bodyRef
-}: GridSetupProps) {
+export function useGridSetup({ initialColumns, initialData, headerRef, bodyRef }: GridSetupProps) {
   // Use our modular hooks
   const {
     columns,
@@ -38,17 +32,12 @@ export function useGridSetup({
     frozenColumns,
     scrollableColumns,
     frozenColsTemplate,
-    scrollableColsTemplate
-  } = useGridColumns({ initialColumns });
+    scrollableColsTemplate,
+  } = useGridColumns({ initialColumns })
 
-  const {
-    data,
-    setData,
-    activeCell,
-    setActiveCell,
-    showSaveIndicator,
-    setShowSaveIndicator
-  } = useGridData({ initialData });
+  const { data, setData, activeCell, setActiveCell, showSaveIndicator, setShowSaveIndicator } = useGridData({
+    initialData,
+  })
 
   const {
     undoStack,
@@ -56,113 +45,104 @@ export function useGridSetup({
     redoStack,
     setRedoStack,
     saveStateToHistory,
-    handleKeyDown: historyKeyDown
-  } = useHistory({ columns, data });
+    handleKeyDown: historyKeyDown,
+  } = useHistory({ columns, data })
 
-  const {
-    isAddingColumn,
-    setIsAddingColumn,
-    newColumn,
-    setNewColumn
-  } = useNewColumn();
+  const { isAddingColumn, setIsAddingColumn, newColumn, setNewColumn } = useNewColumn()
 
-  const {
-    handleCellClick,
-    handleCellChange
-  } = useCellInteractions({ data, setData, setActiveCell, setShowSaveIndicator });
+  const { handleCellClick, handleCellChange } = useCellInteractions({
+    data,
+    setData,
+    setActiveCell,
+    setShowSaveIndicator,
+  })
 
-  const {
-    handleHeaderDoubleClick,
-    renameColumn,
-    deleteColumn,
-    duplicateColumn,
-    sortColumn,
-    moveColumn
-  } = useColumnActions({ columns, setColumns, data, setData, saveStateToHistory });
+  const { handleHeaderDoubleClick, renameColumn, deleteColumn, duplicateColumn, sortColumn, moveColumn } =
+    useColumnActions({ columns, setColumns, data, setData, saveStateToHistory })
 
   const {
     handleDragStart,
     handleDragOver,
-    handleDrop: createHandleDrop
-  } = useDragDrop({ setDraggedColumn, setDragOverColumn });
+    handleDrop: createHandleDrop,
+  } = useDragDrop({ setDraggedColumn, setDragOverColumn })
 
   // Create the final handleDrop function with necessary context
-  const handleDrop = createHandleDrop(draggedColumn, columns, setColumns);
+  const handleDrop = createHandleDrop(draggedColumn, columns, setColumns)
 
   // Add column handler
   const addColumn = () => {
-    if (!newColumn.header) return;
-    
-    const newKey = newColumn.header.toLowerCase().replace(/\s/g, "_");
+    if (!newColumn.header) return
+
+    const newKey = newColumn.header.toLowerCase().replace(/\s/g, '_')
     const newColumnDef: ColumnDef = {
       key: newKey,
       header: newColumn.header,
       type: newColumn.type,
       options: newColumn.options,
       colors: newColumn.type === 'status' ? newColumn.colors : undefined,
-    };
-    
-    logger.log("Adding new column:", newColumnDef);
-    saveStateToHistory();
-    setColumns(prevColumns => [...prevColumns, newColumnDef]);
-    
+    }
+
+    logger.log('Adding new column:', newColumnDef)
+    saveStateToHistory()
+    setColumns(prevColumns => [...prevColumns, newColumnDef])
+
     // Add the new column to all existing data rows with proper typing
     setData(prevData =>
-      prevData.map(row => ({ 
-        ...row, 
-        [newKey]: "" 
-      }))
-    );
-    
+      prevData.map(row => ({
+        ...row,
+        [newKey]: '',
+      })),
+    )
+
     // Reset new column form
     setNewColumn({
-      header: "",
-      type: "text",
-      options: []
-    });
-    
-    setIsAddingColumn(false);
-  };
+      header: '',
+      type: 'text',
+      options: [],
+    })
+
+    setIsAddingColumn(false)
+  }
 
   // Undo/Redo handlers
   const handleUndo = () => {
-    if (undoStack.length === 0) return;
-    
+    if (undoStack.length === 0) return
+
     // Get the last state from undo stack
-    const prevState = undoStack[undoStack.length - 1];
-    
+    const prevState = undoStack[undoStack.length - 1]
+
     // Save current state to redo stack
-    setRedoStack(prev => [...prev, {columns: [...columns], data: [...data]}]);
-    
+    setRedoStack(prev => [...prev, { columns: [...columns], data: [...data] }])
+
     // Apply the previous state
-    setColumns(prevState.columns);
-    setData(prevState.data);
-    
+    setColumns(prevState.columns)
+    setData(prevState.data)
+
     // Remove the used state from undo stack
-    setUndoStack(prev => prev.slice(0, -1));
-  };
-  
+    setUndoStack(prev => prev.slice(0, -1))
+  }
+
   const handleRedo = () => {
-    if (redoStack.length === 0) return;
-    
+    if (redoStack.length === 0) return
+
     // Get the last state from redo stack
-    const nextState = redoStack[redoStack.length - 1];
-    
+    const nextState = redoStack[redoStack.length - 1]
+
     // Save current state to undo stack
-    setUndoStack(prev => [...prev, {columns: [...columns], data: [...data]}]);
-    
+    setUndoStack(prev => [...prev, { columns: [...columns], data: [...data] }])
+
     // Apply the next state
-    setColumns(nextState.columns);
-    setData(nextState.data);
-    
+    setColumns(nextState.columns)
+    setData(nextState.data)
+
     // Remove the used state from redo stack
-    setRedoStack(prev => prev.slice(0, -1));
-  };
+    setRedoStack(prev => prev.slice(0, -1))
+  }
 
   // Main keyboard handler that combines history with other keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    historyKeyDown(e, handleUndo, handleRedo);
-  };
+    historyKeyDown(e, handleUndo, handleRedo)
+  }
 
   return {
     // State
@@ -182,13 +162,13 @@ export function useGridSetup({
     setUndoStack,
     redoStack,
     setRedoStack,
-    
+
     // Computed values
     frozenColumns,
     scrollableColumns,
     frozenColsTemplate,
     scrollableColsTemplate,
-    
+
     // Actions
     handleCellClick,
     handleHeaderDoubleClick,
@@ -204,5 +184,5 @@ export function useGridSetup({
     handleDrop,
     handleKeyDown,
     saveStateToHistory,
-  };
+  }
 }

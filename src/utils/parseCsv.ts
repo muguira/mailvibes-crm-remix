@@ -1,7 +1,7 @@
 export interface ParsedCsvResult {
-  headers: string[];
-  rows: Record<string, string>[];
-  delimiter: ',' | ';';
+  headers: string[]
+  rows: Record<string, string>[]
+  delimiter: ',' | ';'
 }
 
 /**
@@ -10,11 +10,11 @@ export interface ParsedCsvResult {
  * @returns The detected delimiter (',' or ';')
  */
 export function detectDelimiter(csvString: string): ',' | ';' {
-  const firstLine = csvString.split('\n')[0] || '';
-  const commaCount = (firstLine.match(/,/g) || []).length;
-  const semicolonCount = (firstLine.match(/;/g) || []).length;
-  
-  return semicolonCount > commaCount ? ';' : ',';
+  const firstLine = csvString.split('\n')[0] || ''
+  const commaCount = (firstLine.match(/,/g) || []).length
+  const semicolonCount = (firstLine.match(/;/g) || []).length
+
+  return semicolonCount > commaCount ? ';' : ','
 }
 
 /**
@@ -24,30 +24,30 @@ export function detectDelimiter(csvString: string): ',' | ';' {
  * @returns Parsed CSV data with headers and rows
  */
 export function parseCsv(csvString: string, delimiter?: ',' | ';'): ParsedCsvResult {
-  const detectedDelimiter = delimiter || detectDelimiter(csvString);
-  const lines = csvString.trim().split('\n');
-  
+  const detectedDelimiter = delimiter || detectDelimiter(csvString)
+  const lines = csvString.trim().split('\n')
+
   if (lines.length === 0) {
-    return { headers: [], rows: [], delimiter: detectedDelimiter };
+    return { headers: [], rows: [], delimiter: detectedDelimiter }
   }
-  
+
   // Parse headers from the first line
-  const headers = parseCSVLine(lines[0], detectedDelimiter);
-  
+  const headers = parseCSVLine(lines[0], detectedDelimiter)
+
   // Parse rows
-  const rows: Record<string, string>[] = [];
+  const rows: Record<string, string>[] = []
   for (let i = 1; i < lines.length; i++) {
-    const values = parseCSVLine(lines[i], detectedDelimiter);
+    const values = parseCSVLine(lines[i], detectedDelimiter)
     if (values.length === headers.length) {
-      const row: Record<string, string> = {};
+      const row: Record<string, string> = {}
       headers.forEach((header, index) => {
-        row[header] = values[index] || '';
-      });
-      rows.push(row);
+        row[header] = values[index] || ''
+      })
+      rows.push(row)
     }
   }
-  
-  return { headers, rows, delimiter: detectedDelimiter };
+
+  return { headers, rows, delimiter: detectedDelimiter }
 }
 
 /**
@@ -57,36 +57,36 @@ export function parseCsv(csvString: string, delimiter?: ',' | ';'): ParsedCsvRes
  * @returns Array of values from the line
  */
 function parseCSVLine(line: string, delimiter: ',' | ';'): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+
   for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    const nextChar = line[i + 1];
-    
+    const char = line[i]
+    const nextChar = line[i + 1]
+
     if (char === '"') {
       if (inQuotes && nextChar === '"') {
         // Escaped quote
-        current += '"';
-        i++; // Skip the next quote
+        current += '"'
+        i++ // Skip the next quote
       } else {
         // Toggle quote state
-        inQuotes = !inQuotes;
+        inQuotes = !inQuotes
       }
     } else if (char === delimiter && !inQuotes) {
       // End of field
-      result.push(current.trim());
-      current = '';
+      result.push(current.trim())
+      current = ''
     } else {
-      current += char;
+      current += char
     }
   }
-  
+
   // Don't forget the last field
-  result.push(current.trim());
-  
-  return result;
+  result.push(current.trim())
+
+  return result
 }
 
 /**
@@ -95,5 +95,5 @@ function parseCSVLine(line: string, delimiter: ',' | ';'): string[] {
  * @returns True if the file has a .csv extension
  */
 export function isValidCsvFile(filename: string): boolean {
-  return filename.toLowerCase().endsWith('.csv');
-} 
+  return filename.toLowerCase().endsWith('.csv')
+}

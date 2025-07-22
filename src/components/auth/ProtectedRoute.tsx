@@ -1,18 +1,18 @@
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/components/auth';
+import { Navigate, useLocation } from 'react-router-dom'
+import { useAuth } from '@/components/auth'
 
 interface ProtectedRouteProps {
-    children: React.ReactNode;
+  children: React.ReactNode
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-    const { user } = useAuth();
-    const location = useLocation();
+  const { user } = useAuth()
+  const location = useLocation()
 
-    if (!user) {
-        // Redirect to auth page while saving the attempted url
-        return <Navigate to="/auth" state={{ from: location }} replace />;
-    }
+  if (!user) {
+    // Redirect to auth page while saving the attempted url
+    return <Navigate to="/auth" state={{ from: location }} replace />
+  }
 
-    return <>{children}</>;
-} 
+  return <>{children}</>
+}

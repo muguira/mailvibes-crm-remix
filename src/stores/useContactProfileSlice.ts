@@ -1,5 +1,5 @@
-import { StateCreator } from "zustand";
-import { TStore } from "@/types/store/store";
+import { StateCreator } from 'zustand'
+import { TStore } from '@/types/store/store'
 import {
   TContactProfileStore,
   TEditMode,
@@ -9,13 +9,13 @@ import {
   IContactProfileRetryConfig,
   IActivityFilters,
   ITimelineOptions,
-} from "@/types/store/contact-profile";
+} from '@/types/store/contact-profile'
 import {
   INITIAL_CONTACT_PROFILE_STATE,
   RESET_CONTACT_PROFILE_STATE,
   CONTACT_PROFILE_ERROR_MESSAGES,
   CONTACT_PROFILE_SUCCESS_MESSAGES,
-} from "@/constants/store/contact-profile";
+} from '@/constants/store/contact-profile'
 import {
   transformContactToDetails,
   transformDetailsToContactUpdate,
@@ -27,9 +27,9 @@ import {
   updateContactInSupabase,
   syncWithContactsStore,
   syncWithMockData,
-} from "@/helpers/contactProfileHelpers";
-import { logger } from "@/utils/logger";
-import { toast } from "sonner";
+} from '@/helpers/contactProfileHelpers'
+import { logger } from '@/utils/logger'
+import { toast } from 'sonner'
 
 /**
  * Contact Profile slice for Zustand store
@@ -68,7 +68,7 @@ import { toast } from "sonner";
  */
 export const useContactProfileSlice: StateCreator<
   TStore,
-  [["zustand/subscribeWithSelector", never], ["zustand/immer", never]],
+  [['zustand/subscribeWithSelector', never], ['zustand/immer', never]],
   [],
   TContactProfileStore
 > = (set, get) => ({
@@ -82,49 +82,41 @@ export const useContactProfileSlice: StateCreator<
    */
   contactProfileInitialize: async (contactId: string) => {
     // Evitar inicializaciones duplicadas para el mismo contacto
-    const currentState = get();
-    if (
-      currentState.contactProfileCurrentContactId === contactId &&
-      currentState.contactProfileIsInitialized
-    ) {
-      logger.debug(
-        `Contact profile already initialized for ${contactId}, skipping...`
-      );
-      return;
+    const currentState = get()
+    if (currentState.contactProfileCurrentContactId === contactId && currentState.contactProfileIsInitialized) {
+      logger.debug(`Contact profile already initialized for ${contactId}, skipping...`)
+      return
     }
 
-    set((state) => {
-      state.contactProfileLoading.fetching = true;
-      state.contactProfileErrors.fetch = null;
-      state.contactProfileCurrentContactId = contactId;
-    });
+    set(state => {
+      state.contactProfileLoading.fetching = true
+      state.contactProfileErrors.fetch = null
+      state.contactProfileCurrentContactId = contactId
+    })
 
     try {
-      await get().contactProfileFetchContact(contactId);
+      await get().contactProfileFetchContact(contactId)
 
-      set((state) => {
-        state.contactProfileIsInitialized = true;
-        state.contactProfileLastSyncAt = new Date().toISOString();
-      });
+      set(state => {
+        state.contactProfileIsInitialized = true
+        state.contactProfileLastSyncAt = new Date().toISOString()
+      })
 
-      logger.log(`Contact profile initialized successfully for ${contactId}`);
+      logger.log(`Contact profile initialized successfully for ${contactId}`)
     } catch (error) {
-      logger.error("Error initializing contact profile:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : CONTACT_PROFILE_ERROR_MESSAGES.FETCH_FAILED;
+      logger.error('Error initializing contact profile:', error)
+      const errorMessage = error instanceof Error ? error.message : CONTACT_PROFILE_ERROR_MESSAGES.FETCH_FAILED
 
-      set((state) => {
-        state.contactProfileErrors.fetch = errorMessage;
-        state.contactProfileIsInitialized = false;
-      });
+      set(state => {
+        state.contactProfileErrors.fetch = errorMessage
+        state.contactProfileIsInitialized = false
+      })
 
-      toast.error(errorMessage);
+      toast.error(errorMessage)
     } finally {
-      set((state) => {
-        state.contactProfileLoading.fetching = false;
-      });
+      set(state => {
+        state.contactProfileLoading.fetching = false
+      })
     }
   },
 
@@ -133,10 +125,10 @@ export const useContactProfileSlice: StateCreator<
    * Clears all data, errors, and loading states
    */
   contactProfileReset: () => {
-    set((state) => {
-      Object.assign(state, RESET_CONTACT_PROFILE_STATE);
-    });
-    logger.log("Contact profile state reset");
+    set(state => {
+      Object.assign(state, RESET_CONTACT_PROFILE_STATE)
+    })
+    logger.log('Contact profile state reset')
   },
 
   /**
@@ -145,51 +137,43 @@ export const useContactProfileSlice: StateCreator<
    */
   contactProfileFetchContact: async (contactId: string) => {
     if (!contactId) {
-      const error = new Error(
-        CONTACT_PROFILE_ERROR_MESSAGES.INVALID_CONTACT_ID
-      );
-      logger.error(error);
-      throw error;
+      const error = new Error(CONTACT_PROFILE_ERROR_MESSAGES.INVALID_CONTACT_ID)
+      logger.error(error)
+      throw error
     }
 
-    set((state) => {
-      state.contactProfileLoading.fetching = true;
-      state.contactProfileErrors.fetch = null;
-    });
+    set(state => {
+      state.contactProfileLoading.fetching = true
+      state.contactProfileErrors.fetch = null
+    })
 
     try {
-      const contact = await fetchContactFromSupabase(
-        contactId,
-        get().contactProfileRetryConfig
-      );
+      const contact = await fetchContactFromSupabase(contactId, get().contactProfileRetryConfig)
 
       // Transformar los datos del contacto al formato de detalles
-      const contactDetails = transformContactToDetails(contact);
+      const contactDetails = transformContactToDetails(contact)
 
-      set((state) => {
-        state.contactProfileContact = contact;
-        state.contactProfileContactDetails = contactDetails;
-        state.contactProfileCurrentContactId = contactId;
-        state.contactProfileLastSyncAt = new Date().toISOString();
-      });
+      set(state => {
+        state.contactProfileContact = contact
+        state.contactProfileContactDetails = contactDetails
+        state.contactProfileCurrentContactId = contactId
+        state.contactProfileLastSyncAt = new Date().toISOString()
+      })
 
-      logger.log(`Contact fetched successfully: ${contactId}`);
+      logger.log(`Contact fetched successfully: ${contactId}`)
     } catch (error) {
-      logger.error("Error fetching contact:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : CONTACT_PROFILE_ERROR_MESSAGES.FETCH_FAILED;
+      logger.error('Error fetching contact:', error)
+      const errorMessage = error instanceof Error ? error.message : CONTACT_PROFILE_ERROR_MESSAGES.FETCH_FAILED
 
-      set((state) => {
-        state.contactProfileErrors.fetch = errorMessage;
-      });
+      set(state => {
+        state.contactProfileErrors.fetch = errorMessage
+      })
 
-      throw error;
+      throw error
     } finally {
-      set((state) => {
-        state.contactProfileLoading.fetching = false;
-      });
+      set(state => {
+        state.contactProfileLoading.fetching = false
+      })
     }
   },
 
@@ -198,54 +182,47 @@ export const useContactProfileSlice: StateCreator<
    * @param input - The contact ID and details to update
    */
   contactProfileUpdateContactDetails: async (input: TUpdateContactInput) => {
-    const { contactId, details } = input;
-    const currentContact = get().contactProfileContact;
+    const { contactId, details } = input
+    const currentContact = get().contactProfileContact
 
     if (!currentContact) {
-      const error = new Error(CONTACT_PROFILE_ERROR_MESSAGES.CONTACT_NOT_FOUND);
-      logger.error(error);
-      throw error;
+      const error = new Error(CONTACT_PROFILE_ERROR_MESSAGES.CONTACT_NOT_FOUND)
+      logger.error(error)
+      throw error
     }
 
     // Validar los detalles antes de actualizar
-    const validationErrors = validateContactDetails(details);
+    const validationErrors = validateContactDetails(details)
     if (validationErrors.length > 0) {
-      const errorMessage = validationErrors.join(", ");
-      set((state) => {
-        state.contactProfileErrors.update = errorMessage;
-      });
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
+      const errorMessage = validationErrors.join(', ')
+      set(state => {
+        state.contactProfileErrors.update = errorMessage
+      })
+      toast.error(errorMessage)
+      throw new Error(errorMessage)
     }
 
-    set((state) => {
-      state.contactProfileLoading.updating = true;
-      state.contactProfileErrors.update = null;
-    });
+    set(state => {
+      state.contactProfileLoading.updating = true
+      state.contactProfileErrors.update = null
+    })
 
     try {
       // Transformar los detalles al formato de actualización
-      const updateData = transformDetailsToContactUpdate(
-        currentContact,
-        details
-      );
+      const updateData = transformDetailsToContactUpdate(currentContact, details)
 
       // Actualizar en Supabase
-      const updatedContact = await updateContactInSupabase(
-        contactId,
-        updateData,
-        get().contactProfileRetryConfig
-      );
+      const updatedContact = await updateContactInSupabase(contactId, updateData, get().contactProfileRetryConfig)
 
       // Actualizar el estado local
-      const updatedContactDetails = transformContactToDetails(updatedContact);
+      const updatedContactDetails = transformContactToDetails(updatedContact)
 
-      set((state) => {
-        state.contactProfileContact = updatedContact;
-        state.contactProfileContactDetails = updatedContactDetails;
-        state.contactProfileEditMode = null; // Cerrar el modo de edición
-        state.contactProfileLastSyncAt = new Date().toISOString();
-      });
+      set(state => {
+        state.contactProfileContact = updatedContact
+        state.contactProfileContactDetails = updatedContactDetails
+        state.contactProfileEditMode = null // Cerrar el modo de edición
+        state.contactProfileLastSyncAt = new Date().toISOString()
+      })
 
       // Sincronizar con otros stores
       const syncData = {
@@ -254,30 +231,27 @@ export const useContactProfileSlice: StateCreator<
         email: updateData.email,
         phone: updateData.phone,
         ...updateData.data,
-      };
+      }
 
-      await syncWithContactsStore(contactId, syncData);
-      syncWithMockData(contactId, syncData);
+      await syncWithContactsStore(contactId, syncData)
+      syncWithMockData(contactId, syncData)
 
-      toast.success(CONTACT_PROFILE_SUCCESS_MESSAGES.UPDATE_SUCCESS);
-      logger.log(`Contact details updated successfully: ${contactId}`);
+      toast.success(CONTACT_PROFILE_SUCCESS_MESSAGES.UPDATE_SUCCESS)
+      logger.log(`Contact details updated successfully: ${contactId}`)
     } catch (error) {
-      logger.error("Error updating contact details:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : CONTACT_PROFILE_ERROR_MESSAGES.UPDATE_FAILED;
+      logger.error('Error updating contact details:', error)
+      const errorMessage = error instanceof Error ? error.message : CONTACT_PROFILE_ERROR_MESSAGES.UPDATE_FAILED
 
-      set((state) => {
-        state.contactProfileErrors.update = errorMessage;
-      });
+      set(state => {
+        state.contactProfileErrors.update = errorMessage
+      })
 
-      toast.error(errorMessage);
-      throw error;
+      toast.error(errorMessage)
+      throw error
     } finally {
-      set((state) => {
-        state.contactProfileLoading.updating = false;
-      });
+      set(state => {
+        state.contactProfileLoading.updating = false
+      })
     }
   },
 
@@ -286,10 +260,10 @@ export const useContactProfileSlice: StateCreator<
    * @param mode - The edit mode to set (details, experience, or null)
    */
   contactProfileSetEditMode: (mode: TEditMode) => {
-    set((state) => {
-      state.contactProfileEditMode = mode;
-    });
-    logger.log(`Edit mode set to: ${mode}`);
+    set(state => {
+      state.contactProfileEditMode = mode
+    })
+    logger.log(`Edit mode set to: ${mode}`)
   },
 
   /**
@@ -297,9 +271,9 @@ export const useContactProfileSlice: StateCreator<
    * @param details - Partial contact details to update
    */
   contactProfileSetContactDetails: (details: Partial<IContactDetails>) => {
-    set((state) => {
-      Object.assign(state.contactProfileContactDetails, details);
-    });
+    set(state => {
+      Object.assign(state.contactProfileContactDetails, details)
+    })
   },
 
   /**
@@ -307,11 +281,8 @@ export const useContactProfileSlice: StateCreator<
    * @returns The primary email or fallback
    */
   contactProfileGetPrimaryEmail: () => {
-    const state = get();
-    return getPrimaryEmail(
-      state.contactProfileContactDetails.emails,
-      state.contactProfileContact?.email
-    );
+    const state = get()
+    return getPrimaryEmail(state.contactProfileContactDetails.emails, state.contactProfileContact?.email)
   },
 
   /**
@@ -319,11 +290,8 @@ export const useContactProfileSlice: StateCreator<
    * @returns The primary phone or fallback
    */
   contactProfileGetPrimaryPhone: () => {
-    const state = get();
-    return getPrimaryPhone(
-      state.contactProfileContactDetails.phones,
-      state.contactProfileContact?.phone
-    );
+    const state = get()
+    return getPrimaryPhone(state.contactProfileContactDetails.phones, state.contactProfileContact?.phone)
   },
 
   /**
@@ -331,8 +299,8 @@ export const useContactProfileSlice: StateCreator<
    * @returns The primary address
    */
   contactProfileGetPrimaryAddress: () => {
-    const state = get();
-    return getPrimaryAddress(state.contactProfileContactDetails.addresses);
+    const state = get()
+    return getPrimaryAddress(state.contactProfileContactDetails.addresses)
   },
 
   /**
@@ -340,10 +308,10 @@ export const useContactProfileSlice: StateCreator<
    * @param filters - Partial activity filters to apply
    */
   contactProfileSetActivityFilters: (filters: Partial<IActivityFilters>) => {
-    set((state) => {
-      Object.assign(state.contactProfileActivityFilters, filters);
-    });
-    logger.log("Activity filters updated:", filters);
+    set(state => {
+      Object.assign(state.contactProfileActivityFilters, filters)
+    })
+    logger.log('Activity filters updated:', filters)
   },
 
   /**
@@ -351,10 +319,10 @@ export const useContactProfileSlice: StateCreator<
    * @param options - Partial timeline options to apply
    */
   contactProfileSetTimelineOptions: (options: Partial<ITimelineOptions>) => {
-    set((state) => {
-      Object.assign(state.contactProfileTimelineOptions, options);
-    });
-    logger.log("Timeline options updated:", options);
+    set(state => {
+      Object.assign(state.contactProfileTimelineOptions, options)
+    })
+    logger.log('Timeline options updated:', options)
   },
 
   /**
@@ -362,9 +330,9 @@ export const useContactProfileSlice: StateCreator<
    * @param operation - The operation error to clear
    */
   contactProfileClearError: (operation: keyof IContactProfileErrorState) => {
-    set((state) => {
-      state.contactProfileErrors[operation] = null;
-    });
+    set(state => {
+      state.contactProfileErrors[operation] = null
+    })
   },
 
   /**
@@ -372,26 +340,24 @@ export const useContactProfileSlice: StateCreator<
    * Resets all operation errors to null
    */
   contactProfileClearAllErrors: () => {
-    set((state) => {
+    set(state => {
       state.contactProfileErrors = {
         fetch: null,
         update: null,
         fetchActivities: null,
         fetchEmails: null,
-      };
-    });
+      }
+    })
   },
 
   /**
    * Update the retry configuration for failed operations
    * @param config - Partial retry configuration to merge with existing config
    */
-  contactProfileSetRetryConfig: (
-    config: Partial<IContactProfileRetryConfig>
-  ) => {
-    set((state) => {
-      Object.assign(state.contactProfileRetryConfig, config);
-    });
-    logger.log("Retry config updated:", config);
+  contactProfileSetRetryConfig: (config: Partial<IContactProfileRetryConfig>) => {
+    set(state => {
+      Object.assign(state.contactProfileRetryConfig, config)
+    })
+    logger.log('Retry config updated:', config)
   },
-});
+})

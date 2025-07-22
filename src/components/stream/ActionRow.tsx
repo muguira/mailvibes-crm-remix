@@ -1,136 +1,143 @@
-import React, { useState } from 'react';
-import { Phone, Mail, CheckSquare, MoreHorizontal, StickyNote, CalendarClock, MessageCircle, Calendar, Download, RefreshCw } from 'lucide-react';
-import { useActivity } from "@/contexts/ActivityContext";
-import { useParams } from "react-router-dom";
-import { mockContactsById } from "@/components/stream/sample-data";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useEmails } from '@/hooks/use-emails-store';
-import { useStore } from '@/stores';
+import React, { useState } from 'react'
+import {
+  Phone,
+  Mail,
+  CheckSquare,
+  MoreHorizontal,
+  StickyNote,
+  CalendarClock,
+  MessageCircle,
+  Calendar,
+  Download,
+  RefreshCw,
+} from 'lucide-react'
+import { useActivity } from '@/contexts/ActivityContext'
+import { useParams } from 'react-router-dom'
+import { mockContactsById } from '@/components/stream/sample-data'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { useEmails } from '@/hooks/use-emails-store'
+import { useStore } from '@/stores'
 
 interface ActionRowProps {
-  className?: string;
+  className?: string
   contact?: {
-    id?: string;
-    email?: string;
-    phone?: string;
-    name?: string;
-  };
+    id?: string
+    email?: string
+    phone?: string
+    name?: string
+  }
 }
 
 export default function ActionRow({ className = '', contact }: ActionRowProps) {
-  const { logNoteAdd } = useActivity();
-  const { recordId } = useParams();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  
-  const contactId = contact?.id || recordId;
-  const contactName = contact?.name || (contactId ? mockContactsById[contactId]?.name || `Contact ${contactId}` : 'Unknown Contact');
-  
-  // Get auth user and emails store  
-  const { authUser } = useStore();
-  const emails = useEmails();
-  
+  const { logNoteAdd } = useActivity()
+  const { recordId } = useParams()
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+
+  const contactId = contact?.id || recordId
+  const contactName =
+    contact?.name || (contactId ? mockContactsById[contactId]?.name || `Contact ${contactId}` : 'Unknown Contact')
+
+  // Get auth user and emails store
+  const { authUser } = useStore()
+  const emails = useEmails()
+
   // Get email data for this contact
-  const contactEmails = contact?.email ? emails.getEmailsForContact(contact.email) : [];
-  const syncStatus = contact?.email ? emails.getSyncState(contact.email) : 'idle';
-  const hasMoreEmails = contact?.email ? emails.hasMoreEmails(contact.email) : false;
-  
+  const contactEmails = contact?.email ? emails.getEmailsForContact(contact.email) : []
+  const syncStatus = contact?.email ? emails.getSyncState(contact.email) : 'idle'
+  const hasMoreEmails = contact?.email ? emails.hasMoreEmails(contact.email) : false
+
   // Log action to activity feed
   const logContactAction = (actionType: string) => {
     if (contactId) {
-      logNoteAdd(contactId, contactName, `Performed ${actionType} action`);
+      logNoteAdd(contactId, contactName, `Performed ${actionType} action`)
     }
-  };
+  }
 
   // Handle sync historical emails
   const handleSyncHistoricalEmails = async () => {
     if (contact?.email && authUser?.id) {
-      await emails.syncContactHistory(contact.email, authUser.id);
+      await emails.syncContactHistory(contact.email, authUser.id)
       // ✅ REMOVED: No longer log sync action as it creates unwanted notes
       // logContactAction('email sync');
     }
-  };
+  }
 
   // Check if we should show sync option - show when there might be more emails to sync
   // Always show sync if we have less than 100 emails (reasonable assumption that Gmail should have more)
-  const shouldShowSync = contact?.email && (hasMoreEmails || contactEmails.length < 100);
+  const shouldShowSync = contact?.email && (hasMoreEmails || contactEmails.length < 100)
 
   // Action buttons configuration - all buttons for desktop
   const desktopActions = [
-    { 
-      icon: Phone, 
-      label: 'Call', 
+    {
+      icon: Phone,
+      label: 'Call',
       href: contact?.phone ? `tel:${contact.phone}` : undefined,
-      onClick: () => logContactAction('call') 
+      onClick: () => logContactAction('call'),
     },
-    { 
-      icon: Mail, 
-      label: 'Email', 
+    {
+      icon: Mail,
+      label: 'Email',
       href: contact?.email ? `mailto:${contact.email}` : undefined,
-      onClick: () => logContactAction('email')
+      onClick: () => logContactAction('email'),
     },
-    { 
-      icon: CheckSquare, 
+    {
+      icon: CheckSquare,
       label: 'Task',
-      onClick: () => logContactAction('task')
+      onClick: () => logContactAction('task'),
     },
-    { 
-      icon: StickyNote, 
+    {
+      icon: StickyNote,
       label: 'Note',
-      onClick: () => logContactAction('note')
+      onClick: () => logContactAction('note'),
     },
-    { 
-      icon: CalendarClock, 
+    {
+      icon: CalendarClock,
       label: 'Meeting',
-      onClick: () => logContactAction('meeting')
+      onClick: () => logContactAction('meeting'),
     },
-    { 
-      icon: MoreHorizontal, 
+    {
+      icon: MoreHorizontal,
       label: 'More',
       isDropdown: true,
-      onClick: () => {}
+      onClick: () => {},
     },
-  ];
+  ]
 
   // Mobile shows 5 buttons in the specified order
   const mobileActions = [
-    { 
-      icon: Phone, 
-      label: 'Call', 
+    {
+      icon: Phone,
+      label: 'Call',
       href: contact?.phone ? `tel:${contact.phone}` : undefined,
-      onClick: () => logContactAction('call')
+      onClick: () => logContactAction('call'),
     },
-    { 
-      icon: Calendar, 
+    {
+      icon: Calendar,
       label: 'Meeting',
-      onClick: () => logContactAction('meeting')
+      onClick: () => logContactAction('meeting'),
     },
-    { 
-      icon: Mail, 
-      label: 'Email', 
+    {
+      icon: Mail,
+      label: 'Email',
       href: contact?.email ? `mailto:${contact.email}` : undefined,
-      onClick: () => logContactAction('email')
+      onClick: () => logContactAction('email'),
     },
-    { 
-      icon: MessageCircle, 
+    {
+      icon: MessageCircle,
       label: 'Text',
-      onClick: () => logContactAction('text')
+      onClick: () => logContactAction('text'),
     },
-    { 
-      icon: MoreHorizontal, 
+    {
+      icon: MoreHorizontal,
       label: 'More',
       isDropdown: true,
-      onClick: () => {}
+      onClick: () => {},
     },
-  ];
+  ]
 
   // Render dropdown menu item for More button
   const renderMoreButton = (action: any, index: number) => {
-    if (action.isDropdown) {      
+    if (action.isDropdown) {
       return (
         <DropdownMenu key={index}>
           <DropdownMenuTrigger asChild>
@@ -143,7 +150,7 @@ export default function ActionRow({ className = '', contact }: ActionRowProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center" className="w-56">
             {shouldShowSync && (
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={handleSyncHistoricalEmails}
                 disabled={syncStatus === 'syncing'}
                 className="flex items-center gap-2 cursor-pointer"
@@ -173,7 +180,7 @@ export default function ActionRow({ className = '', contact }: ActionRowProps) {
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-      );
+      )
     }
 
     return (
@@ -181,8 +188,8 @@ export default function ActionRow({ className = '', contact }: ActionRowProps) {
         key={index}
         className="flex flex-col items-center justify-center p-2 group"
         onClick={() => {
-          action.onClick?.();
-          if (action.href) window.location.href = action.href;
+          action.onClick?.()
+          if (action.href) window.location.href = action.href
         }}
       >
         <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center border border-slate-light/30 group-hover:bg-slate-light/10 group-hover:border-teal-primary group-hover:border-2 transition-colors">
@@ -190,8 +197,8 @@ export default function ActionRow({ className = '', contact }: ActionRowProps) {
         </div>
         <span className="text-xs text-slate-dark mt-1">{action.label}</span>
       </button>
-    );
-  };
+    )
+  }
 
   return (
     <div className={`${className}`}>
@@ -199,11 +206,11 @@ export default function ActionRow({ className = '', contact }: ActionRowProps) {
       <div className="flex items-center justify-between w-full lg:hidden">
         {mobileActions.map((action, index) => renderMoreButton(action, index))}
       </div>
-      
+
       {/* Desktop buttons (visible on larger screens) - Now with gap-4 instead of gap-6 */}
       <div className="hidden lg:grid grid-cols-6 gap-4 w-full">
         {desktopActions.map((action, index) => renderMoreButton(action, index))}
       </div>
     </div>
-  );
+  )
 }

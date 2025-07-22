@@ -17,12 +17,7 @@ interface ScopeDetectionAlertProps {
  * Component that automatically detects missing OAuth scopes
  * and provides a user-friendly reconnection interface
  */
-export function ScopeDetectionAlert({ 
-  userId, 
-  email, 
-  onReconnectSuccess,
-  className = ""
-}: ScopeDetectionAlertProps) {
+export function ScopeDetectionAlert({ userId, email, onReconnectSuccess, className = '' }: ScopeDetectionAlertProps) {
   const { checkAllScopes, checkContactsPermission, loading } = useGmailScopeDetection({ enableLogging: true })
   const navigate = useNavigate()
   const [scopeStatus, setScopeStatus] = useState<{
@@ -38,18 +33,18 @@ export function ScopeDetectionAlert({
         try {
           // Only check contacts permission specifically, not all scopes
           const hasContactsPermission = await checkContactsPermission(userId, email)
-          
+
           if (hasContactsPermission) {
             // Don't show alert if contacts permission is available
             setScopeStatus({
               hasAllScopes: true,
-              userMessage: 'All required permissions are available'
+              userMessage: 'All required permissions are available',
             })
           } else {
             setScopeStatus({
               hasAllScopes: false,
               userMessage: 'Missing Google Contacts permission. Please reconnect to enable contact import.',
-              isTokenError: false
+              isTokenError: false,
             })
           }
         } catch (error) {
@@ -58,7 +53,7 @@ export function ScopeDetectionAlert({
           setScopeStatus({
             hasAllScopes: false,
             userMessage: 'Unable to verify Gmail permissions. Please check your connection.',
-            isTokenError: true
+            isTokenError: true,
           })
         }
       }
@@ -92,8 +87,8 @@ export function ScopeDetectionAlert({
         </div>
         <div className="flex gap-2">
           {scopeStatus.isTokenError && (
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => navigate('/settings/integrations')}
               className="border-amber-300 text-amber-700 hover:bg-amber-100 flex items-center gap-2"
@@ -103,8 +98,8 @@ export function ScopeDetectionAlert({
             </Button>
           )}
           <GmailConnectDialog onSuccess={handleReconnectSuccess}>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               className="border-amber-300 text-amber-700 hover:bg-amber-100 flex items-center gap-2"
             >
@@ -116,4 +111,4 @@ export function ScopeDetectionAlert({
       </AlertDescription>
     </Alert>
   )
-} 
+}

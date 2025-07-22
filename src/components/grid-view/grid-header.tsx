@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Column } from './types';
-import { MIN_COLUMN_WIDTH, INDEX_COLUMN_WIDTH } from './grid-constants';
+import React, { useState, useEffect, useRef } from 'react'
+import { Column } from './types'
+import { MIN_COLUMN_WIDTH, INDEX_COLUMN_WIDTH } from './grid-constants'
 import {
   MoreVertical,
   Eye,
@@ -11,8 +11,8 @@ import {
   Scissors,
   Clipboard,
   Filter,
-  StretchHorizontal
-} from 'lucide-react';
+  StretchHorizontal,
+} from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,25 +22,25 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
   DropdownMenuSub,
-  DropdownMenuPortal
-} from '@/components/ui/dropdown-menu';
-import { ContextMenu } from './ContextMenu';
-import { logger } from '@/utils/logger';
+  DropdownMenuPortal,
+} from '@/components/ui/dropdown-menu'
+import { ContextMenu } from './ContextMenu'
+import { logger } from '@/utils/logger'
 
 interface GridHeaderProps {
-  columns: Column[];
-  onColumnChange?: (columnId: string, updates: Partial<Column>) => void;
-  onColumnsReorder?: (columnIds: string[]) => void;
-  onAddColumn?: (afterColumnId: string) => void;
-  onDeleteColumn?: (columnId: string) => void;
-  onContextMenu?: (columnId: string | null, position?: { x: number, y: number }) => void;
-  activeContextMenu?: string | null;
-  columnWidths?: number[]; // Add columnWidths prop
-  contextMenuPosition?: { x: number, y: number } | null;
-  onCopy?: (columnId: string) => void;
-  onPaste?: (columnId: string) => void;
-  onSortAZ?: (columnId: string) => void;
-  onSortZA?: (columnId: string) => void;
+  columns: Column[]
+  onColumnChange?: (columnId: string, updates: Partial<Column>) => void
+  onColumnsReorder?: (columnIds: string[]) => void
+  onAddColumn?: (afterColumnId: string) => void
+  onDeleteColumn?: (columnId: string) => void
+  onContextMenu?: (columnId: string | null, position?: { x: number; y: number }) => void
+  activeContextMenu?: string | null
+  columnWidths?: number[] // Add columnWidths prop
+  contextMenuPosition?: { x: number; y: number } | null
+  onCopy?: (columnId: string) => void
+  onPaste?: (columnId: string) => void
+  onSortAZ?: (columnId: string) => void
+  onSortZA?: (columnId: string) => void
 }
 
 export function GridHeader({
@@ -56,269 +56,265 @@ export function GridHeader({
   onCopy,
   onPaste,
   onSortAZ,
-  onSortZA
+  onSortZA,
 }: GridHeaderProps) {
-  const [editingHeader, setEditingHeader] = useState<string | null>(null);
-  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
-  const [dragPreview, setDragPreview] = useState<HTMLElement | null>(null);
-  const [dropTargetPos, setDropTargetPos] = useState<{ x: number } | null>(null);
-  const headerRef = useRef<HTMLDivElement>(null);
+  const [editingHeader, setEditingHeader] = useState<string | null>(null)
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null)
+  const [dragPreview, setDragPreview] = useState<HTMLElement | null>(null)
+  const [dropTargetPos, setDropTargetPos] = useState<{ x: number } | null>(null)
+  const headerRef = useRef<HTMLDivElement>(null)
 
   // Handle column header edit (double click)
   const handleHeaderDoubleClick = (columnId: string) => {
-    if (columnId === 'opportunity') return; // Don't allow editing the opportunity column
-    setEditingHeader(columnId);
-  };
+    if (columnId === 'opportunity') return // Don't allow editing the opportunity column
+    setEditingHeader(columnId)
+  }
 
   // Save edited header title
   const handleHeaderSave = (columnId: string, newTitle: string) => {
-    setEditingHeader(null);
+    setEditingHeader(null)
 
     if (onColumnChange && newTitle.trim()) {
-      onColumnChange(columnId, { title: newTitle });
+      onColumnChange(columnId, { title: newTitle })
     }
-  };
+  }
 
   // Handle header editing
   const handleHeaderKeyDown = (e: React.KeyboardEvent, columnId: string, newTitle: string) => {
     if (e.key === 'Enter') {
-      handleHeaderSave(columnId, newTitle);
+      handleHeaderSave(columnId, newTitle)
     } else if (e.key === 'Escape') {
-      setEditingHeader(null);
+      setEditingHeader(null)
     }
-  };
+  }
 
   // Handle column drag start - improved with better drag preview
   const handleDragStart = (e: React.DragEvent, columnId: string) => {
-    if (columnId === 'opportunity') return; // Don't allow dragging the opportunity column
+    if (columnId === 'opportunity') return // Don't allow dragging the opportunity column
 
-    setDraggedColumn(columnId);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', columnId);
+    setDraggedColumn(columnId)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', columnId)
 
     // Create a more visible drag preview
-    const column = columns.find(col => col.id === columnId);
-    if (!column) return;
+    const column = columns.find(col => col.id === columnId)
+    if (!column) return
 
-    const dragPreview = document.createElement('div');
-    dragPreview.className = 'drag-preview-column';
-    dragPreview.textContent = column.title;
-    dragPreview.style.position = 'absolute';
-    dragPreview.style.top = '-1000px';
-    dragPreview.style.backgroundColor = '#d4e6ff';
-    dragPreview.style.border = '2px dashed #2684ff';
-    dragPreview.style.padding = '8px 12px';
-    dragPreview.style.borderRadius = '4px';
-    dragPreview.style.width = `${column.width}px`;
-    dragPreview.style.zIndex = '1000';
-    dragPreview.style.opacity = '0.8';
+    const dragPreview = document.createElement('div')
+    dragPreview.className = 'drag-preview-column'
+    dragPreview.textContent = column.title
+    dragPreview.style.position = 'absolute'
+    dragPreview.style.top = '-1000px'
+    dragPreview.style.backgroundColor = '#d4e6ff'
+    dragPreview.style.border = '2px dashed #2684ff'
+    dragPreview.style.padding = '8px 12px'
+    dragPreview.style.borderRadius = '4px'
+    dragPreview.style.width = `${column.width}px`
+    dragPreview.style.zIndex = '1000'
+    dragPreview.style.opacity = '0.8'
 
-    document.body.appendChild(dragPreview);
-    setDragPreview(dragPreview);
-    e.dataTransfer.setDragImage(dragPreview, 50, 15);
-  };
+    document.body.appendChild(dragPreview)
+    setDragPreview(dragPreview)
+    e.dataTransfer.setDragImage(dragPreview, 50, 15)
+  }
 
   // Handle column drag over
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    
-    if (!draggedColumn) return;
-    
+    e.preventDefault()
+
+    if (!draggedColumn) return
+
     // Calculate the drop position for the blue indicator line
-    const headerRect = headerRef.current?.getBoundingClientRect();
+    const headerRect = headerRef.current?.getBoundingClientRect()
     if (headerRect) {
-      const mouseX = e.clientX - headerRect.left;
-      
+      const mouseX = e.clientX - headerRect.left
+
       // Find the column under the cursor
-      let accumulatedWidth = 0;
-      let targetColumnIndex = -1;
-      let indicatorX = 0;
-      
+      let accumulatedWidth = 0
+      let targetColumnIndex = -1
+      let indicatorX = 0
+
       // Skip opportunity column if present
-      const nonFrozenColumns = columns.filter(col => col.id !== 'opportunity');
-      
+      const nonFrozenColumns = columns.filter(col => col.id !== 'opportunity')
+
       for (let i = 0; i < nonFrozenColumns.length; i++) {
-        const colWidth = columnWidths[i] || nonFrozenColumns[i].width;
-        
+        const colWidth = columnWidths[i] || nonFrozenColumns[i].width
+
         // If mouse is in this column's area
         if (mouseX >= accumulatedWidth && mouseX <= accumulatedWidth + colWidth) {
-          targetColumnIndex = i;
-          
+          targetColumnIndex = i
+
           // Determine if the drop should be before or after this column
           // If cursor is in the left half, place before; otherwise, after
-          const isLeftHalf = mouseX - accumulatedWidth < colWidth / 2;
-          
+          const isLeftHalf = mouseX - accumulatedWidth < colWidth / 2
+
           if (isLeftHalf) {
-            indicatorX = accumulatedWidth;
+            indicatorX = accumulatedWidth
           } else {
-            indicatorX = accumulatedWidth + colWidth;
+            indicatorX = accumulatedWidth + colWidth
           }
-          break;
+          break
         }
-        
-        accumulatedWidth += colWidth;
+
+        accumulatedWidth += colWidth
       }
-      
+
       // If cursor is past all columns, position at the end
       if (targetColumnIndex === -1 && nonFrozenColumns.length > 0) {
-        indicatorX = accumulatedWidth;
+        indicatorX = accumulatedWidth
       }
-      
+
       // Update drop target position for indicator
-      setDropTargetPos({ x: indicatorX });
+      setDropTargetPos({ x: indicatorX })
     }
-  };
+  }
 
   const handleDragEnd = () => {
     if (dragPreview) {
-      document.body.removeChild(dragPreview);
-      setDragPreview(null);
+      document.body.removeChild(dragPreview)
+      setDragPreview(null)
     }
-    setDraggedColumn(null);
-    setDropTargetPos(null);
-  };
+    setDraggedColumn(null)
+    setDropTargetPos(null)
+  }
 
   // Add drag end event listener
   useEffect(() => {
-    window.addEventListener('dragend', handleDragEnd);
+    window.addEventListener('dragend', handleDragEnd)
     return () => {
-      window.removeEventListener('dragend', handleDragEnd);
+      window.removeEventListener('dragend', handleDragEnd)
       if (dragPreview) {
         try {
-          document.body.removeChild(dragPreview);
+          document.body.removeChild(dragPreview)
         } catch (e) {
           // Preview may have been removed already
         }
       }
-    };
-  }, [dragPreview]);
+    }
+  }, [dragPreview])
 
   // Handle column drop for reordering
   const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
-    e.preventDefault();
+    e.preventDefault()
 
     // Prevent dropping if there's no dragged column
     if (!draggedColumn || !onColumnsReorder || draggedColumn === targetColumnId) {
-      setDraggedColumn(null);
-      return;
+      setDraggedColumn(null)
+      return
     }
 
     // Don't allow dropping onto the opportunity column as it's frozen
     if (targetColumnId === 'opportunity') {
-      setDraggedColumn(null);
-      return;
+      setDraggedColumn(null)
+      return
     }
 
     // Get the dragged and target column indices
-    const draggedColumnIndex = columns.findIndex(col => col.id === draggedColumn);
-    const targetColumnIndex = columns.findIndex(col => col.id === targetColumnId);
+    const draggedColumnIndex = columns.findIndex(col => col.id === draggedColumn)
+    const targetColumnIndex = columns.findIndex(col => col.id === targetColumnId)
 
     if (draggedColumnIndex < 0 || targetColumnIndex < 0) {
-      setDraggedColumn(null);
-      return;
+      setDraggedColumn(null)
+      return
     }
 
     // Reorder columns - the opportunity column should remain at its position
-    const newColumns = [...columns];
-    const [draggedCol] = newColumns.splice(draggedColumnIndex, 1);
-    newColumns.splice(targetColumnIndex, 0, draggedCol);
+    const newColumns = [...columns]
+    const [draggedCol] = newColumns.splice(draggedColumnIndex, 1)
+    newColumns.splice(targetColumnIndex, 0, draggedCol)
 
-    // Make sure the 'opportunity' column stays in its position 
-    onColumnsReorder(newColumns.map(col => col.id));
-    setDraggedColumn(null);
-  };
+    // Make sure the 'opportunity' column stays in its position
+    onColumnsReorder(newColumns.map(col => col.id))
+    setDraggedColumn(null)
+  }
 
   // Handler for the context menu - now with position
   const handleHeaderContextMenu = (e: React.MouseEvent, columnId: string) => {
-    e.preventDefault();
+    e.preventDefault()
 
     // Get the position for the context menu
-    const position = { x: e.clientX, y: e.clientY };
+    const position = { x: e.clientX, y: e.clientY }
 
     if (onContextMenu) {
-      onContextMenu(columnId, position);
+      onContextMenu(columnId, position)
     }
-  };
+  }
 
   // Handler for more vertical menu click
   const handleMenuClick = (e: React.MouseEvent, columnId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
+    e.preventDefault()
+    e.stopPropagation()
+
     // Get the position for the context menu from the button
-    const position = { x: e.clientX, y: e.clientY };
+    const position = { x: e.clientX, y: e.clientY }
 
     if (onContextMenu) {
-      onContextMenu(columnId, position);
+      onContextMenu(columnId, position)
     }
-  };
+  }
 
   // Functions for column operations that get called from the new ContextMenu
   const handleCopyColumn = (columnId: string) => {
-    logger.log(`Copy column: ${columnId}`);
-    if (onCopy) onCopy(columnId);
-  };
+    logger.log(`Copy column: ${columnId}`)
+    if (onCopy) onCopy(columnId)
+  }
 
   const handlePasteColumn = (columnId: string) => {
-    logger.log(`Paste into column: ${columnId}`);
-    if (onPaste) onPaste(columnId);
-  };
+    logger.log(`Paste into column: ${columnId}`)
+    if (onPaste) onPaste(columnId)
+  }
 
   const handleInsertColumnLeft = (columnId: string) => {
-    logger.log(`Insert column left of: ${columnId}`);
-    const columnIndex = columns.findIndex(col => col.id === columnId);
+    logger.log(`Insert column left of: ${columnId}`)
+    const columnIndex = columns.findIndex(col => col.id === columnId)
     if (columnIndex > 0) {
-      const prevColumnId = columns[columnIndex - 1].id;
-      if (onAddColumn) onAddColumn(prevColumnId);
+      const prevColumnId = columns[columnIndex - 1].id
+      if (onAddColumn) onAddColumn(prevColumnId)
     } else {
-      if (onAddColumn) onAddColumn(columnId);
+      if (onAddColumn) onAddColumn(columnId)
     }
-  };
+  }
 
   const handleInsertColumnRight = (columnId: string) => {
-    logger.log(`Insert column right of: ${columnId}`);
-    if (onAddColumn) onAddColumn(columnId);
-  };
+    logger.log(`Insert column right of: ${columnId}`)
+    if (onAddColumn) onAddColumn(columnId)
+  }
 
   const handleDeleteColumnAction = (columnId: string) => {
-    logger.log(`Delete column: ${columnId}`);
-    if (onDeleteColumn && columnId !== 'opportunity') onDeleteColumn(columnId);
-  };
+    logger.log(`Delete column: ${columnId}`)
+    if (onDeleteColumn && columnId !== 'opportunity') onDeleteColumn(columnId)
+  }
 
   const handleSortAZAction = (columnId: string) => {
-    logger.log(`Sort sheet A-Z by column: ${columnId}`);
-    if (onSortAZ) onSortAZ(columnId);
-  };
+    logger.log(`Sort sheet A-Z by column: ${columnId}`)
+    if (onSortAZ) onSortAZ(columnId)
+  }
 
   const handleSortZAAction = (columnId: string) => {
-    logger.log(`Sort sheet Z-A by column: ${columnId}`);
-    if (onSortZA) onSortZA(columnId);
-  };
+    logger.log(`Sort sheet Z-A by column: ${columnId}`)
+    if (onSortZA) onSortZA(columnId)
+  }
 
   // Get the width for a column
   const getColumnWidth = (index: number, column: Column) => {
     // Use columnWidths if provided (for alignment with grid cells)
     if (columnWidths && columnWidths.length > index + 1) {
-      return columnWidths[index + 1]; // +1 to skip index column
+      return columnWidths[index + 1] // +1 to skip index column
     }
-    return column.width || MIN_COLUMN_WIDTH;
-  };
+    return column.width || MIN_COLUMN_WIDTH
+  }
 
   // Render the grid header
   return (
-    <div
-      className="flex"
-      style={{ height: '36px', position: 'relative' }}
-      ref={headerRef}
-    >
+    <div className="flex" style={{ height: '36px', position: 'relative' }} ref={headerRef}>
       {columns.map((column, index) => {
         // Determine if column should be frozen - the opportunity column and the first column are always frozen
-        const isFrozen = column.frozen || column.id === 'opportunity';
-        const isActive = activeContextMenu === column.id;
-        
+        const isFrozen = column.frozen || column.id === 'opportunity'
+        const isActive = activeContextMenu === column.id
+
         // Calculate left position for sticky positioning
-        const leftPosition = column.id === 'opportunity' ? 48 : 0; // 48px for the opportunity column (after index)
-        
+        const leftPosition = column.id === 'opportunity' ? 48 : 0 // 48px for the opportunity column (after index)
+
         return (
           <div
             key={column.id}
@@ -329,42 +325,41 @@ export function GridHeader({
               ${isFrozen ? 'grid-frozen-header' : ''}
               group
             `}
-            style={{ 
+            style={{
               width: `${columnWidths[index] || column.width}px`,
-              ...(isFrozen ? { 
-                position: 'sticky', 
-                left: `${leftPosition}px`,
-                zIndex: 50,
-                boxShadow: '2px 0 4px rgba(0,0,0,0.1)'
-              } : {})
+              ...(isFrozen
+                ? {
+                    position: 'sticky',
+                    left: `${leftPosition}px`,
+                    zIndex: 50,
+                    boxShadow: '2px 0 4px rgba(0,0,0,0.1)',
+                  }
+                : {}),
             }}
             draggable={!isFrozen}
-            onDragStart={(e) => handleDragStart(e, column.id)}
+            onDragStart={e => handleDragStart(e, column.id)}
             onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, column.id)}
-            onContextMenu={(e) => handleHeaderContextMenu(e, column.id)}
+            onDrop={e => handleDrop(e, column.id)}
+            onContextMenu={e => handleHeaderContextMenu(e, column.id)}
           >
             {editingHeader === column.id ? (
               <input
                 className="header-edit-input"
                 autoFocus
                 defaultValue={column.title}
-                onBlur={(e) => handleHeaderSave(column.id, e.target.value)}
-                onKeyDown={(e) => handleHeaderKeyDown(e, column.id, e.currentTarget.value)}
+                onBlur={e => handleHeaderSave(column.id, e.target.value)}
+                onKeyDown={e => handleHeaderKeyDown(e, column.id, e.currentTarget.value)}
               />
             ) : (
               <div className="flex w-full justify-between items-center">
-                <span
-                  className="header-title"
-                  onDoubleClick={() => handleHeaderDoubleClick(column.id)}
-                >
+                <span className="header-title" onDoubleClick={() => handleHeaderDoubleClick(column.id)}>
                   {column.title}
                 </span>
-                
+
                 <div className="header-cell-actions">
-                  <button 
-                    className={`header-cell-menu-button opacity-0 group-hover:opacity-100 ${isActive ? 'opacity-100 ring-1 ring-gray-300' : ''}`} 
-                    onClick={(e) => handleMenuClick(e, column.id)}
+                  <button
+                    className={`header-cell-menu-button opacity-0 group-hover:opacity-100 ${isActive ? 'opacity-100 ring-1 ring-gray-300' : ''}`}
+                    onClick={e => handleMenuClick(e, column.id)}
                   >
                     <MoreVertical size={14} />
                   </button>
@@ -372,15 +367,15 @@ export function GridHeader({
               </div>
             )}
           </div>
-        );
+        )
       })}
-      
+
       {/* Add column button */}
       <div
         className="add-column-button"
         onClick={() => {
           if (onAddColumn && columns.length > 0) {
-            onAddColumn(columns[columns.length - 1].id);
+            onAddColumn(columns[columns.length - 1].id)
           }
         }}
       >
@@ -389,11 +384,11 @@ export function GridHeader({
 
       {/* Blue line indicator for column drop position */}
       {dropTargetPos && draggedColumn && (
-        <div 
+        <div
           className="column-drag-indicator"
-          style={{ 
+          style={{
             left: `${dropTargetPos.x}px`,
-            height: '36px'
+            height: '36px',
           }}
         />
       )}
@@ -416,5 +411,5 @@ export function GridHeader({
         />
       )}
     </div>
-  );
+  )
 }

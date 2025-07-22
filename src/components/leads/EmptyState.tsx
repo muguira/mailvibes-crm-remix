@@ -1,17 +1,17 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import React from 'react'
+import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react'
 
 interface EmptyStateProps {
-  title?: string;
-  description?: string;
-  onAddClick?: () => void;
+  title?: string
+  description?: string
+  onAddClick?: () => void
 }
 
 export default function EmptyState({
   title = 'No leads available',
   description = 'Get started by creating your first lead',
-  onAddClick
+  onAddClick,
 }: EmptyStateProps) {
   return (
     <div className="h-full flex flex-col items-center justify-center p-8">
@@ -35,7 +35,7 @@ export default function EmptyState({
         </div>
         <h3 className="text-lg font-medium mb-1">{title}</h3>
         <p className="text-sm text-gray-500 mb-4">{description}</p>
-        
+
         {onAddClick && (
           <Button onClick={onAddClick} className="gap-1.5">
             <Plus size={16} />
@@ -44,5 +44,5 @@ export default function EmptyState({
         )}
       </div>
     </div>
-  );
-} 
+  )
+}

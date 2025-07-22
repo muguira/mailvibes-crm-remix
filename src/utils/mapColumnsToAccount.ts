@@ -1,15 +1,15 @@
 export interface AccountInsert {
-  name?: string;
-  address?: string;
-  primaryContact?: string;
-  industry?: string;
-  [key: string]: string | undefined;
+  name?: string
+  address?: string
+  primaryContact?: string
+  industry?: string
+  [key: string]: string | undefined
 }
 
 export interface AccountFieldMapping {
-  csvField: string;
-  accountProperty: string;
-  addAsListField?: boolean;
+  csvField: string
+  accountProperty: string
+  addAsListField?: boolean
 }
 
 /**
@@ -20,18 +20,18 @@ export interface AccountFieldMapping {
  */
 export function mapColumnsToAccount(
   csvRow: Record<string, string>,
-  mappings: AccountFieldMapping[]
+  mappings: AccountFieldMapping[],
 ): Partial<AccountInsert> {
-  const account: Partial<AccountInsert> = {};
+  const account: Partial<AccountInsert> = {}
 
-  mappings.forEach((mapping) => {
-    const value = csvRow[mapping.csvField];
-    if (!value) return;
+  mappings.forEach(mapping => {
+    const value = csvRow[mapping.csvField]
+    if (!value) return
 
-    account[mapping.accountProperty] = value;
-  });
+    account[mapping.accountProperty] = value
+  })
 
-  return account;
+  return account
 }
 
 /**
@@ -40,7 +40,7 @@ export function mapColumnsToAccount(
  * @returns Mappings that have addAsListField set to true
  */
 export function getListFieldMappings(mappings: AccountFieldMapping[]): AccountFieldMapping[] {
-  return mappings.filter(m => m.addAsListField === true);
+  return mappings.filter(m => m.addAsListField === true)
 }
 
 /**
@@ -49,5 +49,5 @@ export function getListFieldMappings(mappings: AccountFieldMapping[]): AccountFi
  * @returns True if at least name is mapped
  */
 export function hasRequiredAccountMappings(mappings: AccountFieldMapping[]): boolean {
-  return mappings.some(m => m.accountProperty === 'name');
-} 
+  return mappings.some(m => m.accountProperty === 'name')
+}

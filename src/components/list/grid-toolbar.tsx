@@ -1,21 +1,16 @@
-
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import { ColumnDef } from "./grid/types";
+import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react'
+import { ColumnDef } from './grid/types'
 
 interface GridToolbarProps {
-  listType?: string;
-  columns: ColumnDef[];
-  onAddItem?: () => void;
+  listType?: string
+  columns: ColumnDef[]
+  onAddItem?: () => void
 }
 
-export function GridToolbar({
-  listType,
-  columns,
-  onAddItem
-}: GridToolbarProps) {
+export function GridToolbar({ listType, columns, onAddItem }: GridToolbarProps) {
   // Count columns with filter property if it exists, otherwise assume 0
-  const filterCount = columns.filter(col => col.filter !== undefined).length;
+  const filterCount = columns.filter(col => col.filter !== undefined).length
 
   return (
     <div className="flex justify-between items-center p-2 border-b border-slate-light/20 bg-white">
@@ -43,5 +38,5 @@ export function GridToolbar({
         )}
       </div>
     </div>
-  );
+  )
 }

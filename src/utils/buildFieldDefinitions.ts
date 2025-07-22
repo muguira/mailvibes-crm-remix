@@ -1,10 +1,10 @@
-export type FieldType = 'text' | 'number' | 'date' | 'list';
+export type FieldType = 'text' | 'number' | 'date' | 'list'
 
 export interface ListFieldDefinition {
-  fieldName: string;
-  csvField: string;
-  type: FieldType;
-  isRequired?: boolean;
+  fieldName: string
+  csvField: string
+  type: FieldType
+  isRequired?: boolean
 }
 
 /**
@@ -13,19 +13,16 @@ export interface ListFieldDefinition {
  * @param existingFields - Array of existing field definitions
  * @returns A unique field name
  */
-export function ensureUniqueFieldName(
-  fieldName: string,
-  existingFields: ListFieldDefinition[]
-): string {
-  let uniqueName = fieldName;
-  let suffix = 1;
-  
+export function ensureUniqueFieldName(fieldName: string, existingFields: ListFieldDefinition[]): string {
+  let uniqueName = fieldName
+  let suffix = 1
+
   while (existingFields.some(f => f.fieldName === uniqueName)) {
-    uniqueName = `${fieldName}_${suffix}`;
-    suffix++;
+    uniqueName = `${fieldName}_${suffix}`
+    suffix++
   }
-  
-  return uniqueName;
+
+  return uniqueName
 }
 
 /**
@@ -34,13 +31,13 @@ export function ensureUniqueFieldName(
  * @returns Warning message if limit exceeded, null otherwise
  */
 export function validateFieldCount(fields: ListFieldDefinition[]): string | null {
-  const MAX_RECOMMENDED_FIELDS = 100;
-  
+  const MAX_RECOMMENDED_FIELDS = 100
+
   if (fields.length > MAX_RECOMMENDED_FIELDS) {
-    return `You have ${fields.length} fields. We recommend keeping your list under ${MAX_RECOMMENDED_FIELDS} columns for optimal performance.`;
+    return `You have ${fields.length} fields. We recommend keeping your list under ${MAX_RECOMMENDED_FIELDS} columns for optimal performance.`
   }
-  
-  return null;
+
+  return null
 }
 
 /**
@@ -57,16 +54,16 @@ export function buildFieldDefinition(
   fieldName: string,
   type: FieldType,
   isRequired: boolean = false,
-  existingFields: ListFieldDefinition[] = []
+  existingFields: ListFieldDefinition[] = [],
 ): ListFieldDefinition {
-  const uniqueFieldName = ensureUniqueFieldName(fieldName, existingFields);
-  
+  const uniqueFieldName = ensureUniqueFieldName(fieldName, existingFields)
+
   return {
     fieldName: uniqueFieldName,
     csvField,
     type,
     isRequired,
-  };
+  }
 }
 
 /**
@@ -76,10 +73,10 @@ export function buildFieldDefinition(
  */
 export function convertAccountMappingsToListFields(
   accountMappings: Array<{
-    csvField: string;
-    accountProperty: string;
-    addAsListField?: boolean;
-  }>
+    csvField: string
+    accountProperty: string
+    addAsListField?: boolean
+  }>,
 ): ListFieldDefinition[] {
   return accountMappings
     .filter(m => m.addAsListField)
@@ -88,5 +85,5 @@ export function convertAccountMappingsToListFields(
       csvField: m.csvField,
       type: 'text' as FieldType,
       isRequired: false,
-    }));
-} 
+    }))
+}

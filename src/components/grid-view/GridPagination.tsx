@@ -1,18 +1,18 @@
-import React from "react";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useStore } from "@/stores";
+import React from 'react'
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { useStore } from '@/stores'
 
 interface GridPaginationProps {
   // currentPage, pageSize - now obtained from Zustand slice internally
   // onPageChange, onPageSizeChange - now obtained from Zustand slice internally
-  totalPages: number;
-  totalItems: number;
-  loading?: boolean;
-  isBackgroundLoading?: boolean;
-  loadedCount?: number;
+  totalPages: number
+  totalItems: number
+  loading?: boolean
+  isBackgroundLoading?: boolean
+  loadedCount?: number
 }
 
 export function GridPagination({
@@ -20,58 +20,53 @@ export function GridPagination({
   totalItems,
   loading = false,
   isBackgroundLoading = false,
-  loadedCount = 0
+  loadedCount = 0,
 }: GridPaginationProps) {
-  const isMobile = useIsMobile();
-  
+  const isMobile = useIsMobile()
+
   // Get pagination state and actions from Zustand slice
-  const {
-    currentPage,
-    pageSize,
-    editableLeadsGridHandlePageChange,
-    editableLeadsGridHandlePageSizeChange
-  } = useStore();
-  
+  const { currentPage, pageSize, editableLeadsGridHandlePageChange, editableLeadsGridHandlePageSizeChange } = useStore()
+
   // Calculate the range of items being displayed
-  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const endItem = Math.min(currentPage * pageSize, totalItems);
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const endItem = Math.min(currentPage * pageSize, totalItems)
 
   // Generate page numbers to display
   const getPageNumbers = () => {
-    const pages: (number | string)[] = [];
-    const maxVisible = 7; // Maximum number of page buttons to show
+    const pages: (number | string)[] = []
+    const maxVisible = 7 // Maximum number of page buttons to show
 
     if (totalPages <= maxVisible) {
       // Show all pages if total is less than max
       for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
+        pages.push(i)
       }
     } else {
       // Always show first page
-      pages.push(1);
+      pages.push(1)
 
       if (currentPage > 3) {
-        pages.push("...");
+        pages.push('...')
       }
 
       // Show pages around current page
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(totalPages - 1, currentPage + 1);
+      const start = Math.max(2, currentPage - 1)
+      const end = Math.min(totalPages - 1, currentPage + 1)
 
       for (let i = start; i <= end; i++) {
-        pages.push(i);
+        pages.push(i)
       }
 
       if (currentPage < totalPages - 2) {
-        pages.push("...");
+        pages.push('...')
       }
 
       // Always show last page
-      pages.push(totalPages);
+      pages.push(totalPages)
     }
 
-    return pages;
-  };
+    return pages
+  }
 
   return (
     <div className={`grid-pagination ${isMobile ? 'mobile' : ''}`}>
@@ -82,8 +77,8 @@ export function GridPagination({
           ) : (
             <>
               <span>
-                Showing <strong>{startItem}</strong> to <strong>{endItem}</strong> of{" "}
-                <strong>{totalItems}</strong> contacts
+                Showing <strong>{startItem}</strong> to <strong>{endItem}</strong> of <strong>{totalItems}</strong>{' '}
+                contacts
               </span>
               {isBackgroundLoading && loadedCount < totalItems && (
                 <span className="ml-3 text-sm text-gray-500">
@@ -105,7 +100,7 @@ export function GridPagination({
           )}
           <Select
             value={pageSize.toString()}
-            onValueChange={(value) => editableLeadsGridHandlePageSizeChange(parseInt(value))}
+            onValueChange={value => editableLeadsGridHandlePageSizeChange(parseInt(value))}
             disabled={loading}
           >
             <SelectTrigger id="page-size" className="page-size-select">
@@ -152,15 +147,15 @@ export function GridPagination({
             <div className="page-numbers">
               {getPageNumbers().map((page, index) => (
                 <div key={index} className="pagination-item">
-                  {page === "..." ? (
+                  {page === '...' ? (
                     <span className="pagination-ellipsis">...</span>
                   ) : (
                     <Button
-                      variant={currentPage === page ? "default" : "ghost"}
+                      variant={currentPage === page ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => editableLeadsGridHandlePageChange(page as number)}
                       disabled={loading}
-                      className={`pagination-number ${currentPage === page ? "active" : ""}`}
+                      className={`pagination-number ${currentPage === page ? 'active' : ''}`}
                     >
                       {page}
                     </Button>
@@ -196,5 +191,5 @@ export function GridPagination({
         </div>
       </div>
     </div>
-  );
+  )
 }

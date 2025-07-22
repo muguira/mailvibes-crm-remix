@@ -1,6 +1,6 @@
-import { TopNavbar } from "@/components/layout/top-navbar";
-import { EditableLeadsGrid } from "@/components/grid-view/EditableLeadsGrid";
-import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
+import { TopNavbar } from '@/components/layout/top-navbar'
+import { EditableLeadsGrid } from '@/components/grid-view/EditableLeadsGrid'
+import { ErrorBoundary } from '@/components/error-boundary/ErrorBoundary'
 
 export default function Leads() {
   return (
@@ -14,5 +14,5 @@ export default function Leads() {
         </div>
       </div>
     </ErrorBoundary>
-  );
+  )
 }

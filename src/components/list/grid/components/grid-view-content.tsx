@@ -1,42 +1,41 @@
-import { useRef, useEffect, useState } from "react";
-import { GridToolbar } from "../../grid-toolbar";
-import { GridHeaders } from "../../grid-headers";
-import { GridBody } from "../../grid-body";
-import { useGridSetup } from "../use-grid-setup";
-import { GridViewProps } from "../types";
-import { PointsOfContactDialogContainer } from "./points-of-contact-dialog-container";
-import { usePointsOfContact } from "../hooks/use-points-of-contact";
-import "../grid-view.css";
-import { logger } from '@/utils/logger';
+import { useRef, useEffect, useState } from 'react'
+import { GridToolbar } from '../../grid-toolbar'
+import { GridHeaders } from '../../grid-headers'
+import { GridBody } from '../../grid-body'
+import { useGridSetup } from '../use-grid-setup'
+import { GridViewProps } from '../types'
+import { PointsOfContactDialogContainer } from './points-of-contact-dialog-container'
+import { usePointsOfContact } from '../hooks/use-points-of-contact'
+import '../grid-view.css'
+import { logger } from '@/utils/logger'
 
 interface GridViewContentProps extends GridViewProps {
-  listId?: string;
-  onCellChange?: (rowId: string, colKey: string, value: any) => void;
-  onAddItem?: (() => void) | null;
+  listId?: string
+  onCellChange?: (rowId: string, colKey: string, value: any) => void
+  onAddItem?: (() => void) | null
 }
 
-export function GridViewContent({ 
-  columns: initialColumns, 
-  data: initialData, 
-  listName, 
+export function GridViewContent({
+  columns: initialColumns,
+  data: initialData,
+  listName,
   listType,
   listId,
   onCellChange,
-  onAddItem
+  onAddItem,
 }: GridViewContentProps) {
   // Container references for sync scrolling
-  const headerRef = useRef<HTMLDivElement>(null);
-  const bodyRef = useRef<HTMLDivElement>(null);
-  const [headerVisible, setHeaderVisible] = useState(false);
-  
+  const headerRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const [headerVisible, setHeaderVisible] = useState(false)
+
   // Setup points of contact functionality
-  const { setOpenPointsOfContactFn, renderRowActions } = usePointsOfContact();
-  
+  const { setOpenPointsOfContactFn, renderRowActions } = usePointsOfContact()
+
   // Get the firstRowIndex from data if available
-  const firstRowIndex = initialData.length > 0 && 'originalIndex' in initialData[0] 
-    ? initialData[0].originalIndex as number
-    : 0;
-  
+  const firstRowIndex =
+    initialData.length > 0 && 'originalIndex' in initialData[0] ? (initialData[0].originalIndex as number) : 0
+
   const {
     columns,
     data,
@@ -75,89 +74,86 @@ export function GridViewContent({
     initialColumns,
     initialData,
     headerRef,
-    bodyRef
-  });
+    bodyRef,
+  })
 
   // Debug log to verify columns data
   useEffect(() => {
-    logger.log("GridViewContent: Columns data", {
+    logger.log('GridViewContent: Columns data', {
       frozen: frozenColumns,
       scrollable: scrollableColumns,
-      all: columns
-    });
-  }, [frozenColumns, scrollableColumns, columns]);
+      all: columns,
+    })
+  }, [frozenColumns, scrollableColumns, columns])
 
   // Force header visibility with multiple approaches
   useEffect(() => {
     const forceHeaderVisibility = () => {
       if (headerRef.current) {
-        logger.log("Forcing header visibility");
-        
+        logger.log('Forcing header visibility')
+
         // Add !important styles
-        headerRef.current.setAttribute('style', 'visibility: visible !important; opacity: 1 !important; display: flex !important');
-        
+        headerRef.current.setAttribute(
+          'style',
+          'visibility: visible !important; opacity: 1 !important; display: flex !important',
+        )
+
         // Force reflow by temporarily hiding and showing
-        headerRef.current.style.display = 'none';
-        void headerRef.current.offsetHeight; // Force reflow
-        headerRef.current.style.display = 'flex';
-        
+        headerRef.current.style.display = 'none'
+        void headerRef.current.offsetHeight // Force reflow
+        headerRef.current.style.display = 'flex'
+
         // Apply to all header cells
-        const headerCells = headerRef.current.querySelectorAll('.grid-header-cell');
-        headerCells.forEach((cell) => {
-          (cell as HTMLElement).setAttribute('style', 'visibility: visible !important; opacity: 1 !important');
-          
+        const headerCells = headerRef.current.querySelectorAll('.grid-header-cell')
+        headerCells.forEach(cell => {
+          ;(cell as HTMLElement).setAttribute('style', 'visibility: visible !important; opacity: 1 !important')
+
           // Also make sure spans are visible
-          const spans = cell.querySelectorAll('span');
-          spans.forEach((span) => {
-            (span as HTMLElement).setAttribute('style', 'visibility: visible !important; opacity: 1 !important');
-          });
-        });
-        
+          const spans = cell.querySelectorAll('span')
+          spans.forEach(span => {
+            ;(span as HTMLElement).setAttribute('style', 'visibility: visible !important; opacity: 1 !important')
+          })
+        })
+
         // Ensure all header container is visible
-        const headersContainer = document.querySelector('.grid-headers-container');
+        const headersContainer = document.querySelector('.grid-headers-container')
         if (headersContainer) {
-          (headersContainer as HTMLElement).setAttribute('style', 'visibility: visible !important; opacity: 1 !important');
+          ;(headersContainer as HTMLElement).setAttribute(
+            'style',
+            'visibility: visible !important; opacity: 1 !important',
+          )
         }
-        
-        setHeaderVisible(true);
+
+        setHeaderVisible(true)
       }
-    };
-    
+    }
+
     // Apply multiple times with delays to ensure it works
-    forceHeaderVisibility();
-    setTimeout(forceHeaderVisibility, 100);
-    setTimeout(forceHeaderVisibility, 300);
-    setTimeout(forceHeaderVisibility, 500);
-    setTimeout(forceHeaderVisibility, 1000);
-    
-  }, [columns, initialColumns, initialData]);
+    forceHeaderVisibility()
+    setTimeout(forceHeaderVisibility, 100)
+    setTimeout(forceHeaderVisibility, 300)
+    setTimeout(forceHeaderVisibility, 500)
+    setTimeout(forceHeaderVisibility, 1000)
+  }, [columns, initialColumns, initialData])
 
   // Wrap the cell change handler to save to Supabase
   const handleCellChangeAndSave = (rowId: string, colKey: string, value: any, type: string) => {
     // First handle the local change
-    handleCellChange(rowId, colKey, value, type);
-    
+    handleCellChange(rowId, colKey, value, type)
+
     // Then save to Supabase if callback is provided
     if (onCellChange && !rowId.startsWith('empty-row-')) {
-      onCellChange(rowId, colKey, value);
+      onCellChange(rowId, colKey, value)
     }
-  };
-  
+  }
+
   return (
-    <div 
-      className="h-full flex flex-col full-screen-grid" 
-      onKeyDown={(e) => handleKeyDown(e)} 
-      tabIndex={-1}
-    >
+    <div className="h-full flex flex-col full-screen-grid" onKeyDown={e => handleKeyDown(e)} tabIndex={-1}>
       {/* Grid Toolbar - Including filter options */}
-      <GridToolbar 
-        listType={listType} 
-        columns={columns}
-        onAddItem={onAddItem || undefined}
-      />
-      
+      <GridToolbar listType={listType} columns={columns} onAddItem={onAddItem || undefined} />
+
       {/* Grid Headers */}
-      <GridHeaders 
+      <GridHeaders
         frozenColumns={frozenColumns}
         scrollableColumns={scrollableColumns}
         frozenColsTemplate={frozenColsTemplate}
@@ -182,7 +178,7 @@ export function GridViewContent({
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       />
-      
+
       {/* Grid Content - with flex-1 and overflow-auto for proper scrolling */}
       <div className="flex-1 overflow-auto">
         <GridBody
@@ -196,16 +192,17 @@ export function GridViewContent({
           bodyRef={bodyRef}
           onCellClick={handleCellClick}
           onCellChange={handleCellChangeAndSave}
-          renderRowActions={(rowId) => renderRowActions(rowId, data.find(r => r.id === rowId))}
+          renderRowActions={rowId =>
+            renderRowActions(
+              rowId,
+              data.find(r => r.id === rowId),
+            )
+          }
         />
       </div>
-      
+
       {/* Points of Contact Dialog */}
-      <PointsOfContactDialogContainer 
-        listId={listId} 
-        onCellChange={onCellChange} 
-        ref={setOpenPointsOfContactFn} 
-      />
+      <PointsOfContactDialogContainer listId={listId} onCellChange={onCellChange} ref={setOpenPointsOfContactFn} />
     </div>
-  );
+  )
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,16 +8,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { UserX, AlertTriangle, Shield } from 'lucide-react';
-import { OrganizationMember } from '@/types/organization';
+} from '@/components/ui/alert-dialog'
+import { UserX, AlertTriangle, Shield } from 'lucide-react'
+import { OrganizationMember } from '@/types/organization'
 
 interface RemoveMemberDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  member: OrganizationMember | null;
-  onConfirm: (memberId: string) => Promise<void>;
-  loading?: boolean;
+  isOpen: boolean
+  onClose: () => void
+  member: OrganizationMember | null
+  onConfirm: (memberId: string) => Promise<void>
+  loading?: boolean
 }
 
 export const RemoveMemberDialog: React.FC<RemoveMemberDialogProps> = ({
@@ -25,21 +25,21 @@ export const RemoveMemberDialog: React.FC<RemoveMemberDialogProps> = ({
   onClose,
   member,
   onConfirm,
-  loading = false
+  loading = false,
 }) => {
-  if (!member) return null;
+  if (!member) return null
 
   const handleConfirm = async () => {
     try {
-      await onConfirm(member.id);
-      onClose();
+      await onConfirm(member.id)
+      onClose()
     } catch (error) {
       // Error handling is done by parent component
     }
-  };
+  }
 
-  const isAdmin = member.role === 'admin';
-  const memberName = `${member.user.first_name} ${member.user.last_name}`;
+  const isAdmin = member.role === 'admin'
+  const memberName = `${member.user.first_name} ${member.user.last_name}`
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
@@ -51,9 +51,7 @@ export const RemoveMemberDialog: React.FC<RemoveMemberDialogProps> = ({
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-4">
             <div>
-              Are you sure you want to remove{' '}
-              <span className="font-medium">{memberName}</span>{' '}
-              from your organization?
+              Are you sure you want to remove <span className="font-medium">{memberName}</span> from your organization?
             </div>
 
             {/* Member Info */}
@@ -71,9 +69,7 @@ export const RemoveMemberDialog: React.FC<RemoveMemberDialogProps> = ({
                     ) : (
                       <div className="w-3 h-3 bg-gray-400 rounded-full" />
                     )}
-                    <span className="text-xs text-gray-500">
-                      {isAdmin ? 'Admin' : 'User'}
-                    </span>
+                    <span className="text-xs text-gray-500">{isAdmin ? 'Admin' : 'User'}</span>
                   </div>
                 </div>
               </div>
@@ -86,9 +82,7 @@ export const RemoveMemberDialog: React.FC<RemoveMemberDialogProps> = ({
                   <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
                   <div className="text-sm text-red-800">
                     <div className="font-medium">This action cannot be undone.</div>
-                    <div className="mt-1">
-                      {memberName} will immediately lose access to:
-                    </div>
+                    <div className="mt-1">{memberName} will immediately lose access to:</div>
                     <ul className="mt-2 space-y-1 list-disc list-inside">
                       <li>All organization data and contacts</li>
                       <li>Shared lists and reports</li>
@@ -106,8 +100,8 @@ export const RemoveMemberDialog: React.FC<RemoveMemberDialogProps> = ({
                     <div className="text-sm text-amber-800">
                       <div className="font-medium">Removing an Admin</div>
                       <div className="mt-1">
-                        {memberName} currently has admin privileges. Make sure another 
-                        admin can handle their responsibilities before removing them.
+                        {memberName} currently has admin privileges. Make sure another admin can handle their
+                        responsibilities before removing them.
                       </div>
                     </div>
                   </div>
@@ -116,16 +110,14 @@ export const RemoveMemberDialog: React.FC<RemoveMemberDialogProps> = ({
             </div>
 
             <div className="text-sm text-gray-600">
-              <strong>Alternative:</strong> You can change their role to limit access 
-              instead of removing them completely.
+              <strong>Alternative:</strong> You can change their role to limit access instead of removing them
+              completely.
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
-        
+
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>
-            Cancel
-          </AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={loading}
@@ -136,5 +128,5 @@ export const RemoveMemberDialog: React.FC<RemoveMemberDialogProps> = ({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
-}; 
+  )
+}

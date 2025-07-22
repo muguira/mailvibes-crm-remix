@@ -1,17 +1,10 @@
-import React, { useState } from 'react';
-import { useDeletedContacts } from '@/hooks/supabase/use-deleted-contacts';
-import { format } from 'date-fns';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, RefreshCw, Trash2, ArrowLeft, ExternalLink } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import React, { useState } from 'react'
+import { useDeletedContacts } from '@/hooks/supabase/use-deleted-contacts'
+import { format } from 'date-fns'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Loader2, RefreshCw, Trash2, ArrowLeft, ExternalLink } from 'lucide-react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   Dialog,
   DialogContent,
@@ -19,146 +12,134 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { useNavigate } from 'react-router-dom';
-import { toast } from '@/hooks/use-toast';
+} from '@/components/ui/dialog'
+import { useNavigate } from 'react-router-dom'
+import { toast } from '@/hooks/use-toast'
 
 export function DeletedContactsView() {
-  const navigate = useNavigate();
-  const { 
-    deletedContacts, 
-    isLoading, 
-    restoreContact, 
-    permanentlyDeleteContact, 
+  const navigate = useNavigate()
+  const {
+    deletedContacts,
+    isLoading,
+    restoreContact,
+    permanentlyDeleteContact,
     restoreMultipleContacts,
     permanentlyDeleteMultipleContacts,
-    isRestoring, 
-    isPermanentlyDeleting 
-  } = useDeletedContacts();
-  
-  const [selectedContact, setSelectedContact] = useState<string | null>(null);
-  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
-  const [actionType, setActionType] = useState<'restore' | 'delete' | 'batch-restore' | 'batch-delete' | null>(null);
+    isRestoring,
+    isPermanentlyDeleting,
+  } = useDeletedContacts()
+
+  const [selectedContact, setSelectedContact] = useState<string | null>(null)
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set())
+  const [actionType, setActionType] = useState<'restore' | 'delete' | 'batch-restore' | 'batch-delete' | null>(null)
 
   const handleSelectContact = (contactId: string) => {
     setSelectedContactIds(prev => {
-      const newSet = new Set(prev);
+      const newSet = new Set(prev)
       if (newSet.has(contactId)) {
-        newSet.delete(contactId);
+        newSet.delete(contactId)
       } else {
-        newSet.add(contactId);
+        newSet.add(contactId)
       }
-      return newSet;
-    });
-  };
+      return newSet
+    })
+  }
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedContactIds(new Set(deletedContacts.map(c => c.id)));
+      setSelectedContactIds(new Set(deletedContacts.map(c => c.id)))
     } else {
-      setSelectedContactIds(new Set());
+      setSelectedContactIds(new Set())
     }
-  };
+  }
 
   const showRestoreSuccessToast = (count: number = 1) => {
     toast({
-      title: count === 1 ? "Contact Restored" : "Contacts Restored",
-      description: count === 1 
-        ? "The contact has been successfully restored."
-        : `${count} contacts have been successfully restored.`,
+      title: count === 1 ? 'Contact Restored' : 'Contacts Restored',
+      description:
+        count === 1
+          ? 'The contact has been successfully restored.'
+          : `${count} contacts have been successfully restored.`,
       action: (
-        <Button
-          size="sm"
-          variant="outline"
-          className="ml-auto"
-          onClick={() => navigate('/leads')}
-        >
+        <Button size="sm" variant="outline" className="ml-auto" onClick={() => navigate('/leads')}>
           <ExternalLink className="h-3 w-3 mr-1" />
           View Contacts
         </Button>
       ),
-    });
-  };
+    })
+  }
 
   const handleRestore = async () => {
-    if (!selectedContact) return;
-    
+    if (!selectedContact) return
+
     try {
-      await restoreContact(selectedContact);
-      showRestoreSuccessToast(1);
-      setSelectedContact(null);
-      setActionType(null);
+      await restoreContact(selectedContact)
+      showRestoreSuccessToast(1)
+      setSelectedContact(null)
+      setActionType(null)
     } catch (error) {
-      console.error('Failed to restore contact:', error);
+      console.error('Failed to restore contact:', error)
     }
-  };
+  }
 
   const handleBatchRestore = async () => {
-    if (selectedContactIds.size === 0) return;
-    
-    const count = selectedContactIds.size;
+    if (selectedContactIds.size === 0) return
+
+    const count = selectedContactIds.size
     try {
-      await restoreMultipleContacts(Array.from(selectedContactIds));
-      showRestoreSuccessToast(count);
-      setSelectedContactIds(new Set());
-      setActionType(null);
+      await restoreMultipleContacts(Array.from(selectedContactIds))
+      showRestoreSuccessToast(count)
+      setSelectedContactIds(new Set())
+      setActionType(null)
     } catch (error) {
-      console.error('Failed to restore contacts:', error);
+      console.error('Failed to restore contacts:', error)
     }
-  };
+  }
 
   const handlePermanentDelete = async () => {
-    if (!selectedContact) return;
-    
+    if (!selectedContact) return
+
     try {
-      await permanentlyDeleteContact(selectedContact);
-      setSelectedContact(null);
-      setActionType(null);
+      await permanentlyDeleteContact(selectedContact)
+      setSelectedContact(null)
+      setActionType(null)
     } catch (error) {
-      console.error('Failed to permanently delete contact:', error);
+      console.error('Failed to permanently delete contact:', error)
     }
-  };
+  }
 
   const handleBatchPermanentDelete = async () => {
-    if (selectedContactIds.size === 0) return;
-    
-    try {
-      await permanentlyDeleteMultipleContacts(Array.from(selectedContactIds));
-      setSelectedContactIds(new Set());
-      setActionType(null);
-    } catch (error) {
-      console.error('Failed to permanently delete contacts:', error);
-    }
-  };
+    if (selectedContactIds.size === 0) return
 
-  const isProcessing = isRestoring || isPermanentlyDeleting;
+    try {
+      await permanentlyDeleteMultipleContacts(Array.from(selectedContactIds))
+      setSelectedContactIds(new Set())
+      setActionType(null)
+    } catch (error) {
+      console.error('Failed to permanently delete contacts:', error)
+    }
+  }
+
+  const isProcessing = isRestoring || isPermanentlyDeleting
 
   return (
     <div className="h-full overflow-auto">
       <div className="container mx-auto py-8 px-4 max-w-full">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate('/leads')}
-              className="flex items-center gap-2"
-            >
+            <Button variant="ghost" onClick={() => navigate('/leads')} className="flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
               Back to Contacts
             </Button>
             <div>
               <h1 className="text-2xl font-bold">Deleted Contacts</h1>
-              <p className="text-sm text-gray-500">
-                Contacts are kept for 90 days before being permanently deleted
-              </p>
+              <p className="text-sm text-gray-500">Contacts are kept for 90 days before being permanently deleted</p>
             </div>
           </div>
-          
+
           {selectedContactIds.size > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                {selectedContactIds.size} selected
-              </span>
+              <span className="text-sm text-gray-600">{selectedContactIds.size} selected</span>
               <Button
                 variant="outline"
                 size="sm"
@@ -215,7 +196,7 @@ export function DeletedContactsView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {deletedContacts.map((contact) => (
+                {deletedContacts.map(contact => (
                   <TableRow key={contact.id}>
                     <TableCell className="w-12">
                       <Checkbox
@@ -250,8 +231,8 @@ export function DeletedContactsView() {
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            setSelectedContact(contact.id);
-                            setActionType('restore');
+                            setSelectedContact(contact.id)
+                            setActionType('restore')
                           }}
                           className="text-green-600 hover:text-green-700 hover:bg-green-50 h-8 px-2"
                           title="Restore contact"
@@ -264,8 +245,8 @@ export function DeletedContactsView() {
                           size="sm"
                           className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-2"
                           onClick={() => {
-                            setSelectedContact(contact.id);
-                            setActionType('delete');
+                            setSelectedContact(contact.id)
+                            setActionType('delete')
                           }}
                           title="Delete forever"
                         >
@@ -285,10 +266,10 @@ export function DeletedContactsView() {
       {/* Single Restore Confirmation Dialog */}
       <Dialog
         open={actionType === 'restore' && !!selectedContact}
-        onOpenChange={(open) => {
+        onOpenChange={open => {
           if (!open && !isProcessing) {
-            setSelectedContact(null);
-            setActionType(null);
+            setSelectedContact(null)
+            setActionType(null)
           }
         }}
       >
@@ -304,8 +285,8 @@ export function DeletedContactsView() {
               variant="outline"
               onClick={() => {
                 if (!isProcessing) {
-                  setSelectedContact(null);
-                  setActionType(null);
+                  setSelectedContact(null)
+                  setActionType(null)
                 }
               }}
               disabled={isProcessing}
@@ -329,9 +310,9 @@ export function DeletedContactsView() {
       {/* Batch Restore Confirmation Dialog */}
       <Dialog
         open={actionType === 'batch-restore'}
-        onOpenChange={(open) => {
+        onOpenChange={open => {
           if (!open && !isProcessing) {
-            setActionType(null);
+            setActionType(null)
           }
         }}
       >
@@ -339,7 +320,8 @@ export function DeletedContactsView() {
           <DialogHeader>
             <DialogTitle>Restore {selectedContactIds.size} Contacts</DialogTitle>
             <DialogDescription>
-              Are you sure you want to restore {selectedContactIds.size} contact{selectedContactIds.size !== 1 ? 's' : ''}? They will be added back to your contacts list.
+              Are you sure you want to restore {selectedContactIds.size} contact
+              {selectedContactIds.size !== 1 ? 's' : ''}? They will be added back to your contacts list.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -347,7 +329,7 @@ export function DeletedContactsView() {
               variant="outline"
               onClick={() => {
                 if (!isProcessing) {
-                  setActionType(null);
+                  setActionType(null)
                 }
               }}
               disabled={isProcessing}
@@ -371,10 +353,10 @@ export function DeletedContactsView() {
       {/* Single Permanent Delete Confirmation Dialog */}
       <Dialog
         open={actionType === 'delete' && !!selectedContact}
-        onOpenChange={(open) => {
+        onOpenChange={open => {
           if (!open && !isProcessing) {
-            setSelectedContact(null);
-            setActionType(null);
+            setSelectedContact(null)
+            setActionType(null)
           }
         }}
       >
@@ -382,7 +364,8 @@ export function DeletedContactsView() {
           <DialogHeader>
             <DialogTitle>Permanently Delete Contact</DialogTitle>
             <DialogDescription>
-              Are you sure you want to permanently delete this contact? This action cannot be undone and the contact will be completely removed from the system.
+              Are you sure you want to permanently delete this contact? This action cannot be undone and the contact
+              will be completely removed from the system.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -390,8 +373,8 @@ export function DeletedContactsView() {
               variant="outline"
               onClick={() => {
                 if (!isProcessing) {
-                  setSelectedContact(null);
-                  setActionType(null);
+                  setSelectedContact(null)
+                  setActionType(null)
                 }
               }}
               disabled={isProcessing}
@@ -415,9 +398,9 @@ export function DeletedContactsView() {
       {/* Batch Permanent Delete Confirmation Dialog */}
       <Dialog
         open={actionType === 'batch-delete'}
-        onOpenChange={(open) => {
+        onOpenChange={open => {
           if (!open && !isProcessing) {
-            setActionType(null);
+            setActionType(null)
           }
         }}
       >
@@ -425,7 +408,9 @@ export function DeletedContactsView() {
           <DialogHeader>
             <DialogTitle>Permanently Delete {selectedContactIds.size} Contacts</DialogTitle>
             <DialogDescription>
-              Are you sure you want to permanently delete {selectedContactIds.size} contact{selectedContactIds.size !== 1 ? 's' : ''}? This action cannot be undone and the contacts will be completely removed from the system.
+              Are you sure you want to permanently delete {selectedContactIds.size} contact
+              {selectedContactIds.size !== 1 ? 's' : ''}? This action cannot be undone and the contacts will be
+              completely removed from the system.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -433,7 +418,7 @@ export function DeletedContactsView() {
               variant="outline"
               onClick={() => {
                 if (!isProcessing) {
-                  setActionType(null);
+                  setActionType(null)
                 }
               }}
               disabled={isProcessing}
@@ -454,5 +439,5 @@ export function DeletedContactsView() {
         </DialogContent>
       </Dialog>
     </div>
-  );
+  )
 }

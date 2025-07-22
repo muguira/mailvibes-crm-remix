@@ -1,18 +1,14 @@
-import React from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import React from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
 interface GridSkeletonProps {
-  rowCount?: number;
-  columnCount?: number;
-  showToolbar?: boolean;
+  rowCount?: number
+  columnCount?: number
+  showToolbar?: boolean
 }
 
-export function GridSkeleton({ 
-  rowCount = 10, 
-  columnCount = 7, 
-  showToolbar = true 
-}: GridSkeletonProps) {
+export function GridSkeleton({ rowCount = 10, columnCount = 7, showToolbar = true }: GridSkeletonProps) {
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Toolbar skeleton */}
@@ -39,7 +35,7 @@ export function GridSkeleton({
             <Skeleton className="h-4 w-28" />
             <Skeleton className="h-4 w-24" />
           </div>
-          
+
           {/* Rows */}
           {Array.from({ length: rowCount }).map((_, i) => (
             <div key={i} className="flex gap-4 py-2">
@@ -62,5 +58,5 @@ export function GridSkeleton({
         </div>
       </div>
     </div>
-  );
-} 
+  )
+}

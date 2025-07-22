@@ -1,24 +1,24 @@
-import React from "react";
-import { useDroppable } from "@dnd-kit/core";
-import { cn } from "@/lib/utils";
-import { Plus, Trash2 } from "lucide-react";
-import { FieldType } from "@/utils/buildFieldDefinitions";
+import React from 'react'
+import { useDroppable } from '@dnd-kit/core'
+import { cn } from '@/lib/utils'
+import { Plus, Trash2 } from 'lucide-react'
+import { FieldType } from '@/utils/buildFieldDefinitions'
 
 interface ListFieldSlotProps {
-  id: string;
-  fieldName: string;
-  csvField?: string;
-  fieldType?: FieldType;
-  required?: boolean;
-  onRemove?: () => void;
-  isPlaceholder?: boolean;
+  id: string
+  fieldName: string
+  csvField?: string
+  fieldType?: FieldType
+  required?: boolean
+  onRemove?: () => void
+  isPlaceholder?: boolean
 }
 
 export function ListFieldSlot({
   id,
   fieldName,
   csvField,
-  fieldType = "text",
+  fieldType = 'text',
   required,
   onRemove,
   isPlaceholder = false,
@@ -26,16 +26,16 @@ export function ListFieldSlot({
   const { isOver, setNodeRef } = useDroppable({
     id,
     disabled: !isPlaceholder && !!csvField,
-  });
+  })
 
   if (isPlaceholder) {
     return (
       <div
         ref={setNodeRef}
         className={cn(
-          "relative min-h-[40px] rounded-md transition-all",
-          "border-2 border-dashed border-gray-300",
-          isOver && "border-[#62BFAA] bg-[#62BFAA]/5"
+          'relative min-h-[40px] rounded-md transition-all',
+          'border-2 border-dashed border-gray-300',
+          isOver && 'border-[#62BFAA] bg-[#62BFAA]/5',
         )}
       >
         {isOver ? (
@@ -51,29 +51,23 @@ export function ListFieldSlot({
           </div>
         )}
       </div>
-    );
+    )
   }
 
   // Style matching ContactPropertySlot
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <label className="text-sm font-medium text-gray-700">
-          {fieldName}
-        </label>
-        {required && (
-          <span className="text-xs text-red-500">*Required</span>
-        )}
+        <label className="text-sm font-medium text-gray-700">{fieldName}</label>
+        {required && <span className="text-xs text-red-500">*Required</span>}
       </div>
-      
+
       <div
         ref={setNodeRef}
         className={cn(
-          "relative min-h-[40px] rounded-md transition-all",
-          csvField
-            ? "bg-gray-50 border border-gray-200"
-            : "border-2 border-dashed border-gray-300",
-          isOver && !csvField && "border-[#62BFAA] bg-[#62BFAA]/5"
+          'relative min-h-[40px] rounded-md transition-all',
+          csvField ? 'bg-gray-50 border border-gray-200' : 'border-2 border-dashed border-gray-300',
+          isOver && !csvField && 'border-[#62BFAA] bg-[#62BFAA]/5',
         )}
       >
         {/* Show + icon when hovering with a draggable */}
@@ -90,10 +84,7 @@ export function ListFieldSlot({
           <div className="px-3 py-2 flex items-center justify-between">
             <span className="text-sm text-gray-700">{csvField}</span>
             {onRemove && (
-              <button
-                onClick={onRemove}
-                className="text-gray-400 hover:text-gray-600 text-sm"
-              >
+              <button onClick={onRemove} className="text-gray-400 hover:text-gray-600 text-sm">
                 ×
               </button>
             )}
@@ -103,12 +94,10 @@ export function ListFieldSlot({
         {/* Empty state */}
         {!csvField && !isOver && (
           <div className="px-3 py-2 pointer-events-none">
-            <span className="text-sm text-gray-400">
-              Drag a field here
-            </span>
+            <span className="text-sm text-gray-400">Drag a field here</span>
           </div>
         )}
       </div>
     </div>
-  );
-} 
+  )
+}

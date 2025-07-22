@@ -1,16 +1,16 @@
-import React from "react";
-import { CheckCircle2, Users, UserPlus, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import React from 'react'
+import { CheckCircle2, Users, UserPlus, AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 
 interface ImportSuccessStepProps {
-  contactsCreated: number;
-  contactsUpdated: number;
-  contactsSkipped: number;
-  errors: string[];
-  accountEmail: string;
-  listName: string;
-  onViewContacts: () => void;
+  contactsCreated: number
+  contactsUpdated: number
+  contactsSkipped: number
+  errors: string[]
+  accountEmail: string
+  listName: string
+  onViewContacts: () => void
 }
 
 export function ImportSuccessStep({
@@ -20,10 +20,10 @@ export function ImportSuccessStep({
   errors,
   accountEmail,
   listName,
-  onViewContacts
+  onViewContacts,
 }: ImportSuccessStepProps) {
-  const totalProcessed = contactsCreated + contactsUpdated;
-  
+  const totalProcessed = contactsCreated + contactsUpdated
+
   return (
     <div className="space-y-6">
       {/* Success Icon and Title */}
@@ -33,12 +33,8 @@ export function ImportSuccessStep({
             <CheckCircle2 className="w-12 h-12 text-green-600" />
           </div>
         </div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-          Import Completed Successfully!
-        </h2>
-        <p className="text-gray-600">
-          Your contacts from {accountEmail} have been imported
-        </p>
+        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Import Completed Successfully!</h2>
+        <p className="text-gray-600">Your contacts from {accountEmail} have been imported</p>
       </div>
 
       {/* Import Statistics */}
@@ -89,24 +85,18 @@ export function ImportSuccessStep({
             {errors.slice(0, 5).map((error, index) => (
               <li key={index}>• {error}</li>
             ))}
-            {errors.length > 5 && (
-              <li className="text-red-600 font-medium">... and {errors.length - 5} more errors</li>
-            )}
+            {errors.length > 5 && <li className="text-red-600 font-medium">... and {errors.length - 5} more errors</li>}
           </ul>
         </div>
       )}
 
       {/* Action Button */}
       <div className="flex justify-center pt-4">
-        <Button
-          onClick={onViewContacts}
-          size="lg"
-          className="bg-[#62BFAA] hover:bg-[#52AF9A] text-white px-8"
-        >
+        <Button onClick={onViewContacts} size="lg" className="bg-[#62BFAA] hover:bg-[#52AF9A] text-white px-8">
           <Users className="w-5 h-5 mr-2" />
           View Imported Contacts
         </Button>
       </div>
     </div>
-  );
-} 
+  )
+}

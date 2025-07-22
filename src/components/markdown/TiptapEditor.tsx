@@ -1,47 +1,50 @@
-import React, { useCallback, useEffect } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Link from '@tiptap/extension-link';
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
-import Underline from '@tiptap/extension-underline';
-import { createLowlight } from 'lowlight';
-import { cn } from '@/lib/utils';
-import MarkdownToolbar from './MarkdownToolbar';
+import React, { useCallback, useEffect } from 'react'
+import { useEditor, EditorContent } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Link from '@tiptap/extension-link'
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
+import Underline from '@tiptap/extension-underline'
+import { createLowlight } from 'lowlight'
+import { cn } from '@/lib/utils'
+import MarkdownToolbar from './MarkdownToolbar'
 
 interface TiptapEditorProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  className?: string;
-  minHeight?: string;
-  showToolbar?: boolean;
-  externalToolbar?: boolean;
-  isCompact?: boolean;
-  disabled?: boolean;
-  autoFocus?: boolean;
-  onEditorReady?: (editor: any) => void;
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  className?: string
+  minHeight?: string
+  showToolbar?: boolean
+  externalToolbar?: boolean
+  isCompact?: boolean
+  disabled?: boolean
+  autoFocus?: boolean
+  onEditorReady?: (editor: any) => void
 }
 
 const TiptapEditor: React.FC<TiptapEditorProps> = ({
   value,
   onChange,
-  placeholder = "Type your message...",
+  placeholder = 'Type your message...',
   className,
-  minHeight = "80px",
+  minHeight = '80px',
   showToolbar = true,
   externalToolbar = false,
   isCompact = false,
   disabled = false,
   autoFocus = false,
-  onEditorReady
+  onEditorReady,
 }) => {
-  const lowlight = createLowlight();
+  const lowlight = createLowlight()
 
   // Stable onChange callback to prevent unnecessary re-renders
-  const handleUpdate = useCallback(({ editor }: { editor: any }) => {
-    const html = editor.getHTML();
-    onChange(html);
-  }, [onChange]);
+  const handleUpdate = useCallback(
+    ({ editor }: { editor: any }) => {
+      const html = editor.getHTML()
+      onChange(html)
+    },
+    [onChange],
+  )
 
   const editor = useEditor({
     extensions: [
@@ -53,49 +56,49 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
         },
         bulletList: {
           HTMLAttributes: {
-            class: "list-disc list-outside my-3 pl-6"
-          }
+            class: 'list-disc list-outside my-3 pl-6',
+          },
         },
         orderedList: {
           HTMLAttributes: {
-            class: "list-decimal list-outside my-3 pl-6"
-          }
+            class: 'list-decimal list-outside my-3 pl-6',
+          },
         },
         listItem: {
           HTMLAttributes: {
-            class: "mb-1"
-          }
+            class: 'mb-1',
+          },
         },
         blockquote: {
           HTMLAttributes: {
-            class: "border-l-4 border-teal-500 pl-4 py-2 my-2 bg-teal-50 text-gray-700 italic"
-          }
+            class: 'border-l-4 border-teal-500 pl-4 py-2 my-2 bg-teal-50 text-gray-700 italic',
+          },
         },
         code: {
           HTMLAttributes: {
-            class: "bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-mono"
-          }
+            class: 'bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-mono',
+          },
         },
         horizontalRule: {
           HTMLAttributes: {
-            class: "border-t border-gray-300 my-4"
-          }
-        }
+            class: 'border-t border-gray-300 my-4',
+          },
+        },
       }),
       Underline,
       Link.configure({
         HTMLAttributes: {
-          class: "text-teal-600 underline hover:text-teal-800 transition-colors",
-          target: "_blank",
-          rel: "noopener noreferrer"
-        }
+          class: 'text-teal-600 underline hover:text-teal-800 transition-colors',
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        },
       }),
       CodeBlockLowlight.configure({
         lowlight,
         HTMLAttributes: {
-          class: "bg-gray-100 text-gray-800 p-4 rounded-lg overflow-x-auto my-2"
-        }
-      })
+          class: 'bg-gray-100 text-gray-800 p-4 rounded-lg overflow-x-auto my-2',
+        },
+      }),
     ],
     content: value,
     editable: !disabled,
@@ -106,9 +109,9 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
     editorProps: {
       attributes: {
         class: cn(
-          "prose prose-sm max-w-none focus:outline-none",
-          "text-sm text-gray-900 transition-all duration-300 ease-in-out",
-          disabled && "opacity-50 cursor-not-allowed"
+          'prose prose-sm max-w-none focus:outline-none',
+          'text-sm text-gray-900 transition-all duration-300 ease-in-out',
+          disabled && 'opacity-50 cursor-not-allowed',
         ),
         style: `min-height: ${minHeight}; padding: 12px;`,
         'data-placeholder': placeholder,
@@ -117,88 +120,98 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
     onUpdate: handleUpdate,
     onCreate: ({ editor }) => {
       if (onEditorReady) {
-        onEditorReady(editor);
+        onEditorReady(editor)
       }
     },
-  });
+  })
 
   // Sync external value changes with editor content
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value, false);
+      editor.commands.setContent(value, false)
     }
-  }, [editor, value]);
+  }, [editor, value])
 
   // Handle formatting commands using Tiptap's recommended command chaining
-  const handleFormat = useCallback((format: string) => {
-    if (!editor) return;
+  const handleFormat = useCallback(
+    (format: string) => {
+      if (!editor) return
 
-    switch (format) {
-      case 'bold':
-        editor.chain().focus().toggleBold().run();
-        break;
-      case 'italic':
-        editor.chain().focus().toggleItalic().run();
-        break;
-      case 'underline':
-        editor.chain().focus().toggleUnderline().run();
-        break;
-      case 'strikethrough':
-        editor.chain().focus().toggleStrike().run();
-        break;
-      case 'code':
-        editor.chain().focus().toggleCode().run();
-        break;
-      case 'heading1':
-        editor.chain().focus().toggleHeading({ level: 1 }).run();
-        break;
-      case 'heading2':
-        editor.chain().focus().toggleHeading({ level: 2 }).run();
-        break;
-      case 'heading3':
-        editor.chain().focus().toggleHeading({ level: 3 }).run();
-        break;
-      case 'bulletList':
-        editor.chain().focus().toggleBulletList().run();
-        break;
-      case 'numberedList':
-        editor.chain().focus().toggleOrderedList().run();
-        break;
-      case 'quote':
-        editor.chain().focus().toggleBlockquote().run();
-        break;
-      case 'divider':
-        editor.chain().focus().setHorizontalRule().run();
-        break;
-    }
-  }, [editor]);
+      switch (format) {
+        case 'bold':
+          editor.chain().focus().toggleBold().run()
+          break
+        case 'italic':
+          editor.chain().focus().toggleItalic().run()
+          break
+        case 'underline':
+          editor.chain().focus().toggleUnderline().run()
+          break
+        case 'strikethrough':
+          editor.chain().focus().toggleStrike().run()
+          break
+        case 'code':
+          editor.chain().focus().toggleCode().run()
+          break
+        case 'heading1':
+          editor.chain().focus().toggleHeading({ level: 1 }).run()
+          break
+        case 'heading2':
+          editor.chain().focus().toggleHeading({ level: 2 }).run()
+          break
+        case 'heading3':
+          editor.chain().focus().toggleHeading({ level: 3 }).run()
+          break
+        case 'bulletList':
+          editor.chain().focus().toggleBulletList().run()
+          break
+        case 'numberedList':
+          editor.chain().focus().toggleOrderedList().run()
+          break
+        case 'quote':
+          editor.chain().focus().toggleBlockquote().run()
+          break
+        case 'divider':
+          editor.chain().focus().setHorizontalRule().run()
+          break
+      }
+    },
+    [editor],
+  )
 
-  const handleLinkRequest = useCallback((url: string, linkText: string) => {
-    if (!editor) return;
+  const handleLinkRequest = useCallback(
+    (url: string, linkText: string) => {
+      if (!editor) return
 
-    if (url && linkText) {
-      editor.chain().focus().setLink({ href: url }).insertContent(linkText).run();
-    }
-  }, [editor]);
+      if (url && linkText) {
+        editor.chain().focus().setLink({ href: url }).insertContent(linkText).run()
+      }
+    },
+    [editor],
+  )
 
-  const handleCodeBlockRequest = useCallback((selectedText: string, range: Range) => {
-    if (!editor) return;
+  const handleCodeBlockRequest = useCallback(
+    (selectedText: string, range: Range) => {
+      if (!editor) return
 
-    editor.chain().focus().setCodeBlock().run();
-    if (selectedText) {
-      editor.commands.insertContent(selectedText);
-    }
-  }, [editor]);
+      editor.chain().focus().setCodeBlock().run()
+      if (selectedText) {
+        editor.commands.insertContent(selectedText)
+      }
+    },
+    [editor],
+  )
 
   return (
-    <div className={cn("bg-white relative", className)}>
+    <div className={cn('bg-white relative', className)}>
       {/* Rich Text Editor */}
-      <div className={cn("outline-none transition-all duration-300 ease-in-out", isCompact ? 'p-2' : 'p-2')}>
-        <EditorContent editor={editor} className=""/>
-        
+      <div className={cn('outline-none transition-all duration-300 ease-in-out', isCompact ? 'p-2' : 'p-2')}>
+        <EditorContent editor={editor} className="" />
+
         {/* Tiptap-specific styling following their recommendations */}
-        <style dangerouslySetInnerHTML={{
-          __html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
             .ProseMirror {
               outline: none !important;
               border: none !important;
@@ -262,8 +275,9 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
             .ProseMirror hr {
               margin: 16px 0;
             }
-          `
-        }} />
+          `,
+          }}
+        />
       </div>
 
       {/* Internal Formatting Toolbar - only show if not external */}
@@ -275,17 +289,15 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
             onLinkRequest={handleLinkRequest}
             onCodeBlockRequest={handleCodeBlockRequest}
             isCompact={isCompact}
-            className={cn(
-              "min-w-max",
-              isCompact ? 'p-2' : 'p-3'
-            )}
+            className={cn('min-w-max', isCompact ? 'p-2' : 'p-3')}
           />
         </div>
       )}
 
       {/* Scrollbar styles for toolbar */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
           .scrollbar-hide {
             -ms-overflow-style: none;
             scrollbar-width: none;
@@ -293,10 +305,11 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
           .scrollbar-hide::-webkit-scrollbar {
             display: none;
           }
-        `
-      }} />
+        `,
+        }}
+      />
     </div>
-  );
-};
+  )
+}
 
-export default TiptapEditor; 
+export default TiptapEditor

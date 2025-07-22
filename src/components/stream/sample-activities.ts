@@ -1,19 +1,18 @@
-
 export interface StreamActivity {
-  id: string;
-  timestamp: string;
-  relativeTime: string;
-  type: 'email' | 'meeting' | 'call' | 'note' | 'task' | 'form' | 'lifecycle' | 'status_update' | 'system';
+  id: string
+  timestamp: string
+  relativeTime: string
+  type: 'email' | 'meeting' | 'call' | 'note' | 'task' | 'form' | 'lifecycle' | 'status_update' | 'system'
   user: {
-    name: string;
-    initials: string;
-  };
-  summary: string;
-  body?: string;
-  target?: string;
-  via?: string;
-  author?: string;
-  reactions?: { type: string; count: number }[];
+    name: string
+    initials: string
+  }
+  summary: string
+  body?: string
+  target?: string
+  via?: string
+  author?: string
+  reactions?: { type: string; count: number }[]
 }
 
 export const sampleActivities: StreamActivity[] = [
@@ -24,11 +23,11 @@ export const sampleActivities: StreamActivity[] = [
     type: 'email',
     user: {
       name: 'James McSales',
-      initials: 'JM'
+      initials: 'JM',
     },
     summary: 'James McSales emailed Lauren Robinson',
-    body: 'Hi Lauren, Great, I\'ll send over a calendar invite with call details. Best, James',
-    via: 'Google Sheets'
+    body: "Hi Lauren, Great, I'll send over a calendar invite with call details. Best, James",
+    via: 'Google Sheets',
   },
   {
     id: '2',
@@ -37,7 +36,7 @@ export const sampleActivities: StreamActivity[] = [
     type: 'meeting',
     user: {
       name: 'James McSales',
-      initials: 'JM'
+      initials: 'JM',
     },
     summary: 'James McSales scheduled a meeting with Lauren Robinson',
     body: 'Techqueria Demo at James to call Lauren 555-123-4567',
@@ -50,7 +49,7 @@ export const sampleActivities: StreamActivity[] = [
     type: 'form',
     user: {
       name: 'Alberto Navarro',
-      initials: 'AN'
+      initials: 'AN',
     },
     summary: 'Form submitted',
     body: 'Submitted QP Signup Form',
@@ -62,7 +61,7 @@ export const sampleActivities: StreamActivity[] = [
     type: 'lifecycle',
     user: {
       name: 'System',
-      initials: 'SY'
+      initials: 'SY',
     },
     summary: 'Lifecycle change',
     body: 'The lifecycle stage was changed to Subscriber',
@@ -74,9 +73,9 @@ export const sampleActivities: StreamActivity[] = [
     type: 'note',
     user: {
       name: 'Angel Montero',
-      initials: 'AM'
+      initials: 'AM',
     },
     summary: 'Contact created',
     body: 'Initial contact record created from website form submission',
-  }
-];
+  },
+]

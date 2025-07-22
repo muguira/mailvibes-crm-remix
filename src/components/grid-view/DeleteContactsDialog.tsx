@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -6,17 +6,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { AlertTriangle, Loader2 } from 'lucide-react';
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 
 interface DeleteContactsDialogProps {
-  isLoading?: boolean;
-  isOpen: boolean;
-  contactCount: number;
-  onClose: () => void;
-  onConfirm: () => void;
+  isLoading?: boolean
+  isOpen: boolean
+  contactCount: number
+  onClose: () => void
+  onConfirm: () => void
 }
 
 export function DeleteContactsDialog({
@@ -24,24 +24,24 @@ export function DeleteContactsDialog({
   contactCount,
   onClose,
   onConfirm,
-  isLoading = false
+  isLoading = false,
 }: DeleteContactsDialogProps) {
-  const [confirmText, setConfirmText] = useState('');
-  
+  const [confirmText, setConfirmText] = useState('')
+
   const handleConfirm = () => {
     if (confirmText.toUpperCase() === 'DELETE') {
-      onConfirm();
-      setConfirmText('');
+      onConfirm()
+      setConfirmText('')
     }
-  };
-  
+  }
+
   const handleClose = () => {
     if (!isLoading) {
-      setConfirmText('');
-      onClose();
+      setConfirmText('')
+      onClose()
     }
-  };
-  
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -52,24 +52,24 @@ export function DeleteContactsDialog({
           </DialogTitle>
           <DialogDescription className="pt-2 space-y-2">
             <span className="block">
-              You're about to delete {contactCount} contact{contactCount !== 1 ? 's' : ''}. 
-              Deleted contacts can't be restored after 90 days.
+              You're about to delete {contactCount} contact{contactCount !== 1 ? 's' : ''}. Deleted contacts can't be
+              restored after 90 days.
             </span>
-            <span className="block">
-              Records created after this submission will not be deleted.
+            <span className="block">Records created after this submission will not be deleted.</span>
+            <span className="block font-medium">
+              Type <span className="text-red-600 font-mono">DELETE</span> to confirm:
             </span>
-            <span className="block font-medium">Type <span className="text-red-600 font-mono">DELETE</span> to confirm:</span>
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
           <Input
             value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
+            onChange={e => setConfirmText(e.target.value)}
             placeholder="Type 'DELETE' to confirm"
             className="w-full"
-            onKeyDown={(e) => {
+            onKeyDown={e => {
               if (e.key === 'Enter' && confirmText.toUpperCase() === 'DELETE' && !isLoading) {
-                handleConfirm();
+                handleConfirm()
               }
             }}
             disabled={isLoading}
@@ -79,8 +79,8 @@ export function DeleteContactsDialog({
           <Button variant="outline" onClick={handleClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button 
-            variant="destructive" 
+          <Button
+            variant="destructive"
             onClick={handleConfirm}
             disabled={confirmText.toUpperCase() !== 'DELETE' || isLoading}
           >
@@ -96,5 +96,5 @@ export function DeleteContactsDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-} 
+  )
+}

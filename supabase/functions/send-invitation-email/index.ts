@@ -6,23 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+serve(async req => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { 
-      to, 
-      organizationName, 
-      inviterName, 
-      inviterEmail,
-      role, 
-      invitationToken,
-      personalMessage,
-      expiresAt 
-    } = await req.json()
+    const { to, organizationName, inviterName, inviterEmail, role, invitationToken, personalMessage, expiresAt } =
+      await req.json()
 
     // Get environment variables
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
@@ -88,7 +80,7 @@ serve(async (req) => {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -108,31 +100,30 @@ serve(async (req) => {
     console.log('Email sent successfully:', result)
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         messageId: result.id,
-        message: 'Invitation email sent successfully' 
+        message: 'Invitation email sent successfully',
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
-      }
+        status: 200,
+      },
     )
-
   } catch (error) {
     console.error('Error sending invitation email:', error)
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
+      JSON.stringify({
+        success: false,
+        error: error.message,
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400
-      }
+        status: 400,
+      },
     )
   }
-}) 
+})
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -140,23 +131,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+serve(async req => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { 
-      to, 
-      organizationName, 
-      inviterName, 
-      inviterEmail,
-      role, 
-      invitationToken,
-      personalMessage,
-      expiresAt 
-    } = await req.json()
+    const { to, organizationName, inviterName, inviterEmail, role, invitationToken, personalMessage, expiresAt } =
+      await req.json()
 
     // Get environment variables
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
@@ -222,7 +205,7 @@ serve(async (req) => {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -242,28 +225,27 @@ serve(async (req) => {
     console.log('Email sent successfully:', result)
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         messageId: result.id,
-        message: 'Invitation email sent successfully' 
+        message: 'Invitation email sent successfully',
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
-      }
+        status: 200,
+      },
     )
-
   } catch (error) {
     console.error('Error sending invitation email:', error)
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
+      JSON.stringify({
+        success: false,
+        error: error.message,
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400
-      }
+        status: 400,
+      },
     )
   }
-}) 
+})

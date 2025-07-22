@@ -1,18 +1,17 @@
-
-import { GridDatePicker } from "../grid-date-picker";
-import { GridSelectDropdown } from "../grid-select-dropdown";
-import { PopoverType } from "@/hooks/use-popover";
+import { GridDatePicker } from '../grid-date-picker'
+import { GridSelectDropdown } from '../grid-select-dropdown'
+import { PopoverType } from '@/hooks/use-popover'
 
 interface CellPopoversProps {
-  isOpen: boolean;
-  position: { top: number; left: number };
-  popoverType: PopoverType;
-  selectedDate?: Date;
-  options?: string[];
-  popoverRef: React.RefObject<HTMLDivElement>;
-  onClose: () => void;
-  onDateSelect: (date: Date | undefined) => void;
-  onOptionSelect: (option: string) => void;
+  isOpen: boolean
+  position: { top: number; left: number }
+  popoverType: PopoverType
+  selectedDate?: Date
+  options?: string[]
+  popoverRef: React.RefObject<HTMLDivElement>
+  onClose: () => void
+  onDateSelect: (date: Date | undefined) => void
+  onOptionSelect: (option: string) => void
 }
 
 export function CellPopovers({
@@ -24,15 +23,15 @@ export function CellPopovers({
   popoverRef,
   onClose,
   onDateSelect,
-  onOptionSelect
+  onOptionSelect,
 }: CellPopoversProps) {
   // Calculate adjusted position to position popover right below the cell
   const adjustedPosition = {
     top: position.top + 32, // Align with bottom of the cell (row height)
-    left: position.left
-  };
+    left: position.left,
+  }
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   // Render the appropriate popover based on type
   return (
@@ -59,5 +58,5 @@ export function CellPopovers({
         />
       )}
     </>
-  );
+  )
 }

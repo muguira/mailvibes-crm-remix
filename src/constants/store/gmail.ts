@@ -1,4 +1,4 @@
-import { IGmailAuthState } from "@/types/store/gmail";
+import { IGmailAuthState } from '@/types/store/gmail'
 
 export const INITIAL_GMAIL_AUTH_STATE: IGmailAuthState = {
   connectedAccounts: [],
@@ -7,7 +7,7 @@ export const INITIAL_GMAIL_AUTH_STATE: IGmailAuthState = {
   authError: null,
   lastSync: null,
   isInitialized: false,
-};
+}
 
 export const RESET_GMAIL_AUTH_STATE: IGmailAuthState = {
   connectedAccounts: [],
@@ -16,4 +16,4 @@ export const RESET_GMAIL_AUTH_STATE: IGmailAuthState = {
   authError: null,
   lastSync: null,
   isInitialized: false,
-};
+}

@@ -1,90 +1,88 @@
-
-import { useState, useEffect } from "react";
-import { useAuth } from "@/components/auth";
-import { TopNavbar } from "@/components/layout/top-navbar";
-import { CustomButton } from "@/components/ui/custom-button";
-import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { logger } from '@/utils/logger';
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/components/auth'
+import { TopNavbar } from '@/components/layout/top-navbar'
+import { CustomButton } from '@/components/ui/custom-button'
+import { toast } from '@/hooks/use-toast'
+import { supabase } from '@/integrations/supabase/client'
+import { logger } from '@/utils/logger'
 
 export default function Profile() {
-  const { user } = useAuth();
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFetching, setIsFetching] = useState(true);
+  const { user } = useAuth()
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [isFetching, setIsFetching] = useState(true)
 
   // Fetch user profile on component mount
   useEffect(() => {
     async function fetchProfile() {
-      if (!user) return;
+      if (!user) return
 
       try {
-        setIsFetching(true);
+        setIsFetching(true)
         const { data, error } = await supabase
-          .from("profiles")
-          .select("first_name, last_name")
-          .eq("id", user.id)
-          .single();
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', user.id)
+          .single()
 
-        if (error) throw error;
+        if (error) throw error
 
         if (data) {
-          setFirstName(data.first_name || "");
-          setLastName(data.last_name || "");
+          setFirstName(data.first_name || '')
+          setLastName(data.last_name || '')
         }
       } catch (error: any) {
-        logger.error("Error fetching profile:", error);
+        logger.error('Error fetching profile:', error)
         toast({
-          title: "Error",
-          description: "Failed to load profile data",
-          variant: "destructive",
-        });
+          title: 'Error',
+          description: 'Failed to load profile data',
+          variant: 'destructive',
+        })
       } finally {
-        setIsFetching(false);
+        setIsFetching(false)
       }
     }
 
-    fetchProfile();
-  }, [user]);
+    fetchProfile()
+  }, [user])
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
 
-    if (!user) return;
+    if (!user) return
 
-    setIsLoading(true);
+    setIsLoading(true)
 
     try {
       const { error } = await supabase
-        .from("profiles")
+        .from('profiles')
         .update({
           first_name: firstName,
           last_name: lastName,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", user.id);
+        .eq('id', user.id)
 
-      if (error) throw error;
+      if (error) throw error
 
       toast({
-        title: "Profile updated",
-        description: "Your profile has been successfully updated",
-      });
+        title: 'Profile updated',
+        description: 'Your profile has been successfully updated',
+      })
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: 'Error',
         description: error.message,
-        variant: "destructive",
-      });
+        variant: 'destructive',
+      })
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
     <div className="flex h-screen bg-slate-light/20">
-
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopNavbar />
 
@@ -110,7 +108,7 @@ export default function Profile() {
                       id="firstName"
                       type="text"
                       value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      onChange={e => setFirstName(e.target.value)}
                       className="w-full p-2 border border-slate-light rounded focus:outline-none focus:ring-2 focus:ring-teal-primary"
                     />
                   </div>
@@ -123,17 +121,14 @@ export default function Profile() {
                       id="lastName"
                       type="text"
                       value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      onChange={e => setLastName(e.target.value)}
                       className="w-full p-2 border border-slate-light rounded focus:outline-none focus:ring-2 focus:ring-teal-primary"
                     />
                   </div>
                 </div>
 
                 <div className="pt-4">
-                  <CustomButton
-                    type="submit"
-                    isLoading={isLoading}
-                  >
+                  <CustomButton type="submit" isLoading={isLoading}>
                     Update Profile
                   </CustomButton>
                 </div>
@@ -143,5 +138,5 @@ export default function Profile() {
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -1,92 +1,89 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Building2, Mail, Globe, AlertCircle } from 'lucide-react';
-import { useOrganizationActions, useOrganizationLoadingStates } from '@/stores/organizationStore';
-import { useAuth } from '@/components/auth';
+import React, { useState } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Building2, Mail, Globe, AlertCircle } from 'lucide-react'
+import { useOrganizationActions, useOrganizationLoadingStates } from '@/stores/organizationStore'
+import { useAuth } from '@/components/auth'
 
 interface CreateOrganizationModalProps {
-  isOpen: boolean;
-  onClose?: () => void;
+  isOpen: boolean
+  onClose?: () => void
 }
 
-export const CreateOrganizationModal: React.FC<CreateOrganizationModalProps> = ({
-  isOpen,
-  onClose
-}) => {
-  const [organizationName, setOrganizationName] = useState('');
-  const [domain, setDomain] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  
-  const { user } = useAuth();
-  const { createOrganization } = useOrganizationActions();
-  const { creatingOrganization } = useOrganizationLoadingStates();
+export const CreateOrganizationModal: React.FC<CreateOrganizationModalProps> = ({ isOpen, onClose }) => {
+  const [organizationName, setOrganizationName] = useState('')
+  const [domain, setDomain] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  const { user } = useAuth()
+  const { createOrganization } = useOrganizationActions()
+  const { creatingOrganization } = useOrganizationLoadingStates()
 
   // Pre-fill domain based on user's email
   React.useEffect(() => {
     if (user?.email && !domain) {
-      const emailDomain = user.email.split('@')[1];
-      setDomain(emailDomain);
+      const emailDomain = user.email.split('@')[1]
+      setDomain(emailDomain)
     }
-  }, [user?.email, domain]);
+  }, [user?.email, domain])
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+    e.preventDefault()
+    setError(null)
 
     // Validation
     if (!organizationName.trim()) {
-      setError('Organization name is required');
-      return;
+      setError('Organization name is required')
+      return
     }
 
     if (!domain.trim()) {
-      setError('Domain is required');
-      return;
+      setError('Domain is required')
+      return
     }
 
     // Validate domain format
-    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/;
+    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/
     if (!domainRegex.test(domain)) {
-      setError('Please enter a valid domain (e.g., company.com)');
-      return;
+      setError('Please enter a valid domain (e.g., company.com)')
+      return
     }
 
     // Check if user's email domain matches
     if (user?.email) {
-      const userDomain = user.email.split('@')[1];
+      const userDomain = user.email.split('@')[1]
       if (userDomain !== domain.toLowerCase()) {
-        setError(`Your email domain (${userDomain}) must match the organization domain`);
-        return;
+        setError(`Your email domain (${userDomain}) must match the organization domain`)
+        return
       }
     }
 
     try {
-      await createOrganization(organizationName.trim(), domain.toLowerCase());
-      
+      await createOrganization(organizationName.trim(), domain.toLowerCase())
+
       // Reset form
-      setOrganizationName('');
-      setDomain('');
-      setError(null);
-      
+      setOrganizationName('')
+      setDomain('')
+      setError(null)
+
       // Close modal if onClose is provided
       if (onClose) {
-        onClose();
+        onClose()
       }
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     }
-  };
+  }
 
   const getExampleDomain = () => {
     if (user?.email) {
-      return user.email.split('@')[1];
+      return user.email.split('@')[1]
     }
-    return 'company.com';
-  };
+    return 'company.com'
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -102,7 +99,8 @@ export const CreateOrganizationModal: React.FC<CreateOrganizationModalProps> = (
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              You need to create an organization to continue. Your email domain will determine who can join your organization.
+              You need to create an organization to continue. Your email domain will determine who can join your
+              organization.
             </AlertDescription>
           </Alert>
 
@@ -115,7 +113,7 @@ export const CreateOrganizationModal: React.FC<CreateOrganizationModalProps> = (
                 type="text"
                 placeholder="e.g., MailVibes, Acme Corp"
                 value={organizationName}
-                onChange={(e) => setOrganizationName(e.target.value)}
+                onChange={e => setOrganizationName(e.target.value)}
                 disabled={creatingOrganization}
                 className="w-full"
               />
@@ -131,7 +129,7 @@ export const CreateOrganizationModal: React.FC<CreateOrganizationModalProps> = (
                   type="text"
                   placeholder={getExampleDomain()}
                   value={domain}
-                  onChange={(e) => setDomain(e.target.value.toLowerCase())}
+                  onChange={e => setDomain(e.target.value.toLowerCase())}
                   disabled={creatingOrganization}
                   className="pl-10 w-full"
                 />
@@ -148,9 +146,7 @@ export const CreateOrganizationModal: React.FC<CreateOrganizationModalProps> = (
                   <Mail className="w-4 h-4" />
                   <span>Your email: {user.email}</span>
                 </div>
-                <p className="text-xs text-blue-600 mt-1">
-                  Domain must match: {user.email.split('@')[1]}
-                </p>
+                <p className="text-xs text-blue-600 mt-1">Domain must match: {user.email.split('@')[1]}</p>
               </div>
             )}
 
@@ -163,11 +159,7 @@ export const CreateOrganizationModal: React.FC<CreateOrganizationModalProps> = (
             )}
 
             {/* Submit Button */}
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={creatingOrganization}
-            >
+            <Button type="submit" className="w-full" disabled={creatingOrganization}>
               {creatingOrganization ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
@@ -194,5 +186,5 @@ export const CreateOrganizationModal: React.FC<CreateOrganizationModalProps> = (
         </div>
       </DialogContent>
     </Dialog>
-  );
-}; 
+  )
+}

@@ -1,4 +1,4 @@
-import { PKCEParams } from "@/types/google";
+import { PKCEParams } from '@/types/google'
 
 /**
  * PKCE (Proof Key for Code Exchange) Service
@@ -11,15 +11,14 @@ import { PKCEParams } from "@/types/google";
  * @returns Base64url-encoded random string
  */
 export function generateCodeVerifier(length: number = 128): string {
-  const possible =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
-  let text = "";
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'
+  let text = ''
 
   for (let i = 0; i < length; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
+    text += possible.charAt(Math.floor(Math.random() * possible.length))
   }
 
-  return text;
+  return text
 }
 
 /**
@@ -28,11 +27,11 @@ export function generateCodeVerifier(length: number = 128): string {
  * @returns Base64url-encoded SHA256 hash
  */
 export async function generateCodeChallenge(verifier: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  const digest = await crypto.subtle.digest("SHA-256", data);
+  const encoder = new TextEncoder()
+  const data = encoder.encode(verifier)
+  const digest = await crypto.subtle.digest('SHA-256', data)
 
-  return base64UrlEncode(digest);
+  return base64UrlEncode(digest)
 }
 
 /**
@@ -41,16 +40,13 @@ export async function generateCodeChallenge(verifier: string): Promise<string> {
  * @param challenge - The code challenge to validate against
  * @returns True if valid, false otherwise
  */
-export async function validateCodeChallenge(
-  verifier: string,
-  challenge: string
-): Promise<boolean> {
+export async function validateCodeChallenge(verifier: string, challenge: string): Promise<boolean> {
   try {
-    const computedChallenge = await generateCodeChallenge(verifier);
-    return computedChallenge === challenge;
+    const computedChallenge = await generateCodeChallenge(verifier)
+    return computedChallenge === challenge
   } catch (error) {
-    console.error("Error validating code challenge:", error);
-    return false;
+    console.error('Error validating code challenge:', error)
+    return false
   }
 }
 
@@ -60,15 +56,14 @@ export async function validateCodeChallenge(
  * @returns Random state string
  */
 export function generateState(length: number = 32): string {
-  const possible =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let text = "";
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let text = ''
 
   for (let i = 0; i < length; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
+    text += possible.charAt(Math.floor(Math.random() * possible.length))
   }
 
-  return text;
+  return text
 }
 
 /**
@@ -76,14 +71,14 @@ export function generateState(length: number = 32): string {
  * @returns Object containing code_verifier, code_challenge, and method
  */
 export async function generatePKCEParams(): Promise<PKCEParams> {
-  const code_verifier = generateCodeVerifier();
-  const code_challenge = await generateCodeChallenge(code_verifier);
+  const code_verifier = generateCodeVerifier()
+  const code_challenge = await generateCodeChallenge(code_verifier)
 
   return {
     code_verifier,
     code_challenge,
-    code_challenge_method: "S256",
-  };
+    code_challenge_method: 'S256',
+  }
 }
 
 /**
@@ -96,9 +91,9 @@ export function storePKCEParams(params: PKCEParams, state: string): void {
     ...params,
     state,
     timestamp: Date.now(),
-  };
+  }
 
-  sessionStorage.setItem("gmail_pkce_params", JSON.stringify(data));
+  sessionStorage.setItem('gmail_pkce_params', JSON.stringify(data))
 }
 
 /**
@@ -107,22 +102,22 @@ export function storePKCEParams(params: PKCEParams, state: string): void {
  */
 export function retrievePKCEParams(): (PKCEParams & { state: string }) | null {
   try {
-    const stored = sessionStorage.getItem("gmail_pkce_params");
-    if (!stored) return null;
+    const stored = sessionStorage.getItem('gmail_pkce_params')
+    if (!stored) return null
 
-    const data = JSON.parse(stored);
+    const data = JSON.parse(stored)
 
     // Check if data is not too old (5 minutes max)
-    const maxAge = 5 * 60 * 1000; // 5 minutes
+    const maxAge = 5 * 60 * 1000 // 5 minutes
     if (Date.now() - data.timestamp > maxAge) {
-      sessionStorage.removeItem("gmail_pkce_params");
-      return null;
+      sessionStorage.removeItem('gmail_pkce_params')
+      return null
     }
 
     // Validate required fields
     if (!data.code_verifier || !data.code_challenge || !data.state) {
-      sessionStorage.removeItem("gmail_pkce_params");
-      return null;
+      sessionStorage.removeItem('gmail_pkce_params')
+      return null
     }
 
     return {
@@ -130,11 +125,11 @@ export function retrievePKCEParams(): (PKCEParams & { state: string }) | null {
       code_challenge: data.code_challenge,
       code_challenge_method: data.code_challenge_method,
       state: data.state,
-    };
+    }
   } catch (error) {
-    console.error("Error retrieving PKCE params:", error);
-    sessionStorage.removeItem("gmail_pkce_params");
-    return null;
+    console.error('Error retrieving PKCE params:', error)
+    sessionStorage.removeItem('gmail_pkce_params')
+    return null
   }
 }
 
@@ -142,7 +137,7 @@ export function retrievePKCEParams(): (PKCEParams & { state: string }) | null {
  * Clears PKCE parameters from sessionStorage
  */
 export function clearPKCEParams(): void {
-  sessionStorage.removeItem("gmail_pkce_params");
+  sessionStorage.removeItem('gmail_pkce_params')
 }
 
 /**
@@ -151,23 +146,20 @@ export function clearPKCEParams(): void {
  * @param expectedState - State parameter stored before redirect
  * @returns True if states match, false otherwise
  */
-export function validateState(
-  receivedState: string,
-  expectedState: string
-): boolean {
-  return receivedState === expectedState;
+export function validateState(receivedState: string, expectedState: string): boolean {
+  return receivedState === expectedState
 }
 
 // Helper function to base64url encode ArrayBuffer
 function base64UrlEncode(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
 
   for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
+    binary += String.fromCharCode(bytes[i])
   }
 
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
 /**
@@ -176,11 +168,11 @@ function base64UrlEncode(buffer: ArrayBuffer): string {
  */
 export function isPKCESupported(): boolean {
   return !!(
-    typeof crypto !== "undefined" &&
+    typeof crypto !== 'undefined' &&
     crypto.subtle &&
     crypto.subtle.digest &&
-    typeof TextEncoder !== "undefined"
-  );
+    typeof TextEncoder !== 'undefined'
+  )
 }
 
 /**
@@ -191,20 +183,20 @@ export function isPKCESupported(): boolean {
  */
 export async function createAuthState(
   redirectUri: string,
-  scopes: string[]
+  scopes: string[],
 ): Promise<{
-  pkce: PKCEParams;
-  state: string;
-  redirect_uri: string;
-  scopes: string[];
+  pkce: PKCEParams
+  state: string
+  redirect_uri: string
+  scopes: string[]
 }> {
-  const pkce = await generatePKCEParams();
-  const state = generateState();
+  const pkce = await generatePKCEParams()
+  const state = generateState()
 
   return {
     pkce,
     state,
     redirect_uri: redirectUri,
     scopes,
-  };
+  }
 }

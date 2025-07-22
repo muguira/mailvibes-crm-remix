@@ -1,32 +1,32 @@
-import { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { SyncLogEntry } from '@/hooks/gmail/useGmailMetrics';
-import { format, subDays, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns';
+import { useMemo } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { SyncLogEntry } from '@/hooks/gmail/useGmailMetrics'
+import { format, subDays, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns'
 
 interface GmailSyncChartProps {
-  recentSyncs: SyncLogEntry[];
-  className?: string;
+  recentSyncs: SyncLogEntry[]
+  className?: string
 }
 
 interface DayData {
-  date: Date;
-  successful: number;
-  failed: number;
-  total: number;
-  emailsSynced: number;
+  date: Date
+  successful: number
+  failed: number
+  total: number
+  emailsSynced: number
 }
 
 export function GmailSyncChart({ recentSyncs, className }: GmailSyncChartProps) {
   const chartData = useMemo(() => {
     // Get last 7 days
-    const endDate = new Date();
-    const startDate = subDays(endDate, 6);
-    const days = eachDayOfInterval({ start: startDate, end: endDate });
+    const endDate = new Date()
+    const startDate = subDays(endDate, 6)
+    const days = eachDayOfInterval({ start: startDate, end: endDate })
 
     // Process sync data by day
-    const dayDataMap = new Map<string, DayData>();
-    
+    const dayDataMap = new Map<string, DayData>()
+
     // Initialize days with zero data
     days.forEach(date => {
       dayDataMap.set(format(date, 'yyyy-MM-dd'), {
@@ -34,34 +34,34 @@ export function GmailSyncChart({ recentSyncs, className }: GmailSyncChartProps) 
         successful: 0,
         failed: 0,
         total: 0,
-        emailsSynced: 0
-      });
-    });
+        emailsSynced: 0,
+      })
+    })
 
     // Aggregate sync data
     recentSyncs.forEach(sync => {
-      if (!sync.started_at) return;
-      
-      const syncDate = new Date(sync.started_at);
-      const dayKey = format(syncDate, 'yyyy-MM-dd');
-      const dayData = dayDataMap.get(dayKey);
-      
+      if (!sync.started_at) return
+
+      const syncDate = new Date(sync.started_at)
+      const dayKey = format(syncDate, 'yyyy-MM-dd')
+      const dayData = dayDataMap.get(dayKey)
+
       if (dayData) {
-        dayData.total++;
+        dayData.total++
         if (sync.status === 'completed') {
-          dayData.successful++;
+          dayData.successful++
         } else if (sync.status === 'failed') {
-          dayData.failed++;
+          dayData.failed++
         }
-        dayData.emailsSynced += sync.emails_synced || 0;
+        dayData.emailsSynced += sync.emails_synced || 0
       }
-    });
+    })
 
-    return Array.from(dayDataMap.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [recentSyncs]);
+    return Array.from(dayDataMap.values()).sort((a, b) => a.date.getTime() - b.date.getTime())
+  }, [recentSyncs])
 
-  const maxTotal = Math.max(...chartData.map(d => d.total), 1);
-  const maxEmails = Math.max(...chartData.map(d => d.emailsSynced), 1);
+  const maxTotal = Math.max(...chartData.map(d => d.total), 1)
+  const maxEmails = Math.max(...chartData.map(d => d.emailsSynced), 1)
 
   return (
     <Card className={className}>
@@ -81,21 +81,21 @@ export function GmailSyncChart({ recentSyncs, className }: GmailSyncChartProps) 
                       <div className="w-full flex flex-col justify-end h-full">
                         {/* Failed syncs (red) */}
                         {day.failed > 0 && (
-                          <div 
+                          <div
                             className="w-full bg-red-400 rounded-t-sm"
-                            style={{ 
+                            style={{
                               height: `${(day.failed / maxTotal) * 100}%`,
-                              minHeight: day.failed > 0 ? '2px' : '0'
+                              minHeight: day.failed > 0 ? '2px' : '0',
                             }}
                           />
                         )}
                         {/* Successful syncs (green) */}
                         {day.successful > 0 && (
-                          <div 
+                          <div
                             className="w-full bg-green-400"
-                            style={{ 
+                            style={{
                               height: `${(day.successful / maxTotal) * 100}%`,
-                              minHeight: day.successful > 0 ? '2px' : '0'
+                              minHeight: day.successful > 0 ? '2px' : '0',
                             }}
                           />
                         )}
@@ -129,11 +129,11 @@ export function GmailSyncChart({ recentSyncs, className }: GmailSyncChartProps) 
                 <div key={index} className="flex flex-col items-center flex-1 mx-1">
                   <div className="flex items-end h-16 w-full">
                     {day.emailsSynced > 0 && (
-                      <div 
+                      <div
                         className="w-full bg-blue-400 rounded-t-sm"
-                        style={{ 
+                        style={{
                           height: `${(day.emailsSynced / maxEmails) * 100}%`,
-                          minHeight: day.emailsSynced > 0 ? '2px' : '0'
+                          minHeight: day.emailsSynced > 0 ? '2px' : '0',
                         }}
                       />
                     )}
@@ -177,5 +177,5 @@ export function GmailSyncChart({ recentSyncs, className }: GmailSyncChartProps) 
         </div>
       </CardContent>
     </Card>
-  );
-} 
+  )
+}

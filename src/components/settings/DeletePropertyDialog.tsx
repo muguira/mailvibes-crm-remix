@@ -1,19 +1,21 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 interface DeletePropertyDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  propertyName: string;
+  isOpen: boolean
+  onClose: () => void
+  onConfirm: () => void
+  propertyName: string
 }
 
-export function DeletePropertyDialog({
-  isOpen,
-  onClose,
-  onConfirm,
-  propertyName
-}: DeletePropertyDialogProps) {
+export function DeletePropertyDialog({ isOpen, onClose, onConfirm, propertyName }: DeletePropertyDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -24,11 +26,7 @@ export function DeletePropertyDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex justify-end gap-3 pt-4">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="px-4 py-2"
-          >
+          <Button variant="outline" onClick={onClose} className="px-4 py-2">
             Cancel
           </Button>
           <Button
@@ -41,5 +39,5 @@ export function DeletePropertyDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-} 
+  )
+}

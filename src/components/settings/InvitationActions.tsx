@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,60 +8,55 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
-import { MoreVertical, Mail, X, Clock, AlertTriangle } from 'lucide-react';
-import { OrganizationInvitation } from '@/types/organization';
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { MoreVertical, Mail, X, Clock, AlertTriangle } from 'lucide-react'
+import { OrganizationInvitation } from '@/types/organization'
 
 interface InvitationActionsProps {
-  invitation: OrganizationInvitation;
-  onResend: (invitationId: string) => Promise<void>;
-  onCancel: (invitationId: string) => Promise<void>;
-  loading?: boolean;
+  invitation: OrganizationInvitation
+  onResend: (invitationId: string) => Promise<void>
+  onCancel: (invitationId: string) => Promise<void>
+  loading?: boolean
 }
 
 export const InvitationActions: React.FC<InvitationActionsProps> = ({
   invitation,
   onResend,
   onCancel,
-  loading = false
+  loading = false,
 }) => {
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
 
   const handleResend = async () => {
-    setActionLoading(true);
+    setActionLoading(true)
     try {
-      await onResend(invitation.id);
+      await onResend(invitation.id)
     } catch (error) {
       // Error handling by parent
     } finally {
-      setActionLoading(false);
+      setActionLoading(false)
     }
-  };
+  }
 
   const handleCancel = async () => {
-    setActionLoading(true);
+    setActionLoading(true)
     try {
-      await onCancel(invitation.id);
-      setShowCancelDialog(false);
+      await onCancel(invitation.id)
+      setShowCancelDialog(false)
     } catch (error) {
       // Error handling by parent
     } finally {
-      setActionLoading(false);
+      setActionLoading(false)
     }
-  };
+  }
 
-  const isExpired = new Date(invitation.expires_at) < new Date();
+  const isExpired = new Date(invitation.expires_at) < new Date()
   const daysUntilExpiry = Math.ceil(
-    (new Date(invitation.expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-  );
+    (new Date(invitation.expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+  )
 
   return (
     <>
@@ -92,12 +87,7 @@ export const InvitationActions: React.FC<InvitationActionsProps> = ({
         {/* More Actions Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={loading || actionLoading}
-              className="h-auto w-auto p-2"
-            >
+            <Button variant="ghost" size="sm" disabled={loading || actionLoading} className="h-auto w-auto p-2">
               <MoreVertical className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -106,8 +96,8 @@ export const InvitationActions: React.FC<InvitationActionsProps> = ({
               <Mail className="w-4 h-4 mr-2" />
               Resend Invitation
             </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => setShowCancelDialog(true)} 
+            <DropdownMenuItem
+              onClick={() => setShowCancelDialog(true)}
               disabled={actionLoading}
               className="text-red-600 focus:text-red-600"
             >
@@ -129,8 +119,7 @@ export const InvitationActions: React.FC<InvitationActionsProps> = ({
             <AlertDialogDescription asChild>
               <span>
                 Are you sure you want to cancel the invitation for{' '}
-                <span className="font-medium">{invitation.email}</span>?
-                This action cannot be undone.
+                <span className="font-medium">{invitation.email}</span>? This action cannot be undone.
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -154,12 +143,12 @@ export const InvitationActions: React.FC<InvitationActionsProps> = ({
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">
-                    {isExpired ? 'Expired:' : 'Expires:'}
-                  </span>
-                  <span className={`font-medium flex items-center gap-1 ${
-                    isExpired ? 'text-red-600' : daysUntilExpiry <= 1 ? 'text-amber-600' : 'text-gray-900'
-                  }`}>
+                  <span className="text-gray-600">{isExpired ? 'Expired:' : 'Expires:'}</span>
+                  <span
+                    className={`font-medium flex items-center gap-1 ${
+                      isExpired ? 'text-red-600' : daysUntilExpiry <= 1 ? 'text-amber-600' : 'text-gray-900'
+                    }`}
+                  >
                     {isExpired && <AlertTriangle className="w-3 h-3" />}
                     {!isExpired && daysUntilExpiry <= 1 && <Clock className="w-3 h-3" />}
                     {new Date(invitation.expires_at).toLocaleDateString()}
@@ -196,19 +185,13 @@ export const InvitationActions: React.FC<InvitationActionsProps> = ({
           </div>
 
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={actionLoading}>
-              Keep Invitation
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCancel}
-              disabled={actionLoading}
-              className="bg-red-600 hover:bg-red-700"
-            >
+            <AlertDialogCancel disabled={actionLoading}>Keep Invitation</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancel} disabled={actionLoading} className="bg-red-600 hover:bg-red-700">
               {actionLoading ? 'Canceling...' : 'Cancel Invitation'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
-  );
-}; 
+  )
+}

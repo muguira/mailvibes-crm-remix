@@ -1,12 +1,7 @@
-import { useStore } from "@/stores/index";
-import { Session, User } from "@supabase/supabase-js";
-import { useEffect } from "react";
-import {
-  IAuthErrorState,
-  IAuthRetryConfig,
-  TSignInInput,
-  TSignUpInput,
-} from "@/types/store/auth";
+import { useStore } from '@/stores/index'
+import { Session, User } from '@supabase/supabase-js'
+import { useEffect } from 'react'
+import { IAuthErrorState, IAuthRetryConfig, TSignInInput, TSignUpInput } from '@/types/store/auth'
 
 /**
  * Custom hook for accessing auth state and actions from the store
@@ -27,7 +22,7 @@ import {
  * ```
  */
 export const useAuthStore = () => {
-  const store = useStore();
+  const store = useStore()
 
   return {
     // Auth state
@@ -58,8 +53,8 @@ export const useAuthStore = () => {
     clearError: store.authClearError,
     clearAllErrors: store.authClearAllErrors,
     setRetryConfig: store.authSetRetryConfig,
-  };
-};
+  }
+}
 
 /**
  * Hook for accessing only auth state (no actions)
@@ -71,7 +66,7 @@ export const useAuthStore = () => {
  * ```
  */
 export const useAuthState = () => {
-  const store = useStore();
+  const store = useStore()
 
   return {
     session: store.authSession,
@@ -83,8 +78,8 @@ export const useAuthState = () => {
     loading: store.authLoading,
     errors: store.authErrors,
     retryConfig: store.authRetryConfig,
-  };
-};
+  }
+}
 
 /**
  * Hook for accessing only auth actions
@@ -96,7 +91,7 @@ export const useAuthState = () => {
  * ```
  */
 export const useAuthActions = () => {
-  const store = useStore();
+  const store = useStore()
 
   return {
     initialize: store.authInitialize,
@@ -115,8 +110,8 @@ export const useAuthActions = () => {
     clearError: store.authClearError,
     clearAllErrors: store.authClearAllErrors,
     setRetryConfig: store.authSetRetryConfig,
-  };
-};
+  }
+}
 
 /**
  * Hook for accessing auth state with automatic initialization
@@ -124,53 +119,49 @@ export const useAuthActions = () => {
  * Esta versión asegura que el estado de auth esté inicializado antes de devolverlo
  */
 export const useAuth = () => {
-  const authStore = useAuthStore();
+  const authStore = useAuthStore()
 
   useEffect(() => {
     if (!authStore.isInitialized && !authStore.loading.initializing) {
-      authStore.initialize();
+      authStore.initialize()
     }
-  }, [
-    authStore.isInitialized,
-    authStore.loading.initializing,
-    authStore.initialize,
-  ]);
+  }, [authStore.isInitialized, authStore.loading.initializing, authStore.initialize])
 
   // Solo devolvemos loading.initializing como el estado de carga principal
   return {
     ...authStore,
     loading: authStore.loading.initializing,
-  };
-};
+  }
+}
 
 /**
  * Hook para saber si el usuario está autenticado
  */
 export const useIsAuthenticated = () => {
-  const { isAuthenticated } = useAuthStore();
-  return isAuthenticated();
-};
+  const { isAuthenticated } = useAuthStore()
+  return isAuthenticated()
+}
 
 /**
  * Hook para obtener el usuario actual
  */
 export const useCurrentUser = () => {
-  const { user } = useAuthStore();
-  return user;
-};
+  const { user } = useAuthStore()
+  return user
+}
 
 /**
  * Hook para obtener los estados de loading de auth
  */
 export const useAuthLoading = () => {
-  const { loading } = useAuthStore();
-  return loading;
-};
+  const { loading } = useAuthStore()
+  return loading
+}
 
 /**
  * Hook para obtener los errores de auth
  */
 export const useAuthErrors = () => {
-  const { errors } = useAuthStore();
-  return errors;
-};
+  const { errors } = useAuthStore()
+  return errors
+}

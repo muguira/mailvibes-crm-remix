@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Code2, FileCode } from 'lucide-react';
+import React, { useState, useEffect } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Code2, FileCode } from 'lucide-react'
 
 interface CodeBlockModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: (code: string, language: string) => void;
-  selectedText?: string;
+  isOpen: boolean
+  onClose: () => void
+  onConfirm: (code: string, language: string) => void
+  selectedText?: string
 }
 
 // Popular programming languages for the dropdown
@@ -36,54 +36,54 @@ const POPULAR_LANGUAGES = [
   { value: 'kotlin', label: 'Kotlin' },
   { value: 'ruby', label: 'Ruby' },
   { value: 'dart', label: 'Dart' },
-];
+]
 
 export default function CodeBlockModal({ isOpen, onClose, onConfirm, selectedText }: CodeBlockModalProps) {
-  const [code, setCode] = useState('');
-  const [language, setLanguage] = useState('');
-  const [customLanguage, setCustomLanguage] = useState('');
-  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [code, setCode] = useState('')
+  const [language, setLanguage] = useState('')
+  const [customLanguage, setCustomLanguage] = useState('')
+  const [showCustomInput, setShowCustomInput] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
-      setCode(selectedText || '');
-      setLanguage('none');
-      setCustomLanguage('');
-      setShowCustomInput(false);
+      setCode(selectedText || '')
+      setLanguage('none')
+      setCustomLanguage('')
+      setShowCustomInput(false)
     }
-  }, [isOpen, selectedText]);
+  }, [isOpen, selectedText])
 
   const handleLanguageChange = (value: string) => {
     if (value === 'custom') {
-      setShowCustomInput(true);
-      setLanguage('');
+      setShowCustomInput(true)
+      setLanguage('')
     } else {
-      setShowCustomInput(false);
-      setLanguage(value);
-      setCustomLanguage('');
+      setShowCustomInput(false)
+      setLanguage(value)
+      setCustomLanguage('')
     }
-  };
+  }
 
   const handleConfirm = () => {
     if (code.trim()) {
-      const finalLanguage = showCustomInput ? customLanguage : (language === 'none' ? '' : language);
-      onConfirm(code, finalLanguage);
-      onClose();
+      const finalLanguage = showCustomInput ? customLanguage : language === 'none' ? '' : language
+      onConfirm(code, finalLanguage)
+      onClose()
     }
-  };
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && code.trim()) {
-      handleConfirm();
+      handleConfirm()
     } else if (e.key === 'Escape') {
-      onClose();
+      onClose()
     }
-  };
+  }
 
   const getPreviewLanguage = () => {
-    const lang = showCustomInput ? customLanguage : language;
-    return lang === 'none' ? '' : lang;
-  };
+    const lang = showCustomInput ? customLanguage : language
+    return lang === 'none' ? '' : lang
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -94,7 +94,7 @@ export default function CodeBlockModal({ isOpen, onClose, onConfirm, selectedTex
             Agregar bloque de código
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="language">Lenguaje de programación</Label>
@@ -103,7 +103,7 @@ export default function CodeBlockModal({ isOpen, onClose, onConfirm, selectedTex
                 <SelectValue placeholder="Selecciona un lenguaje (opcional)" />
               </SelectTrigger>
               <SelectContent>
-                {POPULAR_LANGUAGES.map((lang) => (
+                {POPULAR_LANGUAGES.map(lang => (
                   <SelectItem key={lang.value} value={lang.value}>
                     {lang.label}
                   </SelectItem>
@@ -111,25 +111,25 @@ export default function CodeBlockModal({ isOpen, onClose, onConfirm, selectedTex
                 <SelectItem value="custom">Otro lenguaje...</SelectItem>
               </SelectContent>
             </Select>
-            
+
             {showCustomInput && (
               <Input
                 placeholder="Escribe el nombre del lenguaje"
                 value={customLanguage}
-                onChange={(e) => setCustomLanguage(e.target.value)}
+                onChange={e => setCustomLanguage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 className="mt-2"
               />
             )}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="code">Código</Label>
             <Textarea
               id="code"
               placeholder="Escribe o pega tu código aquí..."
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={e => setCode(e.target.value)}
               onKeyDown={handleKeyDown}
               className="min-h-[200px] font-mono text-sm"
               autoFocus
@@ -138,7 +138,7 @@ export default function CodeBlockModal({ isOpen, onClose, onConfirm, selectedTex
               Tip: Usa Ctrl+Enter (Cmd+Enter en Mac) para agregar el bloque rápidamente
             </p>
           </div>
-          
+
           {code && (
             <div className="bg-gray-50 p-3 rounded-md border">
               <p className="text-sm text-gray-600 mb-2 flex items-center gap-2">
@@ -146,35 +146,25 @@ export default function CodeBlockModal({ isOpen, onClose, onConfirm, selectedTex
                 Vista previa:
               </p>
               <div className="bg-gray-100 p-3 rounded border">
-                {getPreviewLanguage() && (
-                  <div className="text-xs text-gray-500 mb-1">
-                    {getPreviewLanguage()}
-                  </div>
-                )}
+                {getPreviewLanguage() && <div className="text-xs text-gray-500 mb-1">{getPreviewLanguage()}</div>}
                 <pre className="text-sm font-mono text-gray-800 whitespace-pre-wrap">
-                  {code.slice(0, 200)}{code.length > 200 ? '...' : ''}
+                  {code.slice(0, 200)}
+                  {code.length > 200 ? '...' : ''}
                 </pre>
               </div>
             </div>
           )}
         </div>
-        
+
         <div className="flex justify-end gap-2">
-          <Button
-            variant="outline"
-            onClick={onClose}
-          >
+          <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={!code.trim()}
-            className="bg-teal-600 hover:bg-teal-700"
-          >
+          <Button onClick={handleConfirm} disabled={!code.trim()} className="bg-teal-600 hover:bg-teal-700">
             Agregar código
           </Button>
         </div>
       </DialogContent>
     </Dialog>
-  );
-} 
+  )
+}
