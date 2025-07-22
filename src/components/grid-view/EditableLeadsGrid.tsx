@@ -364,7 +364,7 @@ export function EditableLeadsGrid() {
    */
   const handleCellChange = useCallback(async (rowId: string, columnId: string, value: any) => {
     console.log('EditableLeadsGrid handleCellChange called:', {
-      rowId,
+        rowId,
       columnId,
       value,
       timestamp: new Date().toISOString()
@@ -613,8 +613,8 @@ export function EditableLeadsGrid() {
     const estimatedSeconds = Math.ceil(remainingContacts / 1000 * 0.5);
     const estimatedMinutes = Math.floor(estimatedSeconds / 60);
     const displaySeconds = estimatedSeconds % 60;
-
-    return (
+  
+  return (
       <div className="h-full flex flex-col">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-6 max-w-md">
@@ -655,13 +655,13 @@ export function EditableLeadsGrid() {
             </div>
             
             <div className="flex gap-2 justify-center">
-              <Button 
-                variant="outline" 
-                size="sm"
+        <Button 
+          variant="outline" 
+          size="sm" 
                 onClick={() => editableLeadsGridSetCurrentPage(1)}
-              >
+        >
                 Go to First Page
-              </Button>
+        </Button>
             </div>
           </div>
         </div>

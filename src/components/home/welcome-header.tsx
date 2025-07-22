@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from '@/components/auth';
 import { useStore } from '@/stores';
+import { useOrganizationStats, useOrganizationLoadingStates } from '@/stores/organizationStore';
 
 interface WelcomeHeaderProps {
   username?: string;
@@ -18,15 +19,23 @@ interface WelcomeHeaderProps {
 }
 
 export function WelcomeHeader({ 
-  collaboratorCount = 0
+  collaboratorCount
 }: WelcomeHeaderProps) {
   const [timeView, setTimeView] = useState<'week' | 'month'>('week');
   const [greeting, setGreeting] = useState('Good morning');
   const [currentDate, setCurrentDate] = useState('');
   const { tasks } = useStore();
   const { user } = useAuth();
+  const stats = useOrganizationStats();
+  const loadingStates = useOrganizationLoadingStates();
+  
   const username = user?.email?.split('@')[0] || "Andres";
   const taskCount = tasks.filter(task => task.display_status === "completed").length;
+  
+  // Use real organization data if available, otherwise fall back to prop
+  const actualCollaboratorCount = loadingStates.loadingOrganization 
+    ? collaboratorCount || 0 
+    : stats.activeMembers || collaboratorCount || 0;
   
   // Update greeting based on time of day
   useEffect(() => {
@@ -105,7 +114,13 @@ export function WelcomeHeader({
                 <div className="p-1 rounded-full bg-primary-600/20">
                   <Users className="w-4 h-4 text-gray-600" />
                 </div>
-                <span className="font-semibold text-gray-800">{collaboratorCount}</span>
+                <span className="font-semibold text-gray-800">
+                  {loadingStates.loadingOrganization ? (
+                    <div className="w-4 h-4 animate-spin border border-gray-600 border-t-transparent rounded-full" />
+                  ) : (
+                    actualCollaboratorCount
+                  )}
+                </span>
                 <span className="text-gray-700">collaborators</span>
               </div>
             </div>

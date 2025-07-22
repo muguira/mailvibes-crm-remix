@@ -1,13 +1,26 @@
 
+import { useEffect } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { TasksPanel } from "@/components/home/tasks-panel";
 import { FeedPanel } from "@/components/home/feed-panel";
 import { WelcomeHeader } from "@/components/home/welcome-header";
+import { AddTeammatesCard } from "@/components/home/add-teammates-card";
+import { CreateOrganizationModal } from "@/components/organization/CreateOrganizationModal";
 import { useAuth } from "@/components/auth";
+import { useOrganizationActions, useOrganizationData } from '@/stores/organizationStore';
 import { Navigate } from 'react-router-dom';
 
 const Index = () => {
   const { user, loading } = useAuth();
+  const { needsOrganization } = useOrganizationData();
+  const { checkUserOrganization } = useOrganizationActions();
+
+  // Initialize organization data when user is authenticated
+  useEffect(() => {
+    if (user) {
+      checkUserOrganization();
+    }
+  }, [user, checkUserOrganization]);
 
   // Show loading indicator while checking authentication
   if (loading) {
@@ -34,20 +47,36 @@ const Index = () => {
           
           {/* Content Section - Positioned very close to My Week bar */}
           <div className="md:px-6 px-2 -mt-14">
-            <div className="flex flex-col md:flex-row gap-6 h-full">
+            <div className="flex justify-between">
               {/* Left Column - Tasks - Fixed width */}
               <div className="w-full md:w-[570px] flex-shrink-0">
                 <TasksPanel />
               </div>
 
-              {/* Right Column - Feed - Takes remaining space */}
-              <div className="w-full flex-1">
+              {/* Right Column - Teammates Card + Feed - Fixed 400px width */}
+              <div className="hidden md:block w-[400px] space-y-4">
+                {/* Add Teammates Card */}
+                <AddTeammatesCard />
+                
+                {/* Activity Feed Panel */}
                 <FeedPanel />
               </div>
+            </div>
+            
+            {/* Mobile view - Show teammates card and feed below tasks */}
+            <div className="md:hidden mt-6 space-y-4">
+              <AddTeammatesCard />
+              <FeedPanel />
             </div>
           </div>
         </div>
       </div>
+
+      {/* Create Organization Modal */}
+      <CreateOrganizationModal 
+        isOpen={needsOrganization}
+        onClose={() => {}} // Don't allow closing until organization is created
+      />
     </div>
   );
 };
