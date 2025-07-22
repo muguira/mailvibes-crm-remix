@@ -1,11 +1,11 @@
-import { StateCreator } from 'zustand'
-import { Session, User } from '@supabase/supabase-js'
-import { TSignInInput, TSignUpInput, IAuthErrorState, IAuthRetryConfig } from '@/types/store/auth'
-import { TStore } from '@/types/store/store'
-import { supabase } from '@/integrations/supabase/client'
-import { toast } from '@/hooks/use-toast'
-import { logger } from '@/utils/logger'
 import { AUTH_ERROR_MESSAGES, AUTH_SUCCESS_MESSAGES, AUTH_VALIDATION_CONFIG } from '@/constants/store/auth'
+import { toast } from '@/hooks/use-toast'
+import { supabase } from '@/integrations/supabase/client'
+import { IAuthErrorState, IAuthRetryConfig, TSignInInput, TSignUpInput } from '@/types/store/auth'
+import { TStore } from '@/types/store/store'
+import { logger } from '@/utils/logger'
+import { Session, User } from '@supabase/supabase-js'
+import { StateCreator } from 'zustand'
 // RESTORED: Gmail store with fixed selectors
 import { useGmailStore } from '@/stores/gmail/gmailStore'
 // Note: useStore import is circular, so we use dynamic import instead
@@ -388,8 +388,17 @@ export const useAuthSlice: StateCreator<
     try {
       const { error } = await supabase.auth.signOut()
 
-      if (error) throw error
+      if (error) {
+        // Check if the error is due to missing session (user already logged out)
+        if (error.message.includes('Auth session missing') || error.name === 'AuthSessionMissingError') {
+          logger.debug('No active session found during logout - user already logged out')
+          // Don't throw error, just proceed with local cleanup
+        } else {
+          throw error
+        }
+      }
 
+      // Always clear local state regardless of Supabase response
       set(state => {
         state.authSession = null
         state.authUser = null
@@ -404,15 +413,24 @@ export const useAuthSlice: StateCreator<
     } catch (error) {
       logger.error('Error signing out:', error)
       const errorMessage = error instanceof Error ? error.message : AUTH_ERROR_MESSAGES.SIGN_OUT_FAILED
+
+      // Even if there's an error, we should still clear local state
+      // The user clicked logout, so we should honor that intent
       set(state => {
+        state.authSession = null
+        state.authUser = null
+        state.authIsEmailVerified = false
+        state.authLastSyncAt = new Date().toISOString()
         state.authErrors.signOut = errorMessage
       })
+
       toast({
-        title: 'Sign Out Error',
-        description: errorMessage,
-        variant: 'destructive',
+        title: 'Signed out',
+        description: 'Signed out locally (server error: ' + errorMessage + ')',
+        variant: 'default', // Changed from 'destructive' since we still completed the logout
       })
-      throw error
+
+      // Don't throw error - we want logout to always succeed from user perspective
     } finally {
       set(state => {
         state.authLoading.signingOut = false
