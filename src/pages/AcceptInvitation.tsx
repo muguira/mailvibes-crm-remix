@@ -38,67 +38,48 @@ export const AcceptInvitation: React.FC = () => {
   useEffect(() => {
     if (effectiveInvitationId) {
       loadInvitationDetails();
-    } else if (user && !effectiveInvitationId) {
+    } else if (user && !effectiveInvitationId && !authLoading) {
       // If user is logged in but no invitation ID/token, redirect to dashboard
       navigate('/');
     }
-  }, [effectiveInvitationId, user, navigate]);
+  }, [effectiveInvitationId, user, navigate, authLoading]);
 
   const loadInvitationDetails = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Determine if we have an ID (from path parameter) or token (from query parameter)
-      const isToken = !!searchParams.get('token');
-      const fieldToQuery = isToken ? 'token' : 'id';
-
-      const { data, error: inviteError } = await supabase
-        .from('organization_invitations')
-        .select(`
-          id,
-          email,
-          role,
-          status,
-          expires_at,
-          token,
-          organizations:organization_id (
-            name
-          ),
-          profiles:invited_by (
-            full_name,
-            email
-          )
-        `)
-        .eq(fieldToQuery, effectiveInvitationId)
-        .single();
+      // Use the public RPC function that works for both authenticated and unauthenticated users
+      const { data: inviteData, error: inviteError } = await supabase
+        .rpc('get_invitation_details_public', { 
+          p_token_or_id: effectiveInvitationId 
+        });
 
       if (inviteError) {
-        if (inviteError.code === 'PGRST116') {
-          setError('Invitation not found. It may have been cancelled or already used.');
-        } else {
-          throw inviteError;
-        }
+        console.error('Invitation query error:', inviteError);
+        setError('Failed to load invitation details.');
         return;
       }
 
-      if (!data) {
-        setError('Invitation not found.');
+      if (!inviteData || inviteData.length === 0) {
+        setError('Invitation not found. It may have been cancelled or already used.');
         return;
       }
+
+      const invitation = inviteData[0];
 
       setInvitation({
-        id: data.id,
-        organization_name: data.organizations?.name || 'Unknown Organization',
-        email: data.email,
-        role: data.role,
-        status: data.status,
-        expires_at: data.expires_at,
-        inviter_name: data.profiles?.full_name || 'Unknown',
-        inviter_email: data.profiles?.email || 'Unknown'
+        id: invitation.id,
+        organization_name: invitation.organization_name,
+        email: invitation.email,
+        role: invitation.role,
+        status: invitation.status,
+        expires_at: invitation.expires_at,
+        inviter_name: invitation.inviter_name,
+        inviter_email: invitation.inviter_email
       });
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading invitation:', err);
       setError('Failed to load invitation details.');
     } finally {

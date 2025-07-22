@@ -14,6 +14,34 @@ import { Database } from '@/integrations/supabase/types';
 import { sendInvitationEmails } from '@/services/invitationEmailService';
 import { toast } from 'sonner';
 
+// Helper functions
+const generateInitials = (firstName: string, lastName: string): string => {
+  const first = (firstName || '').trim();
+  const last = (lastName || '').trim();
+  
+  if (!first && !last) return '?';
+  if (!last) return first.charAt(0).toUpperCase();
+  
+  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+};
+
+const getInitials = (fullName: string): string => {
+  const parts = fullName.trim().split(' ');
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+};
+
+// Domain validation helpers
+const isValidDomain = (domain: string): boolean => {
+  const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/;
+  return domainRegex.test(domain);
+};
+
+const getEmailDomain = (email: string): string => {
+  return email.split('@')[1]?.toLowerCase() || '';
+};
+
 // Enhanced state with granular loading states
 interface EnhancedOrganizationState extends OrganizationState {
   // Granular loading states
@@ -66,25 +94,6 @@ interface OrganizationStore extends EnhancedOrganizationState {
   refreshData: () => Promise<void>;
   checkUserOrganization: () => Promise<void>;
 }
-
-// Helper functions
-const getInitials = (fullName: string): string => {
-  return fullName
-    .split(' ')
-    .map(name => name.charAt(0))
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-};
-
-const getEmailDomain = (email: string): string => {
-  return email.split('@')[1];
-};
-
-const isValidDomain = (domain: string): boolean => {
-  const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/;
-  return domainRegex.test(domain);
-};
 
 // Initial state
 const initialState: EnhancedOrganizationState = {
@@ -291,84 +300,84 @@ export const useOrganizationStore = create<OrganizationStore>()(
 
           const organization = orgDetails[0];
 
-          // For now, create simplified member data to avoid RLS issues
-          // We'll just show the current user as a member
-          const currentMember = {
-            id: user.id,
-            user_id: user.id,
-            organization_id: organization.id,
-            role: 'admin', // Set as admin since you're the organization owner
-            created_at: new Date().toISOString(),
-            profiles: {
-              id: user.id,
-              email: user.email || '',
-              first_name: user.user_metadata?.first_name || '',
-              last_name: user.user_metadata?.last_name || '',
-              avatar_url: user.user_metadata?.avatar_url || null
-            }
-          };
+          // Get organization members using the new safe RPC function
+          const { data: membersData, error: membersError } = await supabase
+            .rpc('get_organization_members_safe', { p_org_id: organization.id });
 
-          // Transform to match our interface
-          const transformedMembers = [{
-            id: currentMember.id,
-            user_id: currentMember.user_id, // Fixed: use user_id instead of userId
-            organization_id: currentMember.organization_id,
-            role: currentMember.role as OrganizationRole,
-            status: 'active' as const,
-            invited_by: null,
-            joined_at: currentMember.created_at,
-            created_at: currentMember.created_at,
-            updated_at: new Date().toISOString(),
-            user: {
-              id: currentMember.profiles.id,
-              email: currentMember.profiles.email,
-              first_name: currentMember.profiles.first_name,
-              last_name: currentMember.profiles.last_name,
-              avatar_url: currentMember.profiles.avatar_url
-            }
-          }];
-
-          // Try to get invitations using safe RPC function
-          let transformedInvitations: any[] = [];
-          try {
-            const { data: invitationsData, error: invError } = await supabase
-              .rpc('get_organization_invitations_safe', { p_org_id: organization.id });
-
-            if (!invError && invitationsData) {
-              transformedInvitations = invitationsData.map(invitation => ({
-                id: invitation.id,
-                organizationId: invitation.organization_id,
-                email: invitation.email,
-                role: invitation.role as OrganizationRole,
-                status: invitation.status || 'pending',
-                invitedBy: invitation.invited_by,
-                expires_at: invitation.expires_at,
-                accepted_at: invitation.accepted_at,
-                created_at: invitation.created_at,
-                updated_at: invitation.updated_at,
-                inviter: invitation.inviter_email ? {
-                  id: invitation.invited_by,
-                  email: invitation.inviter_email,
-                  first_name: invitation.inviter_name?.split(' ')[0] || '',
-                  last_name: invitation.inviter_name?.split(' ').slice(1).join(' ') || ''
-                } : undefined
-              }));
-            }
-          } catch (invError) {
-            // If invitations fail, just log it and continue with empty array
-            console.warn('Failed to load invitations:', invError);
+          if (membersError) {
+            console.warn('Failed to load organization members:', membersError);
           }
 
+          // Transform members data
+          const transformedMembers: OrganizationMember[] = (membersData || []).map(member => ({
+            id: member.id,
+            user_id: member.user_id,
+            organization_id: member.organization_id,
+            role: member.role as OrganizationRole,
+            status: (member.status || 'active') as 'active' | 'inactive',
+            invited_by: member.invited_by,
+            joined_at: member.joined_at || member.created_at,
+            created_at: member.created_at,
+            updated_at: member.updated_at,
+            user: {
+              id: member.user_id,
+              email: member.user_email,
+              first_name: member.user_first_name,
+              last_name: member.user_last_name,
+              avatar_url: member.user_avatar_url || null,
+              initials: generateInitials(member.user_first_name, member.user_last_name)
+            }
+          }));
+
+          // Get organization invitations using the new safe RPC function
+          const { data: invitationsData, error: invitationsError } = await supabase
+            .rpc('get_organization_invitations_safe', { p_org_id: organization.id });
+
+          if (invitationsError) {
+            console.warn('Failed to load organization invitations:', invitationsError);
+          }
+
+          // Transform invitations data
+          const transformedInvitations: OrganizationInvitation[] = (invitationsData || []).map(invitation => ({
+            id: invitation.id,
+            organization_id: invitation.organization_id,
+            email: invitation.email,
+            role: invitation.role as 'admin' | 'user',
+            status: invitation.status as 'pending' | 'accepted' | 'declined' | 'expired',
+            invited_by: invitation.invited_by,
+            expires_at: invitation.expires_at,
+            accepted_at: invitation.accepted_at,
+            created_at: invitation.created_at,
+            updated_at: invitation.updated_at,
+            token: invitation.token,
+            inviter: {
+              id: invitation.invited_by,
+              email: invitation.inviter_email,
+              first_name: invitation.inviter_name.split(' ')[0] || '',
+              last_name: invitation.inviter_name.split(' ').slice(1).join(' ') || ''
+            }
+          }));
+
           set((state) => {
-            state.currentOrganization = organization;
+            state.currentOrganization = {
+              id: organization.id,
+              name: organization.name,
+              domain: organization.domain,
+              plan: organization.plan || 'free',
+              member_count: transformedMembers.length,
+              max_members: organization.max_members || 25,
+              created_at: organization.created_at,
+              updated_at: organization.updated_at
+            };
             state.members = transformedMembers;
             state.invitations = transformedInvitations;
-            state.loadingStates.loadingOrganization = false;
-            state.lastUpdated = new Date().toISOString();
+            state.loading = false;
             state.needsOrganization = false;
+            state.lastUpdated = new Date().toISOString();
+            state.loadingStates.loadingOrganization = false;
           });
 
-        } catch (error) {
+        } catch (error: any) {
           set((state) => {
             state.loadingStates.loadingOrganization = false;
             state.errors.loadOrganization = error.message;
