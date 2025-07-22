@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -21,9 +21,13 @@ interface InvitationDetails {
 
 export const AcceptInvitation: React.FC = () => {
   const { invitationId } = useParams<{ invitationId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { acceptInvitation } = useOrganizationActions();
+  
+  // Get invitation ID from either URL param or query param (token)
+  const effectiveInvitationId = invitationId || searchParams.get('token');
   
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,15 +36,19 @@ export const AcceptInvitation: React.FC = () => {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    if (invitationId) {
+    if (effectiveInvitationId) {
       loadInvitationDetails();
     }
-  }, [invitationId]);
+  }, [effectiveInvitationId]);
 
   const loadInvitationDetails = async () => {
     try {
       setLoading(true);
       setError(null);
+
+      // Determine if we have an ID (from path parameter) or token (from query parameter)
+      const isToken = !!searchParams.get('token');
+      const fieldToQuery = isToken ? 'token' : 'id';
 
       const { data, error: inviteError } = await supabase
         .from('organization_invitations')
@@ -50,6 +58,7 @@ export const AcceptInvitation: React.FC = () => {
           role,
           status,
           expires_at,
+          token,
           organizations:organization_id (
             name
           ),
@@ -58,7 +67,7 @@ export const AcceptInvitation: React.FC = () => {
             email
           )
         `)
-        .eq('id', invitationId)
+        .eq(fieldToQuery, effectiveInvitationId)
         .single();
 
       if (inviteError) {
@@ -119,7 +128,7 @@ export const AcceptInvitation: React.FC = () => {
       setAccepting(true);
       setError(null);
 
-      await acceptInvitation(invitationId!);
+      await acceptInvitation(effectiveInvitationId!);
       setSuccess(true);
 
       // Redirect to dashboard after a short delay

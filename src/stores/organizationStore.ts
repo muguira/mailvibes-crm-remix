@@ -482,7 +482,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
             toast.warn('Invitations created successfully, but emails could not be sent. Please share the invitation links manually.');
           }
 
-          toast.success(`Successfully invited ${formData.emails.length} user${formData.emails.length === 1 ? '' : 's'}!`);
+          // Don't show toast here - let the UI component handle the success message to avoid duplicates
 
         } catch (error) {
           set((state) => {
