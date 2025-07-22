@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { TimelineActivity } from '@/hooks/use-timeline-activities';
 import EmailRenderer from '@/components/timeline/EmailRenderer';
 import { TiptapEditor, MarkdownToolbar } from '@/components/markdown';
-import TiptapEditorWithAI from '@/components/markdown/TiptapEditorWithAI';
+// import TiptapEditorWithAI from '@/components/markdown/TiptapEditorWithAI'; // ✅ TEMPORARILY DISABLED for performance testing
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTimelineViewport } from '@/hooks/useTimelineViewport';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -1094,66 +1094,59 @@ const TimelineItem = React.memo(function TimelineItem({
         {/* Activity content */}
         {activityProps.displayContent && (
           <div className={cn("mb-3", isMobile ? "pl-5" : "pl-7")}>
-            {isEditing ? (
-              /* Edit mode */
-              <div className="space-y-3">
+            {isEditing && (
+              <div className="mt-4">
                 <TiptapEditor
                   value={editContent}
                   onChange={setEditContent}
                   placeholder="Edit your note..."
-                  minHeight={isMobile ? "80px" : "100px"}
+                  className="bg-white"
+                  minHeight="80px"
                   showToolbar={false}
                   externalToolbar={true}
-                  isCompact={isMobile}
-                  autoFocus={true}
-                  onEditorReady={(editor) => setEditor(editor)}
+                  onEditorReady={setEditor}
+                  disabled={showDeleteConfirm}
                 />
-                {/* Responsive layout: Toolbar + Action Buttons */}
-                <div className="border-t border-gray-100 pt-3">
-                  {/* Toolbar - responsive wrapper */}
-                  <div className={cn(
-                    "mb-3 transition-all duration-300 ease-in-out overflow-x-auto scrollbar-hide"
-                  )}>
-                    <MarkdownToolbar
-                      editor={editor}
-                      onFormat={handleFormat}
-                      onLinkRequest={handleLinkRequest}
-                      onCodeBlockRequest={handleCodeBlockRequest}
-                      isCompact={isMobile}
-                      className={cn(
-                        "transition-all duration-300 ease-in-out min-w-max",
-                        isMobile ? "p-1" : "p-0"
-                      )}
-                    />
-                  </div>
-                  
-                  {/* Action Buttons - Responsive layout */}
-                  <div className={cn(
-                    "flex gap-2",
-                    isMobile ? "justify-center" : "justify-end"
-                  )}>
-                    <button
-                      onClick={handleSaveEdit}
-                      className={cn(
-                        "bg-teal-600 text-white text-sm rounded-md hover:bg-teal-700 transition-colors",
-                        isMobile ? "px-4 py-2 flex-1 max-w-[120px]" : "px-3 py-1.5"
-                      )}
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={handleCancelEdit}
-                      className={cn(
-                        "bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300 transition-colors",
-                        isMobile ? "px-4 py-2 flex-1 max-w-[120px]" : "px-3 py-1.5"
-                      )}
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                {/* Toolbar outside the editor */}
+                <div className="mt-2 border-t pt-2">
+                  <MarkdownToolbar
+                    editor={editor}
+                    onFormat={handleFormat}
+                    onLinkRequest={handleLinkRequest}
+                    onCodeBlockRequest={handleCodeBlockRequest}
+                    isCompact={isMobile}
+                    className="flex flex-wrap gap-1"
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className={cn(
+                  "flex gap-2 mt-3",
+                  isMobile ? "justify-center" : "justify-end"
+                )}>
+                  <button
+                    onClick={handleSaveEdit}
+                    className={cn(
+                      "bg-teal-600 text-white text-sm rounded-md hover:bg-teal-700 transition-colors",
+                      isMobile ? "px-4 py-2 flex-1 max-w-[120px]" : "px-3 py-1.5"
+                    )}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className={cn(
+                      "bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300 transition-colors",
+                      isMobile ? "px-4 py-2 flex-1 max-w-[120px]" : "px-3 py-1.5"
+                    )}
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {!isEditing && (
               /* Display mode with expandable content */
               <div className="relative">
                 <div 
@@ -1218,8 +1211,6 @@ const TimelineItem = React.memo(function TimelineItem({
                     className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none transition-opacity duration-300"
                   />
                 )}
-                
-
               </div>
             )}
           </div>
@@ -1237,7 +1228,7 @@ const TimelineItem = React.memo(function TimelineItem({
                 }
               </div>
               
-              <TiptapEditorWithAI
+              <TiptapEditor
                 value={replyContent}
                 onChange={setReplyContent}
                 placeholder={`Reply to ${
@@ -1248,17 +1239,8 @@ const TimelineItem = React.memo(function TimelineItem({
                 minHeight={isMobile ? "80px" : "100px"}
                 showToolbar={false}
                 externalToolbar={true}
-                isCompact={isMobile}
                 autoFocus={true}
                 onEditorReady={(editor) => setReplyEditor(editor)}
-                enableAIAutocompletion={true}
-                originalEmail={isEmailThread ? (activity.latestEmail || activity) : activity}
-                conversationHistory={isEmailThread ? emailsInThread : []}
-                contactInfo={{
-                  id: activity.id,
-                  name: contactName || activity.from?.name || 'Contact',
-                  email: activity.from?.email || 'unknown@example.com'
-                }}
               />
               
               {/* AI Reply Buttons */}

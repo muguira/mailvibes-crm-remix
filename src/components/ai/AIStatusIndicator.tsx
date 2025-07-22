@@ -1,141 +1,102 @@
 import React from 'react';
-import { useEmailAI } from '@/hooks/useEmailAI';
-import { AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+// import { useEmailAI } from '@/hooks/useEmailAI'; // ✅ DISABLED for performance testing
+import { Sparkles, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AIStatusIndicatorProps {
   className?: string;
-  showDetails?: boolean;
+  showLabel?: boolean;
+  variant?: 'default' | 'minimal';
 }
 
 export const AIStatusIndicator: React.FC<AIStatusIndicatorProps> = ({
   className,
-  showDetails = false
+  showLabel = true,
+  variant = 'default'
 }) => {
-  const { 
-    isConfigured, 
-    provider, 
-    initializationError,
-    validateConnection
-  } = useEmailAI();
+  // ✅ DISABLED: Temporarily remove useEmailAI to eliminate performance bottleneck
+  // const {
+  //   isLoading,
+  //   isConfigured,
+  //   initializationError,
+  //   provider
+  // } = useEmailAI();
 
-  const [connectionStatus, setConnectionStatus] = React.useState<'unknown' | 'checking' | 'connected' | 'failed'>('unknown');
+  // Mock disabled state
+  const isLoading = false;
+  const isConfigured = false;
+  const initializationError = { message: 'AI temporarily disabled for performance testing' };
+  const provider = { name: 'disabled' };
 
-  const checkConnection = React.useCallback(async () => {
-    setConnectionStatus('checking');
-    try {
-      const isConnected = await validateConnection();
-      setConnectionStatus(isConnected ? 'connected' : 'failed');
-    } catch (error) {
-      setConnectionStatus('failed');
+  const getStatus = () => {
+    if (isLoading) {
+      return {
+        icon: Loader2,
+        label: 'Initializing AI...',
+        color: 'text-blue-500',
+        bgColor: 'bg-blue-50',
+        borderColor: 'border-blue-200',
+        animate: 'animate-spin'
+      };
     }
-  }, [validateConnection]);
 
-  const getStatusIcon = () => {
     if (initializationError) {
-      return <XCircle className="w-4 h-4 text-red-500" />;
-    }
-    
-    if (!isConfigured) {
-      return <AlertCircle className="w-4 h-4 text-yellow-500" />;
+      return {
+        icon: AlertCircle,
+        label: `AI Disabled: ${initializationError.message}`,
+        color: 'text-red-500',
+        bgColor: 'bg-red-50',
+        borderColor: 'border-red-200'
+      };
     }
 
-    switch (connectionStatus) {
-      case 'checking':
-        return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
-      case 'connected':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'failed':
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <AlertCircle className="w-4 h-4 text-gray-400" />;
+    if (isConfigured) {
+      return {
+        icon: CheckCircle,
+        label: `AI Ready (${provider.name})`,
+        color: 'text-green-500',
+        bgColor: 'bg-green-50',
+        borderColor: 'border-green-200'
+      };
     }
+
+    return {
+      icon: AlertCircle,
+      label: 'AI Not Configured',
+      color: 'text-yellow-500',
+      bgColor: 'bg-yellow-50',
+      borderColor: 'border-yellow-200'
+    };
   };
 
-  const getStatusText = () => {
-    if (initializationError) {
-      return 'AI initialization failed';
-    }
-    
-    if (!isConfigured) {
-      return 'AI not configured';
-    }
+  const status = getStatus();
+  const Icon = status.icon;
 
-    switch (connectionStatus) {
-      case 'checking':
-        return 'Checking connection...';
-      case 'connected':
-        return `AI ready (${provider.name})`;
-      case 'failed':
-        return 'Connection failed';
-      default:
-        return `AI configured (${provider.name})`;
-    }
-  };
-
-  const getStatusColor = () => {
-    if (initializationError) return 'text-red-600';
-    if (!isConfigured) return 'text-yellow-600';
-    
-    switch (connectionStatus) {
-      case 'connected':
-        return 'text-green-600';
-      case 'failed':
-        return 'text-red-600';
-      case 'checking':
-        return 'text-blue-600';
-      default:
-        return 'text-gray-600';
-    }
-  };
-
-  if (!showDetails) {
+  if (variant === 'minimal') {
     return (
-      <div className={cn("flex items-center gap-1", className)}>
-        {getStatusIcon()}
-        {connectionStatus === 'unknown' && isConfigured && (
-          <button 
-            onClick={checkConnection}
-            className="text-xs text-gray-500 hover:text-gray-700"
-          >
-            Test
-          </button>
+      <div className={cn('flex items-center gap-1', className)}>
+        <Icon 
+          className={cn('h-3 w-3', status.color, status.animate)} 
+        />
+        {showLabel && (
+          <span className={cn('text-xs', status.color)}>
+            {status.label}
+          </span>
         )}
       </div>
     );
   }
 
   return (
-    <div className={cn("space-y-2", className)}>
-      <div className="flex items-center gap-2">
-        {getStatusIcon()}
-        <span className={cn("text-sm font-medium", getStatusColor())}>
-          {getStatusText()}
-        </span>
-        {connectionStatus === 'unknown' && isConfigured && (
-          <button 
-            onClick={checkConnection}
-            className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
-          >
-            Test Connection
-          </button>
-        )}
-      </div>
-
-      {showDetails && (
-        <div className="text-xs text-gray-500 space-y-1">
-          <div>Provider: {provider.name}</div>
-          <div>Configured: {isConfigured ? 'Yes' : 'No'}</div>
-          {provider.supportedModels.length > 0 && (
-            <div>Models: {provider.supportedModels.join(', ')}</div>
-          )}
-          {initializationError && (
-            <div className="text-red-600 mt-1">
-              Error: {initializationError.message}
-            </div>
-          )}
-        </div>
-      )}
+    <div className={cn(
+      'inline-flex items-center gap-2 px-2 py-1 rounded-md border text-xs font-medium',
+      status.bgColor,
+      status.borderColor,
+      status.color,
+      className
+    )}>
+      <Icon className={cn('h-3 w-3', status.animate)} />
+      {showLabel && <span>{status.label}</span>}
     </div>
   );
 }; 

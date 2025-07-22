@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, ThumbsUp, ThumbsDown, MessageSquare, Send, Sparkles } from 'lucide-react';
-import { useEmailAI } from '@/hooks/useEmailAI';
+// import { useEmailAI } from '@/hooks/useEmailAI'; // ✅ DISABLED for performance testing
 import { TimelineActivity } from '@/hooks/use-timeline-activities-v2';
 import { ContactInfo } from '@/services/ai';
 import { cn } from '@/lib/utils';
@@ -30,62 +30,85 @@ export const AIReplyButtons: React.FC<AIReplyButtonsProps> = ({
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
   
-  const { 
-    generatePositiveReply, 
-    generateNegativeReply, 
-    generateCustomReply,
-    reply,
-    isConfigured 
-  } = useEmailAI({
-    showToasts: false // We'll handle toasts manually
-  });
+  // ✅ DISABLED: Temporarily remove useEmailAI to eliminate performance bottleneck
+  // const { 
+  //   generatePositiveReply, 
+  //   generateNegativeReply, 
+  //   generateCustomReply,
+  //   reply,
+  //   isConfigured 
+  // } = useEmailAI({
+  //   showToasts: false // We'll handle toasts manually
+  // });
+
+  // Mock disabled state for now
+  const isConfigured = false;
+  const reply = { loading: false, error: null };
 
   const handlePositiveReply = async () => {
-    if (!isConfigured) {
-      toast({
-        title: "AI not configured",
-        description: "Please configure your AI provider to use this feature.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // ✅ DISABLED: All AI reply generation temporarily disabled
+    toast({
+      title: 'AI Reply Generation Disabled',
+      description: 'AI features are temporarily disabled for performance testing',
+      variant: 'default'
+    });
+    return;
 
-    try {
-      const result = await generatePositiveReply(originalEmail, conversationHistory, contactInfo);
-      if (result) {
-        onReplyGenerated(result);
-        toast({
-          title: "Positive reply generated!",
-          description: "AI has generated a positive response.",
-        });
-      }
-    } catch (error) {
-      console.error('Failed to generate positive reply:', error);
-    }
+    // Original implementation commented out
+    // if (!isConfigured) {
+    //   toast({
+    //     title: "AI not configured",
+    //     description: "Please configure your AI provider to use this feature.",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
+
+    // try {
+    //   const result = await generatePositiveReply(originalEmail, conversationHistory, contactInfo);
+    //   if (result) {
+    //     onReplyGenerated(result);
+    //     toast({
+    //       title: "Positive reply generated!",
+    //       description: "AI has generated a positive response.",
+    //     });
+    //   }
+    // } catch (error) {
+    //   console.error('Failed to generate positive reply:', error);
+    // }
   };
 
   const handleNegativeReply = async () => {
-    if (!isConfigured) {
-      toast({
-        title: "AI not configured",
-        description: "Please configure your AI provider to use this feature.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // ✅ DISABLED: All AI reply generation temporarily disabled
+    toast({
+      title: 'AI Reply Generation Disabled',
+      description: 'AI features are temporarily disabled for performance testing',
+      variant: 'default'
+    });
+    return;
 
-    try {
-      const result = await generateNegativeReply(originalEmail, conversationHistory, contactInfo);
-      if (result) {
-        onReplyGenerated(result);
-        toast({
-          title: "Negative reply generated!",
-          description: "AI has generated a polite negative response.",
-        });
-      }
-    } catch (error) {
-      console.error('Failed to generate negative reply:', error);
-    }
+    // Original implementation commented out
+    // if (!isConfigured) {
+    //   toast({
+    //     title: "AI not configured",
+    //     description: "Please configure your AI provider to use this feature.",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
+
+    // try {
+    //   const result = await generateNegativeReply(originalEmail, conversationHistory, contactInfo);
+    //   if (result) {
+    //     onReplyGenerated(result);
+    //     toast({
+    //       title: "Negative reply generated!",
+    //       description: "AI has generated a polite negative response.",
+    //     });
+    //   }
+    // } catch (error) {
+    //   console.error('Failed to generate negative reply:', error);
+    // }
   };
 
   const handleCustomReply = async () => {
@@ -98,29 +121,38 @@ export const AIReplyButtons: React.FC<AIReplyButtonsProps> = ({
       return;
     }
 
-    if (!isConfigured) {
-      toast({
-        title: "AI not configured",
-        description: "Please configure your AI provider to use this feature.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // ✅ DISABLED: All AI reply generation temporarily disabled
+    toast({
+      title: 'AI Reply Generation Disabled',
+      description: 'AI features are temporarily disabled for performance testing',
+      variant: 'default'
+    });
+    return;
 
-    try {
-      const result = await generateCustomReply(originalEmail, conversationHistory, contactInfo, customPrompt);
-      if (result) {
-        onReplyGenerated(result);
-        setIsCustomModalOpen(false);
-        setCustomPrompt('');
-        toast({
-          title: "Custom reply generated!",
-          description: "AI has generated a response based on your prompt.",
-        });
-      }
-    } catch (error) {
-      console.error('Failed to generate custom reply:', error);
-    }
+    // Original implementation commented out
+    // if (!isConfigured) {
+    //   toast({
+    //     title: "AI not configured",
+    //     description: "Please configure your AI provider to use this feature.",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
+
+    // try {
+    //   const result = await generateCustomReply(originalEmail, conversationHistory, contactInfo, customPrompt);
+    //   if (result) {
+    //     onReplyGenerated(result);
+    //     setIsCustomModalOpen(false);
+    //     setCustomPrompt('');
+    //     toast({
+    //       title: "Custom reply generated!",
+    //       description: "AI has generated a response based on your prompt.",
+    //     });
+    //   }
+    // } catch (error) {
+    //   console.error('Failed to generate custom reply:', error);
+    // }
   };
 
   const isGenerating = reply.loading;

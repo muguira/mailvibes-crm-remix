@@ -1,10 +1,16 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { EmailAIRepository } from '@/services/ai/repositories/EmailAIRepository'
-import { ContactInfo, AIResponse, EmailAIOptions } from '@/services/ai'
-import { AIError } from '@/services/ai/providers/base/types'
-import { TimelineActivity } from '@/hooks/use-timeline-activities-v2'
-import { logger } from '@/utils/logger'
+import {
+  AIError,
+  EmailThreadContext,
+  EmailReplyContext,
+  AutocompleteContext,
+  AIOptions,
+} from '@/services/ai/providers/base/types'
+import { ContactInfo, EmailAIOptions } from '@/services/ai/index'
+import { TimelineActivity } from './use-timeline-activities-v2'
 import { toast } from '@/hooks/use-toast'
+import { logger } from '@/utils/logger'
 
 interface UseEmailAIOptions extends EmailAIOptions {
   showToasts?: boolean
@@ -21,223 +27,51 @@ interface AIOperationState<T> {
 }
 
 export const useEmailAI = (options: UseEmailAIOptions = {}) => {
-  // Repository instance - stable across re-renders
+  // ✅ PERFORMANCE: TEMPORARILY DISABLED to eliminate AI Provider initialization during performance testing
   const repositoryRef = useRef<EmailAIRepository | null>(null)
   const [initError, setInitError] = useState<AIError | null>(null)
+  const [isInitialized, setIsInitialized] = useState(true) // ✅ Mark as initialized to prevent any initialization
 
-  // Safely initialize repository
-  if (!repositoryRef.current && !initError) {
-    try {
-      repositoryRef.current = new EmailAIRepository(options.defaultProvider, options)
-    } catch (error) {
-      logger.error('[useEmailAI] Failed to initialize repository:', error)
-      const aiError =
-        error instanceof AIError
-          ? error
-          : new AIError(`Failed to initialize AI: ${error.message}`, 'INITIALIZATION_FAILED')
-      setInitError(aiError)
-    }
-  }
+  // ✅ DISABLED: No AI initialization during performance testing
+  // useEffect(() => {
+  //   // AI initialization is temporarily disabled
+  // }, [])
 
-  // State for different AI operations
-  const [summaryState, setSummaryState] = useState<AIOperationState<string>>({
-    data: null,
-    loading: false,
-    error: null,
-    fromCache: false,
-    provider: '',
-  })
+  // ✅ DISABLED: Remove development logging to reduce console spam
+  // if (process.env.NODE_ENV === 'development') {
+  //   console.log('[useEmailAI] AI Provider initialization DISABLED for performance testing')
+  // }
 
-  const [replyState, setReplyState] = useState<AIOperationState<string>>({
-    data: null,
-    loading: false,
-    error: null,
-    fromCache: false,
-    provider: '',
-  })
-
-  const [autocompleteState, setAutocompleteState] = useState<AIOperationState<string>>({
-    data: null,
-    loading: false,
-    error: null,
-    fromCache: false,
-    provider: '',
-  })
-
-  // Global loading state for any AI operation
-  const [isAnyLoading, setIsAnyLoading] = useState(false)
-
-  // Provider information
-  const [providerInfo, setProviderInfo] = useState(
-    () =>
-      repositoryRef.current?.getCurrentProvider() || {
-        name: 'unknown',
-        isConfigured: false,
-        rateLimitInfo: null,
-        supportedModels: [],
-      },
-  )
-
-  // Update global loading state
-  useEffect(() => {
-    const anyLoading = summaryState.loading || replyState.loading || autocompleteState.loading
-    setIsAnyLoading(anyLoading)
-  }, [summaryState.loading, replyState.loading, autocompleteState.loading])
-
-  // Helper function to handle AI operations with error handling and retries
-  const executeAIOperation = useCallback(
-    async <T>(
-      operation: () => Promise<AIResponse<T>>,
-      setState: React.Dispatch<React.SetStateAction<AIOperationState<T>>>,
-      operationName: string,
-      showToast = options.showToasts !== false,
-    ): Promise<T | null> => {
-      let retries = 0
-      const maxRetries = options.maxRetries || 1
-
-      while (retries <= maxRetries) {
-        try {
-          setState(prev => ({ ...prev, loading: true, error: null }))
-
-          const result = await operation()
-
-          setState({
-            data: result.data,
-            loading: false,
-            error: null,
-            fromCache: result.fromCache,
-            provider: result.provider,
-          })
-
-          // Update provider info
-          if (repositoryRef.current) {
-            setProviderInfo(repositoryRef.current.getCurrentProvider())
-          }
-
-          if (showToast && !result.fromCache) {
-            toast({
-              title: `${operationName} completed`,
-              description: `AI response generated successfully`,
-            })
-          }
-
-          logger.log(`[useEmailAI] ${operationName} successful:`, {
-            fromCache: result.fromCache,
-            provider: result.provider,
-            retries,
-          })
-
-          return result.data
-        } catch (error) {
-          logger.error(`[useEmailAI] ${operationName} failed (attempt ${retries + 1}):`, error)
-
-          const aiError =
-            error instanceof AIError ? error : new AIError(`${operationName} failed: ${error.message}`, 'UNKNOWN_ERROR')
-
-          // Check if we should retry
-          const shouldRetry =
-            options.autoRetry !== false &&
-            retries < maxRetries &&
-            (aiError.code === 'TIMEOUT' || aiError.code === 'RATE_LIMIT_EXCEEDED')
-
-          if (shouldRetry) {
-            retries++
-
-            // Wait before retry (exponential backoff)
-            const delay = Math.min(1000 * Math.pow(2, retries - 1), 5000)
-            await new Promise(resolve => setTimeout(resolve, delay))
-
-            logger.log(`[useEmailAI] Retrying ${operationName} in ${delay}ms (attempt ${retries + 1})`)
-            continue
-          }
-
-          // Final failure
-          setState(prev => ({
-            ...prev,
-            loading: false,
-            error: aiError,
-          }))
-
-          if (showToast) {
-            toast({
-              title: `${operationName} failed`,
-              description: aiError.message,
-              variant: 'destructive',
-            })
-          }
-
-          return null
-        }
-      }
-
-      return null
-    },
-    [options.showToasts, options.autoRetry, options.maxRetries],
-  )
-
-  // Summarize email thread
+  // Return AI functions that do nothing but maintain expected interface
   const summarizeThread = useCallback(
     async (emails: TimelineActivity[], contactInfo: ContactInfo): Promise<string | null> => {
-      if (initError) {
-        logger.error('[useEmailAI] Cannot summarize - initialization failed:', initError)
-        setSummaryState(prev => ({ ...prev, error: initError, loading: false }))
-        return null
-      }
-
-      if (!repositoryRef.current) {
-        throw new Error('AI repository not initialized')
-      }
-
-      return executeAIOperation(
-        () => repositoryRef.current!.summarizeEmailThread(emails, contactInfo),
-        setSummaryState,
-        'Email thread summary',
-      )
+      return 'AI temporarily disabled for performance testing'
     },
-    [executeAIOperation, initError],
+    [],
   )
 
-  // Generate positive reply
   const generatePositiveReply = useCallback(
     async (
       originalEmail: TimelineActivity,
       conversationHistory: TimelineActivity[],
       contactInfo: ContactInfo,
     ): Promise<string | null> => {
-      if (!repositoryRef.current) {
-        throw new Error('AI repository not initialized')
-      }
-
-      return executeAIOperation(
-        () => repositoryRef.current!.generatePositiveReply(originalEmail, conversationHistory, contactInfo),
-        setReplyState,
-        'Positive reply generation',
-      )
+      return 'AI temporarily disabled for performance testing'
     },
-    [executeAIOperation],
+    [],
   )
 
-  // Generate negative reply
   const generateNegativeReply = useCallback(
     async (
       originalEmail: TimelineActivity,
       conversationHistory: TimelineActivity[],
       contactInfo: ContactInfo,
     ): Promise<string | null> => {
-      if (!repositoryRef.current) {
-        throw new Error('AI repository not initialized')
-      }
-
-      return executeAIOperation(
-        () => repositoryRef.current!.generateNegativeReply(originalEmail, conversationHistory, contactInfo),
-        setReplyState,
-        'Negative reply generation',
-      )
+      return 'AI temporarily disabled for performance testing'
     },
-    [executeAIOperation],
+    [],
   )
 
-  // Generate custom reply
   const generateCustomReply = useCallback(
     async (
       originalEmail: TimelineActivity,
@@ -245,20 +79,11 @@ export const useEmailAI = (options: UseEmailAIOptions = {}) => {
       contactInfo: ContactInfo,
       customPrompt: string,
     ): Promise<string | null> => {
-      if (!repositoryRef.current) {
-        throw new Error('AI repository not initialized')
-      }
-
-      return executeAIOperation(
-        () => repositoryRef.current!.generateCustomReply(originalEmail, conversationHistory, contactInfo, customPrompt),
-        setReplyState,
-        'Custom reply generation',
-      )
+      return 'AI temporarily disabled for performance testing'
     },
-    [executeAIOperation],
+    [],
   )
 
-  // Get autocompletion
   const getAutocompletion = useCallback(
     async (
       partialText: string,
@@ -267,159 +92,36 @@ export const useEmailAI = (options: UseEmailAIOptions = {}) => {
       conversationHistory: TimelineActivity[],
       contactInfo: ContactInfo,
     ): Promise<string | null> => {
-      if (!repositoryRef.current) {
-        throw new Error('AI repository not initialized')
-      }
-
-      return executeAIOperation(
-        () =>
-          repositoryRef.current!.getAutocompletion(
-            partialText,
-            cursorPosition,
-            emailBeingReplied,
-            conversationHistory,
-            contactInfo,
-          ),
-        setAutocompleteState,
-        'Autocompletion',
-        false, // Don't show toast for autocompletion
-      )
+      return ''
     },
-    [executeAIOperation],
+    [],
   )
 
-  // Switch AI provider
-  const switchProvider = useCallback(
-    (providerName: string) => {
-      if (!repositoryRef.current) {
-        throw new Error('AI repository not initialized')
-      }
+  // Mock state objects with expected structure
+  const mockState = {
+    data: null,
+    loading: false,
+    error: null,
+    fromCache: false,
+    provider: 'disabled',
+  }
 
-      try {
-        repositoryRef.current.switchProvider(providerName)
-        setProviderInfo(repositoryRef.current.getCurrentProvider())
+  const mockProviderInfo = {
+    name: 'disabled',
+    isConfigured: false,
+    rateLimitInfo: null,
+    supportedModels: [],
+  }
 
-        if (options.showToasts !== false) {
-          toast({
-            title: 'AI Provider switched',
-            description: `Now using ${providerName}`,
-          })
-        }
-
-        logger.log(`[useEmailAI] Switched to provider: ${providerName}`)
-      } catch (error) {
-        logger.error(`[useEmailAI] Failed to switch provider:`, error)
-
-        if (options.showToasts !== false) {
-          toast({
-            title: 'Provider switch failed',
-            description: error.message,
-            variant: 'destructive',
-          })
-        }
-      }
-    },
-    [options.showToasts],
-  )
-
-  // Clear specific operation state
-  const clearSummary = useCallback(() => {
-    setSummaryState({
-      data: null,
-      loading: false,
-      error: null,
-      fromCache: false,
-      provider: '',
-    })
-  }, [])
-
-  const clearReply = useCallback(() => {
-    setReplyState({
-      data: null,
-      loading: false,
-      error: null,
-      fromCache: false,
-      provider: '',
-    })
-  }, [])
-
-  const clearAutocompletion = useCallback(() => {
-    setAutocompleteState({
-      data: null,
-      loading: false,
-      error: null,
-      fromCache: false,
-      provider: '',
-    })
-  }, [])
-
-  // Clear all states
-  const clearAll = useCallback(() => {
-    clearSummary()
-    clearReply()
-    clearAutocompletion()
-  }, [clearSummary, clearReply, clearAutocompletion])
-
-  // Validate AI connection
-  const validateConnection = useCallback(async (): Promise<boolean> => {
-    if (!repositoryRef.current) {
-      return false
-    }
-
-    try {
-      const isValid = await repositoryRef.current.validateConnection()
-
-      if (options.showToasts !== false) {
-        toast({
-          title: isValid ? 'AI connection valid' : 'AI connection failed',
-          description: isValid
-            ? `Successfully connected to ${providerInfo.name}`
-            : `Cannot connect to ${providerInfo.name}`,
-          variant: isValid ? 'default' : 'destructive',
-        })
-      }
-
-      return isValid
-    } catch (error) {
-      logger.error('[useEmailAI] Connection validation failed:', error)
-      return false
-    }
-  }, [options.showToasts, providerInfo.name])
-
-  // Get repository statistics
-  const getStats = useCallback(() => {
-    if (!repositoryRef.current) {
-      return null
-    }
-
-    return repositoryRef.current.getStats()
-  }, [])
-
-  // Clear cache
-  const clearCache = useCallback(() => {
-    if (!repositoryRef.current) {
-      return
-    }
-
-    repositoryRef.current.clearCache()
-
-    if (options.showToasts !== false) {
-      toast({
-        title: 'AI cache cleared',
-        description: 'All cached AI responses have been cleared',
-      })
-    }
-  }, [options.showToasts])
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (repositoryRef.current) {
-        repositoryRef.current.dispose()
-        repositoryRef.current = null
-      }
-    }
-  }, [])
+  // No-op functions
+  const switchProvider = useCallback(() => {}, [])
+  const clearSummary = useCallback(() => {}, [])
+  const clearReply = useCallback(() => {}, [])
+  const clearAutocompletion = useCallback(() => {}, [])
+  const clearAll = useCallback(() => {}, [])
+  const clearCache = useCallback(() => {}, [])
+  const validateConnection = useCallback(async () => false, [])
+  const getStats = useCallback(() => null, [])
 
   return {
     // Core AI operations
@@ -429,17 +131,17 @@ export const useEmailAI = (options: UseEmailAIOptions = {}) => {
     generateCustomReply,
     getAutocompletion,
 
-    // State for each operation
-    summary: summaryState,
-    reply: replyState,
-    autocompletion: autocompleteState,
+    // State for each operation - MAINTAIN EXPECTED STRUCTURE
+    summary: mockState,
+    reply: mockState,
+    autocompletion: mockState,
 
     // Global state
-    isLoading: isAnyLoading,
-    initializationError: initError,
+    isLoading: false,
+    initializationError: null,
 
     // Provider management
-    provider: providerInfo,
+    provider: mockProviderInfo,
     switchProvider,
     validateConnection,
 
@@ -452,7 +154,7 @@ export const useEmailAI = (options: UseEmailAIOptions = {}) => {
     getStats,
 
     // Helper functions for components
-    isConfigured: !initError && providerInfo.isConfigured,
-    supportedModels: providerInfo.supportedModels,
+    isConfigured: false, // AI is disabled
+    supportedModels: [],
   }
 }

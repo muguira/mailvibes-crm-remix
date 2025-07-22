@@ -21,10 +21,16 @@ interface StreamTimelineProps {
   contactName?: string;
 }
 
-// ✅ PERFORMANCE: Custom hook for throttled scroll handling
+// ✅ PERFORMANCE: Custom hook for throttled scroll handling - FIXED to prevent recreation
 const useThrottledScroll = (callback: (...args: any[]) => void, delay: number = 16) => {
   const timeoutRef = useRef<number | null>(null);
   const lastExecRef = useRef<number>(0);
+  const callbackRef = useRef(callback);
+  
+  // ✅ FIX: Keep callback reference stable
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
   
   return useCallback((...args: any[]) => {
     const now = Date.now();
@@ -32,7 +38,7 @@ const useThrottledScroll = (callback: (...args: any[]) => void, delay: number = 
     // If enough time has passed since last execution, execute immediately
     if (now - lastExecRef.current >= delay) {
       lastExecRef.current = now;
-      callback(...args);
+      callbackRef.current(...args);
       return;
     }
     
@@ -43,13 +49,13 @@ const useThrottledScroll = (callback: (...args: any[]) => void, delay: number = 
     
     timeoutRef.current = requestAnimationFrame(() => {
       lastExecRef.current = Date.now();
-      callback(...args);
+      callbackRef.current(...args);
       timeoutRef.current = null;
     });
-  }, [callback, delay]);
+  }, [delay]); // ✅ FIX: Remove callback from dependencies
 };
 
-// ✅ PERFORMANCE: Debounced infinite scroll to prevent multiple triggers
+// ✅ PERFORMANCE: Debounced infinite scroll to prevent multiple triggers - FIXED dependencies
 const useDebouncedInfiniteScroll = (
   loadMoreEmails: () => Promise<void>,
   hasMoreEmails: boolean,
@@ -58,6 +64,12 @@ const useDebouncedInfiniteScroll = (
 ) => {
   const lastTriggerRef = useRef<number>(0);
   const triggerCooldown = 1000; // 1 second cooldown between triggers
+  const loadMoreRef = useRef(loadMoreEmails);
+  
+  // ✅ FIX: Keep function reference stable
+  useEffect(() => {
+    loadMoreRef.current = loadMoreEmails;
+  }, [loadMoreEmails]);
   
   return useCallback(() => {
     const now = Date.now();
@@ -75,12 +87,12 @@ const useDebouncedInfiniteScroll = (
         console.log('📜 Near bottom, loading more emails...');
       }
       
-      loadMoreEmails();
+      loadMoreRef.current();
       return true;
     }
     
     return false;
-  }, [loadMoreEmails, hasMoreEmails, loadingMore, threshold]);
+  }, [hasMoreEmails, loadingMore]); // ✅ FIX: Stable dependencies only
 };
 
 export function StreamTimeline({ contactId, contactEmail, contactName }: StreamTimelineProps) {
@@ -88,53 +100,72 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
   const { user } = useAuth();
   const [isCompact, setIsCompact] = useState(false);
 
-  // ✅ PERFORMANCE: Only log in development mode
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🔍 [StreamTimeline] Component initialized with:', {
-      contactId,
-      contactEmail,
-      contactName,
-      propsReceived: { contactId, contactEmail, contactName }
-    });
-  }
+  // ✅ PERFORMANCE: Aggressive throttling to prevent excessive renders
+  const lastRenderTime = useRef<number>(0);
+  const renderThrottleMs = 500; // Minimum 500ms between renders
+  const [throttledProps, setThrottledProps] = useState({ contactId, contactEmail, contactName });
+  
+  // ✅ PERFORMANCE: Only update props if enough time has passed or if contact changed
+  useEffect(() => {
+    const now = Date.now();
+    const timeSinceLastRender = now - lastRenderTime.current;
+    
+    // Always update if contact changed, otherwise throttle
+    const contactChanged = throttledProps.contactId !== contactId || throttledProps.contactEmail !== contactEmail;
+    
+    if (contactChanged || timeSinceLastRender >= renderThrottleMs) {
+      lastRenderTime.current = now;
+      setThrottledProps({ contactId, contactEmail, contactName });
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 [StreamTimeline] Props updated:', {
+          contactChanged,
+          timeSinceLastRender,
+          newProps: { contactId, contactEmail, contactName }
+        });
+      }
+    }
+  }, [contactId, contactEmail, contactName, throttledProps]);
 
+  // ✅ PERFORMANCE: Use throttled props instead of direct props
   const {
     activities,
     loading,
-    loadingMore,
     error,
+    loadMoreEmails,
+    hasMoreEmails,
+    loadingMore,
+    refreshEmails,
+    syncEmailHistory,
     emailsCount,
     internalCount,
-    hasMoreEmails,
     syncStatus,
     oldestEmailDate,
-    loadMoreEmails,
-    syncEmailHistory,
-    refreshEmails,
   } = useTimelineActivitiesV2({
-    contactId,
-    contactEmail,
+    contactId: throttledProps.contactId,
+    contactEmail: throttledProps.contactEmail,
     includeEmails: true,
     autoInitialize: true,
   });
 
-  // ✅ PERFORMANCE: Only log in development mode
-  if (process.env.NODE_ENV === 'development') {
+  // ✅ PERFORMANCE: Only log once per contact or significant changes
+  const logOnceRef = useRef<Set<string>>(new Set());
+  const debugLogKey = `${throttledProps.contactId}-${activities.length}`;
+  
+  if (process.env.NODE_ENV === 'development' && !logOnceRef.current.has(debugLogKey)) {
     console.log('🔍 [StreamTimeline] useTimelineActivitiesV2 results:', {
       activitiesCount: activities.length,
       emailsCount,
       internalCount,
       loading,
       error,
-      syncStatus,
       hasMoreEmails,
-      firstThreeActivities: activities.slice(0, 3).map(activity => ({
-        id: activity.id,
-        type: activity.type,
-        source: activity.source,
-        subject: activity.subject || 'N/A'
-      }))
+      loadingMore,
+      syncStatus,
+      throttledContactId: throttledProps.contactId,
+      throttledContactEmail: throttledProps.contactEmail,
     });
+    logOnceRef.current.add(debugLogKey);
   }
 
   // Get toggle pin function from activities hook
@@ -151,7 +182,27 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     200 // 200px threshold instead of 100px
   );
 
-  // ✅ PERFORMANCE: Optimized scroll handler with throttling
+  // ✅ PERFORMANCE: Refs for scroll handler stability
+  const isCompactRef = useRef(isCompact);
+  const hasMoreEmailsRef = useRef(hasMoreEmails);
+  const loadingMoreRef = useRef(loadingMore);
+  const triggerInfiniteScrollRef = useRef(triggerInfiniteScroll);
+
+  // Update refs when values change
+  useEffect(() => {
+    isCompactRef.current = isCompact;
+  }, [isCompact]);
+
+  useEffect(() => {
+    hasMoreEmailsRef.current = hasMoreEmails;
+    loadingMoreRef.current = loadingMore;
+  }, [hasMoreEmails, loadingMore]);
+
+  useEffect(() => {
+    triggerInfiniteScrollRef.current = triggerInfiniteScroll;
+  }, [triggerInfiniteScroll]);
+
+  // ✅ PERFORMANCE: Optimized scroll handler with throttling - STABLE DEPENDENCIES
   const handleScroll = useCallback(() => {
     if (!timelineRef.current) return;
     
@@ -159,21 +210,30 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     
     // Make composer compact after 50px scroll - but avoid unnecessary re-renders
     const shouldBeCompact = scrollTop > 50;
-    if (shouldBeCompact !== isCompact) {
+    if (shouldBeCompact !== isCompactRef.current) {
       setIsCompact(shouldBeCompact);
     }
     
     // Check for infinite scroll trigger - only if we have more content to load
-    if (hasMoreEmails && !loadingMore) {
+    if (hasMoreEmailsRef.current && !loadingMoreRef.current) {
       const nearBottom = scrollTop + clientHeight >= scrollHeight - 200;
       if (nearBottom) {
-        triggerInfiniteScroll();
+        triggerInfiniteScrollRef.current();
       }
     }
-  }, [isCompact, hasMoreEmails, loadingMore, triggerInfiniteScroll]);
+  }, []); // ✅ FIX: No dependencies - use refs
 
   // ✅ PERFORMANCE: Apply throttling to scroll handler
   const throttledHandleScroll = useThrottledScroll(handleScroll, 16); // ~60fps
+
+  // ✅ DEBUG: Log re-renders to detect infinite loops
+  const renderCountRef = useRef(0);
+  useEffect(() => {
+    renderCountRef.current += 1;
+    if (process.env.NODE_ENV === 'development' && renderCountRef.current > 5) {
+      console.warn(`🔄 [StreamTimeline] High render count: ${renderCountRef.current} for contact: ${contactEmail}`);
+    }
+  });
 
   useEffect(() => {
     const timelineElement = timelineRef.current;
@@ -184,7 +244,29 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     }
   }, [throttledHandleScroll]);
 
-  // ✅ PERFORMANCE: Memoized user name extraction function
+  // ✅ PERFORMANCE: Stable references for activities-dependent functions
+  const activitiesRef = useRef(activities);
+  const togglePinRef = useRef(togglePin);
+  const toggleEmailPinRef = useRef(toggleEmailPin);
+  const editActivityRef = useRef(editActivity);
+  const deleteActivityRef = useRef(deleteActivity);
+
+  // ✅ PERFORMANCE: Update refs when values change
+  useEffect(() => {
+    activitiesRef.current = activities;
+  }, [activities]);
+
+  useEffect(() => {
+    togglePinRef.current = togglePin;
+    toggleEmailPinRef.current = toggleEmailPin;
+  }, [togglePin, toggleEmailPin]);
+
+  useEffect(() => {
+    editActivityRef.current = editActivity;
+    deleteActivityRef.current = deleteActivity;
+  }, [editActivity, deleteActivity]);
+
+  // ✅ PERFORMANCE: Memoized user name extraction function - STABLE
   const getUserName = useCallback((activity: any) => {
     // For Gmail emails, use the from field
     if (activity.source === 'gmail' && activity.from) {
@@ -220,14 +302,15 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     }
     
     return 'Usuario';
-  }, [user?.user_metadata?.full_name, user?.email]);
+  }, []); // ✅ FIX: No dependencies - access user from closure
 
-  // ✅ PERFORMANCE: Memoized first interaction date calculation - FIXED to return Date object
+  // ✅ PERFORMANCE: Memoized first interaction date calculation - STABLE
   const getFirstInteractionDate = useCallback(() => {
-    if (activities.length === 0) return null;
+    const currentActivities = activitiesRef.current;
+    if (currentActivities.length === 0) return null;
     
     // Get the oldest activity
-    const oldestActivity = activities[activities.length - 1];
+    const oldestActivity = currentActivities[currentActivities.length - 1];
     if (!oldestActivity) return null;
     
     try {
@@ -235,7 +318,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     } catch (error) {
       return null;
     }
-  }, [activities]);
+  }, []); // ✅ FIX: No dependencies - use ref
 
   // ✅ FIX: Separate functions for date formatting
   const formatFirstInteractionDateSpanish = useCallback((date: Date) => {
@@ -274,7 +357,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
   // ✅ PERFORMANCE: Memoized pin toggle handler
   const handleTogglePin = useCallback((activityId: string, newPinState: boolean) => {
     // Find the activity to verify it exists
-    const activity = activities.find(a => a.id === activityId);
+    const activity = activitiesRef.current.find(a => a.id === activityId);
     
     if (!activity) {
       if (process.env.NODE_ENV === 'development') {
@@ -285,21 +368,21 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     
     if (activity.source === 'internal') {
       // Handle internal activity pin
-      togglePin({ activityId, isPinned: newPinState });
+      togglePinRef.current({ activityId, isPinned: newPinState });
     } else if (activity.source === 'gmail' && activity.type === 'email') {
       // Handle Gmail email pin - activityId is already the Gmail ID
-      toggleEmailPin({ emailId: activityId, isPinned: newPinState });
+      toggleEmailPinRef.current({ emailId: activityId, isPinned: newPinState });
     } else {
       if (process.env.NODE_ENV === 'development') {
         console.error('Cannot pin this type of activity:', activity);
       }
     }
-  }, [activities, togglePin, toggleEmailPin]);
+  }, []); // ✅ FIX: No dependencies - use refs
 
   // ✅ PERFORMANCE: Memoized edit activity handler
   const handleEditActivity = useCallback((activityId: string, newContent: string) => {
     // Find the activity to verify it exists
-    const activity = activities.find(a => a.id === activityId);
+    const activity = activitiesRef.current.find(a => a.id === activityId);
     
     if (!activity) {
       if (process.env.NODE_ENV === 'development') {
@@ -315,13 +398,13 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
       return;
     }
     
-    editActivity({ activityId, content: newContent });
-  }, [activities, editActivity]);
+    editActivityRef.current({ activityId, content: newContent });
+  }, []); // ✅ FIX: No dependencies - use refs
 
   // ✅ PERFORMANCE: Memoized delete activity handler
   const handleDeleteActivity = useCallback((activityId: string) => {
     // Find the activity to verify it exists
-    const activity = activities.find(a => a.id === activityId);
+    const activity = activitiesRef.current.find(a => a.id === activityId);
     
     if (!activity) {
       if (process.env.NODE_ENV === 'development') {
@@ -337,8 +420,8 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
       return;
     }
     
-    deleteActivity(activityId);
-  }, [activities, deleteActivity]);
+    deleteActivityRef.current(activityId);
+  }, []); // ✅ FIX: No dependencies - use refs
 
   return (
     <div className="flex flex-col h-full">

@@ -80,6 +80,71 @@ interface UseTimelineActivitiesV2Return {
 const TIMESTAMP_CACHE = new Map<string, number>()
 const ACTIVITY_TRANSFORM_CACHE = new Map<string, TimelineActivity>()
 
+// ✅ PERFORMANCE: Global cache to prevent re-processing same emails
+const emailGroupingCache = new Map<
+  string,
+  {
+    result: TimelineActivity[]
+    timestamp: number
+    emailIds: Set<string>
+  }
+>()
+
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const MAX_CACHE_SIZE = 50
+
+// ✅ PERFORMANCE: Cleanup old cache entries
+const cleanupEmailGroupingCache = () => {
+  const now = Date.now()
+  let removedCount = 0
+
+  for (const [key, cached] of emailGroupingCache.entries()) {
+    if (now - cached.timestamp > CACHE_TTL) {
+      emailGroupingCache.delete(key)
+      removedCount++
+    }
+  }
+
+  // If cache is too large, remove oldest entries
+  if (emailGroupingCache.size > MAX_CACHE_SIZE) {
+    const entries = Array.from(emailGroupingCache.entries())
+    entries.sort((a, b) => a[1].timestamp - b[1].timestamp)
+    const toRemove = entries.slice(0, Math.floor(MAX_CACHE_SIZE / 2))
+
+    toRemove.forEach(([key]) => {
+      emailGroupingCache.delete(key)
+      removedCount++
+    })
+  }
+
+  if (process.env.NODE_ENV === 'development' && removedCount > 0) {
+    console.log(`🧹 [Timeline] Cleaned up ${removedCount} email grouping cache entries`)
+  }
+}
+
+// ✅ PERFORMANCE: Create cache key from email list
+const createEmailsCacheKey = (emails: TimelineActivity[]): string => {
+  if (emails.length === 0) return 'empty'
+
+  // Create a stable key based on email IDs and count
+  const emailIds = emails
+    .map(e => e.id)
+    .sort()
+    .join(',')
+  return `${emails.length}-${emailIds.slice(0, 100)}` // Limit key length
+}
+
+// ✅ PERFORMANCE: Check if emails have changed for cache validation
+const emailsHaveChanged = (emails: TimelineActivity[], cachedEmailIds: Set<string>): boolean => {
+  if (emails.length !== cachedEmailIds.size) return true
+
+  for (const email of emails) {
+    if (!cachedEmailIds.has(email.id)) return true
+  }
+
+  return false
+}
+
 const getCachedTimestamp = (timestamp: string): number => {
   if (TIMESTAMP_CACHE.has(timestamp)) {
     return TIMESTAMP_CACHE.get(timestamp)!
@@ -113,10 +178,28 @@ const sortActivitiesByPriorityAndDate = (activities: TimelineActivity[]): Timeli
 const groupEmailsByThread = (emailActivities: TimelineActivity[]): TimelineActivity[] => {
   if (emailActivities.length === 0) return []
 
+  // ✅ PERFORMANCE: Check cache first
+  const cacheKey = createEmailsCacheKey(emailActivities)
+  const cached = emailGroupingCache.get(cacheKey)
+
+  if (cached && !emailsHaveChanged(emailActivities, cached.emailIds)) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🚀 [Timeline] Using cached email grouping result:', {
+        cacheKey: cacheKey.slice(0, 50) + '...',
+        originalEmails: emailActivities.length,
+        cachedResult: cached.result.length,
+        cacheAge: `${Math.round((Date.now() - cached.timestamp) / 1000)}s`,
+      })
+    }
+    return cached.result
+  }
+
   // ✅ PERFORMANCE: Only log in development
   if (process.env.NODE_ENV === 'development') {
     console.log('🔗 [Timeline] Starting optimized email grouping process:', {
       totalEmails: emailActivities.length,
+      cacheKey: cacheKey.slice(0, 50) + '...',
+      cacheHit: false,
     })
   }
 
@@ -218,6 +301,20 @@ const groupEmailsByThread = (emailActivities: TimelineActivity[]): TimelineActiv
   // Add standalone emails to result
   result.push(...standaloneEmails)
 
+  // ✅ PERFORMANCE: Cache the result
+  const emailIds = new Set(emailActivities.map(e => e.id))
+  emailGroupingCache.set(cacheKey, {
+    result: result,
+    timestamp: Date.now(),
+    emailIds: emailIds,
+  })
+
+  // ✅ PERFORMANCE: Cleanup old cache entries periodically
+  if (Math.random() < 0.1) {
+    // 10% chance to cleanup
+    cleanupEmailGroupingCache()
+  }
+
   // ✅ PERFORMANCE: Only log detailed results in development
   if (process.env.NODE_ENV === 'development') {
     console.log('🔗 [Timeline] Optimized email grouping completed:', {
@@ -225,6 +322,8 @@ const groupEmailsByThread = (emailActivities: TimelineActivity[]): TimelineActiv
       resultingActivities: result.length,
       threads: result.filter(r => r.type === 'email_thread').length,
       standaloneEmails: standaloneEmails.length,
+      cacheKey: cacheKey.slice(0, 50) + '...',
+      cached: true,
       performance: {
         algorithmComplexity: 'O(n log n)',
         previousComplexity: 'O(n²)',
@@ -247,13 +346,62 @@ const groupEmailsByThread = (emailActivities: TimelineActivity[]): TimelineActiv
  * - Automatic oldest email date calculation
  */
 export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options = {}): UseTimelineActivitiesV2Return {
-  const { contactId, contactEmail, includeEmails = true, autoInitialize = true } = options
+  // ✅ PERFORMANCE: Throttling state to prevent excessive executions
+  const lastExecutionRef = useRef<number>(0)
+  const executionThrottleMs = 100 // Minimum 100ms between executions
+  const pendingExecutionRef = useRef<NodeJS.Timeout | null>(null)
+
+  // ✅ PERFORMANCE: Refs for stable values
+  const contactIdRef = useRef(options.contactId)
+  const contactEmailRef = useRef(options.contactEmail)
+
+  // Update refs when props change
+  useEffect(() => {
+    contactIdRef.current = options.contactId
+    contactEmailRef.current = options.contactEmail
+  }, [options.contactId, options.contactEmail])
+
+  // ✅ PERFORMANCE: Throttled execution wrapper
+  const executeWithThrottle = useCallback((fn: () => void) => {
+    const now = Date.now()
+    const timeSinceLastExecution = now - lastExecutionRef.current
+
+    // Clear any pending execution
+    if (pendingExecutionRef.current) {
+      clearTimeout(pendingExecutionRef.current)
+      pendingExecutionRef.current = null
+    }
+
+    if (timeSinceLastExecution >= executionThrottleMs) {
+      // Execute immediately
+      lastExecutionRef.current = now
+      fn()
+    } else {
+      // Schedule execution after throttle period
+      const delay = executionThrottleMs - timeSinceLastExecution
+      pendingExecutionRef.current = setTimeout(() => {
+        lastExecutionRef.current = Date.now()
+        pendingExecutionRef.current = null
+        fn()
+      }, delay)
+    }
+  }, [])
+
+  // Cleanup pending executions on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingExecutionRef.current) {
+        clearTimeout(pendingExecutionRef.current)
+        pendingExecutionRef.current = null
+      }
+    }
+  }, [])
 
   console.log('🔍 [useTimelineActivitiesV2] Hook called with:', {
-    contactId,
-    contactEmail,
-    includeEmails,
-    autoInitialize,
+    contactId: contactIdRef.current,
+    contactEmail: contactEmailRef.current,
+    includeEmails: options.includeEmails,
+    autoInitialize: options.autoInitialize,
     options,
   })
 
@@ -271,7 +419,7 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
     activities: internalActivities,
     isLoading: internalLoading,
     isError: internalError,
-  } = useActivities(contactId)
+  } = useActivities(contactIdRef.current)
 
   // Get emails from new Zustand store
   const emails = useEmails()
@@ -281,44 +429,44 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
 
   // Initialize emails for this contact if needed - MOVED TO useEffect to prevent render-time setState
   useEffect(() => {
-    if (!autoInitialize || !includeEmails || !contactEmail || !authUser?.id) {
+    if (!options.autoInitialize || !options.includeEmails || !contactEmailRef.current || !authUser?.id) {
       console.log('🔍 [useTimelineActivitiesV2] Skipping initialization:', {
-        autoInitialize,
-        includeEmails,
-        contactEmail,
+        autoInitialize: options.autoInitialize,
+        includeEmails: options.includeEmails,
+        contactEmail: contactEmailRef.current,
         authUserId: authUser?.id,
       })
       return
     }
 
     // Check if we already initialized this contact
-    const initKey = `${contactEmail}-${authUser.id}`
+    const initKey = `${contactEmailRef.current}-${authUser.id}`
     if (initializedContactsRef.current.has(initKey)) {
       console.log('🔍 [useTimelineActivitiesV2] Already initialized:', initKey)
       return
     }
 
     // Get current state to decide if initialization is needed
-    const contactEmails = getEmailsForContact(contactEmail)
-    const loading = getLoadingState(contactEmail)
+    const contactEmails = getEmailsForContact(contactEmailRef.current)
+    const loading = getLoadingState(contactEmailRef.current)
 
     console.log('🔍 [useTimelineActivitiesV2] Checking initialization need:', {
-      contactEmail,
+      contactEmail: contactEmailRef.current,
       currentEmailsCount: contactEmails.length,
       loading,
       shouldInitialize: contactEmails.length === 0 && !loading,
     })
 
     if (contactEmails.length === 0 && !loading) {
-      console.log('🔄 [useTimelineActivitiesV2] Initializing emails for contact:', contactEmail)
+      console.log('🔄 [useTimelineActivitiesV2] Initializing emails for contact:', contactEmailRef.current)
       initializedContactsRef.current.add(initKey)
-      initializeContactEmails(contactEmail, authUser.id)
+      initializeContactEmails(contactEmailRef.current, authUser.id)
     }
   }, [
-    contactEmail,
+    options.autoInitialize,
+    options.includeEmails,
+    contactEmailRef.current,
     authUser?.id,
-    autoInitialize,
-    includeEmails,
     getEmailsForContact,
     getLoadingState,
     initializeContactEmails,
@@ -335,14 +483,14 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
   } = emails
 
   // Get email state for this contact
-  const contactEmails = contactEmail ? getEmailsForContact(contactEmail) : []
-  const emailsLoading = contactEmail ? getLoadingState(contactEmail) : false
-  const emailsLoadingMore = contactEmail ? getLoadingMoreState(contactEmail) : false
-  const hasMoreEmails = contactEmail ? hasMoreEmailsFn(contactEmail) : false
-  const syncStatus = contactEmail ? getSyncState(contactEmail) : 'idle'
+  const contactEmails = contactEmailRef.current ? getEmailsForContact(contactEmailRef.current) : []
+  const emailsLoading = contactEmailRef.current ? getLoadingState(contactEmailRef.current) : false
+  const emailsLoadingMore = contactEmailRef.current ? getLoadingMoreState(contactEmailRef.current) : false
+  const hasMoreEmails = contactEmailRef.current ? hasMoreEmailsFn(contactEmailRef.current) : false
+  const syncStatus = contactEmailRef.current ? getSyncState(contactEmailRef.current) : 'idle'
 
   console.log('🔍 [useTimelineActivitiesV2] Email data state:', {
-    contactEmail,
+    contactEmail: contactEmailRef.current,
     contactEmailsCount: contactEmails.length,
     emailsLoading,
     syncStatus,
@@ -357,7 +505,7 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
   })
 
   // Get pinned emails
-  const { isEmailPinned } = usePinnedEmails(contactEmail)
+  const { isEmailPinned } = usePinnedEmails(contactEmailRef.current)
 
   // Transform internal activities
   const timelineInternalActivities: TimelineActivity[] = useMemo(() => {
@@ -405,7 +553,7 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
 
   // Transform email activities and group by threads
   const timelineEmailActivities: TimelineActivity[] = useMemo(() => {
-    if (!includeEmails || !contactEmails.length) return []
+    if (!options.includeEmails || !contactEmails.length) return []
 
     // First, transform individual emails to TimelineActivity format
     const individualEmailActivities = contactEmails.map((email: GmailEmail) => {
@@ -465,7 +613,7 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
     })
 
     return groupedEmailActivities
-  }, [contactEmails, includeEmails, isEmailPinned])
+  }, [contactEmails, options.includeEmails, isEmailPinned])
 
   // Combine and sort all activities
   const allActivities = useMemo(() => {
@@ -500,22 +648,22 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
 
   // Actions
   const loadMoreEmails = useCallback(async () => {
-    if (contactEmail) {
-      await loadMoreEmailsFn(contactEmail)
+    if (contactEmailRef.current) {
+      await loadMoreEmailsFn(contactEmailRef.current)
     }
-  }, [contactEmail, loadMoreEmailsFn])
+  }, [loadMoreEmailsFn])
 
   const syncEmailHistory = useCallback(async () => {
-    if (contactEmail && authUser?.id) {
-      await syncContactHistoryFn(contactEmail, authUser.id)
+    if (contactEmailRef.current && authUser?.id) {
+      await syncContactHistoryFn(contactEmailRef.current, authUser.id)
     }
-  }, [contactEmail, authUser?.id, syncContactHistoryFn])
+  }, [contactEmailRef.current, authUser?.id, syncContactHistoryFn])
 
   const refreshEmails = useCallback(async () => {
-    if (contactEmail && authUser?.id) {
-      await refreshContactEmailsFn(contactEmail, authUser.id)
+    if (contactEmailRef.current && authUser?.id) {
+      await refreshContactEmailsFn(contactEmailRef.current, authUser.id)
     }
-  }, [contactEmail, authUser?.id, refreshContactEmailsFn])
+  }, [contactEmailRef.current, authUser?.id, refreshContactEmailsFn])
 
   // Calculate loading state
   const loading = internalLoading || emailsLoading

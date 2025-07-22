@@ -405,4 +405,21 @@ const TiptapEditorWithAI: React.FC<TiptapEditorWithAIProps> = ({
   );
 };
 
-export default TiptapEditorWithAI; 
+// ✅ PERFORMANCE: Memoize TiptapEditorWithAI to prevent unnecessary AI Provider initializations
+export default React.memo(TiptapEditorWithAI, (prevProps, nextProps) => {
+  // Quick reference equality checks first
+  if (prevProps.value !== nextProps.value) return false;
+  if (prevProps.placeholder !== nextProps.placeholder) return false;
+  if (prevProps.disabled !== nextProps.disabled) return false;
+  if (prevProps.enableAIAutocompletion !== nextProps.enableAIAutocompletion) return false;
+  
+  // Check AI-related props only if AI is enabled
+  if (nextProps.enableAIAutocompletion) {
+    if (prevProps.originalEmail?.id !== nextProps.originalEmail?.id) return false;
+    if (prevProps.conversationHistory?.length !== nextProps.conversationHistory?.length) return false;
+    if (prevProps.contactInfo?.email !== nextProps.contactInfo?.email) return false;
+  }
+  
+  // Props are equal, skip re-render
+  return true;
+}); 

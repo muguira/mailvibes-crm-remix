@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Loader2, FileText, Sparkles, Copy, Check } from 'lucide-react';
-import { useEmailAI } from '@/hooks/useEmailAI';
+// import { useEmailAI } from '@/hooks/useEmailAI'; // ✅ DISABLED for performance testing
 import { TimelineActivity } from '@/hooks/use-timeline-activities-v2';
 import { ContactInfo } from '@/services/ai';
 import { cn } from '@/lib/utils';
@@ -27,19 +27,31 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   
-  const { 
-    summarizeThread, 
-    summary, 
-    isConfigured,
-    initializationError,
-    provider
-  } = useEmailAI({
-    showToasts: false // We'll handle toasts manually for better control
-  });
+  // ✅ DISABLED: Temporarily remove useEmailAI to eliminate performance bottleneck
+  // const { 
+  //   summarizeThread, 
+  //   summary, 
+  //   isConfigured,
+  //   initializationError,
+  //   provider
+  // } = useEmailAI({
+  //   showToasts: false // We'll handle toasts manually for better control
+  // });
+
+  // Mock disabled state
+  const summary = { 
+    data: null, 
+    loading: false, 
+    error: null, 
+    fromCache: false, 
+    provider: 'disabled' 
+  };
+  const isConfigured = false;
+  const initializationError = { message: 'AI temporarily disabled for performance testing' };
 
   const getDisabledReason = (): string | null => {
     if (emails.length === 0) return "No emails to summarize";
-    if (initializationError) return `AI initialization failed: ${initializationError.message}`;
+    if (initializationError) return `AI disabled: ${initializationError.message}`;
     if (!isConfigured) return "AI not configured - add VITE_GEMINI_API_KEY to your .env file";
     if (disabled) return "Feature temporarily disabled";
     if (summary.loading) return "Generating summary...";
@@ -47,47 +59,67 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
   };
 
   const handleSummarize = async () => {
-    const disabledReason = getDisabledReason();
-    if (disabledReason) {
-      toast({
-        title: "Cannot summarize",
-        description: disabledReason,
-        variant: "destructive",
-      });
-      return;
-    }
+    // ✅ DISABLED: All AI summarization temporarily disabled
+    toast({
+      title: 'AI Summary Disabled',
+      description: 'AI features are temporarily disabled for performance testing',
+      variant: 'default'
+    });
+    return;
 
+    // Original implementation commented out
+    // const disabledReason = getDisabledReason();
+    // if (disabledReason) {
+    //   toast({
+    //     title: 'Cannot generate summary',
+    //     description: disabledReason,
+    //     variant: 'destructive'
+    //   });
+    //   return;
+    // }
+    // 
+    // try {
+    //   await summarizeThread(emails, contactInfo);
+    //   
+    //   if (summary.data) {
+    //     toast({
+    //       title: 'Summary generated!',
+    //       description: 'AI has created a summary of the email thread.',
+    //     });
+    //   }
+    // } catch (error) {
+    //   console.error('Failed to generate summary:', error);
+    //   toast({
+    //     title: 'Summary failed',
+    //     description: 'Failed to generate email summary. Please try again.',
+    //     variant: 'destructive'
+    //   });
+    // }
+  };
+
+  const copyToClipboard = async () => {
+    if (!summary.data) return;
+    
     try {
-      await summarizeThread(emails, contactInfo);
+      await navigator.clipboard.writeText(summary.data);
+      setCopied(true);
+      toast({
+        title: 'Copied!',
+        description: 'Summary copied to clipboard.',
+      });
       
-      if (!isOpen) {
-        setIsOpen(true);
-      }
+      setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Failed to generate summary:', error);
+      toast({
+        title: 'Copy failed',
+        description: 'Failed to copy summary to clipboard.',
+        variant: 'destructive'
+      });
     }
   };
 
-  const handleCopy = async () => {
-    if (summary.data) {
-      try {
-        await navigator.clipboard.writeText(summary.data);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-        
-        toast({
-          title: "Copied!",
-          description: "Summary copied to clipboard",
-        });
-      } catch (error) {
-        toast({
-          title: "Copy failed",
-          description: "Could not copy to clipboard",
-          variant: "destructive",
-        });
-      }
-    }
-  };
+  const disabledReason = getDisabledReason();
+  const isDisabled = !!disabledReason;
 
   const triggerButton = variant === 'button' ? (
           <Button
@@ -212,7 +244,7 @@ export const EmailSummaryButton: React.FC<EmailSummaryButtonProps> = ({
               {/* Actions */}
               <div className="flex justify-end pt-2 border-t">
                 <Button
-                  onClick={handleCopy}
+                  onClick={copyToClipboard}
                   variant="outline"
                   size="sm"
                   className="text-xs"
