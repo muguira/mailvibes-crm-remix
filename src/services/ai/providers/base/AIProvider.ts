@@ -311,7 +311,19 @@ Only provide the completion text, nothing else.`
   // Utility methods
   private generateCacheKey(operation: string, context: any): string {
     const contextStr = JSON.stringify(context)
-    return `${this.name}:${operation}:${btoa(contextStr).substring(0, 32)}`
+    // Use TextEncoder to handle UTF-8 characters safely
+    const encoder = new TextEncoder()
+    const data = encoder.encode(contextStr)
+
+    // Create a simple hash from the encoded data
+    let hash = 0
+    for (let i = 0; i < data.length; i++) {
+      hash = ((hash << 5) - hash + data[i]) & 0xffffffff
+    }
+
+    // Convert to a safe string representation
+    const hashStr = Math.abs(hash).toString(36)
+    return `${this.name}:${operation}:${hashStr}`
   }
 
   // Default implementations

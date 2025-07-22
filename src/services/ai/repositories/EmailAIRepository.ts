@@ -399,10 +399,20 @@ export class EmailAIRepository {
   private generateCacheKey(operation: string, data: any): string {
     // Create a stable cache key from the operation and data
     const dataStr = JSON.stringify(data, Object.keys(data).sort())
-    const hash = btoa(dataStr)
-      .replace(/[^a-zA-Z0-9]/g, '')
-      .substring(0, 32)
-    return `ai:${this.provider.name}:${operation}:${hash}`
+
+    // Use TextEncoder to handle UTF-8 characters safely
+    const encoder = new TextEncoder()
+    const encodedData = encoder.encode(dataStr)
+
+    // Create a simple hash from the encoded data
+    let hash = 0
+    for (let i = 0; i < encodedData.length; i++) {
+      hash = ((hash << 5) - hash + encodedData[i]) & 0xffffffff
+    }
+
+    // Convert to a safe string representation
+    const hashStr = Math.abs(hash).toString(36).substring(0, 32)
+    return `ai:${this.provider.name}:${operation}:${hashStr}`
   }
 
   private getFromCache<T>(key: string): CachedAIResponse<T> | null {
