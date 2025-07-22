@@ -98,3 +98,6 @@ export interface ReportDefinition {
   metrics: string[];
   filters?: FilterCriterion[];
 }
+
+// Organization Management Types
+export * from './organization';

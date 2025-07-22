@@ -21,12 +21,14 @@ import StreamView from "@/pages/dashboard/StreamView"; // Import the new StreamV
 import Integrations from "@/pages/dashboard/Integrations";
 import Imports from "@/pages/dashboard/Imports";
 import Settings from "@/pages/dashboard/Settings";
+import OrganizationUsers from "@/pages/dashboard/OrganizationUsers";
 import AccountProperties from "@/pages/dashboard/AccountProperties";
 import Landing from "@/pages/Landing";
 import Import from "@/pages/Import";
 import GmailImport from "@/pages/dashboard/GmailImport";
 import GmailDashboard from "@/pages/dashboard/GmailDashboard";
 import DeletedContacts from "@/pages/dashboard/DeletedContacts";
+import { AcceptInvitation } from "@/pages/AcceptInvitation";
 import { useRadixPointerEventsFix } from "@/hooks/use-radix-pointer-events-fix";
 import PerformanceTestingDashboard from "@/components/debug/PerformanceTestingDashboard";
 import { useEffect, useState } from "react";
@@ -71,6 +73,7 @@ function App() {
                 <Routes>
                   <Route path="/auth" element={<AuthenticatedRedirect><Auth /></AuthenticatedRedirect>} />
                   <Route path="/landing" element={<Landing />} />
+                  <Route path="/accept-invitation/:invitationId" element={<AcceptInvitation />} />
                   <Route path="/" element={<PrivateRoute><Index /></PrivateRoute>} />
                   <Route path="/lists/:listId?" element={<PrivateRoute><Lists /></PrivateRoute>} />
                   <Route path="/new-grid" element={<PrivateRoute><NewGrid /></PrivateRoute>} />
@@ -84,11 +87,13 @@ function App() {
                   <Route path="/gmail-import" element={<PrivateRoute><GmailImport /></PrivateRoute>} />
                   <Route path="/deleted-contacts" element={<PrivateRoute><DeletedContacts /></PrivateRoute>} />
                   <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+                  <Route path="/settings/organization/users" element={<PrivateRoute><OrganizationUsers /></PrivateRoute>} />
                   <Route path="/settings/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
                   <Route path="/settings/integrations/gmail-dashboard" element={<PrivateRoute><GmailDashboard /></PrivateRoute>} />
                   <Route path="/settings/imports" element={<PrivateRoute><Imports /></PrivateRoute>} />
                   <Route path="/settings/account-properties" element={<PrivateRoute><AccountProperties /></PrivateRoute>} />
                   <Route path="/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
+                  <Route path="/users" element={<PrivateRoute><OrganizationUsers /></PrivateRoute>} />
                   
                   {/* Temporary test route removed - Gmail hooks are now stable */}
                   
