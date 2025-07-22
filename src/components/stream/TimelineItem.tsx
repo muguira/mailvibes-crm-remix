@@ -451,6 +451,33 @@ const TimelineItem = React.memo(function TimelineItem({
   // ✅ PERFORMANCE: Use optimized timeline viewport tracking
   const { elementRef: timelineRef, isViewed, visibilityPercentage } = useOptimizedTimelineViewport(activity.id);
   
+  // ✅ PERFORMANCE: Memoized formatting functions (moved before activityProps)
+  const formatTimestamp = useCallback((timestamp: string) => {
+    try {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+
+      if (diffInMinutes < 1) return 'now';
+      if (diffInMinutes < 60) return `${diffInMinutes}m`;
+      if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
+      if (diffInMinutes < 10080) return `${Math.floor(diffInMinutes / 1440)}d`;
+      if (diffInMinutes < 43200) return `${Math.floor(diffInMinutes / 10080)}w`;
+      if (diffInMinutes < 525600) return `${Math.floor(diffInMinutes / 43200)}mo`;
+      return `${Math.floor(diffInMinutes / 525600)}y`;
+    } catch {
+      return '';
+    }
+  }, []);
+
+  const formatAbsoluteTimestamp = useCallback((timestamp: string) => {
+    try {
+      return new Date(timestamp).toLocaleString();
+    } catch {
+      return timestamp;
+    }
+  }, []);
+  
   // ✅ PERFORMANCE: Simplified progressive fill calculation
   const progressiveFillPercentage = useMemo(() => {
     // Simple calculation based on visibility percentage
@@ -464,25 +491,13 @@ const TimelineItem = React.memo(function TimelineItem({
     return 0;
   }, [isViewed, visibilityPercentage]);
   
-  // OPTIMIZED: Memoize expensive calculations
+  // ✅ PERFORMANCE: Memoized activity properties with FIXED icon and color handling
   const activityProps = useMemo(() => {
     const isEmail = activity.type === 'email' || activity.type === 'email_sent' || activity.type === 'email_thread';
     
-    // Get activity icon with caching
-    const icon = activityIcon || (isEmail ? Mail : 
-      activity.type === 'call' ? Phone :
-      activity.type === 'meeting' ? Calendar :
-      activity.type === 'task' ? CheckCircle2 :
-      MessageCircle);
-    
-    // Get activity color with caching
-    const color = activityColor || (
-      activity.type === 'email' || activity.type === 'email_sent' || activity.type === 'email_thread' ? 'blue' :
-      activity.type === 'call' ? 'green' :
-      activity.type === 'meeting' ? 'purple' :
-      activity.type === 'task' ? 'orange' :
-      'teal'
-    );
+    // ✅ FIX: Use the original functions for icon and color
+    const IconComponent = getActivityIcon(activityIcon, activity.type);
+    const colorClasses = getActivityColor(activity.type);
 
     // Display content handling
     let displayContent = activity.content || '';
@@ -494,13 +509,13 @@ const TimelineItem = React.memo(function TimelineItem({
 
     return {
       isEmail,
-      icon,
-      color,
+      IconComponent,
+      colorClasses,
       displayContent,
-      timestamp: activity.timestamp,
+      formattedTimestamp: formatTimestamp(activity.timestamp),
       isPinned: activity.is_pinned || optimisticPinState,
     };
-  }, [activity, activityIcon, activityColor, optimisticPinState]);
+  }, [activity, activityIcon, activityColor, optimisticPinState, formatTimestamp]);
 
   // OPTIMIZED: Memoize permissions
   const permissions = useMemo(() => {
@@ -614,33 +629,6 @@ const TimelineItem = React.memo(function TimelineItem({
 
   const handleExpandToggle = useCallback(() => {
     setIsExpanded(prev => !prev);
-  }, []);
-
-  // ✅ PERFORMANCE: Memoized formatting functions
-  const formatTimestamp = useCallback((timestamp: string) => {
-    try {
-      const date = new Date(timestamp);
-      const now = new Date();
-      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-
-      if (diffInMinutes < 1) return 'now';
-      if (diffInMinutes < 60) return `${diffInMinutes}m`;
-      if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
-      if (diffInMinutes < 10080) return `${Math.floor(diffInMinutes / 1440)}d`;
-      if (diffInMinutes < 43200) return `${Math.floor(diffInMinutes / 10080)}w`;
-      if (diffInMinutes < 525600) return `${Math.floor(diffInMinutes / 43200)}mo`;
-      return `${Math.floor(diffInMinutes / 525600)}y`;
-    } catch {
-      return '';
-    }
-  }, []);
-
-  const formatAbsoluteTimestamp = useCallback((timestamp: string) => {
-    try {
-      return new Date(timestamp).toLocaleString();
-    } catch {
-      return timestamp;
-    }
   }, []);
 
   // ✅ PERFORMANCE: Memoized email recipient formatting
@@ -955,8 +943,8 @@ const TimelineItem = React.memo(function TimelineItem({
       
       
       {/* Timeline dot with activity icon */}
-      <div className={cn("absolute left-[5px] top-[8px] w-8 h-8 rounded-full flex items-center justify-center z-10", activityProps.color)}>
-        <activityProps.icon className="h-5 w-5" />
+      <div className={cn("absolute left-[5px] top-[8px] w-8 h-8 rounded-full flex items-center justify-center z-10", activityProps.colorClasses)}>
+        <activityProps.IconComponent className="h-5 w-5" />
       </div>
       
       {/* Tooltip for timestamp */}
@@ -966,14 +954,14 @@ const TimelineItem = React.memo(function TimelineItem({
             className="absolute top-[15px] left-[-40px] text-xs text-gray-500 font-medium text-right cursor-help hover:text-gray-700 transition-colors"
             style={{
               right: 'calc(100% - 0px)', // Position relative to the timeline dot
-              minWidth: activityProps.timestamp.length <= 2 ? '24px' : activityProps.timestamp.length <= 4 ? '32px' : '48px'
+              minWidth: activityProps.formattedTimestamp.length <= 2 ? '24px' : activityProps.formattedTimestamp.length <= 4 ? '32px' : '48px'
             }}
           >
-            {activityProps.timestamp}
+            {activityProps.formattedTimestamp}
           </div>
         </TooltipTrigger>
         <TooltipContent side="bottom" align="end" className="max-w-none">
-          <p>{formatAbsoluteTimestamp(activityProps.timestamp)}</p>
+          <p>{formatAbsoluteTimestamp(activity.timestamp)}</p>
         </TooltipContent>
       </Tooltip>
       
