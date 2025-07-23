@@ -33,7 +33,7 @@ const Index = () => {
 
   // Redirect to auth page if not logged in
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/auth/login" replace />;
   }
 
   return (

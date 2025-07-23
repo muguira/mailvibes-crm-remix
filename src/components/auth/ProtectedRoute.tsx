@@ -11,7 +11,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
     if (!user) {
         // Redirect to auth page while saving the attempted url
-        return <Navigate to="/auth" state={{ from: location }} replace />;
+        return <Navigate to="/auth/login" state={{ from: location }} replace />;
     }
 
     return <>{children}</>;

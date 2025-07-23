@@ -48,21 +48,21 @@ export function ProfileMenu() {
       console.log('✅ Logout successful, navigating to auth...');
       
       // Navigate immediately without timeout to avoid interference
-      navigate("/auth", { replace: true });
+      navigate("/auth/login", { replace: true });
       
     } catch (error) {
       console.error('❌ Logout error:', error);
       // Even if logout fails, force navigation and cleanup
       forceCleanup();
       document.body.style.pointerEvents = "";
-      navigate("/auth", { replace: true });
+      navigate("/auth/login", { replace: true });
     } finally {
       isLoggingOutRef.current = false;
     }
   }, [signOut, navigate, forceCleanup, loading]);
   
   const handleLogin = useCallback(() => {
-    navigate("/auth");
+    navigate("/auth/login");
   }, [navigate]);
 
   // Enhanced dropdown close handler with better timeout management

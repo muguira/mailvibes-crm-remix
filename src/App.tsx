@@ -16,6 +16,8 @@ import Reports from "@/pages/dashboard/Reports";
 import Profile from "@/pages/dashboard/Profile";
 import NotFound from "@/pages/NotFound";
 import Auth from "@/pages/Auth";
+import SignIn from "@/pages/SignIn";
+import SignUp from "@/pages/SignUp";
 import ContactProfile from "@/pages/dashboard/ContactProfile";
 import StreamView from "@/pages/dashboard/StreamView"; // Import the new StreamView page
 import Integrations from "@/pages/dashboard/Integrations";
@@ -72,6 +74,8 @@ function App() {
               <div className="h-screen w-full font-proxima">
                 <Routes>
                   <Route path="/auth" element={<AuthenticatedRedirect><Auth /></AuthenticatedRedirect>} />
+                  <Route path="/auth/login" element={<AuthenticatedRedirect><SignIn /></AuthenticatedRedirect>} />
+                  <Route path="/auth/register" element={<AuthenticatedRedirect><SignUp /></AuthenticatedRedirect>} />
                   <Route path="/landing" element={<Landing />} />
                   <Route path="/accept-invitation/:invitationId" element={<AcceptInvitation />} />
                   <Route path="/accept-invitation" element={<AcceptInvitation />} />

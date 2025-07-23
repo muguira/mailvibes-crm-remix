@@ -19,7 +19,7 @@ export function PrivateRoute({ children }: PrivateRouteProps) {
 
     // Si no hay usuario después de la inicialización, redirigimos
     if (isInitialized && !user) {
-        return <Navigate to="/auth" />;
+        return <Navigate to="/auth/login" />;
     }
 
     // Si hay usuario o estamos en proceso de carga post-inicialización, mostramos el contenido
