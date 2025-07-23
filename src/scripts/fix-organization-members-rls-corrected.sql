@@ -1,4 +1,4 @@
--- FINAL FIX for organization_members RLS infinite recursion
+-- FINAL FIX for organization_members RLS infinite recursion (CORRECTED VERSION)
 -- This script completely resolves the infinite recursion issue
 
 -- Step 1: Disable RLS temporarily to work safely

@@ -519,6 +519,13 @@ export const useOrganizationStore = create<OrganizationStore>()(
 
       // Update member role
       updateMemberRole: async (memberId: string, newRole: 'admin' | 'user') => {
+        // Prevent duplicate calls while one is in progress
+        const state = get();
+        if (state.loadingStates.updatingRole[memberId]) {
+          console.log('Role update already in progress for member:', memberId);
+          return;
+        }
+
         try {
           set((state) => {
             state.loadingStates.updatingRole[memberId] = true;
@@ -529,18 +536,32 @@ export const useOrganizationStore = create<OrganizationStore>()(
             state.optimisticUpdates.pendingRoleChanges[memberId] = newRole;
           });
 
-          const { error } = await supabase
-            .from('organization_members')
-            .update({ role: newRole })
-            .eq('id', memberId);
+          const currentOrg = get().currentOrganization;
+          if (!currentOrg) throw new Error('No organization found');
 
-          if (error) throw error;
+          // Use the new RPC function to safely update role (bypasses RLS issues)
+          const { data, error } = await supabase
+            .rpc('update_organization_member_role', { 
+              p_member_id: memberId,
+              p_organization_id: currentOrg.id,
+              p_new_role: newRole
+            });
+
+          if (error) {
+            console.error('RPC Error updating member role:', error);
+            throw error;
+          }
+
+          if (!data) {
+            throw new Error('Failed to update role - member not found or no permission');
+          }
 
           set((state) => {
             // Apply the actual update
             const memberIndex = state.members.findIndex(m => m.id === memberId);
             if (memberIndex !== -1) {
               state.members[memberIndex].role = newRole;
+              state.members[memberIndex].updated_at = new Date().toISOString();
             }
             
             // Clear optimistic update and loading state
@@ -548,9 +569,12 @@ export const useOrganizationStore = create<OrganizationStore>()(
             delete state.loadingStates.updatingRole[memberId];
           });
 
-          toast.success('Member role updated successfully');
+          // Single toast with unique ID to prevent duplicates
+          toast.success('Member role updated successfully', {
+            id: `role-update-${memberId}`,
+          });
 
-        } catch (error) {
+        } catch (error: any) {
           set((state) => {
             delete state.loadingStates.updatingRole[memberId];
             delete state.optimisticUpdates.pendingRoleChanges[memberId];
@@ -559,13 +583,24 @@ export const useOrganizationStore = create<OrganizationStore>()(
               [memberId]: error.message 
             };
           });
-          toast.error(`Failed to update role: ${error.message}`);
+          
+          // Single error toast with unique ID to prevent duplicates
+          toast.error(`Failed to update role: ${error.message}`, {
+            id: `role-update-error-${memberId}`,
+          });
           throw error;
         }
       },
 
       // Remove member from organization
       removeMember: async (memberId: string) => {
+        // Prevent duplicate calls while one is in progress
+        const state = get();
+        if (state.loadingStates.removingMember[memberId]) {
+          console.log('Member removal already in progress for member:', memberId);
+          return;
+        }
+
         try {
           set((state) => {
             state.loadingStates.removingMember[memberId] = true;
@@ -609,9 +644,12 @@ export const useOrganizationStore = create<OrganizationStore>()(
             delete state.loadingStates.removingMember[memberId];
           });
 
-          toast.success('Member removed successfully');
+          // Single toast with unique ID to prevent duplicates
+          toast.success('Member removed successfully', {
+            id: `member-removal-${memberId}`,
+          });
 
-        } catch (error) {
+        } catch (error: any) {
           set((state) => {
             delete state.loadingStates.removingMember[memberId];
             state.optimisticUpdates.pendingRemovals = state.optimisticUpdates.pendingRemovals.filter(id => id !== memberId);
@@ -620,7 +658,11 @@ export const useOrganizationStore = create<OrganizationStore>()(
               [memberId]: error.message 
             };
           });
-          toast.error(`Failed to remove member: ${error.message}`);
+          
+          // Single error toast with unique ID to prevent duplicates
+          toast.error(`Failed to remove member: ${error.message}`, {
+            id: `member-removal-error-${memberId}`,
+          });
           throw error;
         }
       },
