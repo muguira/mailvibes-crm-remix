@@ -143,7 +143,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
 
           // Use the new invitation service to check if user needs organization
           // This considers both existing memberships and pending invitations
-          const { checkUserNeedsOrganization, checkAndAcceptPendingInvitations } = await import('@/services/invitationService');
+          const { checkUserNeedsOrganization } = await import('@/services/invitationService');
           
           const needsOrgResult = await checkUserNeedsOrganization(user.id);
           
@@ -151,24 +151,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
 
           if (!needsOrgResult.needsOrganization) {
             // User either has an organization or has pending invitations
-            if (needsOrgResult.hasPendingInvitations && user.email) {
-              // Try to auto-accept pending invitations
-              console.log('🎯 Auto-accepting pending invitations during org check...');
-              const acceptResult = await checkAndAcceptPendingInvitations(user.email, user.id);
-              
-              if (acceptResult.hasOrganization) {
-                console.log('✅ Successfully auto-accepted invitation during org check');
-                set((state) => { 
-                  state.needsOrganization = false;
-                  state.loadingStates.checkingOrganization = false;
-                });
-                // Load the organization data
-                await get().loadOrganization();
-                return;
-              }
-            }
-            
-            // User has an existing organization
+            // Don't try to auto-accept here since it should be handled in the auth flow
             set((state) => { 
               state.needsOrganization = false;
               state.loadingStates.checkingOrganization = false;
