@@ -435,8 +435,8 @@ const TimelineItem = React.memo(
     const [replyEditor, setReplyEditor] = useState<any>(null)
     const [isSendingReply, setIsSendingReply] = useState(false)
 
-    // ✅ NEW: Email threading states
-    const [isThreadExpanded, setIsThreadExpanded] = useState(activity.isThreadExpanded || false)
+    // ✅ NEW: Email threading states - threads are always expanded
+    const [isThreadExpanded, setIsThreadExpanded] = useState(true)
 
     // Check if this is an email thread
     const isEmailThread = activity.type === 'email_thread'
@@ -897,17 +897,14 @@ const TimelineItem = React.memo(
       <div className={cn('relative border-l-2 border-gray-200 pl-4 pb-4', isFirst && 'pt-2', isLast && 'pb-2')}>
         {/* Email header */}
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center space-x-2">
-            <div className="text-xs text-gray-600">{formatRelativeTime(email.timestamp)}</div>
-            <div className="text-xs text-gray-500">
-              <span className="font-medium">{email.from?.name || email.from?.email}</span>
-              {email.to && email.to.length > 0 && (
-                <>
-                  <span className="mx-1">to</span>
-                  <span>{formatEmailRecipients(email.to, contactName)}</span>
-                </>
-              )}
-            </div>
+          <div className="text-sm text-gray-700">
+            <span className="font-semibold text-gray-900">{email.from?.name || email.from?.email}</span>
+            {email.to && email.to.length > 0 && (
+              <>
+                <span className="mx-1 font-normal text-gray-500">to</span>
+                <span className="font-semibold text-gray-900">{formatEmailRecipients(email.to, contactName)}</span>
+              </>
+            )}
           </div>
           {/* Email-specific badges */}
           <div className="flex items-center space-x-1">
@@ -1091,33 +1088,6 @@ const TimelineItem = React.memo(
             </div>
           )}
 
-          {/* ✅ NEW: Email thread badge and controls */}
-          {isEmailThread && threadEmailCount > 1 && (
-            <div className={cn('flex items-center justify-between mb-2', isMobile ? 'pl-5' : 'pl-7')}>
-              <div className="flex items-center space-x-2">
-                <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
-                  📧 {threadEmailCount} emails in conversation
-                </span>
-                <button
-                  onClick={() => setIsThreadExpanded(!isThreadExpanded)}
-                  className="text-blue-600 hover:text-blue-700 transition-colors text-xs font-medium"
-                >
-                  {isThreadExpanded ? (
-                    <span className="flex items-center gap-1">
-                      <ChevronUp className="w-3 h-3" />
-                      Collapse thread
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      <ChevronDown className="w-3 h-3" />
-                      Expand thread
-                    </span>
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Activity content */}
           {activityProps.displayContent && (
             <div className={cn('mb-3', isMobile ? 'pl-5' : 'pl-7')}>
@@ -1184,12 +1154,9 @@ const TimelineItem = React.memo(
                       transition: 'max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
                     }}
                   >
-                    {/* ✅ NEW: Email thread display */}
-                    {isEmailThread && isThreadExpanded ? (
+                    {/* ✅ NEW: Email thread display - always expanded */}
+                    {isEmailThread ? (
                       <div className="space-y-4">
-                        <div className="text-sm font-medium text-gray-700 mb-3">
-                          Email conversation ({threadEmailCount} emails):
-                        </div>
                         {emailsInThread.map((email, index) => (
                           <ThreadedEmailItem
                             key={email.id}
@@ -1199,16 +1166,6 @@ const TimelineItem = React.memo(
                           />
                         ))}
                       </div>
-                    ) : isEmailThread && !isThreadExpanded ? (
-                      /* Show only latest email when thread is collapsed */
-                      <EmailRenderer
-                        bodyHtml={activity.latestEmail?.bodyHtml || activity.bodyHtml}
-                        bodyText={activity.latestEmail?.bodyText || activity.bodyText}
-                        subject={activity.latestEmail?.subject || activity.subject}
-                        emailId={activity.latestEmail?.id || activity.id}
-                        attachments={activity.latestEmail?.attachments || activity.attachments}
-                        activityDetails={activity.details}
-                      />
                     ) : (activity.source === 'gmail' && activity.type === 'email') ||
                       (activity.source === 'internal' && activity.type === 'email_sent') ? (
                       /* Regular single email display */
