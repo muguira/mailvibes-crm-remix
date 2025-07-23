@@ -576,16 +576,33 @@ export const useOrganizationStore = create<OrganizationStore>()(
             state.optimisticUpdates.pendingRemovals.push(memberId);
           });
 
-          const { error } = await supabase
-            .from('organization_members')
-            .delete()
-            .eq('id', memberId);
+          const currentOrg = get().currentOrganization;
+          if (!currentOrg) throw new Error('No organization found');
 
-          if (error) throw error;
+          // Use the new RPC function to safely delete member (bypasses RLS issues)
+          const { data, error } = await supabase
+            .rpc('delete_organization_member', { 
+              p_member_id: memberId,
+              p_organization_id: currentOrg.id
+            });
+
+          if (error) {
+            console.error('RPC Error removing member:', error);
+            throw error;
+          }
+
+          if (!data) {
+            throw new Error('Failed to remove member - member not found or no permission');
+          }
 
           set((state) => {
             // Remove member from list
             state.members = state.members.filter(m => m.id !== memberId);
+            
+            // Update organization member count if available
+            if (state.currentOrganization) {
+              state.currentOrganization.member_count = Math.max(0, (state.currentOrganization.member_count || 0) - 1);
+            }
             
             // Clear optimistic update and loading state
             state.optimisticUpdates.pendingRemovals = state.optimisticUpdates.pendingRemovals.filter(id => id !== memberId);
