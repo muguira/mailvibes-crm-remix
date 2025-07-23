@@ -895,54 +895,82 @@ const TimelineItem = React.memo(
       isFirst: boolean
       isLast: boolean
     }) => {
-      const isLatest = isLast // Latest email in the thread
-      const [isExpanded, setIsExpanded] = useState(isLatest) // Latest email expanded by default
+      // No expansion state needed - always show full email
 
-      // Collapsed header view (Gmail style)
-      if (!isExpanded) {
-        return (
-          <div
-            className={cn(
-              'py-3 px-4 hover:bg-gray-50 cursor-pointer transition-colors rounded-md',
-              !isLast && 'border-b border-gray-100',
-            )}
-            onClick={() => setIsExpanded(true)}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3 flex-1">
-                {/* Sender avatar/initial */}
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                  {(email.from?.name || email.from?.email || 'U').charAt(0).toUpperCase()}
-                </div>
+      // Function to detect and extract the main content (without quoted parts)
+      const extractMainContent = (
+        bodyHtml?: string,
+        bodyText?: string,
+      ): { mainContent: string; hasQuotedContent: boolean } => {
+        if (bodyHtml) {
+          // Remove quoted content patterns in HTML
+          let cleanHtml = bodyHtml
 
-                {/* Sender and snippet */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium text-gray-900 text-sm">{email.from?.name || email.from?.email}</span>
-                    <span className="text-gray-500 text-xs">{formatTimestamp(email.timestamp)}</span>
-                    {email.isImportant && <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full" title="Important" />}
-                    {!email.isRead && <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" title="Unread" />}
-                  </div>
-                  <div className="text-gray-600 text-sm truncate mt-1">
-                    {email.snippet || email.bodyText || 'No preview available'}
-                  </div>
-                </div>
-              </div>
+          // Remove blockquotes (common for quoted content)
+          cleanHtml = cleanHtml.replace(/<blockquote[^>]*>.*?<\/blockquote>/gis, '')
 
-              {/* Expand indicator */}
-              <div className="text-gray-400 text-xs flex items-center space-x-1">
-                <span>Click to expand</span>
-                <ChevronDown className="w-4 h-4" />
-              </div>
-            </div>
-          </div>
-        )
+          // Remove Gmail-style quoted content
+          cleanHtml = cleanHtml.replace(/<div class="gmail_quote">.*?<\/div>/gis, '')
+
+          // More intelligent: try to extract content before quoted sections
+          const beforeQuoteMatch = cleanHtml.match(/^(.*?)(?:On\s+.+?\s+wrote:|<div[^>]*gmail_quote)/is)
+          if (beforeQuoteMatch && beforeQuoteMatch[1].trim()) {
+            cleanHtml = beforeQuoteMatch[1].trim()
+          }
+
+          // Remove content in divs with quoted indicators
+          cleanHtml = cleanHtml.replace(/<div[^>]*class[^>]*"quoted"[^>]*>.*?<\/div>/gis, '')
+
+          const hasQuoted = cleanHtml.length < bodyHtml.length
+          return {
+            mainContent: cleanHtml.trim() || bodyHtml,
+            hasQuotedContent: hasQuoted && cleanHtml.trim().length > 0,
+          }
+        }
+
+        if (bodyText) {
+          // Clean text content
+          let cleanText = bodyText
+
+          // More intelligent text cleaning - extract content before quotes
+          const lines = cleanText.split('\n')
+          const cleanLines: string[] = []
+          let foundQuoteStart = false
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i]
+
+            // Stop when we find "On ... wrote:" pattern (start of quoted content)
+            if (/On\s+.+?\s+wrote:\s*$/i.test(line.trim())) {
+              foundQuoteStart = true
+              break
+            }
+
+            // Skip lines that start with > (quoted lines)
+            if (line.trim().startsWith('>')) {
+              continue
+            }
+
+            // Keep non-quoted lines that come before the quote section
+            cleanLines.push(line)
+          }
+
+          cleanText = cleanLines.join('\n').trim()
+
+          const hasQuoted = cleanText.length < bodyText.length
+          return {
+            mainContent: cleanText || bodyText,
+            hasQuotedContent: hasQuoted && cleanText.trim().length > 0,
+          }
+        }
+
+        return { mainContent: '', hasQuotedContent: false }
       }
 
-      // Expanded view (full email)
+      // Always show full email - no collapse/expand functionality
       return (
         <div className={cn('py-4 px-4 bg-white', !isLast && 'border-b border-gray-200')}>
-          {/* Expanded header */}
+          {/* Email header */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-start space-x-3 flex-1">
               {/* Sender avatar */}
@@ -974,35 +1002,32 @@ const TimelineItem = React.memo(
               </div>
             </div>
 
-            {/* Actions */}
+            {/* Email status indicators only - no collapse buttons */}
             <div className="flex items-center space-x-2">
               {email.isImportant && <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Important" />}
               {!email.isRead && <div className="w-2 h-2 bg-blue-500 rounded-full" title="Unread" />}
-              {!isLatest && (
-                <button
-                  onClick={() => setIsExpanded(false)}
-                  className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
-                  title="Collapse"
-                >
-                  <ChevronUp className="w-4 h-4" />
-                </button>
-              )}
             </div>
           </div>
 
-          {/* Email content */}
+          {/* Email content - Always show clean content without quotes */}
           <div className="text-sm text-gray-800 leading-relaxed">
-            {email.bodyHtml ? (
-              <EmailRenderer
-                bodyHtml={email.bodyHtml}
-                bodyText={email.bodyText}
-                subject={email.subject || ''}
-                emailId={email.id}
-                attachments={email.attachments}
-              />
-            ) : (
-              <div className="whitespace-pre-wrap">{email.snippet || email.bodyText || 'No content available'}</div>
-            )}
+            {(() => {
+              const { mainContent } = extractMainContent(email.bodyHtml, email.bodyText)
+
+              // Always show only the main content (no quoted text)
+              if (email.bodyHtml && mainContent) {
+                return (
+                  <div
+                    dangerouslySetInnerHTML={{ __html: mainContent }}
+                    className="prose prose-sm max-w-none [&_p]:my-2 [&_img]:max-w-full [&_a]:text-blue-600 [&_a]:underline break-words"
+                  />
+                )
+              } else {
+                return (
+                  <div className="whitespace-pre-wrap">{mainContent || email.snippet || 'No content available'}</div>
+                )
+              }
+            })()}
           </div>
 
           {/* Attachments */}

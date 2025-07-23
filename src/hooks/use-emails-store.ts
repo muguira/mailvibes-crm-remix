@@ -246,26 +246,11 @@ const useEmailsStore = create<EmailsStore>()(
           // Use Supabase's JSONB contains operator to find emails to/from the contact
           // Querying emails for contact (logging disabled to reduce console spam)
 
-          // ✅ SIMPLIFIED: Only query by from_email to avoid JSONB complexity
-          // This will get emails FROM the contact. The fallback method handles TO/CC/BCC properly
-          let { data, error } = await supabase
-            .from('emails')
-            .select(
-              `
-              id, gmail_id, gmail_thread_id, message_id, subject, snippet, body_text, body_html,
-              from_email, from_name, to_emails, cc_emails, bcc_emails,
-              date, is_read, is_important, labels, has_attachments,
-              attachment_count, created_at, updated_at,
-              email_attachments (
-                id, gmail_attachment_id, filename, mime_type, 
-                size_bytes, inline, content_id, storage_path
-              )
-            `,
-            )
-            .eq('user_id', currentUserId)
-            .eq('from_email', contactEmail)
-            .order('date', { ascending: false })
-            .range(offset, offset + limit - 1)
+          // ✅ FIX: Get emails both FROM and TO the contact to capture full conversation
+          // Skip the problematic direct query and use the comprehensive fallback method
+          // This ensures we get all emails in the conversation thread
+          let data = null
+          let error = { message: 'Intentionally triggering fallback to get full conversation' }
 
           if (error) {
             logger.warn('🔄 [EmailsStore] Direct query failed, falling back to local filtering:', {

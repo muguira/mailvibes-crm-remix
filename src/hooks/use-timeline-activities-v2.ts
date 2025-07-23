@@ -275,7 +275,7 @@ const groupEmailsByThread = (emailActivities: TimelineActivity[]): TimelineActiv
 
         // Thread-specific data
         emailsInThread: sortedEmails,
-        threadEmailCount: emailsInThread.length,
+        threadEmailCount: sortedEmails.length,
         latestEmail: latestEmail,
         isThreadExpanded: false, // Default to collapsed
       }
