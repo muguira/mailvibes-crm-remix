@@ -333,8 +333,8 @@ const formatEmailRecipients = (to?: Array<{ name?: string; email: string }>, con
 
   if (to.length === 1) {
     const displayName = getDisplayName(to[0])
-    // Prefer contactName if available and looks more complete
-    return contactName && contactName.includes(' ') ? contactName : displayName
+    // Always show the actual recipient, not the contact name
+    return displayName
   }
 
   // Multiple recipients - show first recipient + count
@@ -662,7 +662,8 @@ const TimelineItem = React.memo(
 
       if (to.length === 1) {
         const displayName = getDisplayName(to[0])
-        return contactName && contactName.includes(' ') ? contactName : displayName
+        // Always show the actual recipient, not the contact name
+        return displayName
       }
 
       const firstRecipient = getDisplayName(to[0])
@@ -945,7 +946,7 @@ const TimelineItem = React.memo(
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-start space-x-3 flex-1">
               {/* Sender avatar */}
-              <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
                 {(email.from?.name || email.from?.email || 'U').charAt(0).toUpperCase()}
               </div>
 
