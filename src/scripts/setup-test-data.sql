@@ -1,4 +1,4 @@
--- Setup test data for MailVibes organization and andres@mailvibes.io
+-- Setup test data for SalesSheet.ai organization and andres@salessheet.io
 -- Run this in your Supabase SQL editor
 
 -- First, add missing columns to organizations table if they don't exist
@@ -29,7 +29,7 @@ BEGIN
   END IF;
 END $$;
 
--- Create or update the MailVibes organization using gen_random_uuid()
+-- Create or update the SalesSheet.ai organization using gen_random_uuid()
 DO $$
 DECLARE
   org_id UUID;
@@ -41,8 +41,8 @@ BEGIN
   INSERT INTO organizations (id, name, domain, plan, member_count, max_members, created_at, updated_at)
   VALUES (
     org_id,
-    'MailVibes',
-    'mailvibes.io',
+    'SalesSheet.ai',
+    'salessheet.io',
     'pro',
     1,
     100,
@@ -57,23 +57,23 @@ BEGIN
   
   -- If there was a conflict, get the existing organization ID
   IF org_id IS NULL THEN
-    SELECT id INTO org_id FROM organizations WHERE domain = 'mailvibes.io';
+    SELECT id INTO org_id FROM organizations WHERE domain = 'salessheet.io';
   END IF;
   
   RAISE NOTICE 'Organization ID: %', org_id;
 END $$;
 
--- Add andres@mailvibes.io as admin member if not already exists
+-- Add andres@salessheet.io as admin member if not already exists
 DO $$
 DECLARE
   user_uuid UUID;
   org_uuid UUID;
 BEGIN
-  -- Get the user ID for andres@mailvibes.io
-  SELECT id INTO user_uuid FROM auth.users WHERE email = 'andres@mailvibes.io' LIMIT 1;
+  -- Get the user ID for andres@salessheet.io
+  SELECT id INTO user_uuid FROM auth.users WHERE email = 'andres@salessheet.io' LIMIT 1;
   
-  -- Get the organization ID for MailVibes
-  SELECT id INTO org_uuid FROM organizations WHERE domain = 'mailvibes.io' LIMIT 1;
+  -- Get the organization ID for SalesSheet.ai
+  SELECT id INTO org_uuid FROM organizations WHERE domain = 'salessheet.io' LIMIT 1;
   
   IF user_uuid IS NOT NULL AND org_uuid IS NOT NULL THEN
     -- Add as organization member if not already exists
@@ -103,13 +103,13 @@ BEGIN
     SET current_organization = org_uuid
     WHERE id = user_uuid;
     
-    RAISE NOTICE 'Successfully set up MailVibes organization for andres@mailvibes.io';
+    RAISE NOTICE 'Successfully set up SalesSheet.ai organization for andres@salessheet.io';
   ELSE
     IF user_uuid IS NULL THEN
-      RAISE NOTICE 'User andres@mailvibes.io not found in auth.users table';
+      RAISE NOTICE 'User andres@salessheet.io not found in auth.users table';
     END IF;
     IF org_uuid IS NULL THEN
-      RAISE NOTICE 'MailVibes organization not found';
+      RAISE NOTICE 'SalesSheet.ai organization not found';
     END IF;
   END IF;
 END $$;
@@ -121,7 +121,7 @@ SET member_count = (
   FROM organization_members 
   WHERE organization_id = organizations.id
 )
-WHERE domain = 'mailvibes.io';
+WHERE domain = 'salessheet.io';
 
 -- Verify the setup
 SELECT 
@@ -138,7 +138,7 @@ FROM auth.users u
 JOIN organization_members om ON u.id = om.user_id
 JOIN organizations o ON om.organization_id = o.id
 LEFT JOIN profiles p ON u.id = p.id
-WHERE u.email = 'andres@mailvibes.io'
+WHERE u.email = 'andres@salessheet.io'
 
 UNION ALL
 

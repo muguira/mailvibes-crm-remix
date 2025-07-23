@@ -71,14 +71,14 @@ CREATE POLICY "Admins can delete members" ON organization_members
     );
 
 -- Step 3: Clean up duplicate organizations
--- Keep the first one (mailvibes.io) and remove the one with www.
+-- Keep the first one (salessheet.io) and remove the one with www.
 DELETE FROM organizations 
-WHERE domain = 'www.mailvibes.io'
-AND name = 'MailVibes';
+WHERE domain = 'www.salessheet.io'
+AND name = 'SalesSheet.ai';
 
 -- Also clean up the third duplicate
 DELETE FROM organizations
-WHERE domain = 'www.MailVibes.io'
+WHERE domain = 'www.SalesSheet.ai.io'
 AND id = '000fb259-521d-4153-842e-8b64fa61fbb2';
 
 -- Step 4: Verify the fix
@@ -118,4 +118,4 @@ SELECT
 FROM auth.users u
 JOIN organization_members om ON u.id = om.user_id
 JOIN organizations o ON om.organization_id = o.id
-WHERE u.email = 'andres@mailvibes.io'; 
+WHERE u.email = 'andres@salessheet.io'; 

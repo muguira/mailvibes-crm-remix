@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Mail, Users, AlertCircle, Check } from 'lucide-react';
+import { X, Mail, Users, AlertCircle, Check, Plus, Keyboard } from 'lucide-react';
 import { InviteUserForm } from '@/types/organization';
 import organizationMocks from '@/mocks/organizationMocks';
 
@@ -45,6 +45,15 @@ export const InviteUsersModal: React.FC<InviteUsersModalProps> = ({
   const isValidEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email.trim());
+  };
+
+  // Check if current input is a valid email that can be added
+  const canAddCurrentEmail = (): boolean => {
+    const trimmedEmail = emailInput.trim().toLowerCase();
+    return trimmedEmail && 
+           isValidEmail(trimmedEmail) && 
+           !emails.includes(trimmedEmail) && 
+           !helpers.isEmailTaken(trimmedEmail);
   };
 
   // Handle adding emails
@@ -113,6 +122,34 @@ export const InviteUsersModal: React.FC<InviteUsersModalProps> = ({
 
   // Handle form submission
   const handleSubmit = async () => {
+    // If there's a valid email in the input, add it first
+    if (canAddCurrentEmail()) {
+      handleAddEmail();
+      // Wait for state update, then check if we have emails
+      setTimeout(async () => {
+        // After adding the email, proceed with the actual submission
+        if (emails.length > 0 || canAddCurrentEmail()) {
+          try {
+            await onInvite({
+              emails: [...emails, emailInput.trim().toLowerCase()],
+              role,
+              message: message.trim() || undefined
+            });
+            
+            // Reset form
+            setEmails([]);
+            setEmailInput('"');            setMessage('"');
+            setRole('user');
+            setErrors({});
+            onClose();
+          } catch (error) {
+            setErrors({ general: 'Failed to send invitations. Please try again.' });
+          }
+        }
+      }, 100);
+      return;
+    }
+
     if (emails.length === 0) {
       setErrors({ emails: 'Please add at least one email address' });
       return;
@@ -127,8 +164,7 @@ export const InviteUsersModal: React.FC<InviteUsersModalProps> = ({
       
       // Reset form
       setEmails([]);
-      setEmailInput('');
-      setMessage('');
+      setEmailInput('"');      setMessage('"');
       setRole('user');
       setErrors({});
       onClose();
@@ -166,17 +202,47 @@ export const InviteUsersModal: React.FC<InviteUsersModalProps> = ({
             <Label htmlFor="email-input" className="text-sm font-medium">
               Email Addresses <span className="text-red-500">*</span>
             </Label>
-            <div className="space-y-2">
-              <Input
-                id="email-input"
-                type="email"
-                placeholder="Enter email addresses (press Enter or comma to add multiple)"
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                onKeyDown={handleEmailKeyPress}
-                onPaste={handleEmailPaste}
-                className={errors.emails ? 'border-red-300 focus:border-red-500' : ''}
-              />
+            <div className="space-y-3">
+              <div className="relative">
+                <Input
+                  id="email-input"
+                  type="email"
+                  placeholder="Type email address and press Enter to add..."
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  onKeyDown={handleEmailKeyPress}
+                  onPaste={handleEmailPaste}
+                  className={`pr-20 ${errors.emails ? 'border-red-300 focus:border-red-500' : canAddCurrentEmail() ? 'border-[#00A991] focus:border-[#00A991]' : ''}`}
+                />
+                {canAddCurrentEmail() && (
+                  <Button
+                    type="button"
+                    onClick={handleAddEmail}
+                    size="sm"
+                    className="absolute right-1 top-1 h-8 px-3 bg-[#00A991] hover:bg-[#008A7A] text-white text-xs flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add
+                  </Button>
+                )}
+              </div>
+              
+              {/* Helpful instruction text */}
+              <div className="flex items-center justify-between text-xs">
+                <div className="text-gray-500 flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <Keyboard className="w-3 h-3" />
+                    <span>Press</span>
+                    <kbd className="px-1.5 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded">Enter</kbd>
+                    <span>or</span>
+                    <kbd className="px-1.5 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded">,</kbd>
+                    <span>to add</span>
+                  </div>
+                </div>
+                <div className="text-[#00A991] font-medium">
+                  {emails.length > 0 ? `${emails.length} email${emails.length === 1 ? '' : 's'} added` : 'Paste multiple emails separated by commas'}
+                </div>
+              </div>
               
               {/* Email Tags */}
               {emails.length > 0 && (
@@ -185,13 +251,13 @@ export const InviteUsersModal: React.FC<InviteUsersModalProps> = ({
                     <Badge
                       key={email}
                       variant="secondary"
-                      className="flex items-center gap-1 px-2 py-1"
+                      className="flex items-center gap-1 px-2 py-1 bg-[#00A991]/10 text-[#00A991] border-[#00A991]/20"
                     >
                       <Check className="w-3 h-3" />
                       {email}
                       <button
                         onClick={() => handleRemoveEmail(email)}
-                        className="ml-1 hover:text-red-600"
+                        className="ml-1 hover:text-red-600 transition-colors"
                         type="button"
                       >
                         <X className="w-3 h-3" />
@@ -297,10 +363,10 @@ export const InviteUsersModal: React.FC<InviteUsersModalProps> = ({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={loading || emails.length === 0}
+              disabled={loading || (emails.length === 0 && !canAddCurrentEmail())}
               className="bg-[#00A991] hover:bg-[#008A7A]"
             >
-              {loading ? 'Sending...' : `Send ${emails.length || ''} Invitation${emails.length === 1 ? '' : 's'}`}
+              {loading ? 'Sending...' : `Send ${emails.length || (canAddCurrentEmail() ? '1' : '')} Invitation${(emails.length === 1 || canAddCurrentEmail()) ? '' : 's'}`}
             </Button>
           </div>
         </DialogFooter>

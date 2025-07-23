@@ -74,6 +74,7 @@ function App() {
                   <Route path="/auth" element={<AuthenticatedRedirect><Auth /></AuthenticatedRedirect>} />
                   <Route path="/landing" element={<Landing />} />
                   <Route path="/accept-invitation/:invitationId" element={<AcceptInvitation />} />
+                  <Route path="/accept-invitation" element={<AcceptInvitation />} />
                   <Route path="/" element={<PrivateRoute><Index /></PrivateRoute>} />
                   <Route path="/lists/:listId?" element={<PrivateRoute><Lists /></PrivateRoute>} />
                   <Route path="/new-grid" element={<PrivateRoute><NewGrid /></PrivateRoute>} />
@@ -110,6 +111,9 @@ function App() {
                     },
                   }}
                   className="sm:!top-4 !top-16"
+                  gap={16}
+                  duration={4000}
+                  visibleToasts={3}
                 />
               </div>
             </Router>

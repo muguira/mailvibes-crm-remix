@@ -174,6 +174,28 @@ export const useAuthSlice: StateCreator<
             const { useStore } = await import('@/stores/index')
             useStore.getState().contactsInitialize(session.user.id)
 
+            // NEW: Check for pending invitations and auto-accept them
+            if (session.user.email) {
+              try {
+                logger.log('🔍 Checking for pending invitations...')
+                const { checkAndAcceptPendingInvitations } = await import('@/services/invitationService')
+                const result = await checkAndAcceptPendingInvitations(session.user.email, session.user.id)
+                
+                if (result.hasOrganization && result.wasAutoAccepted) {
+                  logger.log('✅ User auto-assigned to organization via invitation')
+                  // Reload organization store to reflect the new organization
+                  const { useOrganizationStore } = await import('@/stores/organizationStore')
+                  await useOrganizationStore.getState().loadOrganization()
+                  logger.log('🏢 Organization data loaded after auto-acceptance')
+                } else if (result.message && !result.hasOrganization) {
+                  logger.warn('⚠️ Issue with invitation acceptance:', result.message)
+                }
+              } catch (error) {
+                logger.error('❌ Error checking pending invitations:', error)
+                // Don't throw - we don't want to break the sign-in process
+              }
+            }
+
             // RESTORED: Auto-initialization with granular selectors (safe with timeout)
             // Initialize Gmail auth for signed in user with delay to avoid conflicts
             logger.log('User signed in, scheduling Gmail initialization...')
@@ -200,6 +222,11 @@ export const useAuthSlice: StateCreator<
           // Clear contacts when user logs out
           const { useStore } = await import('@/stores/index')
           useStore.getState().contactsClear()
+
+          // Reset organization store when user logs out (clears session cache)
+          const { useOrganizationStore } = await import('@/stores/organizationStore')
+          useOrganizationStore.getState().reset()
+          logger.log('User signed out, organization cache cleared')
 
           // RESTORED: Gmail reset with fixed selectors
           // Reset Gmail auth when user logs out

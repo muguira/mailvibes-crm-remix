@@ -9,7 +9,7 @@ SELECT
     om.organization_id
 FROM auth.users u
 JOIN organization_members om ON u.id = om.user_id
-WHERE u.email = 'andres@mailvibes.io';
+WHERE u.email = 'andres@salessheet.io';
 
 -- 2. Test the RPC function manually (this should work if you're authenticated in the app)
 -- Note: This will only work when called from the app, not from SQL editor

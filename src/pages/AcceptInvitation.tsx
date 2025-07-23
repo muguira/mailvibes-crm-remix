@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Building2, Users, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { useAuth } from '@/components/auth';
-import { useOrganizationActions } from '@/stores/organizationStore';
 import { supabase } from '@/integrations/supabase/client';
+import { acceptInvitation, getPendingInvitations, type PendingInvitation } from '@/services/invitationService';
 
 interface InvitationDetails {
   id: string;
@@ -21,9 +21,12 @@ interface InvitationDetails {
 
 export const AcceptInvitation: React.FC = () => {
   const { invitationId } = useParams<{ invitationId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { acceptInvitation } = useOrganizationActions();
+  
+  // Get invitation ID from either URL param or query param (token)
+  const effectiveInvitationId = invitationId || searchParams.get('token');
   
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,61 +35,50 @@ export const AcceptInvitation: React.FC = () => {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    if (invitationId) {
+    if (effectiveInvitationId) {
       loadInvitationDetails();
+    } else if (user && !effectiveInvitationId && !authLoading) {
+      // If user is logged in but no invitation ID/token, redirect to dashboard
+      navigate('/');
     }
-  }, [invitationId]);
+  }, [effectiveInvitationId, user, navigate, authLoading]);
 
   const loadInvitationDetails = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const { data, error: inviteError } = await supabase
-        .from('organization_invitations')
-        .select(`
-          id,
-          email,
-          role,
-          status,
-          expires_at,
-          organizations:organization_id (
-            name
-          ),
-          profiles:invited_by (
-            full_name,
-            email
-          )
-        `)
-        .eq('id', invitationId)
-        .single();
+      // Use the public RPC function that works for both authenticated and unauthenticated users
+      const { data: inviteData, error: inviteError } = await supabase
+        .rpc('get_invitation_details_public', { 
+          p_token_or_id: effectiveInvitationId 
+        });
 
       if (inviteError) {
-        if (inviteError.code === 'PGRST116') {
-          setError('Invitation not found. It may have been cancelled or already used.');
-        } else {
-          throw inviteError;
-        }
+        console.error('Invitation query error:', inviteError);
+        setError('Failed to load invitation details.');
         return;
       }
 
-      if (!data) {
-        setError('Invitation not found.');
+      if (!inviteData || inviteData.length === 0) {
+        setError('Invitation not found. It may have been cancelled or already used.');
         return;
       }
+
+      const invitation = inviteData[0];
 
       setInvitation({
-        id: data.id,
-        organization_name: data.organizations?.name || 'Unknown Organization',
-        email: data.email,
-        role: data.role,
-        status: data.status,
-        expires_at: data.expires_at,
-        inviter_name: data.profiles?.full_name || 'Unknown',
-        inviter_email: data.profiles?.email || 'Unknown'
+        id: invitation.id,
+        organization_name: invitation.organization_name,
+        email: invitation.email,
+        role: invitation.role,
+        status: invitation.status,
+        expires_at: invitation.expires_at,
+        inviter_name: invitation.inviter_name,
+        inviter_email: invitation.inviter_email
       });
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading invitation:', err);
       setError('Failed to load invitation details.');
     } finally {
@@ -119,16 +111,31 @@ export const AcceptInvitation: React.FC = () => {
       setAccepting(true);
       setError(null);
 
-      await acceptInvitation(invitationId!);
-      setSuccess(true);
+      // Use the new invitation service to accept the invitation
+      const result = await acceptInvitation(invitation.id, user.id);
+      
+      if (result.hasOrganization) {
+        setSuccess(true);
+        
+        // Reload organization data in the background
+        try {
+          const { useOrganizationStore } = await import('@/stores/organizationStore');
+          await useOrganizationStore.getState().loadOrganization();
+        } catch (orgError) {
+          console.warn('Could not reload organization data:', orgError);
+        }
 
-      // Redirect to dashboard after a short delay
-      setTimeout(() => {
-        navigate('/');
-      }, 2000);
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          navigate('/');
+        }, 2000);
+      } else {
+        setError(result.message || 'Failed to accept invitation');
+      }
 
-    } catch (err) {
-      setError(err.message);
+    } catch (err: any) {
+      console.error('Error accepting invitation:', err);
+      setError(err.message || 'Failed to accept invitation');
     } finally {
       setAccepting(false);
     }

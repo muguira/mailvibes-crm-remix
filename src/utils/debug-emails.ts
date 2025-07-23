@@ -89,7 +89,7 @@ export async function debugEmails(userId?: string) {
     }
 
     // 3. Check specific contact if provided
-    const contactEmail = 'wilberto@mailvibes.io' // From the error logs
+    const contactEmail = 'wilberto@salessheet.io' // From the error logs
     console.log(`\n🎯 Checking emails for contact: ${contactEmail}`)
 
     const {

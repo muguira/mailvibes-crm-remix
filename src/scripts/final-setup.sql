@@ -1,4 +1,4 @@
--- Final setup script for MailVibes organization and andres@mailvibes.io
+-- Final setup script for SalesSheet.ai organization and andres@salessheet.io
 -- This script handles all edge cases and only uses existing columns
 
 -- First, let's check what columns actually exist
@@ -21,9 +21,9 @@ BEGIN
   END IF;
 END $$;
 
--- Create or update the MailVibes organization
+-- Create or update the SalesSheet.ai organization
 INSERT INTO organizations (name, domain)
-VALUES ('MailVibes', 'mailvibes.io')
+VALUES ('SalesSheet.ai', 'salessheet.io')
 ON CONFLICT (domain) DO UPDATE SET
   name = EXCLUDED.name;
 
@@ -35,24 +35,24 @@ DECLARE
   v_user_email TEXT;
 BEGIN
   -- Get organization ID
-  SELECT id INTO v_org_id FROM organizations WHERE domain = 'mailvibes.io';
+  SELECT id INTO v_org_id FROM organizations WHERE domain = 'salessheet.io';
   RAISE NOTICE 'Organization ID: %', v_org_id;
   
   -- Get user info
-  SELECT id, email INTO v_user_id, v_user_email FROM auth.users WHERE email = 'andres@mailvibes.io' LIMIT 1;
+  SELECT id, email INTO v_user_id, v_user_email FROM auth.users WHERE email = 'andres@salessheet.io' LIMIT 1;
   
   IF v_user_id IS NULL THEN
-    -- Try to find any user with mailvibes.io domain
-    SELECT id, email INTO v_user_id, v_user_email FROM auth.users WHERE email LIKE '%@mailvibes.io' LIMIT 1;
+    -- Try to find any user with salessheet.io domain
+    SELECT id, email INTO v_user_id, v_user_email FROM auth.users WHERE email LIKE '%@salessheet.io' LIMIT 1;
     IF v_user_id IS NOT NULL THEN
       RAISE NOTICE 'Found user with email: %', v_user_email;
     ELSE
-      RAISE NOTICE 'No users found with @mailvibes.io email domain';
-      RAISE NOTICE 'Please sign up with andres@mailvibes.io first';
+      RAISE NOTICE 'No users found with @salessheet.io email domain';
+      RAISE NOTICE 'Please sign up with andres@salessheet.io first';
       RETURN;
     END IF;
   ELSE
-    RAISE NOTICE 'Found user andres@mailvibes.io with ID: %', v_user_id;
+    RAISE NOTICE 'Found user andres@salessheet.io with ID: %', v_user_id;
   END IF;
   
   -- Add user to organization
@@ -98,7 +98,7 @@ FROM auth.users u
 LEFT JOIN organization_members om ON u.id = om.user_id
 LEFT JOIN organizations o ON om.organization_id = o.id
 LEFT JOIN profiles p ON u.id = p.id
-WHERE u.email LIKE '%@mailvibes.io%'
+WHERE u.email LIKE '%@salessheet.io%'
 ORDER BY u.email;
 
 -- Show all organizations for debugging

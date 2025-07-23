@@ -36,7 +36,7 @@ Configurar correctamente el proyecto en Google Cloud Platform para habilitar Gma
 2. Click en el selector de proyectos (arriba a la izquierda)
 3. Click en "Nuevo Proyecto"
 4. Configurar:
-   - **Nombre del proyecto**: `mailvibes-crm-gmail`
+   - **Nombre del proyecto**: `salessheet-crm-gmail`
    - **ID del proyecto**: Se genera automáticamente
    - **Organización**: (si aplica)
 5. Click en "Crear"

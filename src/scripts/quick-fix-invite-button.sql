@@ -7,4 +7,4 @@ SELECT
 FROM auth.users u
 JOIN organization_members om ON u.id = om.user_id
 JOIN organizations o ON om.organization_id = o.id
-WHERE u.email = 'andres@mailvibes.io'; 
+WHERE u.email = 'andres@salessheet.io'; 

@@ -14,12 +14,6 @@ import { Database } from '@/integrations/supabase/types';
 import { sendInvitationEmails } from '@/services/invitationEmailService';
 import { toast } from 'sonner';
 
-// Helper function to check if data is cached (valid for entire session)
-const isDataCached = (lastUpdated: string | null): boolean => {
-  // Data is considered cached if it exists and was loaded during this session
-  return !!lastUpdated;
-};
-
 // Helper functions
 const generateInitials = (firstName: string, lastName: string): string => {
   const first = (firstName || '').trim();
@@ -85,7 +79,7 @@ interface EnhancedOrganizationState extends OrganizationState {
 
 interface OrganizationStore extends EnhancedOrganizationState {
   // Actions
-  loadOrganization: (force?: boolean) => Promise<void>;
+  loadOrganization: () => Promise<void>;
   createOrganization: (name: string, domain: string) => Promise<void>;
   inviteUsers: (formData: InviteUserForm) => Promise<void>;
   updateMemberRole: (memberId: string, newRole: 'admin' | 'user') => Promise<void>;
@@ -162,8 +156,8 @@ export const useOrganizationStore = create<OrganizationStore>()(
               state.needsOrganization = false;
               state.loadingStates.checkingOrganization = false;
             });
-            // Load the organization data (use cache if available)
-            await get().loadOrganization(false);
+            // Load the organization data
+            await get().loadOrganization();
           } else {
             // User genuinely needs to create an organization
             console.log('📝 User needs to create an organization');
@@ -273,22 +267,12 @@ export const useOrganizationStore = create<OrganizationStore>()(
       },
 
       // Load current organization data
-      loadOrganization: async (force = false) => {
-        const state = get();
-        
-        // Check if we have cached data and don't need to force reload
-        if (!force && state.currentOrganization && isDataCached(state.lastUpdated)) {
-          console.log('🚀 Using cached organization data (session-persistent)');
-          return;
-        }
-
+      loadOrganization: async () => {
         try {
           set((state) => {
             state.loadingStates.loadingOrganization = true;
             state.errors.loadOrganization = undefined;
           });
-
-          console.log('🔄 Fetching fresh organization data...');
 
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) throw new Error('User not authenticated');
@@ -388,8 +372,6 @@ export const useOrganizationStore = create<OrganizationStore>()(
             state.lastUpdated = new Date().toISOString();
             state.loadingStates.loadingOrganization = false;
           });
-
-          console.log('✅ Organization data loaded and cached for session');
 
         } catch (error: any) {
           set((state) => {
@@ -519,13 +501,6 @@ export const useOrganizationStore = create<OrganizationStore>()(
 
       // Update member role
       updateMemberRole: async (memberId: string, newRole: 'admin' | 'user') => {
-        // Prevent duplicate calls while one is in progress
-        const state = get();
-        if (state.loadingStates.updatingRole[memberId]) {
-          console.log('Role update already in progress for member:', memberId);
-          return;
-        }
-
         try {
           set((state) => {
             state.loadingStates.updatingRole[memberId] = true;
@@ -536,32 +511,18 @@ export const useOrganizationStore = create<OrganizationStore>()(
             state.optimisticUpdates.pendingRoleChanges[memberId] = newRole;
           });
 
-          const currentOrg = get().currentOrganization;
-          if (!currentOrg) throw new Error('No organization found');
+          const { error } = await supabase
+            .from('organization_members')
+            .update({ role: newRole })
+            .eq('id', memberId);
 
-          // Use the new RPC function to safely update role (bypasses RLS issues)
-          const { data, error } = await supabase
-            .rpc('update_organization_member_role', { 
-              p_member_id: memberId,
-              p_organization_id: currentOrg.id,
-              p_new_role: newRole
-            });
-
-          if (error) {
-            console.error('RPC Error updating member role:', error);
-            throw error;
-          }
-
-          if (!data) {
-            throw new Error('Failed to update role - member not found or no permission');
-          }
+          if (error) throw error;
 
           set((state) => {
             // Apply the actual update
             const memberIndex = state.members.findIndex(m => m.id === memberId);
             if (memberIndex !== -1) {
               state.members[memberIndex].role = newRole;
-              state.members[memberIndex].updated_at = new Date().toISOString();
             }
             
             // Clear optimistic update and loading state
@@ -569,12 +530,9 @@ export const useOrganizationStore = create<OrganizationStore>()(
             delete state.loadingStates.updatingRole[memberId];
           });
 
-          // Single toast with unique ID to prevent duplicates
-          toast.success('Member role updated successfully', {
-            id: `role-update-${memberId}`,
-          });
+          toast.success('Member role updated successfully');
 
-        } catch (error: any) {
+        } catch (error) {
           set((state) => {
             delete state.loadingStates.updatingRole[memberId];
             delete state.optimisticUpdates.pendingRoleChanges[memberId];
@@ -583,24 +541,13 @@ export const useOrganizationStore = create<OrganizationStore>()(
               [memberId]: error.message 
             };
           });
-          
-          // Single error toast with unique ID to prevent duplicates
-          toast.error(`Failed to update role: ${error.message}`, {
-            id: `role-update-error-${memberId}`,
-          });
+          toast.error(`Failed to update role: ${error.message}`);
           throw error;
         }
       },
 
       // Remove member from organization
       removeMember: async (memberId: string) => {
-        // Prevent duplicate calls while one is in progress
-        const state = get();
-        if (state.loadingStates.removingMember[memberId]) {
-          console.log('Member removal already in progress for member:', memberId);
-          return;
-        }
-
         try {
           set((state) => {
             state.loadingStates.removingMember[memberId] = true;
@@ -611,45 +558,25 @@ export const useOrganizationStore = create<OrganizationStore>()(
             state.optimisticUpdates.pendingRemovals.push(memberId);
           });
 
-          const currentOrg = get().currentOrganization;
-          if (!currentOrg) throw new Error('No organization found');
+          const { error } = await supabase
+            .from('organization_members')
+            .delete()
+            .eq('id', memberId);
 
-          // Use the new RPC function to safely delete member (bypasses RLS issues)
-          const { data, error } = await supabase
-            .rpc('delete_organization_member', { 
-              p_member_id: memberId,
-              p_organization_id: currentOrg.id
-            });
-
-          if (error) {
-            console.error('RPC Error removing member:', error);
-            throw error;
-          }
-
-          if (!data) {
-            throw new Error('Failed to remove member - member not found or no permission');
-          }
+          if (error) throw error;
 
           set((state) => {
             // Remove member from list
             state.members = state.members.filter(m => m.id !== memberId);
-            
-            // Update organization member count if available
-            if (state.currentOrganization) {
-              state.currentOrganization.member_count = Math.max(0, (state.currentOrganization.member_count || 0) - 1);
-            }
             
             // Clear optimistic update and loading state
             state.optimisticUpdates.pendingRemovals = state.optimisticUpdates.pendingRemovals.filter(id => id !== memberId);
             delete state.loadingStates.removingMember[memberId];
           });
 
-          // Single toast with unique ID to prevent duplicates
-          toast.success('Member removed successfully', {
-            id: `member-removal-${memberId}`,
-          });
+          toast.success('Member removed successfully');
 
-        } catch (error: any) {
+        } catch (error) {
           set((state) => {
             delete state.loadingStates.removingMember[memberId];
             state.optimisticUpdates.pendingRemovals = state.optimisticUpdates.pendingRemovals.filter(id => id !== memberId);
@@ -658,11 +585,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
               [memberId]: error.message 
             };
           });
-          
-          // Single error toast with unique ID to prevent duplicates
-          toast.error(`Failed to remove member: ${error.message}`, {
-            id: `member-removal-error-${memberId}`,
-          });
+          toast.error(`Failed to remove member: ${error.message}`);
           throw error;
         }
       },
@@ -881,7 +804,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
       },
 
       refreshData: async () => {
-        await get().loadOrganization(true); // Force reload when explicitly refreshing
+        await get().loadOrganization();
       },
     })),
     {

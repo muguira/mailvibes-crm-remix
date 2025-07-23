@@ -38,7 +38,7 @@ export const useStore = create<TStore>()(
       })),
     ),
     {
-      name: 'mailvibes-crm-store',
+      name: 'salessheet-crm-store',
       storage: createJSONStorage(() => localStorage),
       partialize: state => {
         const persistedState = {
@@ -62,7 +62,7 @@ export const useStore = create<TStore>()(
         // Zustand persist starting rehydration (logging disabled to reduce console spam)
 
         // Check what's actually in localStorage
-        const stored = localStorage.getItem('mailvibes-crm-store')
+        const stored = localStorage.getItem('salessheet-crm-store')
         if (stored) {
           try {
             const parsed = JSON.parse(stored)

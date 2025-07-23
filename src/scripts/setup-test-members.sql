@@ -4,7 +4,7 @@
 -- First, ensure we have the users in auth.users
 -- These would normally be created through the auth flow, but for testing we'll assume they exist
 
--- Get the MailVibes organization ID
+-- Get the SalesSheet.ai organization ID
 DO $$
 DECLARE
     v_org_id UUID;
@@ -13,17 +13,17 @@ BEGIN
     -- Get organization
     SELECT id INTO v_org_id 
     FROM organizations 
-    WHERE domain = 'mailvibes.io' 
+    WHERE domain = 'salessheet.io' 
     LIMIT 1;
     
     IF v_org_id IS NULL THEN
-        RAISE EXCEPTION 'MailVibes organization not found';
+        RAISE EXCEPTION 'SalesSheet.ai organization not found';
     END IF;
     
     -- Get Andres's user ID
     SELECT id INTO v_andres_id 
     FROM auth.users 
-    WHERE email = 'andres@mailvibes.io' 
+    WHERE email = 'andres@salessheet.io' 
     LIMIT 1;
     
     -- Clear existing test members (except Andres)
@@ -52,5 +52,5 @@ FROM organization_members om
 JOIN auth.users u ON om.user_id = u.id
 LEFT JOIN profiles p ON u.id = p.id
 WHERE om.organization_id = (
-    SELECT id FROM organizations WHERE domain = 'mailvibes.io' LIMIT 1
+    SELECT id FROM organizations WHERE domain = 'salessheet.io' LIMIT 1
 ); 

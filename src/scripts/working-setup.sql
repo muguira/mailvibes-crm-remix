@@ -1,24 +1,24 @@
--- Working setup for MailVibes organization and andres@mailvibes.io
+-- Working setup for SalesSheet.ai organization and andres@salessheet.io
 -- This version only uses columns that actually exist in the database
 
--- Step 1: Create the MailVibes organization
+-- Step 1: Create the SalesSheet.ai organization
 INSERT INTO organizations (name, domain)
-VALUES ('MailVibes', 'mailvibes.io')
+VALUES ('SalesSheet.ai', 'salessheet.io')
 ON CONFLICT (domain) DO UPDATE SET
   name = EXCLUDED.name,
   updated_at = NOW();
 
--- Step 2: Add andres@mailvibes.io as admin member
+-- Step 2: Add andres@salessheet.io as admin member
 DO $$
 DECLARE
   v_user_id UUID;
   v_org_id UUID;
 BEGIN
-  -- Get the user ID for andres@mailvibes.io
-  SELECT id INTO v_user_id FROM auth.users WHERE email = 'andres@mailvibes.io' LIMIT 1;
+  -- Get the user ID for andres@salessheet.io
+  SELECT id INTO v_user_id FROM auth.users WHERE email = 'andres@salessheet.io' LIMIT 1;
   
-  -- Get the organization ID for MailVibes
-  SELECT id INTO v_org_id FROM organizations WHERE domain = 'mailvibes.io' LIMIT 1;
+  -- Get the organization ID for SalesSheet.ai
+  SELECT id INTO v_org_id FROM organizations WHERE domain = 'salessheet.io' LIMIT 1;
   
   IF v_user_id IS NOT NULL AND v_org_id IS NOT NULL THEN
     -- Add as organization member (only use columns that exist)
@@ -40,15 +40,15 @@ BEGIN
     ON CONFLICT (id) DO UPDATE SET
       current_organization = EXCLUDED.current_organization;
     
-    RAISE NOTICE 'Successfully set up MailVibes organization for andres@mailvibes.io';
+    RAISE NOTICE 'Successfully set up SalesSheet.ai organization for andres@salessheet.io';
     RAISE NOTICE 'User ID: %', v_user_id;
     RAISE NOTICE 'Organization ID: %', v_org_id;
   ELSE
     IF v_user_id IS NULL THEN
-      RAISE NOTICE 'ERROR: User andres@mailvibes.io not found. Please make sure you have signed up with this email.';
+      RAISE NOTICE 'ERROR: User andres@salessheet.io not found. Please make sure you have signed up with this email.';
     END IF;
     IF v_org_id IS NULL THEN
-      RAISE NOTICE 'ERROR: Failed to create MailVibes organization';
+      RAISE NOTICE 'ERROR: Failed to create SalesSheet.ai organization';
     END IF;
   END IF;
 END $$;
@@ -68,7 +68,7 @@ FROM auth.users u
 LEFT JOIN organization_members om ON u.id = om.user_id
 LEFT JOIN organizations o ON om.organization_id = o.id
 LEFT JOIN profiles p ON u.id = p.id
-WHERE u.email = 'andres@mailvibes.io';
+WHERE u.email = 'andres@salessheet.io';
 
 -- Step 4: List all columns in organization_members table (for debugging)
 SELECT 

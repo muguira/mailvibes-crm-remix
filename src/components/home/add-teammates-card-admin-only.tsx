@@ -38,8 +38,21 @@ export const AddTeammatesCard: React.FC = () => {
     navigate('/settings/organization/users');
   };
 
-  // Don't show anything while organization data is loading OR if user is not admin
-  if (loadingStates.loadingOrganization || !organization || !isAdmin) {
+  // Don't show if organization is not loaded yet
+  if (loadingStates.loadingOrganization || !organization) {
+    return (
+      <Card className="bg-gradient-to-br from-[#E8F5F3] to-[#D1F2ED] border-[#00A991]/20 shadow-sm w-full">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center h-32">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#00A991] border-t-transparent"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Only show to admins
+  if (!isAdmin) {
     return null;
   }
 

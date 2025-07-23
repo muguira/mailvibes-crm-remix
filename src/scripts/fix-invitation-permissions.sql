@@ -77,7 +77,7 @@ WHERE schemaname = 'public'
 AND tablename = 'organization_invitations'
 ORDER BY policyname;
 
--- Double check that andres@mailvibes.io is an admin
+-- Double check that andres@salessheet.io is an admin
 SELECT 
     u.email,
     om.role,
@@ -85,4 +85,4 @@ SELECT
 FROM auth.users u
 JOIN organization_members om ON u.id = om.user_id
 JOIN organizations o ON om.organization_id = o.id
-WHERE u.email = 'andres@mailvibes.io'; 
+WHERE u.email = 'andres@salessheet.io'; 
