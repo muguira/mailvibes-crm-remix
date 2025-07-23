@@ -72,13 +72,8 @@ if (typeof window !== 'undefined') {
   // @ts-ignore - Adding to window for debugging purposes
   window.timelineDebug = timelineDebug
 
-  console.log('🔧 Timeline debug functions loaded globally:')
-  console.log('  timelineDebug.clearViewed()        - Clear all viewed states')
-  console.log('  timelineDebug.showViewed()         - Show currently viewed activities')
-  console.log('  timelineDebug.testProgressive()    - Reset and test progressive effect')
-  console.log('  timelineDebug.startLiveMonitoring() - Enhanced real-time logging')
-  console.log('  timelineDebug.getStats()           - Get visibility statistics')
-  console.log('  timelineDebug.explainAntiRetro()   - Explain anti-retrocession feature')
+  // Timeline debug functions loaded (logging disabled to reduce console spam)
+  // Available: clearViewed(), showViewed(), testProgressive(), startLiveMonitoring(), getStats(), explainAntiRetro()
 }
 
 export default timelineDebug

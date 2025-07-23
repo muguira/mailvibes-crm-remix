@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { EmailAIRepository } from '@/services/ai/repositories/EmailAIRepository'
-import { TimelineActivity } from './use-timeline-activities-v2'
 import { AIError, ContactInfo } from '@/services/ai'
+import { EmailAIRepository } from '@/services/ai/repositories/EmailAIRepository'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { TimelineActivity } from './use-timeline-activities-v2'
 import { toast } from './use-toast'
 
 interface UseEmailAIOptions {
@@ -52,9 +52,7 @@ const getAIRepository = async (providerName?: string): Promise<EmailAIRepository
       globalAIRepository = repository
       globalInitializationPromise = null
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('✅ [AI] Successfully initialized')
-      }
+      // AI successfully initialized (logging disabled to reduce console spam)
 
       return repository
     })
@@ -102,15 +100,11 @@ export const useEmailAI = (options: UseEmailAIOptions = {}) => {
   useEffect(() => {
     // Only auto-initialize if we have the required environment variables
     if (import.meta.env.VITE_GEMINI_API_KEY && !globalAIRepository && !initializationAttempted) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🚀 [useEmailAI] Auto-initializing AI with available env vars')
-      }
+      // Auto-initializing AI (logging disabled to reduce console spam)
 
       // Initialize in background without blocking the UI
       ensureInitialized().catch(error => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('ℹ️ [useEmailAI] Auto-initialization failed, will retry on demand:', error.message)
-        }
+        // Auto-initialization failed (logging disabled to reduce console spam)
       })
     }
   }, []) // Empty dependency array - only run once on mount

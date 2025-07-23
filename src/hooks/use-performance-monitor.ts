@@ -46,13 +46,7 @@ export const usePerformanceMonitor = (
 
     const averageRenderTime = totalRenderTime.current / renderCount.current
 
-    // Log performance metrics
-    console.log(`[${componentName}] Performance Metrics:`, {
-      renderNumber: renderCount.current,
-      lastRenderTime: `${renderTime.toFixed(2)}ms`,
-      averageRenderTime: `${averageRenderTime.toFixed(2)}ms`,
-      totalRenderTime: `${totalRenderTime.current.toFixed(2)}ms`,
-    })
+    // Performance metrics tracking (logging disabled to reduce console spam)
 
     // Track memory usage if available
     if (performance.memory) {
@@ -65,12 +59,7 @@ export const usePerformanceMonitor = (
       const memoryDiff = currentMemory - initialMemory.current
 
       if (renderCount.current % 10 === 0) {
-        // Log every 10 renders
-        console.log(`[${componentName}] Memory Usage:`, {
-          current: `${currentMemory}MB`,
-          initial: `${initialMemory.current}MB`,
-          difference: `${memoryDiff > 0 ? '+' : ''}${memoryDiff}MB`,
-        })
+        // Memory usage tracking (logging disabled to reduce console spam)
       }
     }
 
@@ -91,14 +80,7 @@ export const usePerformanceMonitor = (
     if (!enabled) return
 
     const metrics = getMetrics()
-    console.log(`[${componentName}] Performance Summary:`, {
-      totalRenders: metrics.renderCount,
-      averageRenderTime: `${metrics.averageRenderTime.toFixed(2)}ms`,
-      totalTime: `${metrics.totalRenderTime.toFixed(2)}ms`,
-      ...(performance.memory && {
-        currentMemory: `${Math.round(performance.memory.usedJSHeapSize / 1024 / 1024)}MB`,
-      }),
-    })
+    // Performance summary logging disabled to reduce console spam
   }
 
   // Function to reset metrics

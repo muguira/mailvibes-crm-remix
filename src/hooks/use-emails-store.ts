@@ -1,11 +1,11 @@
-import { create } from 'zustand'
-import { immer } from 'zustand/middleware/immer'
-import { subscribeWithSelector } from 'zustand/middleware'
+import { toast } from '@/hooks/use-toast'
 import { supabase } from '@/integrations/supabase/client'
 import { GmailEmail } from '@/services/google/gmailApi'
-import { triggerContactSync } from '@/workers/emailSyncWorker'
-import { toast } from '@/hooks/use-toast'
 import { logger } from '@/utils/logger'
+import { triggerContactSync } from '@/workers/emailSyncWorker'
+import { create } from 'zustand'
+import { subscribeWithSelector } from 'zustand/middleware'
+import { immer } from 'zustand/middleware/immer'
 
 interface DatabaseEmail {
   id: string
@@ -92,7 +92,11 @@ interface EmailsActions {
   // Main actions
   initializeContactEmails: (contactEmail: string, userId: string) => Promise<void>
   loadMoreEmails: (contactEmail: string) => Promise<void>
-  syncContactHistory: (contactEmail: string, userId: string, options?: { isAfterEmailSend?: boolean }) => Promise<void>
+  syncContactHistory: (
+    contactEmail: string,
+    userId: string,
+    options?: { isAfterEmailSend?: boolean; forceFullSync?: boolean },
+  ) => Promise<void>
   refreshContactEmails: (contactEmail: string, userId: string) => Promise<void>
 
   // ✅ NEW: Optimistic updates for immediate UI feedback
@@ -119,6 +123,19 @@ interface EmailsActions {
   clearErrors: (contactEmail: string) => void
   reset: () => void
   setCurrentUserId: (userId: string | null) => void
+
+  // ✅ DEBUG: Helper function to investigate the April 2022 cutoff issue
+  debugDatabaseEmails: (
+    contactEmail: string,
+    beforeDate?: string,
+  ) => Promise<{
+    emailsBefore: any[]
+    emailsAfter: any[]
+    allEmails: any[]
+  } | null>
+
+  // ✅ DEBUG: Force reset and reload emails to test fixed pagination
+  debugResetAndReload: (contactEmail: string) => Promise<number>
 }
 
 type EmailsStore = ContactEmailsState & EmailsActions
@@ -152,7 +169,7 @@ const useEmailsStore = create<EmailsStore>()(
       syncStatus: {},
       lastSyncAt: {},
       optimisticEmails: {},
-      emailsPerPage: 20,
+      emailsPerPage: 100, // ✅ INCREASED: Show 100 emails initially instead of 20 to display more history
       isInitialized: false,
       currentUserId: null,
 
@@ -222,18 +239,14 @@ const useEmailsStore = create<EmailsStore>()(
           throw new Error('No authenticated user')
         }
 
-        console.log('🔍 [EmailsStore] loadEmailsFromDatabase called:', {
-          contactEmail,
-          userId: currentUserId,
-          offset,
-          limit,
-        })
+        // Load emails from database (logging disabled to reduce console spam)
 
         try {
-          // Get more emails than needed to filter locally (JSONB cs operator is unreliable)
-          const fetchLimit = Math.max(limit * 5, 200) // Increased: Get at least 200 or 5x the limit
+          // ✅ CRITICAL FIX: Query emails specifically for this contact instead of all emails
+          // Use Supabase's JSONB contains operator to find emails to/from the contact
+          // Querying emails for contact (logging disabled to reduce console spam)
 
-          const { data, error } = await supabase
+          let { data, error } = await supabase
             .from('emails')
             .select(
               `
@@ -248,150 +261,141 @@ const useEmailsStore = create<EmailsStore>()(
             `,
             )
             .eq('user_id', currentUserId)
+            .or(
+              `from_email.eq.${contactEmail},to_emails.cs."${contactEmail}",cc_emails.cs."${contactEmail}",bcc_emails.cs."${contactEmail}"`,
+            )
             .order('date', { ascending: false })
-            .limit(fetchLimit)
+            .range(offset, offset + limit - 1)
 
-          if (error) throw error
+          if (error) {
+            logger.warn('🔄 [EmailsStore] Direct query failed, falling back to local filtering:', {
+              error: error.message,
+              contactEmail,
+            })
 
-          console.log('🔍 [EmailsStore] Raw database results:', {
-            totalFetched: data?.length || 0,
-            contactEmail,
-            sampleEmails: (data || []).slice(0, 3).map(email => ({
-              from: email.from_email,
-              to: email.to_emails,
-              subject: email.subject,
-            })),
-          })
+            // Fallback to old method if direct query fails
+            const fallbackLimit = Math.max(limit * 10, 500) // Get more emails for fallback
 
-          // Filter emails locally for this contact
-          const filteredData = (data || []).filter(email => {
-            // Check from_email
-            if (email.from_email === contactEmail) {
-              return true
-            }
+            const { data: fallbackData, error: fallbackError } = await supabase
+              .from('emails')
+              .select(
+                `
+                id, gmail_id, gmail_thread_id, message_id, subject, snippet, body_text, body_html,
+                from_email, from_name, to_emails, cc_emails, bcc_emails,
+                date, is_read, is_important, labels, has_attachments,
+                attachment_count, created_at, updated_at,
+                email_attachments (
+                  id, gmail_attachment_id, filename, mime_type, 
+                  size_bytes, inline, content_id, storage_path
+                )
+              `,
+              )
+              .eq('user_id', currentUserId)
+              .order('date', { ascending: false })
+              .limit(fallbackLimit)
 
-            // Check to_emails (stored as JSONB array)
-            if (email.to_emails) {
-              try {
-                const toEmails = Array.isArray(email.to_emails) ? email.to_emails : JSON.parse(String(email.to_emails))
-                if (
-                  toEmails.some(
-                    recipient =>
-                      (typeof recipient === 'object' && recipient.email === contactEmail) ||
-                      (typeof recipient === 'string' && recipient === contactEmail),
-                  )
-                ) {
-                  return true
-                }
-              } catch (e) {
-                // Fallback to string search
-                const toEmailsStr =
-                  typeof email.to_emails === 'string' ? email.to_emails : String(email.to_emails || '')
-                if (toEmailsStr.includes(contactEmail)) {
-                  return true
+            if (fallbackError) throw fallbackError
+
+            // Fallback raw database results logging (disabled to reduce console spam)
+
+            // Filter emails locally for this contact
+            const filteredData = (fallbackData || []).filter(email => {
+              // Check from_email
+              if (email.from_email === contactEmail) {
+                return true
+              }
+
+              // Check to_emails (stored as JSONB array)
+              if (email.to_emails) {
+                try {
+                  const toEmails = Array.isArray(email.to_emails)
+                    ? email.to_emails
+                    : JSON.parse(String(email.to_emails))
+                  if (
+                    toEmails.some(
+                      recipient =>
+                        (typeof recipient === 'object' && recipient.email === contactEmail) ||
+                        (typeof recipient === 'string' && recipient === contactEmail),
+                    )
+                  ) {
+                    return true
+                  }
+                } catch (e) {
+                  // Fallback to string search
+                  const toEmailsStr =
+                    typeof email.to_emails === 'string' ? email.to_emails : String(email.to_emails || '')
+                  if (toEmailsStr.includes(contactEmail)) {
+                    return true
+                  }
                 }
               }
-            }
 
-            // Check cc_emails
-            if (email.cc_emails) {
-              try {
-                const ccEmails = Array.isArray(email.cc_emails) ? email.cc_emails : JSON.parse(String(email.cc_emails))
-                if (
-                  ccEmails.some(
-                    recipient =>
-                      (typeof recipient === 'object' && recipient.email === contactEmail) ||
-                      (typeof recipient === 'string' && recipient === contactEmail),
-                  )
-                ) {
-                  return true
-                }
-              } catch (e) {
-                const ccEmailsStr = String(email.cc_emails || '')
-                if (ccEmailsStr.includes(contactEmail)) {
-                  return true
-                }
-              }
-            }
-
-            // Check bcc_emails
-            if (email.bcc_emails) {
-              try {
-                const bccEmails = Array.isArray(email.bcc_emails)
-                  ? email.bcc_emails
-                  : JSON.parse(String(email.bcc_emails))
-                if (
-                  bccEmails.some(
-                    recipient =>
-                      (typeof recipient === 'object' && recipient.email === contactEmail) ||
-                      (typeof recipient === 'string' && recipient === contactEmail),
-                  )
-                ) {
-                  return true
-                }
-              } catch (e) {
-                const bccEmailsStr = String(email.bcc_emails || '')
-                if (bccEmailsStr.includes(contactEmail)) {
-                  return true
+              // Check cc_emails
+              if (email.cc_emails) {
+                try {
+                  const ccEmails = Array.isArray(email.cc_emails)
+                    ? email.cc_emails
+                    : JSON.parse(String(email.cc_emails))
+                  if (
+                    ccEmails.some(
+                      recipient =>
+                        (typeof recipient === 'object' && recipient.email === contactEmail) ||
+                        (typeof recipient === 'string' && recipient === contactEmail),
+                    )
+                  ) {
+                    return true
+                  }
+                } catch (e) {
+                  const ccEmailsStr = String(email.cc_emails || '')
+                  if (ccEmailsStr.includes(contactEmail)) {
+                    return true
+                  }
                 }
               }
-            }
 
-            return false
-          })
+              // Check bcc_emails
+              if (email.bcc_emails) {
+                try {
+                  const bccEmails = Array.isArray(email.bcc_emails)
+                    ? email.bcc_emails
+                    : JSON.parse(String(email.bcc_emails))
+                  if (
+                    bccEmails.some(
+                      recipient =>
+                        (typeof recipient === 'object' && recipient.email === contactEmail) ||
+                        (typeof recipient === 'string' && recipient === contactEmail),
+                    )
+                  ) {
+                    return true
+                  }
+                } catch (e) {
+                  const bccEmailsStr = String(email.bcc_emails || '')
+                  if (bccEmailsStr.includes(contactEmail)) {
+                    return true
+                  }
+                }
+              }
 
-          console.log('🔍 [EmailsStore] Filtered results:', {
-            totalFiltered: filteredData.length,
-            contactEmail,
-            matchingEmails: filteredData.slice(0, 3).map(email => ({
-              from: email.from_email,
-              to: email.to_emails,
-              subject: email.subject,
-              date: email.date,
-              threadId: email.gmail_thread_id, // ✅ DEBUG: Log threadIds to verify
-            })),
-          })
+              return false
+            })
 
-          // Apply pagination to filtered results
-          const paginatedData = filteredData.slice(offset, offset + limit)
+            // Apply pagination to filtered results
+            const paginatedData = filteredData.slice(offset, offset + limit)
+            data = paginatedData
+          }
 
-          const convertedEmails = paginatedData.map(get().convertDatabaseEmail)
+          // Final query results logging (disabled to reduce console spam)
 
-          // ✅ DEBUG: Log threadId mapping and potential duplicates
-          console.log('🔗 [EmailsStore] ThreadId mapping results:', {
-            convertedEmails: convertedEmails.slice(0, 3).map(email => ({
-              id: email.id,
-              subject: email.subject,
-              threadId: email.threadId,
-              hasThreadId: !!email.threadId,
-              from: email.from?.email,
-              date: email.date,
-            })),
-            threadIdStats: {
-              total: convertedEmails.length,
-              withThreadId: convertedEmails.filter(e => e.threadId).length,
-              withoutThreadId: convertedEmails.filter(e => !e.threadId).length,
-            },
-            // ✅ DUPLICATE DETECTION: Log potential duplicates by subject
-            duplicatesBySubject: convertedEmails.reduce(
-              (acc, email) => {
-                const subject = email.subject || 'No Subject'
-                if (!acc[subject]) acc[subject] = []
-                acc[subject].push({ id: email.id, threadId: email.threadId, date: email.date })
-                return acc
-              },
-              {} as Record<string, any[]>,
-            ),
-          })
+          const convertedEmails = (data || []).map(get().convertDatabaseEmail)
 
-          logger.info(
-            `[EmailsStore] Loaded ${convertedEmails.length} emails for ${contactEmail} (offset: ${offset}, filtered from ${filteredData.length} total matches)`,
-          )
+          // ThreadId mapping results logging (disabled to reduce console spam)
+
+          logger.info(`[EmailsStore] Loaded ${convertedEmails.length} emails for ${contactEmail} (offset: ${offset})`)
 
           return {
             emails: convertedEmails,
-            hasMore: filteredData.length > offset + limit,
-            totalCount: filteredData.length,
+            hasMore: convertedEmails.length === limit, // If we got a full page, there might be more
+            totalCount: null, // ✅ FIX: Don't return totalCount from individual page queries - it's misleading
           }
         } catch (error) {
           logger.error('Error loading emails from database:', error)
@@ -401,68 +405,42 @@ const useEmailsStore = create<EmailsStore>()(
       },
 
       /**
-       * Initialize emails for a contact - loads first page from database
+       * Initialize contact emails from database
        */
       initializeContactEmails: async (contactEmail: string, userId: string) => {
-        const { emailsPerPage } = get()
+        // Initialize contact emails (logging disabled to reduce console spam)
 
-        console.log('🔍 [EmailsStore] initializeContactEmails called:', {
-          contactEmail,
-          userId,
-          emailsPerPage,
-          currentState: get().emailsByContact[contactEmail]?.length || 0,
-        })
-
-        // Set current user
+        // ✅ CRITICAL FIX: Set current user ID first
         set(state => {
           state.currentUserId = userId
         })
 
-        // Set loading state
-        set(state => {
-          state.loading.fetching[contactEmail] = true
-          state.errors.fetch[contactEmail] = null
-        })
-
         try {
-          const result = await get().loadEmailsFromDatabase(contactEmail, 0, emailsPerPage)
-
           set(state => {
-            // Set emails for this contact
-            state.emailsByContact[contactEmail] = result.emails
-
-            // Set pagination info
-            state.paginationByContact[contactEmail] = {
-              currentOffset: emailsPerPage,
-              hasMore: result.hasMore,
-              totalCount: result.totalCount,
-            }
-
-            state.isInitialized = true
+            state.loading.fetching[contactEmail] = true
+            state.errors.fetch[contactEmail] = null
           })
 
-          // ✅ CRITICAL: Run deduplication after loading emails to remove optimistic duplicates
-          get().deduplicateEmails(contactEmail)
+          // Load first batch of emails (paginated)
+          const result = await get().loadEmailsFromDatabase(contactEmail, 0, get().emailsPerPage)
 
-          // ✅ ADDITIONAL: Clean up any stale optimistic emails older than 1 minute
-          get().cleanupStaleOptimisticEmails(contactEmail, 1)
+          // Emails being initialized logging (disabled to reduce console spam)
+
+          set(state => {
+            state.emailsByContact[contactEmail] = result.emails
+            state.paginationByContact[contactEmail] = {
+              currentOffset: get().emailsPerPage,
+              hasMore: result.hasMore,
+              totalCount: result.emails.length, // ✅ FIX: Use actual emails loaded, not misleading result.totalCount
+            }
+            state.loading.fetching[contactEmail] = false
+          })
 
           logger.info(`[EmailsStore] Initialized ${result.emails.length} emails for ${contactEmail}`)
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Failed to load emails'
-
+          logger.error('Error initializing contact emails:', error)
           set(state => {
-            state.errors.fetch[contactEmail] = errorMessage
-          })
-
-          logger.error(`Error initializing emails for ${contactEmail}:`, error)
-          toast({
-            title: 'Error loading emails',
-            description: errorMessage,
-            variant: 'destructive',
-          })
-        } finally {
-          set(state => {
+            state.errors.fetch[contactEmail] = error instanceof Error ? error.message : 'Unknown error'
             state.loading.fetching[contactEmail] = false
           })
         }
@@ -474,8 +452,22 @@ const useEmailsStore = create<EmailsStore>()(
       loadMoreEmails: async (contactEmail: string) => {
         const { emailsPerPage, paginationByContact, loading } = get()
 
+        console.log('📜 [EmailsStore] loadMoreEmails called:', {
+          contactEmail,
+          currentPagination: paginationByContact[contactEmail],
+          emailsPerPage,
+          isLoading: loading.loadingMore[contactEmail],
+          currentEmailsCount: get().emailsByContact[contactEmail]?.length || 0,
+        })
+
         // Don't load if already loading or no more emails
         if (loading.loadingMore[contactEmail] || !paginationByContact[contactEmail]?.hasMore) {
+          console.log('🚫 [EmailsStore] loadMoreEmails blocked:', {
+            contactEmail,
+            isAlreadyLoading: loading.loadingMore[contactEmail],
+            hasMore: paginationByContact[contactEmail]?.hasMore,
+            reason: loading.loadingMore[contactEmail] ? 'already_loading' : 'no_more_emails',
+          })
           return
         }
 
@@ -485,44 +477,103 @@ const useEmailsStore = create<EmailsStore>()(
 
         try {
           const currentPagination = paginationByContact[contactEmail]
+
+          console.log('📊 [EmailsStore] Loading more emails - details:', {
+            contactEmail,
+            currentOffset: currentPagination.currentOffset,
+            emailsPerPage,
+            totalCountSoFar: currentPagination.totalCount,
+            expectedNewRange: `${currentPagination.currentOffset} to ${currentPagination.currentOffset + emailsPerPage - 1}`,
+          })
+
           const result = await get().loadEmailsFromDatabase(
             contactEmail,
             currentPagination.currentOffset,
             emailsPerPage,
           )
 
+          console.log('📈 [EmailsStore] loadMoreEmails result:', {
+            contactEmail,
+            newEmailsLoaded: result.emails.length,
+            expectedPageSize: emailsPerPage,
+            hasMoreAfterLoad: result.hasMore,
+            dateRangeOfNewEmails:
+              result.emails.length > 0
+                ? {
+                    newest: result.emails[0]?.date,
+                    oldest: result.emails[result.emails.length - 1]?.date,
+                  }
+                : null,
+            yearDistribution: result.emails.reduce(
+              (acc, email) => {
+                const year = new Date(email.date).getFullYear()
+                acc[year] = (acc[year] || 0) + 1
+                return acc
+              },
+              {} as Record<number, number>,
+            ),
+            wasFullPage: result.emails.length === emailsPerPage,
+            willHaveMoreAfterThis: result.hasMore,
+          })
+
           set(state => {
             // Append new emails to existing ones
             const existingEmails = state.emailsByContact[contactEmail] || []
-            state.emailsByContact[contactEmail] = [...existingEmails, ...result.emails]
+            const newEmailsList = [...existingEmails, ...result.emails]
+            state.emailsByContact[contactEmail] = newEmailsList
 
-            // Update pagination
+            // ✅ FIX: Update pagination with REAL counts, not accumulative sums
             state.paginationByContact[contactEmail] = {
               currentOffset: currentPagination.currentOffset + emailsPerPage,
               hasMore: result.hasMore,
-              totalCount: result.totalCount,
+              totalCount: newEmailsList.length, // ✅ REAL count of emails loaded in UI
             }
+
+            state.loading.loadingMore[contactEmail] = false
           })
 
-          // ✅ Run deduplication after loading more emails
-          get().deduplicateEmails(contactEmail)
+          // ✅ CRITICAL DEBUG: Analyze when hasMore becomes false
+          const allEmailsAfterLoad = [...(get().emailsByContact[contactEmail] || []), ...result.emails]
+          console.log('📊 [EmailsStore] POST-LOAD Analysis (FIXED):', {
+            contactEmail,
+            newEmailsThisLoad: result.emails.length,
+            totalEmailsNowInUI: allEmailsAfterLoad.length,
+            hasMoreAfterLoad: result.hasMore,
+            offsetAfterLoad: currentPagination.currentOffset + emailsPerPage,
+            wasFullPage: result.emails.length === emailsPerPage,
+            reasonForNoMore: !result.hasMore
+              ? result.emails.length < emailsPerPage
+                ? 'database_exhausted'
+                : 'unknown'
+              : 'still_has_more',
+            lastEmailDate: allEmailsAfterLoad[allEmailsAfterLoad.length - 1]?.date,
+            lastEmailYear: allEmailsAfterLoad[allEmailsAfterLoad.length - 1]
+              ? new Date(allEmailsAfterLoad[allEmailsAfterLoad.length - 1].date).getFullYear()
+              : null,
+            isApril2022Cutoff: allEmailsAfterLoad[allEmailsAfterLoad.length - 1]?.date.includes('2022-04'),
+            lastFewEmailDates: allEmailsAfterLoad.slice(-5).map(e => ({ date: e.date, subject: e.subject })),
+          })
+
+          if (!result.hasMore) {
+            console.log('🔚 [EmailsStore] NO MORE EMAILS - Deep Analysis:', {
+              contactEmail,
+              finalEmailCount: allEmailsAfterLoad.length,
+              reachedDatabaseEnd: result.emails.length < emailsPerPage,
+              suspectedIssue: allEmailsAfterLoad[allEmailsAfterLoad.length - 1]?.date.includes('2022-04')
+                ? 'might_be_missing_older_emails'
+                : 'normal_end_of_data',
+            })
+          }
 
           logger.info(`[EmailsStore] Loaded ${result.emails.length} more emails for ${contactEmail}`)
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Failed to load more emails'
-
-          set(state => {
-            state.errors.fetch[contactEmail] = errorMessage
-          })
-
           logger.error(`Error loading more emails for ${contactEmail}:`, error)
-          toast({
-            title: 'Error loading more emails',
-            description: errorMessage,
-            variant: 'destructive',
+          console.error('❌ [EmailsStore] loadMoreEmails error:', {
+            contactEmail,
+            error: error instanceof Error ? error.message : error,
           })
-        } finally {
           set(state => {
+            state.errors.fetch[contactEmail] = error instanceof Error ? error.message : 'Failed to load more emails'
             state.loading.loadingMore[contactEmail] = false
           })
         }
@@ -531,7 +582,11 @@ const useEmailsStore = create<EmailsStore>()(
       /**
        * Sync full email history in background (doesn't block UI)
        */
-      syncContactHistory: async (contactEmail: string, userId: string, options?: { isAfterEmailSend?: boolean }) => {
+      syncContactHistory: async (
+        contactEmail: string,
+        userId: string,
+        options?: { isAfterEmailSend?: boolean; forceFullSync?: boolean },
+      ) => {
         set(state => {
           state.syncStatus[contactEmail] = 'syncing'
           state.loading.syncing[contactEmail] = true
@@ -560,7 +615,9 @@ const useEmailsStore = create<EmailsStore>()(
           const primaryAccount = emailAccounts[0]
 
           // Trigger background sync for ALL historical emails
-          await triggerContactSync(userId, primaryAccount.email, contactEmail)
+          await triggerContactSync(userId, primaryAccount.email, contactEmail, {
+            forceFullSync: options?.forceFullSync || false,
+          })
 
           // ✅ Cleanup any stale optimistic emails before refresh (fallback safety)
           if (options?.isAfterEmailSend) {
@@ -963,8 +1020,8 @@ const useEmailsStore = create<EmailsStore>()(
         set(state => {
           state.emailsByContact = {}
           state.paginationByContact = {}
-          state.loading = { fetching: {}, syncing: {}, loadingMore: {} }
-          state.errors = { fetch: {}, sync: {} }
+          state.loading = { fetching: {}, syncing: {}, loadingMore: {} } // Initialize loading state
+          state.errors = { fetch: {}, sync: {} } // Initialize load error state
           state.syncStatus = {}
           state.lastSyncAt = {}
           state.isInitialized = false
@@ -982,11 +1039,12 @@ const useEmailsStore = create<EmailsStore>()(
         set(state => {
           state.emailsByContact = {}
           state.paginationByContact = {}
-          state.loading = { fetching: {}, syncing: {}, loadingMore: {} }
-          state.errors = { fetch: {}, sync: {} }
+          state.loading = { fetching: {}, syncing: {}, loadingMore: {} } // Initialize loading state
+          state.errors = { fetch: {}, sync: {} } // Initialize load error state
           state.syncStatus = {}
           state.lastSyncAt = {}
-          state.emailsPerPage = 20
+          state.optimisticEmails = {}
+          state.emailsPerPage = 100 // ✅ UPDATED: Use new default value
           state.isInitialized = false
           state.currentUserId = null
         })
@@ -997,9 +1055,231 @@ const useEmailsStore = create<EmailsStore>()(
           state.currentUserId = userId
         })
       },
+
+      // ✅ DEBUG: Helper function to investigate the April 2022 cutoff issue
+      debugDatabaseEmails: async (contactEmail: string, beforeDate?: string) => {
+        const { currentUserId } = get()
+        if (!currentUserId) {
+          console.error('❌ [EmailsStore] No authenticated user for debug query')
+          return null
+        }
+
+        const cutoffDate = beforeDate || '2022-04-21'
+
+        console.log(`🔍 [EmailsStore] DEBUG: Checking emails for ${contactEmail}`)
+
+        try {
+          // Use a simple query to get all emails for this user first
+          const { data: allUserEmails, error: errorAll } = await supabase
+            .from('emails')
+            .select('id, gmail_id, subject, from_email, to_emails, date, created_at')
+            .eq('user_id', currentUserId)
+            .order('date', { ascending: false })
+            .limit(1000) // Get many emails to analyze
+
+          if (errorAll) {
+            console.error('❌ [EmailsStore] Debug query failed:', errorAll)
+            return null
+          }
+
+          // Filter manually to find emails for this contact
+          const emails = (allUserEmails || []).filter(email => {
+            // Check from_email
+            if (email.from_email === contactEmail) {
+              return true
+            }
+
+            // Check to_emails (JSONB field)
+            if (email.to_emails) {
+              try {
+                const toEmails = Array.isArray(email.to_emails) ? email.to_emails : JSON.parse(String(email.to_emails))
+
+                return toEmails.some(recipient => {
+                  if (typeof recipient === 'object' && recipient.email === contactEmail) {
+                    return true
+                  }
+                  if (typeof recipient === 'string' && recipient === contactEmail) {
+                    return true
+                  }
+                  return false
+                })
+              } catch (e) {
+                // Fallback to string search
+                return String(email.to_emails).includes(contactEmail)
+              }
+            }
+
+            return false
+          })
+
+          // Filter manually by date since Supabase queries were failing
+          const emailsBefore = emails.filter(e => e.date < cutoffDate)
+          const emailsAfter = emails.filter(e => e.date >= cutoffDate)
+
+          // Analyze year distribution
+          const yearDistribution = emails.reduce(
+            (acc, email) => {
+              const year = new Date(email.date).getFullYear()
+              acc[year] = (acc[year] || 0) + 1
+              return acc
+            },
+            {} as Record<number, number>,
+          )
+
+          // Get date range
+          const dateRange =
+            emails.length > 0
+              ? {
+                  oldest: emails[emails.length - 1]?.date,
+                  newest: emails[0]?.date,
+                }
+              : null
+
+          console.log(`📊 [EmailsStore] DEBUG Results for ${contactEmail}:`, {
+            cutoffDate,
+            totalEmailsInDatabase: emails.length,
+            totalEmailsAllUsers: allUserEmails?.length || 0,
+            emailsBeforeCutoff: {
+              count: emailsBefore.length,
+              samples: emailsBefore.slice(0, 5).map(e => ({
+                date: e.date,
+                subject: e.subject,
+                from: e.from_email,
+              })),
+            },
+            emailsAfterCutoff: {
+              count: emailsAfter.length,
+              samples: emailsAfter.slice(0, 5).map(e => ({
+                date: e.date,
+                subject: e.subject,
+                from: e.from_email,
+              })),
+            },
+            allEmailsAnalysis: {
+              totalCount: emails.length,
+              dateRange,
+              yearDistribution: Object.entries(yearDistribution).sort(([a], [b]) => Number(b) - Number(a)),
+              oldestYear: dateRange ? new Date(dateRange.oldest).getFullYear() : null,
+              newestYear: dateRange ? new Date(dateRange.newest).getFullYear() : null,
+              april2022Count: emails.filter(e => e.date.startsWith('2022-04')).length,
+              beforeApril2022Count: emails.filter(e => e.date < '2022-04-21').length,
+              isApril21Cutoff: emails.length > 0 && emails[emails.length - 1]?.date === '2022-04-21',
+            },
+            paginationAnalysis: {
+              loadedInUI: get().emailsByContact[contactEmail]?.length || 0,
+              totalInDatabase: emails.length,
+              difference: emails.length - (get().emailsByContact[contactEmail]?.length || 0),
+              currentHasMore: get().hasMoreEmails(contactEmail),
+              currentPagination: get().paginationByContact[contactEmail],
+              currentOffset: get().paginationByContact[contactEmail]?.currentOffset || 0,
+              emailsPerPage: get().emailsPerPage,
+            },
+          })
+
+          return {
+            emailsBefore,
+            emailsAfter,
+            allEmails: emails,
+          }
+        } catch (error) {
+          console.error('❌ [EmailsStore] Debug query failed:', error)
+          return null
+        }
+      },
+
+      // ✅ DEBUG: Force reset and reload emails to test fixed pagination
+      debugResetAndReload: async (contactEmail: string) => {
+        const { currentUserId } = get()
+        if (!currentUserId) {
+          console.error('❌ [EmailsStore] No authenticated user for reset and reload')
+          return
+        }
+
+        console.log('🔄 [EmailsStore] FORCE RESET AND RELOAD:', {
+          contactEmail,
+          beforeReset: {
+            currentEmailsInUI: get().emailsByContact[contactEmail]?.length || 0,
+            currentPagination: get().paginationByContact[contactEmail],
+            currentOffset: get().paginationByContact[contactEmail]?.currentOffset || 0,
+            hasMore: get().hasMoreEmails(contactEmail),
+          },
+        })
+
+        // Clear all state for this contact
+        get().clearContactEmails(contactEmail)
+
+        console.log('🧹 [EmailsStore] State cleared, now reloading...')
+
+        // Reload from scratch
+        await get().initializeContactEmails(contactEmail, currentUserId)
+
+        console.log('✅ [EmailsStore] RESET COMPLETE:', {
+          contactEmail,
+          afterReset: {
+            emailsInUI: get().emailsByContact[contactEmail]?.length || 0,
+            pagination: get().paginationByContact[contactEmail],
+            offset: get().paginationByContact[contactEmail]?.currentOffset || 0,
+            hasMore: get().hasMoreEmails(contactEmail),
+          },
+        })
+
+        return get().emailsByContact[contactEmail]?.length || 0
+      },
     })),
   ),
 )
+
+// ✅ DEBUG: Make debug function globally available in browser console
+if (typeof window !== 'undefined') {
+  ;(window as any).debugEmailsStore = async (contactEmail: string, beforeDate?: string) => {
+    console.log(`🔍 [EmailsStore Debug] Starting debug for contact: ${contactEmail}`)
+
+    const store = useEmailsStore.getState()
+
+    // Check if user is authenticated
+    if (!store.currentUserId) {
+      console.error('❌ [EmailsStore Debug] No authenticated user. Make sure you are logged in.')
+      return null
+    }
+
+    console.log(`👤 [EmailsStore Debug] Using authenticated user: ${store.currentUserId}`)
+
+    const result = await store.debugDatabaseEmails(contactEmail, beforeDate)
+
+    if (result) {
+      console.log(`📊 [EmailsStore Debug] Results for ${contactEmail}:`)
+      console.log(`  📧 Emails before ${beforeDate || '2022-04-21'}: ${result.emailsBefore.length}`)
+      console.log(`  📧 Emails after ${beforeDate || '2022-04-21'}: ${result.emailsAfter.length}`)
+      console.log(`  📧 Total emails found: ${result.allEmails.length}`)
+
+      console.log(`\n💡 [EmailsStore Debug] Usage:`)
+      console.log(`  debugEmailsStore("${contactEmail}")`)
+      console.log(`  debugEmailsStore("${contactEmail}", "2022-01-01")`)
+    }
+
+    return result
+  }
+  ;(window as any).debugResetAndReload = async (contactEmail: string) => {
+    console.log(`🔄 [EmailsStore Debug] Starting reset and reload for: ${contactEmail}`)
+
+    const store = useEmailsStore.getState()
+
+    if (!store.currentUserId) {
+      console.error('❌ [EmailsStore Debug] No authenticated user. Make sure you are logged in.')
+      return 0
+    }
+
+    const result = await store.debugResetAndReload(contactEmail)
+
+    console.log(`✅ [EmailsStore Debug] Reset complete. Emails loaded: ${result}`)
+    console.log(`💡 [EmailsStore Debug] Usage: debugResetAndReload("${contactEmail}")`)
+
+    return result
+  }
+
+  // Debug functions loaded (logging disabled to reduce console spam)
+  // Available: debugEmailsStore(contactEmail, beforeDate?), debugResetAndReload(contactEmail)
+}
 
 // ✅ PERFORMANCE: Global cache cleanup system
 let globalCleanupInterval: NodeJS.Timeout | null = null

@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client'
-import { getRecentContactEmails, searchContactEmails, GmailEmail } from './gmailApi'
-import { getValidToken } from './tokenService'
 import { logger } from '@/utils/logger'
+import { getRecentContactEmails, GmailEmail } from './gmailApi'
+import { getValidToken } from './tokenService'
 
 export interface SyncResult {
   success: boolean
@@ -154,6 +154,14 @@ export class EmailSyncService {
   async syncContactEmails(contactEmail: string, options: SyncOptions = {}): Promise<SyncResult> {
     const { maxEmails = Infinity, forceFullSync = false } = options // No limits - sync ALL contact history
 
+    console.log('🔄 [EmailSyncService] Starting syncContactEmails:', {
+      contactEmail,
+      maxEmails,
+      forceFullSync,
+      isUnlimited: maxEmails === Infinity,
+      serviceStartTime: new Date().toISOString(),
+    })
+
     try {
       await this.logSyncStart('contact', { contactEmail, maxEmails, forceFullSync })
 
@@ -170,6 +178,12 @@ export class EmailSyncService {
             `[EmailSyncService] Attempting incremental sync for ${contactEmail} from history ${storedHistoryId}`,
           )
 
+          console.log('📈 [EmailSyncService] Trying incremental sync first:', {
+            contactEmail,
+            storedHistoryId,
+            maxEmails,
+          })
+
           const incrementalResult = await this.performIncrementalSync(contactEmail, storedHistoryId, maxEmails)
           apiCalls++ // History API call
 
@@ -182,38 +196,86 @@ export class EmailSyncService {
               await this.updateHistoryId(incrementalResult.newHistoryId)
             }
 
+            console.log('✅ [EmailSyncService] Incremental sync successful:', {
+              contactEmail,
+              emailsFound: emailsToProcess.length,
+              newHistoryId: incrementalResult.newHistoryId,
+            })
+
             logger.info(`[EmailSyncService] Incremental sync successful: ${emailsToProcess.length} emails`)
           } else {
+            console.log('⚠️ [EmailSyncService] Incremental sync failed, falling back to full sync')
             logger.info(`[EmailSyncService] Incremental sync failed/unavailable, falling back to full sync`)
           }
         } else {
+          console.log('📂 [EmailSyncService] No stored history ID, performing full sync')
           logger.info(`[EmailSyncService] No stored history ID found, performing full sync`)
         }
       }
 
       // If incremental sync didn't work or was forced off, do full sync
       if (emailsToProcess.length === 0 && syncMethod === 'full') {
+        console.log('🔍 [EmailSyncService] Performing full sync for contact:', {
+          contactEmail,
+          maxEmails,
+          isUnlimited: maxEmails === Infinity,
+        })
+
         logger.info(`[EmailSyncService] Performing full sync for ${contactEmail}`)
 
         // Get existing emails to avoid duplicates
         const existingEmails = await this.getExistingEmails(contactEmail)
         const existingGmailIds = new Set(existingEmails.map(e => e.gmail_id))
 
+        console.log('📊 [EmailSyncService] Existing emails analysis:', {
+          contactEmail,
+          existingEmailsCount: existingEmails.length,
+          existingGmailIdsCount: existingGmailIds.size,
+          sampleExistingGmailIds: Array.from(existingGmailIds).slice(0, 5),
+        })
+
         // Fetch emails from Gmail API (enable full sync for complete contact history)
         // Pass existing Gmail IDs to avoid fetching emails we already have
+        console.log('🚀 [EmailSyncService] Calling Gmail API with parameters:', {
+          contactEmail,
+          maxEmails,
+          enableFullSync: maxEmails === Infinity,
+          existingEmailsToFilter: forceFullSync ? 0 : existingGmailIds.size, // Don't filter if force full sync
+          apiCallStartTime: new Date().toISOString(),
+          forceFullSync,
+        })
+
         const response = await getRecentContactEmails(
           this.accessToken,
           contactEmail,
           maxEmails,
           maxEmails === Infinity,
-          existingGmailIds,
+          forceFullSync ? undefined : existingGmailIds, // Don't pass existing IDs if force full sync
         )
         apiCalls++ // Regular API call
+
+        console.log('📨 [EmailSyncService] Gmail API response received:', {
+          contactEmail,
+          totalEmailsFromAPI: response.emails.length,
+          resultSizeEstimate: (response as any).resultSizeEstimate || 'not provided',
+          nextPageToken: (response as any).nextPageToken ? 'exists' : 'none',
+          apiCallEndTime: new Date().toISOString(),
+        })
 
         // Filter out emails we already have (unless force full sync)
         emailsToProcess = forceFullSync
           ? response.emails
           : response.emails.filter(email => !existingGmailIds.has(email.id))
+
+        console.log('🔧 [EmailSyncService] Email filtering results:', {
+          contactEmail,
+          totalFromAPI: response.emails.length,
+          existingFiltered: forceFullSync ? 0 : response.emails.length - emailsToProcess.length,
+          newEmailsToProcess: emailsToProcess.length,
+          forceFullSync,
+          filteringApplied: !forceFullSync,
+          sampleNewEmailIds: emailsToProcess.slice(0, 5).map(e => e.id),
+        })
 
         // Store history ID from this sync for next incremental sync
         if (response.emails.length > 0) {
@@ -221,13 +283,35 @@ export class EmailSyncService {
           const latestEmailDate = new Date(Math.max(...response.emails.map(e => new Date(e.date).getTime())))
           const syntheticHistoryId = latestEmailDate.getTime().toString()
           await this.updateHistoryId(syntheticHistoryId)
+
+          console.log('💾 [EmailSyncService] Stored new history ID for next sync:', {
+            contactEmail,
+            syntheticHistoryId,
+            latestEmailDate: latestEmailDate.toISOString(),
+          })
         }
 
         syncMethod = 'full'
       }
 
+      console.log('💽 [EmailSyncService] Saving emails to database:', {
+        contactEmail,
+        emailsToSave: emailsToProcess.length,
+        syncMethod,
+        apiCalls,
+      })
+
       // Save emails to database
       const result = await this.saveEmailsToDatabase(emailsToProcess, contactEmail)
+
+      console.log('✅ [EmailSyncService] Database save completed:', {
+        contactEmail,
+        emailsProcessed: emailsToProcess.length,
+        emailsCreated: result.created,
+        emailsUpdated: result.updated,
+        totalApiCalls: apiCalls,
+        syncMethod,
+      })
 
       // Process attachments for existing emails that don't have images downloaded
       if (emailsToProcess.length === 0) {
@@ -245,14 +329,29 @@ export class EmailSyncService {
         emailsUpdated: result.updated,
       })
 
-      return {
+      const finalResult = {
         success: true,
         emailsSynced: emailsToProcess.length,
         emailsCreated: result.created,
         emailsUpdated: result.updated,
       }
+
+      console.log('🎉 [EmailSyncService] syncContactEmails completed successfully:', {
+        contactEmail,
+        finalResult,
+        serviceEndTime: new Date().toISOString(),
+      })
+
+      return finalResult
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+      console.error('❌ [EmailSyncService] syncContactEmails failed:', {
+        contactEmail,
+        error: errorMessage,
+        options,
+        serviceEndTime: new Date().toISOString(),
+      })
 
       await this.logSyncError('contact', errorMessage, { contactEmail })
 

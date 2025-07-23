@@ -58,16 +58,19 @@ const useDebouncedInfiniteScroll = (
   loadMoreEmails: () => Promise<void>,
   hasMoreEmails: boolean,
   loadingMore: boolean,
+  onOptimisticLoadingStart?: () => void, // ✅ NEW: Callback for immediate UX feedback
   threshold: number = 200, // Increased from 100px to 200px
 ) => {
   const lastTriggerRef = useRef<number>(0)
   const triggerCooldown = 1000 // 1 second cooldown between triggers
   const loadMoreRef = useRef(loadMoreEmails)
+  const optimisticCallbackRef = useRef(onOptimisticLoadingStart)
 
-  // ✅ FIX: Keep function reference stable
+  // ✅ FIX: Keep function references stable
   useEffect(() => {
     loadMoreRef.current = loadMoreEmails
-  }, [loadMoreEmails])
+    optimisticCallbackRef.current = onOptimisticLoadingStart
+  }, [loadMoreEmails, onOptimisticLoadingStart])
 
   return useCallback(() => {
     const now = Date.now()
@@ -80,10 +83,12 @@ const useDebouncedInfiniteScroll = (
     if (hasMoreEmails && !loadingMore) {
       lastTriggerRef.current = now
 
-      // Only log in development
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📜 Near bottom, loading more emails...')
+      // ✅ IMMEDIATE UX: Show loading state optimistically BEFORE async operation
+      if (optimisticCallbackRef.current) {
+        optimisticCallbackRef.current()
       }
+
+      // Trigger loading more emails
 
       loadMoreRef.current()
       return true
@@ -97,6 +102,9 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
   const timelineRef = useRef<HTMLDivElement>(null)
   const { user } = useAuth()
   const [isCompact, setIsCompact] = useState(false)
+
+  // ✅ OPTIMIZATION: Add optimistic loading state for immediate UX feedback
+  const [isOptimisticallyLoading, setIsOptimisticallyLoading] = useState(false)
 
   // ✅ CRITICAL FIX: Add Gmail email sync for new emails
   const { syncContactEmails, syncState } = useContactEmailSync()
@@ -117,29 +125,19 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     if (contactChanged || timeSinceLastRender >= renderThrottleMs) {
       lastRenderTime.current = now
       setThrottledProps({ contactId, contactEmail, contactName })
-
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔍 [StreamTimeline] Props updated:', {
-          contactChanged,
-          timeSinceLastRender,
-          newProps: { contactId, contactEmail, contactName },
-        })
-      }
     }
   }, [contactId, contactEmail, contactName, throttledProps])
 
-  // ✅ CRITICAL FIX: Auto-sync emails when contact changes
+  // Auto-sync emails when contact changes
   useEffect(() => {
     if (contactEmail && user?.id) {
-      console.log('🔄 [StreamTimeline] Auto-syncing emails for contact:', contactEmail)
-
       // Start Gmail sync immediately in parallel with database loading
       syncContactEmails(contactEmail, {
         silent: true, // Don't show separate loading state
         showToast: false, // No toast, we'll handle loading state globally
         forceFullSync: false, // Use cache if recent
       }).catch(error => {
-        console.error('🚨 [StreamTimeline] Auto-sync failed:', error)
+        console.error('Auto-sync failed:', error)
       })
     }
   }, [contactEmail, user?.id, syncContactEmails])
@@ -169,6 +167,18 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
   const isLoadingTimeline = loading || syncState.isLoading
   const hasTimelineError = error || syncState.error
 
+  // Reset optimistic loading when real loading finishes
+  useEffect(() => {
+    if (!loadingMore && isOptimisticallyLoading) {
+      // Add small delay to prevent flickering
+      const timer = setTimeout(() => {
+        setIsOptimisticallyLoading(false)
+      }, 300) // 300ms delay for smooth UX
+
+      return () => clearTimeout(timer)
+    }
+  }, [loadingMore, isOptimisticallyLoading])
+
   // ✅ SMART LOADING MESSAGE: Show context-aware loading text
   const getLoadingMessage = () => {
     if (loading && syncState.isLoading) {
@@ -183,28 +193,9 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     return 'Loading...'
   }
 
-  // ✅ PERFORMANCE: Only log once per contact or significant changes
-  const logOnceRef = useRef<Set<string>>(new Set())
-  const debugLogKey = `${throttledProps.contactId}-${activities.length}`
-
-  if (process.env.NODE_ENV === 'development' && !logOnceRef.current.has(debugLogKey)) {
-    console.log('🔍 [StreamTimeline] useTimelineActivitiesV2 results:', {
-      activitiesCount: activities.length,
-      emailsCount,
-      internalCount,
-      loading,
-      error,
-      hasMoreEmails,
-      loadingMore,
-      syncStatus,
-      throttledContactId: throttledProps.contactId,
-      throttledContactEmail: throttledProps.contactEmail,
-      // ✅ NEW: Email sync state
-      gmailSyncLoading: syncState.isLoading,
-      gmailSyncError: syncState.error,
-    })
-    logOnceRef.current.add(debugLogKey)
-  }
+  // Performance monitoring (debug mode only)
+  // const logOnceRef = useRef<Set<string>>(new Set())
+  // const debugLogKey = `${throttledProps.contactId}-${activities.length}`
 
   // Get toggle pin function from activities hook
   const { togglePin, editActivity, deleteActivity } = useActivities(contactId)
@@ -217,6 +208,10 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     loadMoreEmails,
     hasMoreEmails,
     loadingMore,
+    () => {
+      // Show optimistic loading immediately
+      setIsOptimisticallyLoading(true)
+    },
     200, // 200px threshold instead of 100px
   )
 
@@ -254,9 +249,18 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
 
     // Check for infinite scroll trigger - only if we have more content to load
     if (hasMoreEmailsRef.current && !loadingMoreRef.current) {
-      const nearBottom = scrollTop + clientHeight >= scrollHeight - 200
+      const nearBottom = scrollTop + clientHeight >= scrollHeight - 300 // Increased threshold for better UX
       if (nearBottom) {
         triggerInfiniteScrollRef.current()
+
+        // Prevent over-scrolling by ensuring we don't go past the content
+        const maxScroll = scrollHeight - clientHeight
+        if (scrollTop > maxScroll) {
+          timelineRef.current?.scrollTo({
+            top: maxScroll,
+            behavior: 'smooth',
+          })
+        }
       }
     }
   }, []) // ✅ FIX: No dependencies - use refs
@@ -268,9 +272,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
   const renderCountRef = useRef(0)
   useEffect(() => {
     renderCountRef.current += 1
-    if (process.env.NODE_ENV === 'development' && renderCountRef.current > 5) {
-      console.warn(`🔄 [StreamTimeline] High render count: ${renderCountRef.current} for contact: ${contactEmail}`)
-    }
+    // Removed excessive logging for better performance
   })
 
   useEffect(() => {
@@ -478,7 +480,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
       </div>
 
       {/* Timeline content */}
-      <div ref={timelineRef} className="flex-1 overflow-y-auto p-4 pl-12 pr-5">
+      <div ref={timelineRef} className="flex-1 overflow-y-auto p-4 pl-12 pr-5 scroll-smooth">
         {/* ✅ NEW: Unified loading indicator */}
         {isLoadingTimeline && (
           <div className="flex items-center justify-center py-3 mb-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -564,9 +566,15 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
                       </div>
 
                       {/* Additional info for more emails or sync status */}
-                      {hasMoreEmails && (
-                        <div className="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
-                          📜 Scroll down for more emails
+                      {hasMoreEmails && !loadingMore && !isOptimisticallyLoading && (
+                        <div
+                          className="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 cursor-pointer hover:bg-blue-100 transition-colors"
+                          onClick={() => {
+                            setIsOptimisticallyLoading(true)
+                            loadMoreEmails()
+                          }}
+                        >
+                          📜 Desliza hacia abajo para cargar más emails (o haz clic aquí)
                         </div>
                       )}
 
@@ -588,11 +596,26 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
               )}
             </ul>
 
-            {/* Loading more emails indicator */}
-            {loadingMore && (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                <span className="text-sm text-gray-500">Loading more emails...</span>
+            {/* Loading more emails indicator - Enhanced and more visible */}
+            {(loadingMore || isOptimisticallyLoading) && (
+              <div className="sticky bottom-4 z-10 mx-auto w-fit">
+                <div className="bg-white border border-blue-200 shadow-lg rounded-lg px-6 py-4 flex flex-col items-center space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                    <span className="text-base font-medium text-gray-800">
+                      {isOptimisticallyLoading && !loadingMore ? 'Preparando carga...' : 'Cargando más emails'}
+                    </span>
+                  </div>
+
+                  {/* Enhanced progress bar */}
+                  <div className="w-56 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 rounded-full animate-pulse"></div>
+                  </div>
+
+                  <span className="text-sm text-gray-600">
+                    {isOptimisticallyLoading && !loadingMore ? 'Iniciando búsqueda...' : 'Sincronizando desde Gmail...'}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -609,6 +632,14 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
       </div>
     </div>
   )
+}
+
+// Global debug helper for cleaning logs
+if (typeof window !== 'undefined') {
+  ;(window as any).clearStreamLogs = () => {
+    console.clear()
+    console.log('🧹 [StreamTimeline] Logs cleared - infinite scroll optimized')
+  }
 }
 
 export default StreamTimeline

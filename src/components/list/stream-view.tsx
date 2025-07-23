@@ -1,3 +1,4 @@
+import StreamTimeline from '@/components/stream/StreamTimeline'
 import { CustomButton } from '@/components/ui/custom-button'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { Mail, RefreshCw } from 'lucide-react'
@@ -8,8 +9,6 @@ import { CreateContactDialog } from './stream/create-contact-dialog'
 import { DetailsPanel } from './stream/details-panel'
 import { EmptyState } from './stream/empty-state'
 import { ContactData } from './types'
-// ✅ CRITICAL FIX: Import StreamTimeline instead of ActivityStream
-import StreamTimeline from '@/components/stream/StreamTimeline'
 
 interface StreamViewProps {
   contacts?: ContactData[]
@@ -25,14 +24,11 @@ export function StreamView({ listName, listId }: StreamViewProps) {
     newContact,
     contactsLoading,
     formattedContacts,
-    formattedActivities,
-    // ✅ NEW: Email sync state
     emailSyncState,
     setIsCreateContactOpen,
     setNewContact,
     handleContactSelect,
     handleCreateContact,
-    handleAddComment,
     updateContact,
   } = useStreamView(listId)
 
@@ -75,26 +71,13 @@ export function StreamView({ listName, listId }: StreamViewProps) {
               </div>
             )}
 
-            {/* ✅ CRITICAL FIX: Replace ActivityStream with StreamTimeline */}
+            {/* Timeline component */}
             {selectedContact.email ? (
-              <>
-                {/* ✅ DEBUG: Log contact info for debugging */}
-                {(() => {
-                  console.log('🔍 [StreamView] Rendering StreamTimeline with:', {
-                    contactId: selectedContact.id,
-                    contactEmail: selectedContact.email,
-                    contactName: selectedContact.name,
-                    hasEmail: !!selectedContact.email,
-                    selectedContactFull: selectedContact,
-                  })
-                  return null
-                })()}
-                <StreamTimeline
-                  contactId={selectedContact.id}
-                  contactEmail={selectedContact.email}
-                  contactName={selectedContact.name}
-                />
-              </>
+              <StreamTimeline
+                contactId={selectedContact.id}
+                contactEmail={selectedContact.email}
+                contactName={selectedContact.name}
+              />
             ) : (
               <div className="flex-1 flex items-center justify-center p-8 text-center">
                 <div>

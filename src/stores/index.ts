@@ -1,13 +1,12 @@
-import { create } from 'zustand'
-import { immer } from 'zustand/middleware/immer'
-import { subscribeWithSelector } from 'zustand/middleware'
-import { persist, createJSONStorage } from 'zustand/middleware'
 import { TStore } from '@/types/store/store'
-import { useTasksSlice } from './useTasksSlice'
+import { create } from 'zustand'
+import { createJSONStorage, persist, subscribeWithSelector } from 'zustand/middleware'
+import { immer } from 'zustand/middleware/immer'
 import { useAuthSlice } from './useAuthSlice'
 import { useContactProfileSlice } from './useContactProfileSlice'
-import { useEditableLeadsGridSlice } from './useEditableLeadsGridSlice'
 import { useContactsSlice } from './useContactsSlice'
+import { useEditableLeadsGridSlice } from './useEditableLeadsGridSlice'
+import { useTasksSlice } from './useTasksSlice'
 
 /**
  * Main store for the application
@@ -54,32 +53,20 @@ export const useStore = create<TStore>()(
           // Note: We don't persist loading states, errors, or temporary data
         }
 
-        // Debug log to see what's being persisted
-        console.log('🔄 Zustand persist - saving to localStorage:', {
-          columnsCount: persistedState.columns.length,
-          columnIds: persistedState.columns.map(c => c.id),
-          hiddenColumnsCount: persistedState.hiddenColumns.length,
-          hiddenColumnIds: persistedState.hiddenColumns.map(c => c.id),
-          activeFilters: persistedState.activeFilters,
-          deletedColumnIds: persistedState.deletedColumnIds,
-        })
+        // Zustand persist saving (logging disabled to reduce console spam)
 
         return persistedState
       },
       version: 1, // For future migrations if needed
       onRehydrateStorage: () => {
-        console.log('🔄 Zustand persist - starting rehydration from localStorage')
+        // Zustand persist starting rehydration (logging disabled to reduce console spam)
 
         // Check what's actually in localStorage
         const stored = localStorage.getItem('mailvibes-crm-store')
         if (stored) {
           try {
             const parsed = JSON.parse(stored)
-            console.log('📦 Raw localStorage data:', {
-              hasState: !!parsed.state,
-              hasColumns: !!parsed.state?.columns,
-              columnsCount: parsed.state?.columns?.length || 0,
-            })
+            // Raw localStorage data inspection (logging disabled)
           } catch (e) {
             console.error('❌ Failed to parse localStorage data:', e)
           }
@@ -122,14 +109,7 @@ export const useStore = create<TStore>()(
               }
             }
 
-            console.log('✅ Zustand persist - rehydration completed:', {
-              columnsCount: state?.columns?.length || 0,
-              columnIds: state?.columns?.map(c => c.id) || [],
-              hiddenColumnsCount: state?.hiddenColumns?.length || 0,
-              hiddenColumnIds: state?.hiddenColumns?.map(c => c.id) || [],
-              deletedColumnIds: state?.deletedColumnIds ? Array.from(state.deletedColumnIds) : [],
-              fullState: !!state,
-            })
+            // Zustand persist rehydration completed (logging disabled to reduce console spam)
           }
         }
       },

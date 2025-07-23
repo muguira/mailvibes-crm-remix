@@ -96,7 +96,7 @@ export function initializeHiddenColumnsDebug() {
     console.groupEnd()
   }
 
-  console.log('🔧 Hidden columns debug function available: window.debugHiddenColumns()')
+  // Hidden columns debug function loaded (logging disabled to reduce console spam)
 
   // Add a repair function
   window.fixHiddenColumnsState = () => {
@@ -154,7 +154,6 @@ export function initializeHiddenColumnsDebug() {
     console.groupEnd()
   }
 
-  console.log('🔧 Debug functions available:')
-  console.log('  - window.debugHiddenColumns() - Analyze state')
-  console.log('  - window.fixHiddenColumnsState() - Fix inconsistencies')
+  // Debug functions available (logging disabled to reduce console spam)
+  // Available: window.debugHiddenColumns(), window.fixHiddenColumnsState()
 }
