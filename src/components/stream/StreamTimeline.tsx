@@ -481,50 +481,23 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
 
       {/* Timeline content */}
       <div ref={timelineRef} className="flex-1 overflow-y-auto p-4 mb-[120px] pl-12 pr-5 scroll-smooth">
-        {/* ✅ ENHANCED: Unified loader with sync type indicator */}
+        {/* ✅ MINIMAL: Subtle loading indicator for existing timeline */}
         {isLoadingTimeline && activities.length > 0 && (
-          <div className="flex items-center justify-center p-8">
-            <div className="text-center">
-              <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-teal-primary" />
-              <h3 className="text-lg font-semibold text-gray-700">
-                {syncStatus === 'syncing' ? '🔄 Syncing emails from Gmail...' : 'Loading timeline...'}
-              </h3>
-              <p className="text-sm text-slate-medium mt-2">
-                {emailsCount > 0 ? `${emailsCount} emails loaded so far` : 'Getting latest emails and activities'}
-              </p>
-              {syncStatus === 'syncing' && (
-                <div className="mt-3 space-y-2">
-                  {/* Sync type indicator */}
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-full text-xs text-blue-700 font-medium">
-                    {emailsCount > 50 ? (
-                      <>
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                        🔄 Checking for new emails only
-                      </>
-                    ) : (
-                      <>
-                        <Mail className="w-3 h-3" />
-                        📥 Downloading complete history
-                      </>
-                    )}
-                  </div>
-                  {/* Performance indicator */}
-                  <div className="text-xs text-slate-medium">
-                    {emailsCount > 50
-                      ? 'Fast incremental sync - checking recent changes only'
-                      : 'This may take a moment for the initial sync...'}
-                  </div>
-                </div>
-              )}
+          <div className="flex items-center justify-center py-2 mb-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50/50 border border-blue-100 rounded-full text-xs text-blue-600">
+              <RefreshCw className="w-3 h-3 animate-spin" />
+              <span>{syncStatus === 'syncing' ? 'Syncing...' : 'Loading...'}</span>
             </div>
           </div>
         )}
 
-        {/* ✅ SIMPLIFIED: Basic loading indicator for other cases */}
+        {/* ✅ MINIMAL: Clean loading indicator for other cases */}
         {isLoadingTimeline && activities.length === 0 && !syncStatus && (
-          <div className="flex items-center justify-center py-3 mb-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <Loader2 className="w-4 h-4 animate-spin mr-2 text-blue-600" />
-            <span className="text-sm text-blue-700">{getLoadingMessage()}</span>
+          <div className="flex items-center justify-center py-2 mb-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50/50 border border-blue-100 rounded-full text-xs text-blue-600">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span>Loading...</span>
+            </div>
           </div>
         )}
 
@@ -535,23 +508,12 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
           </div>
         )}
 
-        {/* ✅ NEW: Show loading state when initially loading with no activities */}
+        {/* ✅ MINIMAL: Subtle initial loading state */}
         {isLoadingTimeline && activities.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <div className="text-center">
-              <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-teal-primary" />
-              <h3 className="text-lg font-semibold text-gray-700">Loading Contact Timeline</h3>
-              <p className="text-sm text-slate-medium mt-2">
-                Getting emails and activities for {contactName || 'this contact'}...
-              </p>
-              {syncStatus === 'syncing' && (
-                <div className="mt-3">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs text-blue-700">
-                    <Mail className="w-3 h-3" />
-                    Syncing emails from Gmail...
-                  </div>
-                </div>
-              )}
+          <div className="flex items-center justify-center py-8">
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              <span>Loading timeline...</span>
             </div>
           </div>
         ) : !isLoadingTimeline && activities.length === 0 ? (
@@ -654,25 +616,12 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
               )}
             </ul>
 
-            {/* Loading more emails indicator - Enhanced and more visible */}
+            {/* ✅ MINIMAL: Subtle loading more indicator */}
             {(loadingMore || isOptimisticallyLoading) && (
-              <div className="sticky bottom-4 z-10 mx-auto w-fit">
-                <div className="bg-white border border-blue-200 shadow-lg rounded-lg px-6 py-4 flex flex-col items-center space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-                    <span className="text-base font-medium text-gray-800">
-                      {isOptimisticallyLoading && !loadingMore ? 'Preparando carga...' : 'Cargando más emails'}
-                    </span>
-                  </div>
-
-                  {/* Enhanced progress bar */}
-                  <div className="w-56 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 rounded-full animate-pulse"></div>
-                  </div>
-
-                  <span className="text-sm text-gray-600">
-                    {isOptimisticallyLoading && !loadingMore ? 'Iniciando búsqueda...' : 'Sincronizando desde Gmail...'}
-                  </span>
+              <div className="flex items-center justify-center py-4">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-full text-xs text-blue-600">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>Loading more...</span>
                 </div>
               </div>
             )}
