@@ -67,11 +67,10 @@ const OrganizationUsers: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user && members.length > 0) {
         const currentMember = members.find(m => m.user_id === user.id);
-        // Since we know you're the admin, let's ensure it's set correctly
-        if (user.email === 'andres@salessheet.io') {
-          setCurrentUserRole('admin');
+        if (currentMember) {
+          setCurrentUserRole(currentMember.role);
         } else {
-          setCurrentUserRole(currentMember?.role || 'user');
+          setCurrentUserRole('user');
         }
       }
     };
