@@ -246,6 +246,8 @@ const useEmailsStore = create<EmailsStore>()(
           // Use Supabase's JSONB contains operator to find emails to/from the contact
           // Querying emails for contact (logging disabled to reduce console spam)
 
+          // ✅ SIMPLIFIED: Only query by from_email to avoid JSONB complexity
+          // This will get emails FROM the contact. The fallback method handles TO/CC/BCC properly
           let { data, error } = await supabase
             .from('emails')
             .select(
@@ -261,9 +263,7 @@ const useEmailsStore = create<EmailsStore>()(
             `,
             )
             .eq('user_id', currentUserId)
-            .or(
-              `from_email.eq.${contactEmail},to_emails.cs."${contactEmail}",cc_emails.cs."${contactEmail}",bcc_emails.cs."${contactEmail}"`,
-            )
+            .eq('from_email', contactEmail)
             .order('date', { ascending: false })
             .range(offset, offset + limit - 1)
 
@@ -452,22 +452,11 @@ const useEmailsStore = create<EmailsStore>()(
       loadMoreEmails: async (contactEmail: string) => {
         const { emailsPerPage, paginationByContact, loading } = get()
 
-        console.log('📜 [EmailsStore] loadMoreEmails called:', {
-          contactEmail,
-          currentPagination: paginationByContact[contactEmail],
-          emailsPerPage,
-          isLoading: loading.loadingMore[contactEmail],
-          currentEmailsCount: get().emailsByContact[contactEmail]?.length || 0,
-        })
+        // Load more emails called (logging disabled to reduce console spam)
 
         // Don't load if already loading or no more emails
         if (loading.loadingMore[contactEmail] || !paginationByContact[contactEmail]?.hasMore) {
-          console.log('🚫 [EmailsStore] loadMoreEmails blocked:', {
-            contactEmail,
-            isAlreadyLoading: loading.loadingMore[contactEmail],
-            hasMore: paginationByContact[contactEmail]?.hasMore,
-            reason: loading.loadingMore[contactEmail] ? 'already_loading' : 'no_more_emails',
-          })
+          // Load more emails blocked (logging disabled to reduce console spam)
           return
         }
 
@@ -478,13 +467,7 @@ const useEmailsStore = create<EmailsStore>()(
         try {
           const currentPagination = paginationByContact[contactEmail]
 
-          console.log('📊 [EmailsStore] Loading more emails - details:', {
-            contactEmail,
-            currentOffset: currentPagination.currentOffset,
-            emailsPerPage,
-            totalCountSoFar: currentPagination.totalCount,
-            expectedNewRange: `${currentPagination.currentOffset} to ${currentPagination.currentOffset + emailsPerPage - 1}`,
-          })
+          // Loading more emails details (logging disabled to reduce console spam)
 
           const result = await get().loadEmailsFromDatabase(
             contactEmail,
@@ -492,29 +475,7 @@ const useEmailsStore = create<EmailsStore>()(
             emailsPerPage,
           )
 
-          console.log('📈 [EmailsStore] loadMoreEmails result:', {
-            contactEmail,
-            newEmailsLoaded: result.emails.length,
-            expectedPageSize: emailsPerPage,
-            hasMoreAfterLoad: result.hasMore,
-            dateRangeOfNewEmails:
-              result.emails.length > 0
-                ? {
-                    newest: result.emails[0]?.date,
-                    oldest: result.emails[result.emails.length - 1]?.date,
-                  }
-                : null,
-            yearDistribution: result.emails.reduce(
-              (acc, email) => {
-                const year = new Date(email.date).getFullYear()
-                acc[year] = (acc[year] || 0) + 1
-                return acc
-              },
-              {} as Record<number, number>,
-            ),
-            wasFullPage: result.emails.length === emailsPerPage,
-            willHaveMoreAfterThis: result.hasMore,
-          })
+          // Load more emails result analysis (logging disabled to reduce console spam)
 
           set(state => {
             // Append new emails to existing ones
@@ -532,37 +493,11 @@ const useEmailsStore = create<EmailsStore>()(
             state.loading.loadingMore[contactEmail] = false
           })
 
-          // ✅ CRITICAL DEBUG: Analyze when hasMore becomes false
+          // Post-load analysis for pagination debugging (logging disabled to reduce console spam)
           const allEmailsAfterLoad = [...(get().emailsByContact[contactEmail] || []), ...result.emails]
-          console.log('📊 [EmailsStore] POST-LOAD Analysis (FIXED):', {
-            contactEmail,
-            newEmailsThisLoad: result.emails.length,
-            totalEmailsNowInUI: allEmailsAfterLoad.length,
-            hasMoreAfterLoad: result.hasMore,
-            offsetAfterLoad: currentPagination.currentOffset + emailsPerPage,
-            wasFullPage: result.emails.length === emailsPerPage,
-            reasonForNoMore: !result.hasMore
-              ? result.emails.length < emailsPerPage
-                ? 'database_exhausted'
-                : 'unknown'
-              : 'still_has_more',
-            lastEmailDate: allEmailsAfterLoad[allEmailsAfterLoad.length - 1]?.date,
-            lastEmailYear: allEmailsAfterLoad[allEmailsAfterLoad.length - 1]
-              ? new Date(allEmailsAfterLoad[allEmailsAfterLoad.length - 1].date).getFullYear()
-              : null,
-            isApril2022Cutoff: allEmailsAfterLoad[allEmailsAfterLoad.length - 1]?.date.includes('2022-04'),
-            lastFewEmailDates: allEmailsAfterLoad.slice(-5).map(e => ({ date: e.date, subject: e.subject })),
-          })
 
           if (!result.hasMore) {
-            console.log('🔚 [EmailsStore] NO MORE EMAILS - Deep Analysis:', {
-              contactEmail,
-              finalEmailCount: allEmailsAfterLoad.length,
-              reachedDatabaseEnd: result.emails.length < emailsPerPage,
-              suspectedIssue: allEmailsAfterLoad[allEmailsAfterLoad.length - 1]?.date.includes('2022-04')
-                ? 'might_be_missing_older_emails'
-                : 'normal_end_of_data',
-            })
+            // No more emails analysis (logging disabled to reduce console spam)
           }
 
           logger.info(`[EmailsStore] Loaded ${result.emails.length} more emails for ${contactEmail}`)

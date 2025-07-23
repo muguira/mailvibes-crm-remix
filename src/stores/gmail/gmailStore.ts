@@ -1,18 +1,18 @@
+import {
+  GmailService,
+  createDefaultConfig,
+  createGmailService,
+  type ConnectionResult,
+  type GmailAccount,
+  type GmailServiceConfig,
+  type ImportResult,
+  type SyncResult,
+} from '@/services/gmail'
+import type { GmailEmail } from '@/services/google/gmailApi'
+import { logger } from '@/utils/logger'
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
-import { logger } from '@/utils/logger'
-import {
-  GmailService,
-  createGmailService,
-  createDefaultConfig,
-  type GmailAccount,
-  type SyncResult,
-  type ImportResult,
-  type GmailServiceConfig,
-  type ConnectionResult,
-} from '@/services/gmail'
-import type { GmailEmail } from '@/services/google/gmailApi'
 
 // =============================================================================
 // STATE INTERFACES
@@ -121,12 +121,12 @@ export const useGmailStore = create<GmailStore>()(
 
       async initializeService(userId: string, config?: Partial<GmailServiceConfig>) {
         if (get().service) {
-          logger.warn('[GmailStore] Service already initialized, skipping...')
+          logger.debug('[GmailStore] Service already initialized, skipping...')
           return
         }
 
         if (get().loading) {
-          logger.warn('[GmailStore] Service initialization already in progress, skipping...')
+          logger.debug('[GmailStore] Service initialization already in progress, skipping...')
           return
         }
 
