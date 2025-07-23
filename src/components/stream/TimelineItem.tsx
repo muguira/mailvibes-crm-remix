@@ -1015,13 +1015,6 @@ const TimelineItem = React.memo(
               </div>
             </div>
           )}
-
-          {/* Reply section for latest email */}
-          {isLatest && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">Reply</button>
-            </div>
-          )}
         </div>
       )
     }
