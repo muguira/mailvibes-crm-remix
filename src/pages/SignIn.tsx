@@ -35,13 +35,13 @@ export default function SignIn() {
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-md space-y-4">
         {/* Logo Section */}
         <div className="text-center">
           <img 
             src="https://i.imgur.com/HDICIxv.png" 
             alt="SalesSheet Logo" 
-            className="w-60 h-60 mx-auto mb-6 object-contain -mt-[100px]"
+            className="w-[200px] h-[200px] mx-auto mb-4 object-contain -mt-[100px]"
           />
           <div className="relative -mt-[60px] z-50">
             <h1 className="text-2xl font-semibold tracking-tight">
@@ -55,15 +55,15 @@ export default function SignIn() {
         
         {/* Sign In Form */}
         <Card>
-          <CardHeader className="space-y-1">
+          <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-xl">Sign in</CardTitle>
             <CardDescription>
               Enter your credentials to access your account
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="space-y-1">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -76,7 +76,7 @@ export default function SignIn() {
                 />
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
@@ -91,13 +91,13 @@ export default function SignIn() {
               
               <Button
                 type="submit"
-                className="w-full bg-brand-teal hover:bg-brand-teal-hover text-white"
+                className="w-full bg-brand-teal hover:bg-brand-teal-hover text-white mt-2"
                 disabled={isLoading}
               >
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
               
-              <div className="text-center text-sm text-muted-foreground pt-4 border-t">
+              <div className="text-center text-sm text-muted-foreground pt-2 border-t">
                 Don't have an account?{" "}
                 <Link 
                   to="/auth/register" 
@@ -112,4 +112,4 @@ export default function SignIn() {
       </div>
     </div>
   );
-} 
+}
