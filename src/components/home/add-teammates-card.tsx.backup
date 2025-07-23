@@ -17,18 +17,12 @@ import {
   useOrganizationStats, 
   useOrganizationLoadingStates 
 } from '@/stores/organizationStore';
-import { useAuth } from '@/components/auth';
 
 export const AddTeammatesCard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { organization, members, invitations } = useOrganizationData();
   const stats = useOrganizationStats();
   const loadingStates = useOrganizationLoadingStates();
-
-  // Get current user's role in the organization
-  const currentUserMember = members.find(member => member.user_id === user?.id);
-  const isAdmin = currentUserMember?.role === 'admin';
 
   const handleNavigateToUsers = () => {
     navigate('/settings/organization/users');
@@ -49,11 +43,6 @@ export const AddTeammatesCard: React.FC = () => {
         </CardContent>
       </Card>
     );
-  }
-
-  // Only show to admins
-  if (!isAdmin) {
-    return null;
   }
 
   // Different content based on team size
@@ -201,4 +190,4 @@ export const AddTeammatesCard: React.FC = () => {
       </CardContent>
     </Card>
   );
-};
+}; 
