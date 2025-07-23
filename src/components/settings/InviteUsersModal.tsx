@@ -132,23 +132,23 @@ export const InviteUsersModal: React.FC<InviteUsersModalProps> = ({
         // After adding the email, proceed with the actual submission
         const currentEmails = [...emails, emailInput.trim().toLowerCase()];
         
-        try {
-          await onInvite({
+          try {
+            await onInvite({
             emails: currentEmails,
-            role,
-            message: message.trim() || undefined
-          });
-          
-          // Reset form
-          setEmails([]);
+              role,
+              message: message.trim() || undefined
+            });
+            
+            // Reset form
+            setEmails([]);
           setEmailInput('');
           setMessage('');
-          setRole('user');
-          setErrors({});
-          onClose();
-        } catch (error) {
-          setErrors({ general: 'Failed to send invitations. Please try again.' });
-        }
+            setRole('user');
+            setErrors({});
+            onClose();
+          } catch (error) {
+            setErrors({ general: 'Failed to send invitations. Please try again.' });
+          }
       });
       return;
     }

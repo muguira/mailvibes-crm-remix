@@ -44,7 +44,7 @@ export function ProfileMenu() {
       // Ensure we can interact with the page during logout
       document.body.style.pointerEvents = "";
       
-      await signOut();
+    await signOut();
       console.log('✅ Logout successful, navigating to auth...');
       
       // Navigate immediately without timeout to avoid interference

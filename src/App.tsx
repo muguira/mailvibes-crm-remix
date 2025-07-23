@@ -24,6 +24,7 @@ import Integrations from "@/pages/dashboard/Integrations";
 import Imports from "@/pages/dashboard/Imports";
 import Settings from "@/pages/dashboard/Settings";
 import OrganizationUsers from "@/pages/dashboard/OrganizationUsers";
+import OrganizationGeneral from "@/pages/dashboard/OrganizationGeneral";
 import AccountProperties from "@/pages/dashboard/AccountProperties";
 import Landing from "@/pages/Landing";
 import Import from "@/pages/Import";
@@ -33,6 +34,7 @@ import DeletedContacts from "@/pages/dashboard/DeletedContacts";
 import { AcceptInvitation } from "@/pages/AcceptInvitation";
 import { useRadixPointerEventsFix } from "@/hooks/use-radix-pointer-events-fix";
 import PerformanceTestingDashboard from "@/components/debug/PerformanceTestingDashboard";
+import { PendingInvitationsHandler } from "@/components/settings/PendingInvitationsHandler";
 import { useEffect, useState } from "react";
 // Create a client
 const queryClient = new QueryClient({
@@ -70,6 +72,7 @@ function App() {
         <TooltipProvider delayDuration={300}>
           <AuthProvider>
             <ActivityProvider>
+              <PendingInvitationsHandler />
               <Router>
               <div className="h-screen w-full font-proxima">
                 <Routes>
@@ -92,6 +95,7 @@ function App() {
                   <Route path="/gmail-import" element={<PrivateRoute><GmailImport /></PrivateRoute>} />
                   <Route path="/deleted-contacts" element={<PrivateRoute><DeletedContacts /></PrivateRoute>} />
                   <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+                  <Route path="/settings/organization/general" element={<PrivateRoute><OrganizationGeneral /></PrivateRoute>} />
                   <Route path="/settings/organization/users" element={<PrivateRoute><OrganizationUsers /></PrivateRoute>} />
                   <Route path="/settings/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
                   <Route path="/settings/integrations/gmail-dashboard" element={<PrivateRoute><GmailDashboard /></PrivateRoute>} />

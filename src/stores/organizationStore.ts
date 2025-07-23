@@ -343,7 +343,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
 
           // Get organization invitations using the new safe RPC function
           const { data: invitationsData, error: invitationsError } = await supabase
-            .rpc('get_organization_invitations_safe', { p_org_id: organization.id });
+              .rpc('get_organization_invitations_safe', { p_org_id: organization.id });
 
           if (invitationsError) {
             console.warn('Failed to load organization invitations:', invitationsError);
@@ -351,24 +351,24 @@ export const useOrganizationStore = create<OrganizationStore>()(
 
           // Transform invitations data
           const transformedInvitations: OrganizationInvitation[] = (invitationsData || []).map(invitation => ({
-            id: invitation.id,
+                id: invitation.id,
             organization_id: invitation.organization_id,
-            email: invitation.email,
+                email: invitation.email,
             role: invitation.role as 'admin' | 'user',
             status: invitation.status as 'pending' | 'accepted' | 'declined' | 'expired',
             invited_by: invitation.invited_by,
-            expires_at: invitation.expires_at,
-            accepted_at: invitation.accepted_at,
-            created_at: invitation.created_at,
-            updated_at: invitation.updated_at,
+                expires_at: invitation.expires_at,
+                accepted_at: invitation.accepted_at,
+                created_at: invitation.created_at,
+                updated_at: invitation.updated_at,
             token: invitation.token,
             inviter: {
-              id: invitation.invited_by,
-              email: invitation.inviter_email,
+                  id: invitation.invited_by,
+                  email: invitation.inviter_email,
               first_name: invitation.inviter_name.split(' ')[0] || '',
               last_name: invitation.inviter_name.split(' ').slice(1).join(' ') || ''
             }
-          }));
+              }));
 
           set((state) => {
             state.currentOrganization = {
@@ -823,35 +823,35 @@ export const useOrganizationStore = create<OrganizationStore>()(
 
             toast.success('You are already a member of this organization. Switched to the organization.');
           } else {
-            // Create organization member
-            const { error: memberError } = await supabase
-              .from('organization_members')
-              .insert([{
-                user_id: user.id,
-                organization_id: invitation.organization_id,
-                role: invitation.role,
-              }]);
+          // Create organization member
+          const { error: memberError } = await supabase
+            .from('organization_members')
+            .insert([{
+              user_id: user.id,
+              organization_id: invitation.organization_id,
+              role: invitation.role,
+            }]);
 
-            if (memberError) throw memberError;
+          if (memberError) throw memberError;
 
-            // Update invitation status
-            const { error: updateError } = await supabase
-              .from('organization_invitations')
-              .update({ 
-                status: 'accepted',
-                accepted_at: new Date().toISOString()
-              })
+          // Update invitation status
+          const { error: updateError } = await supabase
+            .from('organization_invitations')
+            .update({ 
+              status: 'accepted',
+              accepted_at: new Date().toISOString()
+            })
               .eq('id', invitation.id);
 
-            if (updateError) throw updateError;
+          if (updateError) throw updateError;
 
-            // Update user's current organization
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .update({ current_organization: invitation.organization_id })
-              .eq('id', user.id);
+          // Update user's current organization
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ current_organization: invitation.organization_id })
+            .eq('id', user.id);
 
-            if (profileError) throw profileError;
+          if (profileError) throw profileError;
 
             toast.success('Successfully joined organization!');
           }
@@ -966,4 +966,4 @@ export const useOptimisticUpdates = () => {
 export const useOrganizationErrors = () => {
   const store = useOrganizationStore();
   return store.errors;
-};
+}; 
