@@ -67,7 +67,7 @@ export default function SignUp() {
             alt="SalesSheet Logo" 
             className="w-[200px] h-[200px] mx-auto mb-4 object-contain -mt-[50px]"
           />
-          <div className="relative -mt-[86px] z-50">
+          <div className="relative -mt-[56px] z-50">
             <p className="text-muted-foreground mb-2">
               Create your account to get started
             </p>
@@ -84,8 +84,8 @@ export default function SignUp() {
           </div>
         </div>
         
-        {/* Sign Up Form */}
-        <Card>
+        {/* Sign Up Form - Adding mt-[30px] to move it down */}
+        <Card className="mt-[30px]">
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-xl">Create account</CardTitle>
             <CardDescription>
