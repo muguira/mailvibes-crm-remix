@@ -884,7 +884,7 @@ const TimelineItem = React.memo(
       }
     }, [replyContent, activity, isEmailThread, gmailStore.service, replyEditor])
 
-    // ✅ NEW: Component for individual emails within a thread - Simple conversation style
+    // ✅ Gmail-style email thread component with collapsible emails
     const ThreadedEmailItem = ({
       email,
       isFirst,
@@ -893,56 +893,137 @@ const TimelineItem = React.memo(
       email: TimelineActivity
       isFirst: boolean
       isLast: boolean
-    }) => (
-      <div className={cn('pb-6 mb-6', !isLast && 'border-b border-gray-100')}>
-        {/* Email header - clean and simple */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center space-x-2">
-            <span className="font-semibold text-gray-900">{email.from?.name || email.from?.email}</span>
-            {email.to && email.to.length > 0 && (
-              <>
-                <span className="text-gray-400">→</span>
-                <span className="font-semibold text-gray-900">{formatEmailRecipients(email.to, contactName)}</span>
-              </>
+    }) => {
+      const isLatest = isLast // Latest email in the thread
+      const [isExpanded, setIsExpanded] = useState(isLatest) // Latest email expanded by default
+
+      // Collapsed header view (Gmail style)
+      if (!isExpanded) {
+        return (
+          <div
+            className={cn(
+              'py-3 px-4 hover:bg-gray-50 cursor-pointer transition-colors rounded-md',
+              !isLast && 'border-b border-gray-100',
             )}
-            <span className="text-xs text-gray-500">• {formatAbsoluteTimestamp(email.timestamp)}</span>
+            onClick={() => setIsExpanded(true)}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3 flex-1">
+                {/* Sender avatar/initial */}
+                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                  {(email.from?.name || email.from?.email || 'U').charAt(0).toUpperCase()}
+                </div>
+
+                {/* Sender and snippet */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium text-gray-900 text-sm">{email.from?.name || email.from?.email}</span>
+                    <span className="text-gray-500 text-xs">{formatTimestamp(email.timestamp)}</span>
+                    {email.isImportant && <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full" title="Important" />}
+                    {!email.isRead && <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" title="Unread" />}
+                  </div>
+                  <div className="text-gray-600 text-sm truncate mt-1">
+                    {email.snippet || email.bodyText || 'No preview available'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Expand indicator */}
+              <div className="text-gray-400 text-xs flex items-center space-x-1">
+                <span>Click to expand</span>
+                <ChevronDown className="w-4 h-4" />
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      // Expanded view (full email)
+      return (
+        <div className={cn('py-4 px-4 bg-white', !isLast && 'border-b border-gray-200')}>
+          {/* Expanded header */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start space-x-3 flex-1">
+              {/* Sender avatar */}
+              <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                {(email.from?.name || email.from?.email || 'U').charAt(0).toUpperCase()}
+              </div>
+
+              {/* Email details */}
+              <div className="flex-1">
+                <div className="flex items-center space-x-2 mb-1">
+                  <span className="font-semibold text-gray-900">{email.from?.name || email.from?.email}</span>
+                  {email.to && email.to.length > 0 && (
+                    <>
+                      <span className="text-gray-500 text-sm">to</span>
+                      <span className="font-medium text-gray-700">{formatEmailRecipients(email.to, contactName)}</span>
+                    </>
+                  )}
+                </div>
+
+                <div className="text-gray-500 text-sm">
+                  {formatAbsoluteTimestamp(email.timestamp)}
+                  {email.subject && (
+                    <>
+                      <span className="mx-2">•</span>
+                      <span className="font-medium">{email.subject}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center space-x-2">
+              {email.isImportant && <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Important" />}
+              {!email.isRead && <div className="w-2 h-2 bg-blue-500 rounded-full" title="Unread" />}
+              {!isLatest && (
+                <button
+                  onClick={() => setIsExpanded(false)}
+                  className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+                  title="Collapse"
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Email-specific badges */}
-          <div className="flex items-center space-x-1">
-            {email.isImportant && <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Important" />}
-            {!email.isRead && <div className="w-2 h-2 bg-blue-500 rounded-full" title="Unread" />}
+          {/* Email content */}
+          <div className="text-sm text-gray-800 leading-relaxed">
+            {email.bodyHtml ? (
+              <EmailRenderer
+                bodyHtml={email.bodyHtml}
+                bodyText={email.bodyText}
+                subject={email.subject || ''}
+                emailId={email.id}
+                attachments={email.attachments}
+              />
+            ) : (
+              <div className="whitespace-pre-wrap">{email.snippet || email.bodyText || 'No content available'}</div>
+            )}
           </div>
-        </div>
 
-        {/* Subject line if different */}
-        {email.subject && <div className="text-sm font-medium text-gray-700 mb-3">{email.subject}</div>}
+          {/* Attachments */}
+          {email.attachments && email.attachments.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center text-sm text-gray-600">
+                <span>
+                  📎 {email.attachments.length} attachment{email.attachments.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            </div>
+          )}
 
-        {/* Email content - clean without boxes */}
-        <div className="text-sm text-gray-800 leading-relaxed">
-          {email.bodyHtml ? (
-            <EmailRenderer
-              bodyHtml={email.bodyHtml}
-              bodyText={email.bodyText}
-              subject={email.subject || ''}
-              emailId={email.id}
-              attachments={email.attachments}
-            />
-          ) : (
-            <div className="whitespace-pre-wrap">{email.snippet || email.bodyText || 'No content available'}</div>
+          {/* Reply section for latest email */}
+          {isLatest && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">Reply</button>
+            </div>
           )}
         </div>
-
-        {/* Attachments indicator if any */}
-        {email.attachments && email.attachments.length > 0 && (
-          <div className="mt-3 flex items-center text-xs text-gray-500">
-            <span>
-              📎 {email.attachments.length} attachment{email.attachments.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-        )}
-      </div>
-    )
+      )
+    }
 
     return (
       <li ref={timelineRef} className="relative pl-12 pb-8 mb-[40px]">
