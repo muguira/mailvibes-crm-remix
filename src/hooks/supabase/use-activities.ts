@@ -1,9 +1,9 @@
 // @ts-nocheck
 import { useAuth } from '@/components/auth'
 import { supabase } from '@/integrations/supabase/client'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from '../use-toast'
 import { logger } from '@/utils/logger'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from '../use-toast'
 
 export interface Activity {
   id: string
@@ -42,8 +42,35 @@ export function useActivities(contactId?: string) {
       return []
     }
 
+    // 🚫 FILTER OUT: Exclude any sync-related activities that should NEVER appear
+    const filteredData = (data || []).filter((item: any) => {
+      // Check if the activity contains sync-related content that should be hidden
+      const content = item.new_value || item.details || ''
+      const contentStr = typeof content === 'string' ? content.toLowerCase() : JSON.stringify(content).toLowerCase()
+
+      // NEVER show these activities
+      const bannedPhrases = [
+        'performed email sync action',
+        'email sync action',
+        'sync action',
+        'gmail sync',
+        'email synchronization',
+        'sync emails',
+        'synchronizing emails',
+      ]
+
+      // If the activity contains any banned phrase, exclude it
+      const shouldExclude = bannedPhrases.some(phrase => contentStr.includes(phrase))
+
+      if (shouldExclude) {
+        logger.debug(`[Activities] Filtering out sync activity: ${contentStr.substring(0, 50)}...`)
+      }
+
+      return !shouldExclude
+    })
+
     // Transform user_activities to match Activity interface
-    const activities = (data || []).map((item: any) => {
+    const activities = filteredData.map((item: any) => {
       let content = null
       try {
         if (item.new_value) {

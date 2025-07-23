@@ -1158,3 +1158,125 @@ export async function createDraft(accessToken: string, emailData: SendEmailData)
     throw error
   }
 }
+
+/**
+ * 🚀 NEW: Get Gmail History for incremental sync
+ * Fetches changes since a specific historyId using Gmail History API
+ * @param accessToken - Valid Gmail API access token
+ * @param startHistoryId - History ID to start from (returned by previous sync)
+ * @param options - Additional options for the history request
+ * @returns Promise with history changes
+ */
+export async function getHistory(
+  accessToken: string,
+  startHistoryId: string,
+  options: {
+    historyTypes?: string[]
+    maxResults?: number
+    pageToken?: string
+  } = {},
+): Promise<{
+  history: any[]
+  historyId: string
+  nextPageToken?: string
+}> {
+  try {
+    logger.info('[Gmail API] 🔄 Fetching history changes since:', startHistoryId)
+
+    const params = new URLSearchParams({
+      startHistoryId,
+      historyTypes: options.historyTypes?.join(',') || 'messageAdded',
+      maxResults: (options.maxResults || 500).toString(),
+      ...(options.pageToken && { pageToken: options.pageToken }),
+    })
+
+    const response = await fetch(`${GMAIL_API_BASE_URL}/users/me/history?${params}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // History ID is invalid/expired
+        const error = await response.json()
+        logger.warn('[Gmail API] History ID expired or invalid:', {
+          startHistoryId,
+          error: error.error?.message,
+        })
+        throw new Error('HISTORY_ID_INVALID')
+      }
+
+      const error = await response.json()
+      throw new Error(error.error?.message || `History API error: ${response.statusText}`)
+    }
+
+    const result = await response.json()
+
+    logger.info('[Gmail API] ✅ History fetched successfully:', {
+      historyCount: result.history?.length || 0,
+      newHistoryId: result.historyId,
+      hasMore: !!result.nextPageToken,
+    })
+
+    return {
+      history: result.history || [],
+      historyId: result.historyId,
+      nextPageToken: result.nextPageToken,
+    }
+  } catch (error) {
+    logger.error('[Gmail API] Error fetching history:', error)
+    throw error
+  }
+}
+
+/**
+ * 🚀 NEW: Get emails by History ID changes
+ * Processes Gmail History API results to extract email details for specific messages
+ * @param accessToken - Valid Gmail API access token
+ * @param historyChanges - History changes from getHistory()
+ * @param contactEmail - Contact email to filter messages for
+ * @returns Promise with filtered and detailed emails
+ */
+export async function getEmailsByHistoryChanges(
+  accessToken: string,
+  historyChanges: any[],
+  contactEmail: string,
+): Promise<GmailEmail[]> {
+  try {
+    // Extract message IDs from history changes
+    const messageIds = historyChanges
+      .flatMap(h => h.messagesAdded || [])
+      .map(ma => ma.message?.id)
+      .filter(id => id)
+
+    if (messageIds.length === 0) {
+      logger.info('[Gmail API] No new messages in history changes')
+      return []
+    }
+
+    logger.info(`[Gmail API] Processing ${messageIds.length} messages from history changes`)
+
+    // Fetch detailed information for each message
+    const emailPromises = messageIds.map((messageId: string) => fetchEmailDetails(accessToken, messageId))
+
+    const emails = await Promise.all(emailPromises)
+    const validEmails = emails.filter(email => email !== null) as GmailEmail[]
+
+    // Filter emails related to the specific contact
+    const contactEmails = validEmails.filter(
+      email =>
+        email.from.email.toLowerCase() === contactEmail.toLowerCase() ||
+        email.to.some(recipient => recipient.email.toLowerCase() === contactEmail.toLowerCase()) ||
+        email.cc?.some(recipient => recipient.email.toLowerCase() === contactEmail.toLowerCase()),
+    )
+
+    logger.info(`[Gmail API] Found ${contactEmails.length} emails related to ${contactEmail}`)
+
+    return contactEmails
+  } catch (error) {
+    logger.error('[Gmail API] Error processing history changes:', error)
+    throw error
+  }
+}

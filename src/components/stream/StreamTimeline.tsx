@@ -8,7 +8,7 @@ import { usePinnedEmails } from '@/hooks/supabase/use-pinned-emails'
 import { useTimelineActivitiesV2 } from '@/hooks/use-timeline-activities-v2'
 // ✅ CRITICAL FIX: Add Gmail sync for new emails
 import { useContactEmailSync } from '@/hooks/use-contact-email-sync'
-import { Loader2, Mail, Users } from 'lucide-react'
+import { Loader2, Mail, RefreshCw, Users } from 'lucide-react'
 
 interface StreamTimelineProps {
   contactId: string
@@ -133,8 +133,8 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     if (contactEmail && user?.id) {
       // Start Gmail sync immediately in parallel with database loading
       syncContactEmails(contactEmail, {
-        silent: true, // Don't show separate loading state
-        showToast: false, // No toast, we'll handle loading state globally
+        silent: false, // ✅ FIX: Show loading states so user knows emails are syncing
+        showToast: false, // Keep toasts minimal, but show loading indicators
         forceFullSync: false, // Use cache if recent
       }).catch(error => {
         console.error('Auto-sync failed:', error)
@@ -464,7 +464,7 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
   }, []) // ✅ FIX: No dependencies - use refs
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full  overflow-y-hidden">
       {/* Timeline composer */}
       <div className="flex-shrink-0 p-4 pt-0">
         <TimelineComposer
@@ -480,9 +480,48 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
       </div>
 
       {/* Timeline content */}
-      <div ref={timelineRef} className="flex-1 overflow-y-auto p-4 pl-12 pr-5 scroll-smooth">
-        {/* ✅ NEW: Unified loading indicator */}
-        {isLoadingTimeline && (
+      <div ref={timelineRef} className="flex-1 overflow-y-auto p-4 mb-[120px] pl-12 pr-5 scroll-smooth">
+        {/* ✅ ENHANCED: Unified loader with sync type indicator */}
+        {isLoadingTimeline && activities.length > 0 && (
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-teal-primary" />
+              <h3 className="text-lg font-semibold text-gray-700">
+                {syncStatus === 'syncing' ? '🔄 Syncing emails from Gmail...' : 'Loading timeline...'}
+              </h3>
+              <p className="text-sm text-slate-medium mt-2">
+                {emailsCount > 0 ? `${emailsCount} emails loaded so far` : 'Getting latest emails and activities'}
+              </p>
+              {syncStatus === 'syncing' && (
+                <div className="mt-3 space-y-2">
+                  {/* Sync type indicator */}
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-full text-xs text-blue-700 font-medium">
+                    {emailsCount > 50 ? (
+                      <>
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        🔄 Checking for new emails only
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-3 h-3" />
+                        📥 Downloading complete history
+                      </>
+                    )}
+                  </div>
+                  {/* Performance indicator */}
+                  <div className="text-xs text-slate-medium">
+                    {emailsCount > 50
+                      ? 'Fast incremental sync - checking recent changes only'
+                      : 'This may take a moment for the initial sync...'}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ✅ SIMPLIFIED: Basic loading indicator for other cases */}
+        {isLoadingTimeline && activities.length === 0 && !syncStatus && (
           <div className="flex items-center justify-center py-3 mb-4 bg-blue-50 border border-blue-200 rounded-lg">
             <Loader2 className="w-4 h-4 animate-spin mr-2 text-blue-600" />
             <span className="text-sm text-blue-700">{getLoadingMessage()}</span>
@@ -496,7 +535,26 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
           </div>
         )}
 
-        {!isLoadingTimeline && activities.length === 0 ? (
+        {/* ✅ NEW: Show loading state when initially loading with no activities */}
+        {isLoadingTimeline && activities.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="text-center">
+              <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-teal-primary" />
+              <h3 className="text-lg font-semibold text-gray-700">Loading Contact Timeline</h3>
+              <p className="text-sm text-slate-medium mt-2">
+                Getting emails and activities for {contactName || 'this contact'}...
+              </p>
+              {syncStatus === 'syncing' && (
+                <div className="mt-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs text-blue-700">
+                    <Mail className="w-3 h-3" />
+                    Syncing emails from Gmail...
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : !isLoadingTimeline && activities.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <div className="mb-4">
               <Mail className="w-12 h-12 mx-auto text-gray-300" />

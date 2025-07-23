@@ -62,12 +62,49 @@ export function StreamView({ listName, listId }: StreamViewProps) {
       {selectedContact ? (
         <>
           <div className="flex-1 flex flex-col">
-            {/* ✅ NEW: Email sync indicator */}
+            {/* ✅ ENHANCED: Better email sync indicator with more context */}
             {emailSyncState.isLoading && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border-b border-blue-100 text-blue-700 text-sm">
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <Mail className="w-4 h-4" />
-                <span>Syncing emails from Gmail...</span>
+              <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border-b border-blue-200 px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <RefreshCw className="w-5 h-5 animate-spin text-blue-600" />
+                    <div>
+                      <div className="text-sm font-medium text-blue-800">Downloading email history from Gmail</div>
+                      <div className="text-xs text-blue-600">
+                        {emailSyncState.emailsCount > 0
+                          ? `${emailSyncState.emailsCount} emails processed so far`
+                          : 'This may take a moment for contacts with many emails'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-blue-500" />
+                    <span className="text-xs text-blue-600 font-medium">In Progress</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ✅ NEW: Success indicator when sync completes */}
+            {!emailSyncState.isLoading && emailSyncState.lastSyncTime && emailSyncState.emailsCount > 0 && (
+              <div className="bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 border-b border-green-200 px-4 py-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium text-green-800">
+                      Email sync completed - {emailSyncState.emailsCount} emails loaded
+                    </span>
+                  </div>
+                  <span className="text-xs text-green-600">Ready</span>
+                </div>
               </div>
             )}
 

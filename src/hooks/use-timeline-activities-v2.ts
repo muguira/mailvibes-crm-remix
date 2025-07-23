@@ -3,6 +3,7 @@ import { usePinnedEmails } from '@/hooks/supabase/use-pinned-emails'
 import { useEmails } from '@/hooks/use-emails-store'
 import { GmailEmail } from '@/services/google/gmailApi'
 import { useStore } from '@/stores'
+import { logger } from '@/utils/logger'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { usePerformanceMonitor } from './use-performance-monitor'
 
@@ -433,6 +434,37 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
     syncContactHistory: syncContactHistoryFn,
     refreshContactEmails: refreshContactEmailsFn,
   } = emails
+
+  // ✅ FIX: Listen for email sync completion events to refresh UI automatically
+  useEffect(() => {
+    const handleEmailSyncComplete = (event: CustomEvent) => {
+      const { contactEmail: eventContactEmail, userId } = event.detail
+
+      // Only refresh if this event is for the current contact
+      if (eventContactEmail === contactEmailRef.current && userId === authUser?.id) {
+        logger.info(
+          `[TimelineActivitiesV2] Received email-sync-complete event for ${eventContactEmail}, refreshing emails`,
+        )
+
+        // Refresh emails to show newly synced data
+        refreshContactEmailsFn(eventContactEmail, userId)
+          .then(() => {
+            logger.info(`[TimelineActivitiesV2] ✅ Successfully refreshed emails for ${eventContactEmail}`)
+          })
+          .catch(error => {
+            logger.warn(`[TimelineActivitiesV2] Failed to refresh emails for ${eventContactEmail}:`, error)
+          })
+      }
+    }
+
+    // Add event listener
+    window.addEventListener('email-sync-complete', handleEmailSyncComplete as EventListener)
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('email-sync-complete', handleEmailSyncComplete as EventListener)
+    }
+  }, [contactEmailRef.current, authUser?.id, refreshContactEmailsFn])
 
   // Get email state for this contact
   const contactEmails = contactEmailRef.current ? getEmailsForContact(contactEmailRef.current) : []
