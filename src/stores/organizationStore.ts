@@ -141,23 +141,34 @@ export const useOrganizationStore = create<OrganizationStore>()(
             return;
           }
 
-          // Use the RPC function to safely get user organization
-          const { data: orgData, error } = await supabase
-            .rpc('get_user_organization_safe', { p_user_id: user.id });
+          // Use the new invitation service to check if user needs organization
+          // This considers both existing memberships and pending invitations
+          const { checkUserNeedsOrganization, checkAndAcceptPendingInvitations } = await import('@/services/invitationService');
+          
+          const needsOrgResult = await checkUserNeedsOrganization(user.id);
+          
+          console.log('🔍 Organization check result:', needsOrgResult);
 
-          if (error) {
-            console.error('Error checking user organization:', error);
-            // If RPC fails, assume they need an organization
-            set((state) => { 
-              state.needsOrganization = true;
-              state.loadingStates.checkingOrganization = false;
-            });
-            return;
-          }
-
-          // RPC returns an array, check if we have results
-          if (orgData && orgData.length > 0) {
-            // User has an organization
+          if (!needsOrgResult.needsOrganization) {
+            // User either has an organization or has pending invitations
+            if (needsOrgResult.hasPendingInvitations && user.email) {
+              // Try to auto-accept pending invitations
+              console.log('🎯 Auto-accepting pending invitations during org check...');
+              const acceptResult = await checkAndAcceptPendingInvitations(user.email, user.id);
+              
+              if (acceptResult.hasOrganization) {
+                console.log('✅ Successfully auto-accepted invitation during org check');
+                set((state) => { 
+                  state.needsOrganization = false;
+                  state.loadingStates.checkingOrganization = false;
+                });
+                // Load the organization data
+                await get().loadOrganization();
+                return;
+              }
+            }
+            
+            // User has an existing organization
             set((state) => { 
               state.needsOrganization = false;
               state.loadingStates.checkingOrganization = false;
@@ -165,7 +176,8 @@ export const useOrganizationStore = create<OrganizationStore>()(
             // Load the organization data
             await get().loadOrganization();
           } else {
-            // User needs an organization
+            // User genuinely needs to create an organization
+            console.log('📝 User needs to create an organization');
             set((state) => { 
               state.needsOrganization = true;
               state.loadingStates.checkingOrganization = false;
@@ -173,6 +185,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
           }
         } catch (error) {
           console.error('Error checking user organization:', error);
+          // On error, default to assuming they need an organization
           set((state) => { 
             state.needsOrganization = true;
             state.loadingStates.checkingOrganization = false;

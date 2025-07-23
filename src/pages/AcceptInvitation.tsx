@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Building2, Users, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { useAuth } from '@/components/auth';
-import { useOrganizationActions } from '@/stores/organizationStore';
 import { supabase } from '@/integrations/supabase/client';
+import { acceptInvitation, getPendingInvitations, type PendingInvitation } from '@/services/invitationService';
 
 interface InvitationDetails {
   id: string;
@@ -24,7 +24,6 @@ export const AcceptInvitation: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { acceptInvitation } = useOrganizationActions();
   
   // Get invitation ID from either URL param or query param (token)
   const effectiveInvitationId = invitationId || searchParams.get('token');
@@ -112,17 +111,31 @@ export const AcceptInvitation: React.FC = () => {
       setAccepting(true);
       setError(null);
 
-      // Use the invitation ID for acceptance (not the token)
-      await acceptInvitation(invitation.id);
-      setSuccess(true);
+      // Use the new invitation service to accept the invitation
+      const result = await acceptInvitation(invitation.id, user.id);
+      
+      if (result.hasOrganization) {
+        setSuccess(true);
+        
+        // Reload organization data in the background
+        try {
+          const { useOrganizationStore } = await import('@/stores/organizationStore');
+          await useOrganizationStore.getState().loadOrganization();
+        } catch (orgError) {
+          console.warn('Could not reload organization data:', orgError);
+        }
 
-      // Redirect to dashboard after a short delay
-      setTimeout(() => {
-        navigate('/');
-      }, 2000);
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          navigate('/');
+        }, 2000);
+      } else {
+        setError(result.message || 'Failed to accept invitation');
+      }
 
     } catch (err: any) {
-      setError(err.message);
+      console.error('Error accepting invitation:', err);
+      setError(err.message || 'Failed to accept invitation');
     } finally {
       setAccepting(false);
     }
