@@ -884,7 +884,7 @@ const TimelineItem = React.memo(
       }
     }, [replyContent, activity, isEmailThread, gmailStore.service, replyEditor])
 
-    // ✅ NEW: Component for individual emails within a thread
+    // ✅ NEW: Component for individual emails within a thread - Simple conversation style
     const ThreadedEmailItem = ({
       email,
       isFirst,
@@ -894,18 +894,20 @@ const TimelineItem = React.memo(
       isFirst: boolean
       isLast: boolean
     }) => (
-      <div className={cn('relative border-l-2 border-gray-200 pl-4 pb-4', isFirst && 'pt-2', isLast && 'pb-2')}>
-        {/* Email header */}
+      <div className={cn('pb-6 mb-6', !isLast && 'border-b border-gray-100')}>
+        {/* Email header - clean and simple */}
         <div className="flex items-center justify-between mb-2">
-          <div className="text-sm text-gray-700">
+          <div className="flex items-center space-x-2">
             <span className="font-semibold text-gray-900">{email.from?.name || email.from?.email}</span>
             {email.to && email.to.length > 0 && (
               <>
-                <span className="mx-1 font-normal text-gray-500">to</span>
+                <span className="text-gray-400">→</span>
                 <span className="font-semibold text-gray-900">{formatEmailRecipients(email.to, contactName)}</span>
               </>
             )}
+            <span className="text-xs text-gray-500">• {formatAbsoluteTimestamp(email.timestamp)}</span>
           </div>
+
           {/* Email-specific badges */}
           <div className="flex items-center space-x-1">
             {email.isImportant && <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Important" />}
@@ -913,14 +915,32 @@ const TimelineItem = React.memo(
           </div>
         </div>
 
-        {/* Email content */}
-        <div className="text-sm text-gray-700">
+        {/* Subject line if different */}
+        {email.subject && <div className="text-sm font-medium text-gray-700 mb-3">{email.subject}</div>}
+
+        {/* Email content - clean without boxes */}
+        <div className="text-sm text-gray-800 leading-relaxed">
           {email.bodyHtml ? (
-            <EmailRenderer bodyHtml={email.bodyHtml} bodyText={email.bodyText} subject={email.subject || ''} />
+            <EmailRenderer
+              bodyHtml={email.bodyHtml}
+              bodyText={email.bodyText}
+              subject={email.subject || ''}
+              emailId={email.id}
+              attachments={email.attachments}
+            />
           ) : (
-            <div className="whitespace-pre-wrap">{email.snippet || email.bodyText || 'No content'}</div>
+            <div className="whitespace-pre-wrap">{email.snippet || email.bodyText || 'No content available'}</div>
           )}
         </div>
+
+        {/* Attachments indicator if any */}
+        {email.attachments && email.attachments.length > 0 && (
+          <div className="mt-3 flex items-center text-xs text-gray-500">
+            <span>
+              📎 {email.attachments.length} attachment{email.attachments.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
       </div>
     )
 
@@ -1040,16 +1060,46 @@ const TimelineItem = React.memo(
             </div>
           )}
 
-          {/* Header with user info */}
-          <div className={cn('flex items-center text-sm mb-2', optimisticPinState && (isMobile ? 'mt-5' : 'mt-6'))}>
-            <span className={cn('font-medium', getUserNameColor(activity.type), isMobile ? 'ml-5' : 'ml-7')}>
-              {activityUserName || 'User'}
-            </span>
-            <span className="text-gray-500 ml-1">
-              {activity.type === 'email' || activity.type === 'email_sent'
-                ? 'emailed'
-                : activity.type === 'email_thread'
-                  ? 'email conversation with'
+          {/* Header with user info - improved for threads */}
+          {isEmailThread ? (
+            // Email thread header - show subject and participants
+            <div className={cn('mb-3', optimisticPinState && (isMobile ? 'mt-5' : 'mt-6'), isMobile ? 'ml-5' : 'ml-7')}>
+              <div className="text-lg font-semibold text-gray-900 mb-1">{activity.subject || 'Email Conversation'}</div>
+              <div className="text-sm text-gray-600">
+                {(() => {
+                  // Get unique participants from the thread
+                  const allParticipants = new Set<string>()
+                  emailsInThread.forEach(email => {
+                    if (email.from?.name || email.from?.email) {
+                      allParticipants.add(email.from.name || email.from.email)
+                    }
+                    if (email.to) {
+                      email.to.forEach(recipient => {
+                        allParticipants.add(recipient.name || recipient.email)
+                      })
+                    }
+                  })
+                  const participants = Array.from(allParticipants)
+
+                  if (participants.length <= 2) {
+                    return `Between ${participants.join(' and ')}`
+                  } else {
+                    return `Between ${participants.slice(0, 2).join(', ')} and ${participants.length - 2} others`
+                  }
+                })()}
+                <span className="mx-2">•</span>
+                <span>{threadEmailCount} messages</span>
+              </div>
+            </div>
+          ) : (
+            // Regular email/activity header
+            <div className={cn('flex items-center text-sm mb-2', optimisticPinState && (isMobile ? 'mt-5' : 'mt-6'))}>
+              <span className={cn('font-medium', getUserNameColor(activity.type), isMobile ? 'ml-5' : 'ml-7')}>
+                {activityUserName || 'User'}
+              </span>
+              <span className="text-gray-500 ml-1">
+                {activity.type === 'email' || activity.type === 'email_sent'
+                  ? 'emailed'
                   : activity.type === 'note'
                     ? 'added a note to'
                     : activity.type === 'call'
@@ -1059,13 +1109,14 @@ const TimelineItem = React.memo(
                         : activity.type === 'task'
                           ? 'created a task for'
                           : `added a ${activity.type} to`}
-            </span>
-            <span className="text-gray-700 font-medium ml-1">
-              {activity.type === 'email' || activity.type === 'email_sent'
-                ? formatEmailRecipients(activity.to, contactName)
-                : contactName || 'Contact'}
-            </span>
-          </div>
+              </span>
+              <span className="text-gray-700 font-medium ml-1">
+                {activity.type === 'email' || activity.type === 'email_sent'
+                  ? formatEmailRecipients(activity.to, contactName)
+                  : contactName || 'Contact'}
+              </span>
+            </div>
+          )}
 
           {/* Email sent date - only show for emails */}
           {(activity.type === 'email' || activity.type === 'email_sent' || activity.type === 'email_thread') && (
@@ -1143,48 +1194,51 @@ const TimelineItem = React.memo(
               {!isEditing && (
                 /* Display mode with expandable content */
                 <div className="relative">
-                  <div
-                    ref={contentRef}
-                    className={cn(
-                      'overflow-hidden transition-all duration-500 ease-out',
-                      !isExpanded && 'max-h-[200px]',
-                      isExpanded && 'max-h-[2000px]',
-                    )}
-                    style={{
-                      transition: 'max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-                    }}
-                  >
-                    {/* ✅ NEW: Email thread display - always expanded */}
-                    {isEmailThread ? (
-                      <div className="space-y-4">
-                        {emailsInThread.map((email, index) => (
-                          <ThreadedEmailItem
-                            key={email.id}
-                            email={email}
-                            isFirst={index === 0}
-                            isLast={index === emailsInThread.length - 1}
-                          />
-                        ))}
-                      </div>
-                    ) : (activity.source === 'gmail' && activity.type === 'email') ||
+                  {/* Email threads always show full content without height restrictions */}
+                  {isEmailThread ? (
+                    <div className="space-y-1">
+                      {emailsInThread.map((email, index) => (
+                        <ThreadedEmailItem
+                          key={email.id}
+                          email={email}
+                          isFirst={index === 0}
+                          isLast={index === emailsInThread.length - 1}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      ref={contentRef}
+                      className={cn(
+                        'overflow-hidden transition-all duration-500 ease-out',
+                        !isExpanded && 'max-h-[200px]',
+                        isExpanded && 'max-h-[2000px]',
+                      )}
+                      style={{
+                        transition: 'max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                      }}
+                    >
+                      {/* Regular single email or non-email content */}
+                      {(activity.source === 'gmail' && activity.type === 'email') ||
                       (activity.source === 'internal' && activity.type === 'email_sent') ? (
-                      /* Regular single email display */
-                      <EmailRenderer
-                        bodyHtml={activity.bodyHtml}
-                        bodyText={activity.bodyText}
-                        subject={activity.subject}
-                        emailId={activity.id}
-                        attachments={activity.attachments}
-                        activityDetails={activity.details}
-                      />
-                    ) : (
-                      /* Non-email activity display */
-                      <div
-                        className="text-sm text-gray-800 leading-relaxed timeline-content"
-                        dangerouslySetInnerHTML={{ __html: renderMarkdown(activityProps.displayContent) }}
-                      />
-                    )}
-                  </div>
+                        /* Regular single email display */
+                        <EmailRenderer
+                          bodyHtml={activity.bodyHtml}
+                          bodyText={activity.bodyText}
+                          subject={activity.subject}
+                          emailId={activity.id}
+                          attachments={activity.attachments}
+                          activityDetails={activity.details}
+                        />
+                      ) : (
+                        /* Non-email activity display */
+                        <div
+                          className="text-sm text-gray-800 leading-relaxed timeline-content"
+                          dangerouslySetInnerHTML={{ __html: renderMarkdown(activityProps.displayContent) }}
+                        />
+                      )}
+                    </div>
+                  )}
 
                   {/* Fade overlay when collapsed */}
                   {!isExpanded && showExpandButton && (
