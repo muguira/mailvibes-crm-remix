@@ -81,15 +81,18 @@ const OrganizationGeneral: React.FC = () => {
     setIsSaving(true);
 
     try {
-      const { error } = await supabase
-        .from('organizations')
-        .update({ 
-          name: organizationName.trim(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', organization.id);
+      // Use RPC function to update organization name safely
+      const { data: success, error } = await supabase
+        .rpc('update_organization_name', {
+          p_organization_id: organization.id,
+          p_new_name: organizationName.trim()
+        });
 
       if (error) throw error;
+
+      if (!success) {
+        throw new Error('Failed to update organization name');
+      }
 
       // Reload organization data to reflect changes
       await loadOrganization();

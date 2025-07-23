@@ -676,33 +676,29 @@ export const useOrganizationStore = create<OrganizationStore>()(
             delete state.errors.resendInvitation[invitationId];
           });
 
-          // Update expiry date
-          const newExpiresAt = new Date();
-          newExpiresAt.setDate(newExpiresAt.getDate() + 7);
-
-          const { error } = await supabase
-            .from('organization_invitations')
-            .update({ 
-              expires_at: newExpiresAt.toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', invitationId);
+          // Use RPC function to safely resend invitation
+          const { data: result, error } = await supabase
+            .rpc('resend_organization_invitation', {
+              p_invitation_id: invitationId
+            });
 
           if (error) throw error;
 
-          // TODO: Send invitation email again
-          // await resendInvitationEmail(invitationId);
+          const resendResult = result?.[0];
+          if (!resendResult?.success) {
+            throw new Error(resendResult?.message || 'Failed to resend invitation');
+          }
 
           set((state) => {
             const invitationIndex = state.invitations.findIndex(i => i.id === invitationId);
             if (invitationIndex !== -1) {
-              state.invitations[invitationIndex].expires_at = newExpiresAt.toISOString();
+              state.invitations[invitationIndex].expires_at = resendResult.new_expires_at;
               state.invitations[invitationIndex].updated_at = new Date().toISOString();
             }
             delete state.loadingStates.resendingInvitation[invitationId];
           });
 
-          toast.success('Invitation resent successfully');
+          // Don't show toast here - let the UI component handle it to avoid duplicates
 
         } catch (error) {
           set((state) => {
@@ -712,8 +708,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
               [invitationId]: error.message 
             };
           });
-          toast.error(`Failed to resend invitation: ${error.message}`);
-          throw error;
+          throw error; // Let UI handle error display
         }
       },
 
@@ -746,7 +741,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
             delete state.loadingStates.cancelingInvitation[invitationId];
           });
 
-          toast.success('Invitation cancelled successfully');
+          // Don't show toast here - let the UI component handle it to avoid duplicates
 
         } catch (error) {
           set((state) => {
@@ -756,8 +751,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
               [invitationId]: error.message 
             };
           });
-          toast.error(`Failed to cancel invitation: ${error.message}`);
-          throw error;
+          throw error; // Let UI handle error display
         }
       },
 
