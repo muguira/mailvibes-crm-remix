@@ -297,6 +297,7 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
             color: '#111827',
             marginBottom: '12px',
             padding: '0 4px',
+            overflowX: 'auto',
           }}
         >
           {subject}
