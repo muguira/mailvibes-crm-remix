@@ -223,6 +223,11 @@ export const useAuthSlice: StateCreator<
           const { useStore } = await import('@/stores/index')
           useStore.getState().contactsClear()
 
+          // Reset organization store when user logs out (clears session cache)
+          const { useOrganizationStore } = await import('@/stores/organizationStore')
+          useOrganizationStore.getState().reset()
+          logger.log('User signed out, organization cache cleared')
+
           // RESTORED: Gmail reset with fixed selectors
           // Reset Gmail auth when user logs out
           logger.log('User signed out, resetting Gmail auth...')

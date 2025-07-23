@@ -14,15 +14,10 @@ import { Database } from '@/integrations/supabase/types';
 import { sendInvitationEmails } from '@/services/invitationEmailService';
 import { toast } from 'sonner';
 
-// Cache duration in milliseconds (5 minutes)
-const CACHE_DURATION = 5 * 60 * 1000;
-
-// Helper function to check if data is fresh
-const isDataFresh = (lastUpdated: string | null): boolean => {
-  if (!lastUpdated) return false;
-  const lastUpdate = new Date(lastUpdated).getTime();
-  const now = Date.now();
-  return (now - lastUpdate) < CACHE_DURATION;
+// Helper function to check if data is cached (valid for entire session)
+const isDataCached = (lastUpdated: string | null): boolean => {
+  // Data is considered cached if it exists and was loaded during this session
+  return !!lastUpdated;
 };
 
 // Helper functions
@@ -281,9 +276,9 @@ export const useOrganizationStore = create<OrganizationStore>()(
       loadOrganization: async (force = false) => {
         const state = get();
         
-        // Check if we have fresh data and don't need to force reload
-        if (!force && state.currentOrganization && isDataFresh(state.lastUpdated)) {
-          console.log('🚀 Using cached organization data');
+        // Check if we have cached data and don't need to force reload
+        if (!force && state.currentOrganization && isDataCached(state.lastUpdated)) {
+          console.log('🚀 Using cached organization data (session-persistent)');
           return;
         }
 
@@ -394,7 +389,7 @@ export const useOrganizationStore = create<OrganizationStore>()(
             state.loadingStates.loadingOrganization = false;
           });
 
-          console.log('✅ Organization data loaded and cached');
+          console.log('✅ Organization data loaded and cached for session');
 
         } catch (error: any) {
           set((state) => {
