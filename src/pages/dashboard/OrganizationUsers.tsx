@@ -106,14 +106,9 @@ const OrganizationUsers: React.FC = () => {
   const handleRoleChange = async (memberId: string, newRole: 'admin' | 'user') => {
     try {
       await updateMemberRole(memberId, newRole);
-      const member = members.find(m => m.id === memberId);
-      toast.success('Role updated successfully', {
-        description: `${member?.user.first_name} ${member?.user.last_name} is now ${newRole === 'admin' ? 'an admin' : 'a user'}`
-      });
+      // Toast is already handled by the store function to prevent duplicates
     } catch (error: any) {
-      toast.error('Failed to update role', {
-        description: error.message
-      });
+      // Error toast is already handled by the store function to prevent duplicates
       throw error;
     }
   };
@@ -121,15 +116,10 @@ const OrganizationUsers: React.FC = () => {
   // Handle remove member
   const handleRemoveMember = async (memberId: string) => {
     try {
-      const member = members.find(m => m.id === memberId);
       await removeMember(memberId);
-      toast.success('Member removed', {
-        description: `${member?.user.first_name} ${member?.user.last_name} has been removed from your organization`
-      });
+      // Toast is already handled by the store function to prevent duplicates
     } catch (error: any) {
-      toast.error('Failed to remove member', {
-        description: error.message
-      });
+      // Error toast is already handled by the store function to prevent duplicates
       throw error;
     }
   };
