@@ -115,7 +115,7 @@ export const AcceptInvitation: React.FC = () => {
       const result = await acceptInvitation(invitation.id, user.id);
       
       if (result.hasOrganization) {
-        setSuccess(true);
+      setSuccess(true);
         
         // Reload organization data in the background
         try {
@@ -125,10 +125,10 @@ export const AcceptInvitation: React.FC = () => {
           console.warn('Could not reload organization data:', orgError);
         }
 
-        // Redirect to dashboard after a short delay
-        setTimeout(() => {
-          navigate('/');
-        }, 2000);
+      // Redirect to dashboard after a short delay
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
       } else {
         setError(result.message || 'Failed to accept invitation');
       }

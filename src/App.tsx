@@ -16,13 +16,19 @@ import Reports from "@/pages/dashboard/Reports";
 import Profile from "@/pages/dashboard/Profile";
 import NotFound from "@/pages/NotFound";
 import Auth from "@/pages/Auth";
+import SignIn from "@/pages/SignIn";
+import SignUp from "@/pages/SignUp";
 import ContactProfile from "@/pages/dashboard/ContactProfile";
 import StreamView from "@/pages/dashboard/StreamView"; // Import the new StreamView page
 import Integrations from "@/pages/dashboard/Integrations";
 import Imports from "@/pages/dashboard/Imports";
 import Settings from "@/pages/dashboard/Settings";
 import OrganizationUsers from "@/pages/dashboard/OrganizationUsers";
+import OrganizationGeneral from "@/pages/dashboard/OrganizationGeneral";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import AccountProperties from "@/pages/dashboard/AccountProperties";
+import { PasswordRecoveryHandler } from "@/components/PasswordRecoveryHandler";
 import Landing from "@/pages/Landing";
 import Import from "@/pages/Import";
 import GmailImport from "@/pages/dashboard/GmailImport";
@@ -31,6 +37,7 @@ import DeletedContacts from "@/pages/dashboard/DeletedContacts";
 import { AcceptInvitation } from "@/pages/AcceptInvitation";
 import { useRadixPointerEventsFix } from "@/hooks/use-radix-pointer-events-fix";
 import PerformanceTestingDashboard from "@/components/debug/PerformanceTestingDashboard";
+import { PendingInvitationsHandler } from "@/components/settings/PendingInvitationsHandler";
 import { useEffect, useState } from "react";
 // Create a client
 const queryClient = new QueryClient({
@@ -68,10 +75,16 @@ function App() {
         <TooltipProvider delayDuration={300}>
           <AuthProvider>
             <ActivityProvider>
+              <PendingInvitationsHandler />
               <Router>
               <div className="h-screen w-full font-proxima">
+                <PasswordRecoveryHandler />
                 <Routes>
                   <Route path="/auth" element={<AuthenticatedRedirect><Auth /></AuthenticatedRedirect>} />
+                  <Route path="/auth/login" element={<AuthenticatedRedirect><SignIn /></AuthenticatedRedirect>} />
+                  <Route path="/auth/register" element={<AuthenticatedRedirect><SignUp /></AuthenticatedRedirect>} />
+                  <Route path="/auth/forgot-password" element={<AuthenticatedRedirect><ForgotPassword /></AuthenticatedRedirect>} />
+                  <Route path="/auth/reset-password" element={<ResetPassword />} />
                   <Route path="/landing" element={<Landing />} />
                   <Route path="/accept-invitation/:invitationId" element={<AcceptInvitation />} />
                   <Route path="/accept-invitation" element={<AcceptInvitation />} />
@@ -88,6 +101,7 @@ function App() {
                   <Route path="/gmail-import" element={<PrivateRoute><GmailImport /></PrivateRoute>} />
                   <Route path="/deleted-contacts" element={<PrivateRoute><DeletedContacts /></PrivateRoute>} />
                   <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+                  <Route path="/settings/organization/general" element={<PrivateRoute><OrganizationGeneral /></PrivateRoute>} />
                   <Route path="/settings/organization/users" element={<PrivateRoute><OrganizationUsers /></PrivateRoute>} />
                   <Route path="/settings/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
                   <Route path="/settings/integrations/gmail-dashboard" element={<PrivateRoute><GmailDashboard /></PrivateRoute>} />

@@ -15,6 +15,23 @@ const Index = () => {
   const { needsOrganization } = useOrganizationData();
   const { checkUserOrganization } = useOrganizationActions();
 
+  // Check for password recovery redirect from Supabase
+  useEffect(() => {
+    const handlePasswordRecovery = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const hash = window.location.hash;
+      
+      // Check if this is a password recovery redirect from Supabase
+      if (urlParams.get('type') === 'recovery' || hash.includes('type=recovery')) {
+        console.log('🔄 Password recovery detected, redirecting to reset page...');
+        // Redirect to reset page with all URL parameters
+        window.location.href = '/auth/reset-password' + window.location.search + window.location.hash;
+      }
+    };
+
+    handlePasswordRecovery();
+  }, []);
+
   // Initialize organization data when user is authenticated
   useEffect(() => {
     if (user) {
@@ -33,7 +50,7 @@ const Index = () => {
 
   // Redirect to auth page if not logged in
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/auth/login" replace />;
   }
 
   return (

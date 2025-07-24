@@ -197,7 +197,7 @@ export const useAuthSlice: StateCreator<
             }
 
             // RESTORED: Auto-initialization with granular selectors (safe with timeout)
-            // Initialize Gmail auth for signed in user with delay to avoid conflicts
+            // Initialize Gmail auth for signed in user with minimal delay to avoid conflicts
             logger.log('User signed in, scheduling Gmail initialization...')
             setTimeout(async () => {
               try {
@@ -209,7 +209,7 @@ export const useAuthSlice: StateCreator<
               } catch (error) {
                 logger.error('Error initializing Gmail auth:', error)
               }
-            }, 1000) // 1 second delay to let the UI settle
+            }, 300) // Reduced to 300ms to minimize timeout conflicts
           }
         } else if (event === 'SIGNED_OUT') {
           set(state => {
