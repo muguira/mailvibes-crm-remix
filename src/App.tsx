@@ -28,6 +28,7 @@ import OrganizationGeneral from "@/pages/dashboard/OrganizationGeneral";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import AccountProperties from "@/pages/dashboard/AccountProperties";
+import { PasswordRecoveryHandler } from "@/components/PasswordRecoveryHandler";
 import Landing from "@/pages/Landing";
 import Import from "@/pages/Import";
 import GmailImport from "@/pages/dashboard/GmailImport";
@@ -77,6 +78,7 @@ function App() {
               <PendingInvitationsHandler />
               <Router>
               <div className="h-screen w-full font-proxima">
+                <PasswordRecoveryHandler />
                 <Routes>
                   <Route path="/auth" element={<AuthenticatedRedirect><Auth /></AuthenticatedRedirect>} />
                   <Route path="/auth/login" element={<AuthenticatedRedirect><SignIn /></AuthenticatedRedirect>} />
