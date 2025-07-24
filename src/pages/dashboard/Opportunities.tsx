@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { SelectContactsForOpportunitiesModal } from '@/components/grid-view/SelectContactsForOpportunitiesModal';
 import { OpportunitiesPerformanceMonitor } from '@/components/opportunities/OpportunitiesPerformanceMonitor';
+import { OpportunitiesStoreTest } from '@/components/test/OpportunitiesStoreTest';
 import '@/components/grid-view/styles/toolbar.css';
 import '@/components/grid-view/styles/grid-layout.css';
 
@@ -226,6 +227,14 @@ export default function Opportunities() {
           onConvert={handleConvertFromContactSelection}
           isLoading={isConvertLoading}
         />
+
+        {/* Test Component - Remove after testing */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-8 border-t pt-8">
+            <h3 className="text-lg font-semibold mb-4">🧪 Development: Store Test Suite</h3>
+            <OpportunitiesStoreTest />
+          </div>
+        )}
       </div>
     </ErrorBoundary>
     </OpportunitiesPerformanceMonitor>

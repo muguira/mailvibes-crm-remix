@@ -13,6 +13,7 @@ import { TContactProfileStore } from './contact-profile'
 import { TEditableLeadsGridStore } from './editable-leads-grid'
 import { TEditableOpportunitiesGridStore } from './editable-opportunities-grid'
 import { TContactsStore } from './contacts'
+import { TOpportunitiesStore } from './opportunities'
 
 // =============================================
 // STORE PRINCIPAL DE LA APLICACIÓN
@@ -30,7 +31,8 @@ export type TStore = TTaskStore &
   TContactProfileStore &
   TEditableLeadsGridStore &
   TEditableOpportunitiesGridStore &
-  TContactsStore
+  TContactsStore &
+  TOpportunitiesStore
 
 export interface ITask {
   id: string

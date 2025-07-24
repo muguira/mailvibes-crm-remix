@@ -9,6 +9,7 @@ import { useContactProfileSlice } from './useContactProfileSlice'
 import { useEditableLeadsGridSlice } from './useEditableLeadsGridSlice'
 import { useContactsSlice } from './useContactsSlice'
 import { createEditableOpportunitiesGridSlice } from './useEditableOpportunitiesGridSlice'
+import { useOpportunitiesSlice } from './useOpportunitiesSlice'
 
 /**
  * Main store for the application
@@ -38,6 +39,7 @@ export const useStore = create<TStore>()(
         ...useEditableLeadsGridSlice(...a),
         ...useContactsSlice(...a),
         ...createEditableOpportunitiesGridSlice(...a),
+        ...useOpportunitiesSlice(...a),
       })),
     ),
     {
@@ -52,6 +54,12 @@ export const useStore = create<TStore>()(
           searchTerm: state.searchTerm,
           hiddenColumns: state.hiddenColumns,
 
+          // Persist Opportunities state
+          opportunitiesDeletedIds: Array.from(state.opportunitiesDeletedIds || new Set()), // Convert Set to Array for JSON serialization
+          opportunitiesPagination: {
+            isInitialized: state.opportunitiesPagination?.isInitialized || false,
+          },
+
           // Persist other critical user preferences (add as needed)
           // Note: We don't persist loading states, errors, or temporary data
         }
@@ -64,6 +72,8 @@ export const useStore = create<TStore>()(
           hiddenColumnIds: persistedState.hiddenColumns.map(c => c.id),
           activeFilters: persistedState.activeFilters,
           deletedColumnIds: persistedState.deletedColumnIds,
+          opportunitiesDeletedIds: persistedState.opportunitiesDeletedIds,
+          opportunitiesInitialized: persistedState.opportunitiesPagination.isInitialized,
         })
 
         return persistedState
@@ -105,6 +115,18 @@ export const useStore = create<TStore>()(
               state.deletedColumnIds = new Set()
             }
 
+            // Convert opportunitiesDeletedIds array back to Set after rehydration
+            if (state && state.opportunitiesDeletedIds) {
+              if (Array.isArray(state.opportunitiesDeletedIds)) {
+                state.opportunitiesDeletedIds = new Set(state.opportunitiesDeletedIds)
+              } else if (!(state.opportunitiesDeletedIds instanceof Set)) {
+                // Handle any other cases where it might not be a Set
+                state.opportunitiesDeletedIds = new Set()
+              }
+            } else if (state) {
+              state.opportunitiesDeletedIds = new Set()
+            }
+
             // Clean up duplicate hidden columns (production bug fix)
             if (state && state.hiddenColumns && Array.isArray(state.hiddenColumns)) {
               const originalCount = state.hiddenColumns.length
@@ -130,6 +152,8 @@ export const useStore = create<TStore>()(
               hiddenColumnsCount: state?.hiddenColumns?.length || 0,
               hiddenColumnIds: state?.hiddenColumns?.map(c => c.id) || [],
               deletedColumnIds: state?.deletedColumnIds ? Array.from(state.deletedColumnIds) : [],
+              opportunitiesDeletedIds: state?.opportunitiesDeletedIds ? Array.from(state.opportunitiesDeletedIds) : [],
+              opportunitiesInitialized: state?.opportunitiesPagination?.isInitialized || false,
               fullState: !!state,
             })
           }
