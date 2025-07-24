@@ -512,7 +512,6 @@ export const useOrganizationStore = create<OrganizationStore>()(
             state.loadingStates.invitingUsers = false;
             state.errors.inviteUsers = error.message;
           });
-          toast.error(`Failed to invite users: ${error.message}`);
           throw error;
         }
       },
