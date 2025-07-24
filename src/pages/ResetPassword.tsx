@@ -38,8 +38,7 @@ export default function ResetPassword() {
       console.log('Type:', type);
       console.log('Full URL:', window.location.href);
       
-      // For password reset, only access token and correct type are required
-      // Refresh token might be empty/optional for password reset flows
+      // Check if we have the expected parameters
       if (!accessToken || type !== 'recovery') {
         console.log('❌ Token validation failed:', {
           hasAccessToken: !!accessToken,
@@ -53,28 +52,57 @@ export default function ResetPassword() {
       }
 
       try {
-        console.log('🔄 Attempting to set session...');
-        // Set the session using the tokens from the URL
-        // For password reset, we might only have access token
-        const sessionData: any = {
-          access_token: accessToken,
-        };
+        console.log('🔄 Attempting to get current session...');
         
-        // Only add refresh token if it exists and is not empty
-        if (refreshToken && refreshToken.trim()) {
-          sessionData.refresh_token = refreshToken;
-        }
+        // First try to get the current session to see if user is already authenticated
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        const { data, error } = await supabase.auth.setSession(sessionData);
-
-        console.log('📊 Session result:', { data, error });
-
-        if (error) {
-          console.error('❌ Error setting session:', error);
-          setIsValidToken(false);
-        } else {
-          console.log('✅ Session set successfully');
+        console.log('📊 Current session check:', { session, sessionError });
+        
+        if (session?.user) {
+          // User is already authenticated via the URL parameters
+          console.log('✅ User already authenticated via URL');
           setIsValidToken(true);
+        } else {
+          // Try to exchange the tokens
+          console.log('🔄 Attempting to set session with tokens...');
+          
+          const sessionData: any = {
+            access_token: accessToken,
+          };
+          
+          if (refreshToken && refreshToken.trim()) {
+            sessionData.refresh_token = refreshToken;
+          }
+          
+          const { data, error } = await supabase.auth.setSession(sessionData);
+          
+          console.log('📊 Session result:', { data, error });
+
+          if (error) {
+            console.error('❌ Error setting session:', error);
+            // If JWT error, the tokens might be PKCE codes instead of JWTs
+            if (error.message?.includes('JWT') || error.message?.includes('Invalid')) {
+              console.log('🔄 Tokens appear to be PKCE codes, not JWTs. Checking if already authenticated...');
+              // Sometimes Supabase handles this automatically in the background
+              // Let's wait a moment and check again
+              setTimeout(async () => {
+                const { data: { session: retrySession } } = await supabase.auth.getSession();
+                if (retrySession?.user) {
+                  console.log('✅ User authenticated after retry');
+                  setIsValidToken(true);
+                } else {
+                  setIsValidToken(false);
+                }
+                setIsVerifyingToken(false);
+              }, 1000);
+              return;
+            }
+            setIsValidToken(false);
+          } else {
+            console.log('✅ Session set successfully');
+            setIsValidToken(true);
+          }
         }
       } catch (error) {
         console.error('❌ Error verifying token:', error);
