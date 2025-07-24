@@ -24,35 +24,68 @@ export default function ResetPassword() {
   const { updatePassword } = useAuthActions();
   const { user, loading, errors } = useAuthState();
 
-  // Extract token from URL parameters
+  // Extract token from URL parameters (both search params and hash)
   const accessToken = searchParams.get('access_token');
   const refreshToken = searchParams.get('refresh_token');
   const type = searchParams.get('type');
 
+  // Also check URL hash for tokens (sometimes Supabase uses hash instead of query params)
+  const urlHash = window.location.hash;
+  const hashParams = new URLSearchParams(urlHash.substring(1));
+  const hashAccessToken = hashParams.get('access_token');
+  const hashRefreshToken = hashParams.get('refresh_token');
+  const hashType = hashParams.get('type');
+
+  // Use hash params if search params are empty
+  const finalAccessToken = accessToken || hashAccessToken;
+  const finalRefreshToken = refreshToken || hashRefreshToken;
+  const finalType = type || hashType;
+
   // Verify token and set session on component mount
   useEffect(() => {
     const verifyTokenAndSetSession = async () => {
-      if (!accessToken || !refreshToken || type !== 'recovery') {
+      console.log('🔍 Reset Password Debug Info:');
+      console.log('Access Token:', finalAccessToken);
+      console.log('Refresh Token:', finalRefreshToken);
+      console.log('Type:', finalType);
+      console.log('Full URL:', window.location.href);
+      console.log('Search Params:', searchParams.toString());
+      console.log('URL Hash:', urlHash);
+      console.log('Hash Params:', hashParams.toString());
+      console.log('Search Params Tokens:', { accessToken, refreshToken, type });
+      console.log('Hash Params Tokens:', { hashAccessToken, hashRefreshToken, hashType });
+      
+      if (!finalAccessToken || !finalRefreshToken || finalType !== 'recovery') {
+        console.log('❌ Token validation failed:', {
+          hasAccessToken: !!finalAccessToken,
+          hasRefreshToken: !!finalRefreshToken,
+          typeIsRecovery: finalType === 'recovery',
+          actualType: finalType
+        });
         setIsValidToken(false);
         setIsVerifyingToken(false);
         return;
       }
 
       try {
+        console.log('🔄 Attempting to set session...');
         // Set the session using the tokens from the URL
         const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
+          access_token: finalAccessToken,
+          refresh_token: finalRefreshToken,
         });
 
+        console.log('📊 Session result:', { data, error });
+
         if (error) {
-          console.error('Error setting session:', error);
+          console.error('❌ Error setting session:', error);
           setIsValidToken(false);
         } else {
+          console.log('✅ Session set successfully');
           setIsValidToken(true);
         }
       } catch (error) {
-        console.error('Error verifying token:', error);
+        console.error('❌ Error verifying token:', error);
         setIsValidToken(false);
       } finally {
         setIsVerifyingToken(false);
@@ -60,10 +93,10 @@ export default function ResetPassword() {
     };
 
     verifyTokenAndSetSession();
-  }, [accessToken, refreshToken, type]);
+  }, [finalAccessToken, finalRefreshToken, finalType]);
 
   // If user is already logged in and not resetting password, redirect to home
-  if (user && !accessToken && !isPasswordChanged) {
+  if (user && !finalAccessToken && !isPasswordChanged) {
     return <Navigate to="/" />;
   }
 
