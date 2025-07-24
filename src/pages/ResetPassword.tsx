@@ -24,43 +24,28 @@ export default function ResetPassword() {
   const { updatePassword } = useAuthActions();
   const { user, loading, errors } = useAuthState();
 
-  // Extract token from URL parameters (both search params and hash)
+  // Extract token from URL parameters
   const accessToken = searchParams.get('access_token');
   const refreshToken = searchParams.get('refresh_token');
   const type = searchParams.get('type');
-
-  // Also check URL hash for tokens (sometimes Supabase uses hash instead of query params)
-  const urlHash = window.location.hash;
-  const hashParams = new URLSearchParams(urlHash.substring(1));
-  const hashAccessToken = hashParams.get('access_token');
-  const hashRefreshToken = hashParams.get('refresh_token');
-  const hashType = hashParams.get('type');
-
-  // Use hash params if search params are empty
-  const finalAccessToken = accessToken || hashAccessToken;
-  const finalRefreshToken = refreshToken || hashRefreshToken;
-  const finalType = type || hashType;
 
   // Verify token and set session on component mount
   useEffect(() => {
     const verifyTokenAndSetSession = async () => {
       console.log('🔍 Reset Password Debug Info:');
-      console.log('Access Token:', finalAccessToken);
-      console.log('Refresh Token:', finalRefreshToken);
-      console.log('Type:', finalType);
+      console.log('Access Token:', accessToken);
+      console.log('Refresh Token:', refreshToken);
+      console.log('Type:', type);
       console.log('Full URL:', window.location.href);
-      console.log('Search Params:', searchParams.toString());
-      console.log('URL Hash:', urlHash);
-      console.log('Hash Params:', hashParams.toString());
-      console.log('Search Params Tokens:', { accessToken, refreshToken, type });
-      console.log('Hash Params Tokens:', { hashAccessToken, hashRefreshToken, hashType });
       
-      if (!finalAccessToken || !finalRefreshToken || finalType !== 'recovery') {
+      // For password reset, only access token and correct type are required
+      // Refresh token might be empty/optional for password reset flows
+      if (!accessToken || type !== 'recovery') {
         console.log('❌ Token validation failed:', {
-          hasAccessToken: !!finalAccessToken,
-          hasRefreshToken: !!finalRefreshToken,
-          typeIsRecovery: finalType === 'recovery',
-          actualType: finalType
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken,
+          typeIsRecovery: type === 'recovery',
+          actualType: type
         });
         setIsValidToken(false);
         setIsVerifyingToken(false);
@@ -70,10 +55,17 @@ export default function ResetPassword() {
       try {
         console.log('🔄 Attempting to set session...');
         // Set the session using the tokens from the URL
-        const { data, error } = await supabase.auth.setSession({
-          access_token: finalAccessToken,
-          refresh_token: finalRefreshToken,
-        });
+        // For password reset, we might only have access token
+        const sessionData: any = {
+          access_token: accessToken,
+        };
+        
+        // Only add refresh token if it exists and is not empty
+        if (refreshToken && refreshToken.trim()) {
+          sessionData.refresh_token = refreshToken;
+        }
+        
+        const { data, error } = await supabase.auth.setSession(sessionData);
 
         console.log('📊 Session result:', { data, error });
 
@@ -93,10 +85,10 @@ export default function ResetPassword() {
     };
 
     verifyTokenAndSetSession();
-  }, [finalAccessToken, finalRefreshToken, finalType]);
+  }, [accessToken, refreshToken, type]);
 
   // If user is already logged in and not resetting password, redirect to home
-  if (user && !finalAccessToken && !isPasswordChanged) {
+  if (user && !accessToken && !isPasswordChanged) {
     return <Navigate to="/" />;
   }
 
