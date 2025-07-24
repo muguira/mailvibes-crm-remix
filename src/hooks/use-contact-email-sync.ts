@@ -40,7 +40,6 @@ interface ContactSyncStatus {
 }
 
 // Configuration constants
-const SYNC_CACHE_TTL = 30 * 60 * 1000 // 30 minutes for database-backed cache
 const MIN_SYNC_INTERVAL = 30 * 1000 // 30 seconds minimum between syncs
 
 /**
@@ -94,7 +93,7 @@ const getSyncStatusFromDB = async (contactEmail: string, userId: string): Promis
     const lastHistoryId = null // TODO: contactSyncLogs?.[0]?.gmail_history_id || null
     const accountHistoryId = null // TODO: emailAccount?.last_history_id || null
 
-    // 4. Intelligent sync decision logic
+    // 4. Intelligent sync decision logic - ALWAYS SYNC when entering StreamView
     const now = Date.now()
     let needsSync = true
     let syncReason = 'initial_sync'
@@ -103,11 +102,7 @@ const getSyncStatusFromDB = async (contactEmail: string, userId: string): Promis
     if (hasExistingEmails && lastContactSync) {
       const timeSinceLastSync = now - new Date(lastContactSync).getTime()
 
-      if (timeSinceLastSync < SYNC_CACHE_TTL) {
-        needsSync = false
-        syncReason = 'recently_synced'
-        shouldUseIncremental = false
-      } else if (timeSinceLastSync < 24 * 60 * 60 * 1000) {
+      if (timeSinceLastSync < 24 * 60 * 60 * 1000) {
         // Less than 24 hours - perfect for incremental sync
         needsSync = true
         syncReason = 'incremental_sync'
