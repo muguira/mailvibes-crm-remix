@@ -89,6 +89,16 @@ export default function SignIn() {
                 />
               </div>
               
+              {/* Forgot Password Link */}
+              <div className="text-right">
+                <Link 
+                  to="/auth/forgot-password" 
+                  className="text-sm text-brand-teal hover:text-brand-teal-hover hover:underline"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
+              
               <Button
                 type="submit"
                 className="w-full bg-brand-teal hover:bg-brand-teal-hover text-white mt-2"

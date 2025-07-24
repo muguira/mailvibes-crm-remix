@@ -25,6 +25,8 @@ import Imports from "@/pages/dashboard/Imports";
 import Settings from "@/pages/dashboard/Settings";
 import OrganizationUsers from "@/pages/dashboard/OrganizationUsers";
 import OrganizationGeneral from "@/pages/dashboard/OrganizationGeneral";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import AccountProperties from "@/pages/dashboard/AccountProperties";
 import Landing from "@/pages/Landing";
 import Import from "@/pages/Import";
@@ -79,6 +81,8 @@ function App() {
                   <Route path="/auth" element={<AuthenticatedRedirect><Auth /></AuthenticatedRedirect>} />
                   <Route path="/auth/login" element={<AuthenticatedRedirect><SignIn /></AuthenticatedRedirect>} />
                   <Route path="/auth/register" element={<AuthenticatedRedirect><SignUp /></AuthenticatedRedirect>} />
+                  <Route path="/auth/forgot-password" element={<AuthenticatedRedirect><ForgotPassword /></AuthenticatedRedirect>} />
+                  <Route path="/auth/reset-password" element={<ResetPassword />} />
                   <Route path="/landing" element={<Landing />} />
                   <Route path="/accept-invitation/:invitationId" element={<AcceptInvitation />} />
                   <Route path="/accept-invitation" element={<AcceptInvitation />} />
