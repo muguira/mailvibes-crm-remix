@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuthActions, useAuthState } from "@/hooks/useAuthStore";
-import { useNavigate, useSearchParams, Navigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,139 +16,56 @@ export default function ResetPassword() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isPasswordChanged, setIsPasswordChanged] = useState(false);
-  const [isVerifyingToken, setIsVerifyingToken] = useState(true);
-  const [isValidToken, setIsValidToken] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [canResetPassword, setCanResetPassword] = useState(false);
   
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { updatePassword } = useAuthActions();
-  const { user, loading, errors } = useAuthState();
+  const { loading, errors } = useAuthState();
 
-  // Extract token from URL parameters
-  const accessToken = searchParams.get('access_token');
-  const refreshToken = searchParams.get('refresh_token');
-  const type = searchParams.get('type');
-
-  // Verify token and set session on component mount
+  // Simple auth check - let Supabase handle the URL tokens
   useEffect(() => {
-    const verifyTokenAndSetSession = async () => {
-      console.log('🔍 Reset Password Debug Info:');
-      console.log('Access Token:', accessToken);
-      console.log('Refresh Token:', refreshToken);
-      console.log('Type:', type);
-      console.log('Full URL:', window.location.href);
+    const checkAuth = async () => {
+      console.log('🔍 Checking auth for password reset...');
       
-      // Check if we have the expected parameters
-      if (!accessToken || type !== 'recovery') {
-        console.log('❌ Token validation failed:', {
-          hasAccessToken: !!accessToken,
-          hasRefreshToken: !!refreshToken,
-          typeIsRecovery: type === 'recovery',
-          actualType: type
-        });
-        setIsValidToken(false);
-        setIsVerifyingToken(false);
-        return;
-      }
-
       try {
-        console.log('🔄 Attempting to get current session...');
+        // Wait a moment for Supabase to process any URL tokens
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // First try to get the current session to see if user is already authenticated
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        console.log('📊 Current session check:', { session, sessionError });
+        console.log('📊 Auth check:', { session: !!session, user: !!session?.user, error });
         
         if (session?.user) {
-          // User is already authenticated via the URL parameters
-          console.log('✅ User already authenticated via URL');
-          setIsValidToken(true);
+          console.log('✅ User authenticated - can reset password');
+          setCanResetPassword(true);
         } else {
-          // Try to exchange the tokens
-          console.log('🔄 Attempting to set session with tokens...');
-          
-          const sessionData: any = {
-            access_token: accessToken,
-          };
-          
-          if (refreshToken && refreshToken.trim()) {
-            sessionData.refresh_token = refreshToken;
-          }
-          
-          const { data, error } = await supabase.auth.setSession(sessionData);
-          
-          console.log('📊 Session result:', { data, error });
-
-          if (error) {
-            console.error('❌ Error setting session:', error);
-            // If JWT error, the tokens might be PKCE codes instead of JWTs
-            if (error.message?.includes('JWT') || error.message?.includes('Invalid')) {
-              console.log('🔄 Tokens appear to be PKCE codes, not JWTs. Checking if already authenticated...');
-              // Sometimes Supabase handles this automatically in the background
-              // Let's wait a moment and check again
-              setTimeout(async () => {
-                const { data: { session: retrySession } } = await supabase.auth.getSession();
-                if (retrySession?.user) {
-                  console.log('✅ User authenticated after retry');
-                  setIsValidToken(true);
-                } else {
-                  setIsValidToken(false);
-                }
-                setIsVerifyingToken(false);
-              }, 1000);
-              return;
-            }
-            setIsValidToken(false);
-          } else {
-            console.log('✅ Session set successfully');
-            setIsValidToken(true);
-          }
+          console.log('❌ User not authenticated');
+          setCanResetPassword(false);
         }
       } catch (error) {
-        console.error('❌ Error verifying token:', error);
-        setIsValidToken(false);
+        console.error('Error checking auth:', error);
+        setCanResetPassword(false);
       } finally {
-        setIsVerifyingToken(false);
+        setIsCheckingAuth(false);
       }
     };
 
-    verifyTokenAndSetSession();
-  }, [accessToken, refreshToken, type]);
+    checkAuth();
+  }, []);
 
-  // If user is already logged in and not resetting password, redirect to home
-  if (user && !accessToken && !isPasswordChanged) {
-    return <Navigate to="/" />;
-  }
-
-  // Validate password requirements
   const validatePassword = (pwd: string): string[] => {
     const errors: string[] = [];
-    
-    if (pwd.length < 7) {
-      errors.push("Password must be at least 7 characters long");
-    }
-    
-    if (!/(?=.*[a-z])/.test(pwd)) {
-      errors.push("Password must contain at least one lowercase letter");
-    }
-    
-    if (!/(?=.*[A-Z])/.test(pwd)) {
-      errors.push("Password must contain at least one uppercase letter");
-    }
-    
-    if (!/(?=.*\d)/.test(pwd)) {
-      errors.push("Password must contain at least one number");
-    }
-    
+    if (pwd.length < 7) errors.push("Password must be at least 7 characters long");
+    if (!/(?=.*[a-z])/.test(pwd)) errors.push("Password must contain at least one lowercase letter");
+    if (!/(?=.*[A-Z])/.test(pwd)) errors.push("Password must contain at least one uppercase letter");
+    if (!/(?=.*\d)/.test(pwd)) errors.push("Password must contain at least one number");
     return errors;
   };
 
-  // Handle password input changes with validation
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPassword = e.target.value;
     setPassword(newPassword);
-    
-    // Validate password in real-time
     const errors = validatePassword(newPassword);
     setValidationErrors(errors);
   };
@@ -156,7 +73,6 @@ export default function ResetPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Final validation
     const passwordErrors = validatePassword(password);
     if (passwordErrors.length > 0) {
       setValidationErrors(passwordErrors);
@@ -172,13 +88,12 @@ export default function ResetPassword() {
       await updatePassword(password);
       setIsPasswordChanged(true);
     } catch (error) {
-      // Error is handled by the store and displayed via toast
       console.error("Password update error:", error);
     }
   };
 
-  // Loading state while verifying token
-  if (isVerifyingToken) {
+  // Loading state
+  if (isCheckingAuth) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="w-full max-w-md">
@@ -195,12 +110,11 @@ export default function ResetPassword() {
     );
   }
 
-  // Invalid token state
-  if (!isValidToken) {
+  // Invalid/expired link
+  if (!canResetPassword) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="w-full max-w-md space-y-4">
-          {/* Logo Section */}
           <div className="text-center">
             <img 
               src="https://i.imgur.com/HDICIxv.png" 
@@ -251,12 +165,11 @@ export default function ResetPassword() {
     );
   }
 
-  // Success state after password change
+  // Success state
   if (isPasswordChanged) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="w-full max-w-md space-y-4">
-          {/* Logo Section */}
           <div className="text-center">
             <img 
               src="https://i.imgur.com/HDICIxv.png" 
@@ -279,12 +192,9 @@ export default function ResetPassword() {
           <Card>
             <CardContent className="p-6 text-center">
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    Your password has been changed successfully. You can now sign in with your new password.
-                  </p>
-                </div>
-
+                <p className="text-sm text-muted-foreground">
+                  Your password has been changed successfully. You can now sign in with your new password.
+                </p>
                 <Button
                   onClick={() => navigate('/auth/login')}
                   className="w-full bg-brand-teal hover:bg-brand-teal-hover text-white"
@@ -299,10 +209,10 @@ export default function ResetPassword() {
     );
   }
 
+  // Reset password form
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-4">
-        {/* Logo Section */}
         <div className="text-center">
           <img 
             src="https://i.imgur.com/HDICIxv.png" 
@@ -319,7 +229,6 @@ export default function ResetPassword() {
           </div>
         </div>
         
-        {/* Password Reset Form */}
         <Card>
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-xl">Create New Password</CardTitle>
@@ -329,7 +238,6 @@ export default function ResetPassword() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* New Password Field */}
               <div className="space-y-2">
                 <Label htmlFor="password">New Password</Label>
                 <div className="relative">
@@ -352,7 +260,6 @@ export default function ResetPassword() {
                 </div>
               </div>
 
-              {/* Confirm Password Field */}
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm New Password</Label>
                 <div className="relative">
@@ -375,7 +282,6 @@ export default function ResetPassword() {
                 </div>
               </div>
 
-              {/* Password Requirements */}
               <div className="space-y-2">
                 <p className="text-sm font-medium">Password Requirements:</p>
                 <ul className="text-xs space-y-1">
@@ -402,19 +308,14 @@ export default function ResetPassword() {
                 </ul>
               </div>
 
-              {/* Validation Errors */}
-              {(validationErrors.length > 0 || errors.updatePassword) && (
+              {validationErrors.length > 0 && (
                 <Alert>
-                  <AlertDescription className="text-left">
-                    {validationErrors.length > 0 ? (
-                      <ul className="list-disc list-inside space-y-1">
-                        {validationErrors.map((error, index) => (
-                          <li key={index} className="text-sm">{error}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      errors.updatePassword
-                    )}
+                  <AlertDescription>
+                    <ul className="list-disc list-inside space-y-1">
+                      {validationErrors.map((error, index) => (
+                        <li key={index} className="text-sm">{error}</li>
+                      ))}
+                    </ul>
                   </AlertDescription>
                 </Alert>
               )}
@@ -448,4 +349,4 @@ export default function ResetPassword() {
       </div>
     </div>
   );
-} 
+}
