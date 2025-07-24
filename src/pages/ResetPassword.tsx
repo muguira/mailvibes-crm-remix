@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuthActions, useAuthState } from "@/hooks/useAuthStore";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,43 +16,93 @@ export default function ResetPassword() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isPasswordChanged, setIsPasswordChanged] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isVerifyingToken, setIsVerifyingToken] = useState(true);
   const [canResetPassword, setCanResetPassword] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
   
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { updatePassword } = useAuthActions();
   const { loading, errors } = useAuthState();
 
-  // Simple auth check - let Supabase handle the URL tokens
+  // Extract tokens from URL parameters
+  const accessToken = searchParams.get('access_token');
+  const token = searchParams.get('token');
+  const type = searchParams.get('type');
+
+  // Verify PKCE token and establish session
   useEffect(() => {
-    const checkAuth = async () => {
-      console.log('🔍 Checking auth for password reset...');
+    const verifyTokenAndSetSession = async () => {
+      console.log('🔍 Password Reset - Verifying PKCE token...');
+      console.log('URL Parameters:', {
+        access_token: accessToken?.substring(0, 20) + '...',
+        token: token?.substring(0, 20) + '...',
+        type,
+        fullUrl: window.location.href
+      });
       
+      // Check if we have the required parameters
+      const tokenToUse = accessToken || token;
+      if (!tokenToUse || type !== 'recovery') {
+        console.log('❌ Missing required parameters:', {
+          hasToken: !!tokenToUse,
+          hasCorrectType: type === 'recovery',
+          actualType: type
+        });
+        setVerificationError('Invalid or missing reset parameters');
+        setCanResetPassword(false);
+        setIsVerifyingToken(false);
+        return;
+      }
+
       try {
-        // Wait a moment for Supabase to process any URL tokens
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log('🔄 Attempting to verify OTP token...');
         
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        console.log('📊 Auth check:', { session: !!session, user: !!session?.user, error });
-        
-        if (session?.user) {
-          console.log('✅ User authenticated - can reset password');
+        // Use verifyOtp to handle PKCE codes
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: tokenToUse,
+          type: 'recovery'
+        });
+
+        console.log('📊 OTP verification result:', {
+          success: !!data.session,
+          hasUser: !!data.user,
+          error: error?.message
+        });
+
+        if (error) {
+          console.error('❌ OTP verification failed:', error);
+          
+          // Handle different types of errors
+          if (error.message?.includes('expired')) {
+            setVerificationError('This password reset link has expired. Please request a new one.');
+          } else if (error.message?.includes('invalid')) {
+            setVerificationError('This password reset link is invalid. Please request a new one.');
+          } else {
+            setVerificationError('Unable to verify reset link. Please try again or request a new link.');
+          }
+          
+          setCanResetPassword(false);
+        } else if (data.session && data.user) {
+          console.log('✅ Token verified successfully, session established');
           setCanResetPassword(true);
+          setVerificationError(null);
         } else {
-          console.log('❌ User not authenticated');
+          console.log('❌ No session established after verification');
+          setVerificationError('Unable to establish reset session. Please try again.');
           setCanResetPassword(false);
         }
       } catch (error) {
-        console.error('Error checking auth:', error);
+        console.error('❌ Unexpected error during token verification:', error);
+        setVerificationError('An unexpected error occurred. Please try again.');
         setCanResetPassword(false);
       } finally {
-        setIsCheckingAuth(false);
+        setIsVerifyingToken(false);
       }
     };
 
-    checkAuth();
-  }, []);
+    verifyTokenAndSetSession();
+  }, [accessToken, token, type]);
 
   const validatePassword = (pwd: string): string[] => {
     const errors: string[] = [];
@@ -85,15 +135,18 @@ export default function ResetPassword() {
     }
     
     try {
+      console.log('🔄 Updating password...');
       await updatePassword(password);
+      console.log('✅ Password updated successfully');
       setIsPasswordChanged(true);
     } catch (error) {
-      console.error("Password update error:", error);
+      console.error("❌ Password update error:", error);
+      // The error is handled by the auth store and shown via toast
     }
   };
 
-  // Loading state
-  if (isCheckingAuth) {
+  // Loading state while verifying token
+  if (isVerifyingToken) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="w-full max-w-md">
@@ -110,7 +163,7 @@ export default function ResetPassword() {
     );
   }
 
-  // Invalid/expired link
+  // Invalid/expired token
   if (!canResetPassword) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
@@ -126,7 +179,7 @@ export default function ResetPassword() {
                 Invalid Reset Link
               </h1>
               <p className="text-muted-foreground">
-                This password reset link is invalid or has expired
+                {verificationError || "This password reset link is invalid or has expired"}
               </p>
             </div>
           </div>
@@ -136,8 +189,7 @@ export default function ResetPassword() {
               <div className="space-y-4">
                 <Alert>
                   <AlertDescription>
-                    The password reset link you clicked is either invalid or has expired. 
-                    Password reset links are only valid for 1 hour after being sent.
+                    {verificationError || "The password reset link you clicked is either invalid or has expired. Password reset links are only valid for 1 hour after being sent."}
                   </AlertDescription>
                 </Alert>
                 

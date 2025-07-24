@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { Filter, Search, Plus, Bell, X, Calendar as CalendarIcon, Calendar, User, Mail, Phone, Building2, CreditCard, Eye, Pin, Trash2, Loader2 } from "lucide-react";
+import { Filter, Search, Plus, Bell, X, Calendar as CalendarIcon, Calendar, User, Mail, Phone, Building2, CreditCard, Eye, Pin, Trash2, Loader2, Target } from "lucide-react";
 import { Column, GridRow } from './types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,6 +25,8 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { useLeadsRows } from '@/hooks/supabase/use-leads-rows';
 import { toast } from '@/hooks/use-toast';
+import { ConvertToOpportunityModal } from './ConvertToOpportunityModal';
+import { SelectContactsForOpportunitiesModal } from './SelectContactsForOpportunitiesModal';
 
 interface GridToolbarProps {
   listName?: string;
@@ -41,8 +43,23 @@ interface GridToolbarProps {
   onTogglePin?: (columnId: string) => void;
   selectedRowIds?: Set<string>;
   onDeleteSelectedContacts?: () => void;
+  onConvertToOpportunities?: (contacts: Array<{ id: string; name: string; email?: string; company?: string; phone?: string; }>, conversionData: {
+    accountName: string;
+    dealValue: number;
+    closeDate?: Date;
+    stage: string;
+    priority: string;
+    contacts: Array<{
+      id: string;
+      name: string;
+      email?: string;
+      company?: string;
+      role: string;
+    }>;
+  }) => void;
   isContactDeletionLoading?: boolean;
   data?: GridRow[];
+  viewToggle?: React.ReactNode;
 }
 
 export function GridToolbar({ 
@@ -61,7 +78,9 @@ export function GridToolbar({
   selectedRowIds = new Set(),
   data = [],
   onDeleteSelectedContacts,
-  isContactDeletionLoading = false
+  onConvertToOpportunities,
+  isContactDeletionLoading = false,
+  viewToggle
 }: GridToolbarProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<string[]>(activeFilters.columns || []);
@@ -75,6 +94,13 @@ export function GridToolbar({
   // Pin management state
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [tempPinnedColumns, setTempPinnedColumns] = useState<string[]>(frozenColumnIds);
+  
+  // Convert to opportunities state
+  const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
+  const [isConvertLoading, setIsConvertLoading] = useState(false);
+  
+  // Contact selection for opportunities state
+  const [isContactSelectionModalOpen, setIsContactSelectionModalOpen] = useState(false);
   
   // Contact form state
   const [contactForm, setContactForm] = useState({
@@ -377,6 +403,95 @@ export function GridToolbar({
       });
     }
   };
+
+  // Handle convert to opportunities
+  const handleConvertToOpportunities = async (conversionData: {
+    accountName: string;
+    dealValue: number;
+    closeDate?: Date;
+    stage: string;
+    priority: string;
+    contacts: Array<{
+      id: string;
+      name: string;
+      email?: string;
+      company?: string;
+      role: string;
+    }>;
+  }) => {
+    setIsConvertLoading(true);
+    try {
+      if (onConvertToOpportunities) {
+        // Convert selected row IDs to full contact objects
+        const selectedContacts = data?.filter(row => selectedRowIds.has(row.id)).map(row => ({
+          id: row.id,
+          name: row.name || 'Unnamed Contact',
+          email: row.email,
+          company: row.company,
+          phone: row.phone
+        })) || [];
+        
+        await onConvertToOpportunities(selectedContacts, conversionData);
+        toast({
+          title: "Opportunity created",
+          description: `Successfully created opportunity "${conversionData.accountName}".`,
+        });
+        setIsConvertModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Error converting contacts:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create opportunity. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsConvertLoading(false);
+    }
+  };
+
+  // Handle convert from contact selection modal (for opportunities page)
+  const handleConvertFromContactSelection = async (
+    contacts: Array<{ id: string; name: string; email?: string; company?: string; phone?: string; }>, 
+    conversionData: {
+      accountName: string;
+      dealValue: number;
+      closeDate?: Date;
+      stage: string;
+      priority: string;
+      contacts: Array<{
+        id: string;
+        name: string;
+        email?: string;
+        company?: string;
+        role: string;
+      }>;
+    }
+  ) => {
+    setIsConvertLoading(true);
+    try {
+      if (onConvertToOpportunities) {
+        await onConvertToOpportunities(contacts, conversionData);
+        toast({
+          title: "Opportunity created",
+          description: `Successfully created opportunity "${conversionData.accountName}".`,
+        });
+        setIsContactSelectionModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Error converting contacts:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create opportunity. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsConvertLoading(false);
+    }
+  };
+
+  // Get selected contacts for conversion modal
+  const selectedContacts = data.filter(contact => selectedRowIds.has(contact.id));
   
   return (
     <div className="grid-toolbar">
@@ -387,20 +502,40 @@ export function GridToolbar({
             <SearchInput 
               value={searchTerm}
               onChange={onSearchChange}
-              placeholder="Search contacts..."
+              placeholder={listType === 'Opportunity' ? 'Search opportunities...' : 'Search contacts...'}
               className="w-full max-w-xs"
             />
           </div>
+
+          {/* View Toggle (List/Board) */}
+          {viewToggle && (
+            <div className="ml-4">
+              {viewToggle}
+            </div>
+          )}
           
-          {/* Show delete button when rows are selected - immediately to the right of search */}
+          {/* Show action buttons when rows are selected - immediately to the right of search */}
           {selectedRowIds.size > 0 && (
-            <div className="flex items-center ml-6">
+            <div className="flex items-center ml-6 gap-3">
+              {/* Convert to Opportunities Button */}
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="text-[#32BAB0] hover:text-[#28a79d] hover:bg-[#32BAB0]/10 border-[#32BAB0]/30"
+                onClick={() => setIsConvertModalOpen(true)}
+                disabled={isContactDeletionLoading || isConvertLoading}
+              >
+                <Target className="mr-1 h-3 w-3" />
+                Convert
+              </Button>
+              
+              {/* Delete Button */}
               <Button 
                 variant="outline" 
                 size="sm"
                 className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                 onClick={onDeleteSelectedContacts}
-                disabled={isContactDeletionLoading}
+                disabled={isContactDeletionLoading || isConvertLoading}
               >
                 {isContactDeletionLoading ? (
                   <>
@@ -414,7 +549,8 @@ export function GridToolbar({
                   </>
                 )}
               </Button>
-              <span className="text-sm font-medium text-gray-700 ml-2">
+              
+              <span className="text-sm font-medium text-gray-700">
                 {selectedRowIds.size} selected
               </span>
             </div>
@@ -546,7 +682,13 @@ export function GridToolbar({
           <div className="flex items-center toolbar-button-container">
             <Button 
               size={isMobile ? "icon" : "sm"}
-              onClick={() => setIsAddContactOpen(true)}
+              onClick={() => {
+                if (listType === 'Opportunity') {
+                  setIsContactSelectionModalOpen(true);
+                } else {
+                  setIsAddContactOpen(true);
+                }
+              }}
               className={`bg-[#32BAB0] hover:bg-[#28a79d] text-white ${isMobile ? 'mobile-add-btn' : ''}`}
             >
               {isMobile ? (
@@ -557,7 +699,7 @@ export function GridToolbar({
               ) : (
                 <>
                   <Plus className="h-4 w-4 mr-1" />
-                  <span>Add Contact</span>
+                  <span>{listType === 'Opportunity' ? 'Add Opportunities' : 'Add Contact'}</span>
                 </>
               )}
             </Button>
@@ -569,9 +711,12 @@ export function GridToolbar({
       <Dialog open={isAddContactOpen} onOpenChange={setIsAddContactOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Add New Contact</DialogTitle>
+            <DialogTitle>{listType === 'Opportunity' ? 'Add Opportunities' : 'Add New Contact'}</DialogTitle>
             <DialogDescription>
-              Enter the contact information below. Fields marked with * are required.
+              {listType === 'Opportunity' 
+                ? 'Select existing contacts to convert to opportunities.' 
+                : 'Enter the contact information below. Fields marked with * are required.'
+              }
             </DialogDescription>
           </DialogHeader>
           
@@ -657,11 +802,12 @@ export function GridToolbar({
                     onChange={(e) => setContactForm(prev => ({ ...prev, status: e.target.value }))}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <option value="New">New</option>
-                    <option value="Contacted">Contacted</option>
+                    <option value="Lead/New">Lead/New</option>
                     <option value="Qualified">Qualified</option>
+                    <option value="Discovery">Discovery</option>
                     <option value="Proposal">Proposal</option>
                     <option value="Negotiation">Negotiation</option>
+                    <option value="Closing">Closing</option>
                     <option value="Won">Won</option>
                     <option value="Lost">Lost</option>
                   </select>
@@ -697,12 +843,30 @@ export function GridToolbar({
                 type="submit"
                 className="bg-[#32BAB0] hover:bg-[#28a79d] text-white"
               >
-                Add Contact
+{listType === 'Opportunity' ? 'Add Opportunities' : 'Add Contact'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Convert to Opportunities Modal */}
+      <ConvertToOpportunityModal
+        isOpen={isConvertModalOpen}
+        onClose={() => setIsConvertModalOpen(false)}
+        onConvert={handleConvertToOpportunities}
+        selectedContacts={data?.filter(row => selectedRowIds.has(row.id)) || []}
+        isLoading={isConvertLoading}
+        allContacts={data || []}
+      />
+
+      {/* Contact Selection Modal for Opportunities */}
+      <SelectContactsForOpportunitiesModal
+        isOpen={isContactSelectionModalOpen}
+        onClose={() => setIsContactSelectionModalOpen(false)}
+        onConvert={handleConvertFromContactSelection}
+        isLoading={isConvertLoading}
+      />
     </div>
   );
 }

@@ -83,6 +83,90 @@ export type Database = {
         }
         Relationships: []
       }
+      opportunities: {
+        Row: {
+          close_date: string | null
+          company_linkedin: string | null
+          company_name: string | null
+          created_at: string
+          data: Json | null
+          employees: number | null
+          id: string
+          last_contacted: string | null
+          lead_source: string | null
+          next_meeting: string | null
+          opportunity: string
+          original_contact_id: string | null
+          owner: string | null
+          priority: string | null
+          revenue: number | null
+          revenue_display: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          close_date?: string | null
+          company_linkedin?: string | null
+          company_name?: string | null
+          created_at?: string
+          data?: Json | null
+          employees?: number | null
+          id?: string
+          last_contacted?: string | null
+          lead_source?: string | null
+          next_meeting?: string | null
+          opportunity: string
+          original_contact_id?: string | null
+          owner?: string | null
+          priority?: string | null
+          revenue?: number | null
+          revenue_display?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          close_date?: string | null
+          company_linkedin?: string | null
+          company_name?: string | null
+          created_at?: string
+          data?: Json | null
+          employees?: number | null
+          id?: string
+          last_contacted?: string | null
+          lead_source?: string | null
+          next_meeting?: string | null
+          opportunity?: string
+          original_contact_id?: string | null
+          owner?: string | null
+          priority?: string | null
+          revenue?: number | null
+          revenue_display?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunities_original_contact_id_fkey"
+            columns: ["original_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       deleted_contacts: {
         Row: {
           company: string | null

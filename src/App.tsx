@@ -12,6 +12,7 @@ import Index from "@/pages/dashboard/Index";
 import Lists from "@/pages/dashboard/Lists";
 import NewGrid from "@/pages/NewGrid";
 import Leads from "@/pages/dashboard/Leads";
+import Opportunities from "@/pages/dashboard/Opportunities";
 import Reports from "@/pages/dashboard/Reports";
 import Profile from "@/pages/dashboard/Profile";
 import NotFound from "@/pages/NotFound";
@@ -92,6 +93,7 @@ function App() {
                   <Route path="/lists/:listId?" element={<PrivateRoute><Lists /></PrivateRoute>} />
                   <Route path="/new-grid" element={<PrivateRoute><NewGrid /></PrivateRoute>} />
                   <Route path="/leads" element={<PrivateRoute><Leads /></PrivateRoute>} />
+                  <Route path="/opportunities" element={<PrivateRoute><Opportunities /></PrivateRoute>} />
                   <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
                   <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
                   <Route path="/contact/:id" element={<PrivateRoute><ContactProfile /></PrivateRoute>} />

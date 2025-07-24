@@ -1,12 +1,14 @@
-import { TStore } from '@/types/store/store'
 import { create } from 'zustand'
-import { createJSONStorage, persist, subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
+import { subscribeWithSelector } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { TStore } from '@/types/store/store'
+import { useTasksSlice } from './useTasksSlice'
 import { useAuthSlice } from './useAuthSlice'
 import { useContactProfileSlice } from './useContactProfileSlice'
-import { useContactsSlice } from './useContactsSlice'
 import { useEditableLeadsGridSlice } from './useEditableLeadsGridSlice'
-import { useTasksSlice } from './useTasksSlice'
+import { useContactsSlice } from './useContactsSlice'
+import { createEditableOpportunitiesGridSlice } from './useEditableOpportunitiesGridSlice'
 
 /**
  * Main store for the application
@@ -35,6 +37,7 @@ export const useStore = create<TStore>()(
         ...useContactProfileSlice(...a),
         ...useEditableLeadsGridSlice(...a),
         ...useContactsSlice(...a),
+        ...createEditableOpportunitiesGridSlice(...a),
       })),
     ),
     {
@@ -53,20 +56,32 @@ export const useStore = create<TStore>()(
           // Note: We don't persist loading states, errors, or temporary data
         }
 
-        // Zustand persist saving (logging disabled to reduce console spam)
+        // Debug log to see what's being persisted
+        console.log('🔄 Zustand persist - saving to localStorage:', {
+          columnsCount: persistedState.columns.length,
+          columnIds: persistedState.columns.map(c => c.id),
+          hiddenColumnsCount: persistedState.hiddenColumns.length,
+          hiddenColumnIds: persistedState.hiddenColumns.map(c => c.id),
+          activeFilters: persistedState.activeFilters,
+          deletedColumnIds: persistedState.deletedColumnIds,
+        })
 
         return persistedState
       },
       version: 1, // For future migrations if needed
       onRehydrateStorage: () => {
-        // Zustand persist starting rehydration (logging disabled to reduce console spam)
+        console.log('🔄 Zustand persist - starting rehydration from localStorage')
 
         // Check what's actually in localStorage
         const stored = localStorage.getItem('salessheet-crm-store')
         if (stored) {
           try {
             const parsed = JSON.parse(stored)
-            // Raw localStorage data inspection (logging disabled)
+            console.log('📦 Raw localStorage data:', {
+              hasState: !!parsed.state,
+              hasColumns: !!parsed.state?.columns,
+              columnsCount: parsed.state?.columns?.length || 0,
+            })
           } catch (e) {
             console.error('❌ Failed to parse localStorage data:', e)
           }
@@ -109,7 +124,14 @@ export const useStore = create<TStore>()(
               }
             }
 
-            // Zustand persist rehydration completed (logging disabled to reduce console spam)
+            console.log('✅ Zustand persist - rehydration completed:', {
+              columnsCount: state?.columns?.length || 0,
+              columnIds: state?.columns?.map(c => c.id) || [],
+              hiddenColumnsCount: state?.hiddenColumns?.length || 0,
+              hiddenColumnIds: state?.hiddenColumns?.map(c => c.id) || [],
+              deletedColumnIds: state?.deletedColumnIds ? Array.from(state.deletedColumnIds) : [],
+              fullState: !!state,
+            })
           }
         }
       },

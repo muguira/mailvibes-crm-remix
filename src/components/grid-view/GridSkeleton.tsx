@@ -6,12 +6,14 @@ interface GridSkeletonProps {
   rowCount?: number;
   columnCount?: number;
   showToolbar?: boolean;
+  loadingText?: string;
 }
 
 export function GridSkeleton({ 
   rowCount = 10, 
   columnCount = 7, 
-  showToolbar = true 
+  showToolbar = true,
+  loadingText = "Loading contacts..."
 }: GridSkeletonProps) {
   return (
     <div className="flex flex-col h-full bg-white">
@@ -57,7 +59,7 @@ export function GridSkeleton({
         <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">
             <LoadingSpinner size="lg" />
-            <p className="text-sm text-gray-600 font-medium">Loading contacts...</p>
+            <p className="text-sm text-gray-600 font-medium">{loadingText}</p>
           </div>
         </div>
       </div>

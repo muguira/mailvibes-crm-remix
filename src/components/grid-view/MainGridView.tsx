@@ -53,6 +53,7 @@ export interface MainGridViewProps {
   allColumns: Column[];
   selectedRowIds?: Set<string>;
   isColumnTemporarilyVisible?: (columnId: string) => boolean;
+  dataType?: 'contacts' | 'opportunities';
 }
 
 export const MainGridView = forwardRef(function MainGridView({
@@ -78,7 +79,8 @@ export const MainGridView = forwardRef(function MainGridView({
   setEditingCell,
   allColumns,
   selectedRowIds,
-  isColumnTemporarilyVisible
+  isColumnTemporarilyVisible,
+  dataType = 'contacts'
 }: MainGridViewProps, ref) {
   const gridRef = useRef<any>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -811,15 +813,16 @@ export const MainGridView = forwardRef(function MainGridView({
   // OPTIMIZED: Memoize showLoadingToast to prevent recreation
   const showLoadingToast = useCallback(() => {
     if (isContactsLoading) {
+      const loadingText = dataType === 'opportunities' ? 'opportunities' : 'contacts';
       toast({
-        title: "Loading contacts...",
-        description: "Please wait while we load all your contacts. You'll be able to edit data once loading is complete.",
+        title: `Loading ${loadingText}...`,
+        description: `Please wait while we load all your ${loadingText}. You'll be able to edit data once loading is complete.`,
         duration: 3000,
       });
       return true;
     }
     return false;
-  }, [isContactsLoading]);
+  }, [isContactsLoading, dataType]);
 
   // OPTIMIZED: Memoize handleCellClick to prevent recreation on every render
   const handleCellClick = useCallback((rowId: string, columnId: string, e?: React.MouseEvent) => {
@@ -1492,8 +1495,8 @@ export const MainGridView = forwardRef(function MainGridView({
                 style={{ 
                   cursor: 'pointer', 
                   transition: 'opacity 0.2s',
-                  // Hide pin icon for name column since it's always pinned
-                  display: column.id === 'name' ? 'none' : 'flex'
+                  // Hide pin icon for name and opportunity columns since they're always pinned
+                  display: (column.id === 'name' || column.id === 'opportunity') ? 'none' : 'flex'
                 }}
                 onClick={e => { e.stopPropagation(); onTogglePin(column.id); }}
               >
@@ -1786,7 +1789,7 @@ const EditCell = ({
               
               {/* Options */}
               <div className="py-1 max-h-48 overflow-y-auto">
-                {(column.options || ['New', 'In Progress', 'On Hold', 'Closed Won', 'Closed Lost']).map((option) => (
+                {(column.options || ['Lead/New', 'Qualified', 'Discovery', 'Proposal', 'Negotiation', 'Closing', 'Won', 'Lost']).map((option) => (
                   <button
                     key={option}
                     className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none transition-colors flex items-center gap-2 ${

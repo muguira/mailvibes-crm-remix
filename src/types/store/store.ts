@@ -11,6 +11,7 @@ import { TAuthStore } from './auth'
 // import { TGmailAuthStore } from './gmail' // REMOVED: Gmail now has dedicated store
 import { TContactProfileStore } from './contact-profile'
 import { TEditableLeadsGridStore } from './editable-leads-grid'
+import { TEditableOpportunitiesGridStore } from './editable-opportunities-grid'
 import { TContactsStore } from './contacts'
 
 // =============================================
@@ -28,6 +29,7 @@ export type TStore = TTaskStore &
   // TGmailAuthStore & // REMOVED: Gmail now managed separately
   TContactProfileStore &
   TEditableLeadsGridStore &
+  TEditableOpportunitiesGridStore &
   TContactsStore
 
 export interface ITask {
