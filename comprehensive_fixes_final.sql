@@ -357,3 +357,4 @@ $$;
 GRANT EXECUTE ON FUNCTION debug_user_org_role(UUID, UUID) TO authenticated;
 
 SELECT 'All fixes applied successfully!' as status;
+-- Added comment for git tracking
