@@ -1,47 +1,49 @@
 /**
- * Logger utility that only logs in development mode
+ * Logger utility that only logs in development mode with verbosity control
  * This prevents console statements from appearing in production builds
+ * Set VITE_ENABLE_VERBOSE_LOGS=true in .env to enable verbose logging
  */
 
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = import.meta.env.MODE === 'development'
+const isVerboseEnabled = import.meta.env.VITE_ENABLE_VERBOSE_LOGS === 'true'
 
 export const logger = {
   log: (...args: any[]) => {
-    if (isDevelopment) {
-      console.log(...args);
+    if (isDevelopment && isVerboseEnabled) {
+      console.log(...args)
     }
   },
-  
+
   error: (...args: any[]) => {
     if (isDevelopment) {
-      console.error(...args);
+      console.error(...args)
     }
   },
-  
+
   warn: (...args: any[]) => {
     if (isDevelopment) {
-      console.warn(...args);
+      console.warn(...args)
     }
   },
-  
+
   debug: (...args: any[]) => {
-    if (isDevelopment) {
-      console.debug(...args);
+    if (isDevelopment && isVerboseEnabled) {
+      console.debug(...args)
     }
   },
-  
+
   info: (...args: any[]) => {
-    if (isDevelopment) {
-      console.info(...args);
+    if (isDevelopment && isVerboseEnabled) {
+      console.info(...args)
     }
   },
-  
+
   // For production errors that should always be logged
   // (e.g., critical errors that need to be reported)
   critical: (...args: any[]) => {
-    console.error(...args);
-  }
-};
+    console.error(...args)
+  },
+}
 
 // Convenience export for destructuring
-export const { log, error, warn, debug, info, critical } = logger; 
+export const { log, error, warn, debug, info, critical } = logger

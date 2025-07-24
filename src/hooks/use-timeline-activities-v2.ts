@@ -1,10 +1,10 @@
-import { useMemo, useCallback, useEffect, useRef } from 'react'
-import { useActivities, Activity } from '@/hooks/supabase/use-activities'
-import { useEmails } from '@/hooks/use-emails-store'
+import { Activity, useActivities } from '@/hooks/supabase/use-activities'
 import { usePinnedEmails } from '@/hooks/supabase/use-pinned-emails'
-import { useStore } from '@/stores'
+import { useEmails } from '@/hooks/use-emails-store'
 import { GmailEmail } from '@/services/google/gmailApi'
+import { useStore } from '@/stores'
 import { logger } from '@/utils/logger'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { usePerformanceMonitor } from './use-performance-monitor'
 
 export interface TimelineActivity {
@@ -183,25 +183,11 @@ const groupEmailsByThread = (emailActivities: TimelineActivity[]): TimelineActiv
   const cached = emailGroupingCache.get(cacheKey)
 
   if (cached && !emailsHaveChanged(emailActivities, cached.emailIds)) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🚀 [Timeline] Using cached email grouping result:', {
-        cacheKey: cacheKey.slice(0, 50) + '...',
-        originalEmails: emailActivities.length,
-        cachedResult: cached.result.length,
-        cacheAge: `${Math.round((Date.now() - cached.timestamp) / 1000)}s`,
-      })
-    }
+    // Using cached email grouping result (logging disabled to reduce console spam)
     return cached.result
   }
 
-  // ✅ PERFORMANCE: Only log in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🔗 [Timeline] Starting optimized email grouping process:', {
-      totalEmails: emailActivities.length,
-      cacheKey: cacheKey.slice(0, 50) + '...',
-      cacheHit: false,
-    })
-  }
+  // Starting optimized email grouping process (logging disabled to reduce console spam)
 
   // ✅ PERFORMANCE: Pre-allocated Maps with estimated size for better performance
   const threadGroups = new Map<string, TimelineActivity[]>()
@@ -289,7 +275,7 @@ const groupEmailsByThread = (emailActivities: TimelineActivity[]): TimelineActiv
 
         // Thread-specific data
         emailsInThread: sortedEmails,
-        threadEmailCount: emailsInThread.length,
+        threadEmailCount: sortedEmails.length,
         latestEmail: latestEmail,
         isThreadExpanded: false, // Default to collapsed
       }
@@ -315,22 +301,7 @@ const groupEmailsByThread = (emailActivities: TimelineActivity[]): TimelineActiv
     cleanupEmailGroupingCache()
   }
 
-  // ✅ PERFORMANCE: Only log detailed results in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🔗 [Timeline] Optimized email grouping completed:', {
-      originalEmails: emailActivities.length,
-      resultingActivities: result.length,
-      threads: result.filter(r => r.type === 'email_thread').length,
-      standaloneEmails: standaloneEmails.length,
-      cacheKey: cacheKey.slice(0, 50) + '...',
-      cached: true,
-      performance: {
-        algorithmComplexity: 'O(n log n)',
-        previousComplexity: 'O(n²)',
-        threadsProcessed: threadGroups.size,
-      },
-    })
-  }
+  // Optimized email grouping completed (logging disabled to reduce console spam)
 
   return result
 }
@@ -397,13 +368,7 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
     }
   }, [])
 
-  console.log('🔍 [useTimelineActivitiesV2] Hook called with:', {
-    contactId: contactIdRef.current,
-    contactEmail: contactEmailRef.current,
-    includeEmails: options.includeEmails,
-    autoInitialize: options.autoInitialize,
-    options,
-  })
+  // Hook called tracking (disabled to reduce console spam)
 
   // Performance monitoring
   const { logSummary } = usePerformanceMonitor('useTimelineActivitiesV2')
@@ -430,19 +395,14 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
   // Initialize emails for this contact if needed - MOVED TO useEffect to prevent render-time setState
   useEffect(() => {
     if (!options.autoInitialize || !options.includeEmails || !contactEmailRef.current || !authUser?.id) {
-      console.log('🔍 [useTimelineActivitiesV2] Skipping initialization:', {
-        autoInitialize: options.autoInitialize,
-        includeEmails: options.includeEmails,
-        contactEmail: contactEmailRef.current,
-        authUserId: authUser?.id,
-      })
+      // Skipping initialization (conditions not met)
       return
     }
 
     // Check if we already initialized this contact
     const initKey = `${contactEmailRef.current}-${authUser.id}`
     if (initializedContactsRef.current.has(initKey)) {
-      console.log('🔍 [useTimelineActivitiesV2] Already initialized:', initKey)
+      // Already initialized for this contact
       return
     }
 
@@ -450,15 +410,8 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
     const contactEmails = getEmailsForContact(contactEmailRef.current)
     const loading = getLoadingState(contactEmailRef.current)
 
-    console.log('🔍 [useTimelineActivitiesV2] Checking initialization need:', {
-      contactEmail: contactEmailRef.current,
-      currentEmailsCount: contactEmails.length,
-      loading,
-      shouldInitialize: contactEmails.length === 0 && !loading,
-    })
-
+    // Check initialization need and initialize if needed
     if (contactEmails.length === 0 && !loading) {
-      console.log('🔄 [useTimelineActivitiesV2] Initializing emails for contact:', contactEmailRef.current)
       initializedContactsRef.current.add(initKey)
       initializeContactEmails(contactEmailRef.current, authUser.id)
     }
@@ -482,6 +435,37 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
     refreshContactEmails: refreshContactEmailsFn,
   } = emails
 
+  // ✅ FIX: Listen for email sync completion events to refresh UI automatically
+  useEffect(() => {
+    const handleEmailSyncComplete = (event: CustomEvent) => {
+      const { contactEmail: eventContactEmail, userId } = event.detail
+
+      // Only refresh if this event is for the current contact
+      if (eventContactEmail === contactEmailRef.current && userId === authUser?.id) {
+        logger.info(
+          `[TimelineActivitiesV2] Received email-sync-complete event for ${eventContactEmail}, refreshing emails`,
+        )
+
+        // Refresh emails to show newly synced data
+        refreshContactEmailsFn(eventContactEmail, userId)
+          .then(() => {
+            logger.info(`[TimelineActivitiesV2] ✅ Successfully refreshed emails for ${eventContactEmail}`)
+          })
+          .catch(error => {
+            logger.warn(`[TimelineActivitiesV2] Failed to refresh emails for ${eventContactEmail}:`, error)
+          })
+      }
+    }
+
+    // Add event listener
+    window.addEventListener('email-sync-complete', handleEmailSyncComplete as EventListener)
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('email-sync-complete', handleEmailSyncComplete as EventListener)
+    }
+  }, [contactEmailRef.current, authUser?.id, refreshContactEmailsFn])
+
   // Get email state for this contact
   const contactEmails = contactEmailRef.current ? getEmailsForContact(contactEmailRef.current) : []
   const emailsLoading = contactEmailRef.current ? getLoadingState(contactEmailRef.current) : false
@@ -489,20 +473,7 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
   const hasMoreEmails = contactEmailRef.current ? hasMoreEmailsFn(contactEmailRef.current) : false
   const syncStatus = contactEmailRef.current ? getSyncState(contactEmailRef.current) : 'idle'
 
-  console.log('🔍 [useTimelineActivitiesV2] Email data state:', {
-    contactEmail: contactEmailRef.current,
-    contactEmailsCount: contactEmails.length,
-    emailsLoading,
-    syncStatus,
-    hasMoreEmails,
-    authUserId: authUser?.id,
-    firstTwoEmails: contactEmails.slice(0, 2).map(email => ({
-      id: email.id,
-      subject: email.subject,
-      from: email.from,
-      date: email.date,
-    })),
-  })
+  // Email data state monitoring (disabled to reduce console spam)
 
   // Get pinned emails
   const { isEmailPinned } = usePinnedEmails(contactEmailRef.current)
@@ -597,20 +568,7 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
     // ✅ NEW: Group emails by threadId to create email threads
     const groupedEmailActivities = groupEmailsByThread(individualEmailActivities)
 
-    console.log('🔗 [useTimelineActivitiesV2] Email threading results:', {
-      originalEmails: individualEmailActivities.length,
-      afterGrouping: groupedEmailActivities.length,
-      threads: groupedEmailActivities.filter(a => a.type === 'email_thread').length,
-      standaloneEmails: groupedEmailActivities.filter(a => a.type === 'email').length,
-      threadDetails: groupedEmailActivities
-        .filter(a => a.type === 'email_thread')
-        .map(thread => ({
-          threadId: thread.threadId,
-          emailCount: thread.threadEmailCount,
-          subject: thread.subject,
-          latestFrom: thread.latestEmail?.from?.email,
-        })),
-    })
+    // Email threading results tracking (disabled to reduce console spam)
 
     return groupedEmailActivities
   }, [contactEmails, options.includeEmails, isEmailPinned])
@@ -620,19 +578,7 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
     const combined = [...timelineInternalActivities, ...timelineEmailActivities]
     const sorted = sortActivitiesByPriorityAndDate(combined)
 
-    console.log('🔍 [useTimelineActivitiesV2] Final activities combined:', {
-      internalCount: timelineInternalActivities.length,
-      emailCount: timelineEmailActivities.length,
-      totalCombined: combined.length,
-      finalSorted: sorted.length,
-      firstThreeActivities: sorted.slice(0, 3).map(activity => ({
-        id: activity.id,
-        type: activity.type,
-        source: activity.source,
-        timestamp: activity.timestamp,
-        subject: activity.subject || 'N/A',
-      })),
-    })
+    // Final activities combined tracking (disabled to reduce console spam)
 
     return sorted
   }, [timelineInternalActivities, timelineEmailActivities])

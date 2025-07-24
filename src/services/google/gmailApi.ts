@@ -537,7 +537,11 @@ export async function getRecentContactEmails(
   existingGmailIds?: Set<string>, // New: filter out existing emails
 ): Promise<GmailApiResponse> {
   try {
-    const query = `(from:${contactEmail} OR to:${contactEmail})`
+    // ✅ ENHANCED: More comprehensive query to catch all possible emails
+    const query = `(from:${contactEmail} OR to:${contactEmail} OR cc:${contactEmail} OR bcc:${contactEmail})`
+
+    // Enhanced query logging (disabled to reduce console spam)
+
     const allEmails: any[] = []
     let nextPageToken: string | undefined
     let totalFetched = 0
@@ -555,16 +559,9 @@ export async function getRecentContactEmails(
       hasExistingFilter: !!existingGmailIds,
     })
 
-    // ✅ IMPROVED: Log to console for easier user debugging
-    console.log(`🚀 [Gmail API] Starting ${enableFullSync ? 'FULL HISTORICAL' : 'LIMITED'} sync for ${contactEmail}`)
-    console.log(`📊 [Gmail API] Configuration:`, {
-      maxResults,
-      enableFullSync,
-      willFetchAllPages: enableFullSync,
-      maxPagesLimit: enableFullSync ? 50 : Math.ceil(maxResults / 500),
-    })
+    // Sync start and configuration logging (disabled to reduce console spam)
 
-    // Iterate through ALL pages until we get all emails
+    // ✅ ENHANCED: More aggressive pagination - continue until NO MORE RESULTS
     do {
       const requestMaxResults = Math.min(500, maxTotalEmails - totalFetched) // Gmail API max per request is 500
 
@@ -576,6 +573,8 @@ export async function getRecentContactEmails(
       if (nextPageToken) {
         params.set('pageToken', nextPageToken)
       }
+
+      // Fetching page logging (disabled to reduce console spam)
 
       logger.info(`[Gmail API] Fetching page ${pagesProcessed + 1} for ${contactEmail}`, {
         pageToken: nextPageToken ? 'exists' : 'none',
@@ -599,7 +598,10 @@ export async function getRecentContactEmails(
       resultSizeEstimate = searchData.resultSizeEstimate || 0
       pagesProcessed++
 
+      // Page response logging (disabled to reduce console spam)
+
       if (!searchData.messages || searchData.messages.length === 0) {
+        // No more emails found logging (disabled to reduce console spam)
         logger.info(`[Gmail API] No more emails found after ${pagesProcessed} pages`)
         break // No more emails
       }
@@ -608,6 +610,7 @@ export async function getRecentContactEmails(
       let newMessages = searchData.messages
       if (existingGmailIds) {
         newMessages = searchData.messages.filter((message: any) => !existingGmailIds.has(message.id))
+        // Filtered page logging (disabled to reduce console spam)
         logger.info(`[Gmail API] Filtered ${searchData.messages.length - newMessages.length} existing emails from page`)
       }
 
@@ -616,20 +619,44 @@ export async function getRecentContactEmails(
       totalFetched += newMessages.length
       nextPageToken = searchData.nextPageToken
 
+      // Page processed logging (disabled to reduce console spam)
+
       logger.info(`[Gmail API] Fetched ${searchData.messages.length} emails, total: ${totalFetched}`)
 
       // Check if we should continue based on sync type and limits
       if (!enableFullSync && totalFetched >= maxResults) {
+        // Reached maxResults limit logging (disabled to reduce console spam)
         logger.info(`[Gmail API] Reached maxResults limit (${maxResults}), stopping`)
         break
       }
 
-      // Safety limit for full sync to prevent infinite loops (max 50 pages = ~25,000 emails)
-      if (enableFullSync && pagesProcessed >= 50) {
-        logger.warn(`[Gmail API] Reached safety limit of 50 pages (${totalFetched} emails), stopping`)
+      // ✅ ENHANCED: Increased safety limit from 50 to 200 pages (100,000 emails max)
+      if (enableFullSync && pagesProcessed >= 200) {
+        console.warn(`⚠️ [Gmail API] Reached enhanced safety limit:`, {
+          contactEmail,
+          pagesProcessed,
+          totalFetched,
+          safetyLimit: 200,
+          estimatedEmailsAtLimit: 200 * 500,
+          reason: 'Enhanced safety limit to prevent infinite loops (increased from 100 to 200 pages)',
+          recommendation: 'If you need more emails, contact support to increase limit',
+        })
+        logger.warn(`[Gmail API] Reached safety limit of 200 pages (${totalFetched} emails), stopping`)
         break
       }
-    } while (nextPageToken) // No artificial limits - get all available emails
+
+      // Log progress for full sync every 10 pages
+      if (enableFullSync && pagesProcessed % 10 === 0) {
+        console.log(`🔄 [Gmail API] Full sync progress update:`, {
+          contactEmail,
+          pagesProcessed,
+          totalFetched,
+          estimatedRemaining: Math.max(0, resultSizeEstimate - totalFetched),
+          hasNextPage: !!nextPageToken,
+          progressIndicator: `${pagesProcessed} pages processed`,
+        })
+      }
+    } while (nextPageToken) // Continue until Gmail says no more emails
 
     if (allEmails.length === 0) {
       return {
@@ -708,19 +735,26 @@ export async function getRecentContactEmails(
 
     logger.info(`[Gmail API] Completed fetching emails for ${contactEmail}`, completionInfo)
 
-    // ✅ IMPROVED: Console summary for easier user debugging
-    console.log(`✅ [Gmail API] Sync completed for ${contactEmail}`)
-    console.log(`📧 [Gmail API] Results summary:`, completionInfo)
+    // Sync completed and results summary logging (disabled to reduce console spam)
 
     if (validEmails.length > 0 && oldestEmail) {
       const oldestYear = new Date(oldestEmail.date).getFullYear()
-      if (oldestYear >= 2023) {
-        console.warn(
-          `⚠️ [Gmail API] Warning: Oldest email is from ${oldestYear}. If you expected older emails, there might be a sync issue.`,
-        )
-      } else {
-        console.log(`✅ [Gmail API] Good: Found emails dating back to ${oldestYear}`)
-      }
+      const newestYear = new Date(validEmails[0].date).getFullYear() // First email is newest due to sorting
+
+      // ✅ ENHANCED: Detailed date analysis to identify 2022 cutoff issue
+      const emailsByYear = validEmails.reduce(
+        (acc, email) => {
+          const year = new Date(email.date).getFullYear()
+          acc[year] = (acc[year] || 0) + 1
+          return acc
+        },
+        {} as Record<number, number>,
+      )
+
+      // Date analysis logging (disabled to reduce console spam)
+
+      // Date range analysis (logging disabled to reduce console spam)
+      // Note: If oldest email is from 2023+, there might be a sync limitation
     }
 
     logger.info(`[Gmail API] Original completion info:`, {
@@ -737,6 +771,184 @@ export async function getRecentContactEmails(
     logger.error('Error getting recent contact emails:', error)
     throw error
   }
+}
+
+/**
+ * ✅ DEBUG: Test different Gmail queries to understand email limitations
+ * @param accessToken - Valid Gmail API access token
+ * @param contactEmail - Email address of the contact
+ * @returns Promise<void> - Logs results to console
+ */
+export async function debugGmailQueries(accessToken: string, contactEmail: string): Promise<void> {
+  const testQueries = [
+    {
+      name: 'Original Query (comprehensive)',
+      query: `(from:${contactEmail} OR to:${contactEmail} OR cc:${contactEmail} OR bcc:${contactEmail})`,
+    },
+    {
+      name: 'Simple From/To Only',
+      query: `(from:${contactEmail} OR to:${contactEmail})`,
+    },
+    {
+      name: 'From Only',
+      query: `from:${contactEmail}`,
+    },
+    {
+      name: 'To Only',
+      query: `to:${contactEmail}`,
+    },
+    {
+      name: 'All emails in account (sample)',
+      query: 'in:anywhere',
+    },
+    {
+      name: 'All emails last 5 years',
+      query: 'after:2020/01/01',
+    },
+    {
+      name: 'Contact emails last 5 years',
+      query: `(from:${contactEmail} OR to:${contactEmail}) after:2020/01/01`,
+    },
+    {
+      name: 'Contact emails 2021-2022',
+      query: `(from:${contactEmail} OR to:${contactEmail}) after:2021/01/01 before:2023/01/01`,
+    },
+    {
+      name: 'Contact emails 2020 only',
+      query: `(from:${contactEmail} OR to:${contactEmail}) after:2020/01/01 before:2021/01/01`,
+    },
+    {
+      name: 'Contact emails 2023-2025',
+      query: `(from:${contactEmail} OR to:${contactEmail}) after:2023/01/01`,
+    },
+    {
+      name: 'Contact emails PRE-2020 (should be 0)',
+      query: `(from:${contactEmail} OR to:${contactEmail}) before:2020/01/01`,
+    },
+    {
+      name: 'All account emails PRE-2020',
+      query: `before:2020/01/01`,
+    },
+  ]
+
+  console.log(`🧪 [Gmail Debug] Testing ${testQueries.length} different queries for ${contactEmail}`)
+
+  for (const testQuery of testQueries) {
+    try {
+      console.log(`🔍 [Gmail Debug] Testing: ${testQuery.name}`)
+      console.log(`📝 [Gmail Debug] Query: "${testQuery.query}"`)
+
+      const params = new URLSearchParams({
+        q: testQuery.query,
+        maxResults: '500',
+      })
+
+      const searchResponse = await fetch(`${GMAIL_API_BASE_URL}/users/me/messages?${params}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!searchResponse.ok) {
+        const error = await searchResponse.json()
+        console.error(`❌ [Gmail Debug] Query "${testQuery.name}" failed:`, error)
+        continue
+      }
+
+      const searchData = await searchResponse.json()
+
+      console.log(`📊 [Gmail Debug] Results for "${testQuery.name}":`, {
+        resultSizeEstimate: searchData.resultSizeEstimate || 0,
+        actualMessages: searchData.messages?.length || 0,
+        hasNextPage: !!searchData.nextPageToken,
+        query: testQuery.query,
+        analysis: {
+          hasResults: (searchData.messages?.length || 0) > 0,
+          significantResults: (searchData.resultSizeEstimate || 0) > 100,
+          mightHaveMore: !!searchData.nextPageToken,
+        },
+      })
+
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 200))
+    } catch (error) {
+      console.error(`❌ [Gmail Debug] Error testing "${testQuery.name}":`, error)
+    }
+  }
+
+  console.log(`✅ [Gmail Debug] Completed testing all queries for ${contactEmail}`)
+}
+
+// ✅ Make debug function available in browser console for easy testing
+if (typeof window !== 'undefined') {
+  ;(window as any).debugGmailQueries = debugGmailQueries
+
+  // ✅ Helper function to debug with automatic token retrieval
+  ;(window as any).debugContactEmails = async (contactEmail: string, userId?: string) => {
+    try {
+      console.log(`🔑 [Debug Helper] Getting token for ${contactEmail}...`)
+
+      // Import token service dynamically
+      const { getValidToken } = await import('@/services/google/tokenService')
+
+      // Get current user if not provided
+      if (!userId) {
+        const { supabase } = await import('@/integrations/supabase/client')
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (!user) {
+          console.error('❌ [Debug Helper] No authenticated user found')
+          return
+        }
+        userId = user.id
+      }
+
+      // Get token
+      const token = await getValidToken(userId)
+
+      if (!token) {
+        console.error('❌ [Debug Helper] Could not get valid Gmail token')
+        console.log('🔧 [Debug Helper] Try reconnecting your Gmail account')
+        return
+      }
+
+      console.log('✅ [Debug Helper] Got token, running debug queries...')
+
+      // Run debug queries
+      await debugGmailQueries(token, contactEmail)
+
+      console.log('🎉 [Debug Helper] Debug completed!')
+    } catch (error) {
+      console.error('❌ [Debug Helper] Error:', error)
+    }
+  }
+
+  // ✅ Quick debug function for current contact
+  ;(window as any).quickDebugEmails = async () => {
+    // Try to get contact email from current page
+    const contactEmailElement = document.querySelector('[data-contact-email]')
+    const contactEmail = contactEmailElement?.getAttribute('data-contact-email') || 'sergio@tudashboard.com'
+
+    console.log(`🚀 [Quick Debug] Auto-detected contact: ${contactEmail}`)
+    await (window as any).debugContactEmails(contactEmail)
+  }
+  ;(window as any).gmailDebugInfo = {
+    howToUse: 'Use these functions in console:',
+    functions: {
+      'debugContactEmails("email@example.com")': 'Auto-gets token and runs all debug queries',
+      'quickDebugEmails()': 'Auto-detects current contact and debugs',
+      'debugGmailQueries(token, email)': 'Manual debug (need token first)',
+    },
+    example: 'debugContactEmails("sergio@tudashboard.com")',
+    quickExample: 'quickDebugEmails()',
+    currentContact: 'sergio@tudashboard.com',
+    purpose: 'Test different Gmail search queries to understand email limitations',
+  }
+
+  // Log the available functions
+  // Gmail debug helper functions loaded (logging disabled to reduce console spam)
 }
 
 /**
@@ -943,6 +1155,128 @@ export async function createDraft(accessToken: string, emailData: SendEmailData)
     }
   } catch (error) {
     logger.error('[Gmail API] Error creating draft:', error)
+    throw error
+  }
+}
+
+/**
+ * 🚀 NEW: Get Gmail History for incremental sync
+ * Fetches changes since a specific historyId using Gmail History API
+ * @param accessToken - Valid Gmail API access token
+ * @param startHistoryId - History ID to start from (returned by previous sync)
+ * @param options - Additional options for the history request
+ * @returns Promise with history changes
+ */
+export async function getHistory(
+  accessToken: string,
+  startHistoryId: string,
+  options: {
+    historyTypes?: string[]
+    maxResults?: number
+    pageToken?: string
+  } = {},
+): Promise<{
+  history: any[]
+  historyId: string
+  nextPageToken?: string
+}> {
+  try {
+    logger.info('[Gmail API] 🔄 Fetching history changes since:', startHistoryId)
+
+    const params = new URLSearchParams({
+      startHistoryId,
+      historyTypes: options.historyTypes?.join(',') || 'messageAdded',
+      maxResults: (options.maxResults || 500).toString(),
+      ...(options.pageToken && { pageToken: options.pageToken }),
+    })
+
+    const response = await fetch(`${GMAIL_API_BASE_URL}/users/me/history?${params}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // History ID is invalid/expired
+        const error = await response.json()
+        logger.warn('[Gmail API] History ID expired or invalid:', {
+          startHistoryId,
+          error: error.error?.message,
+        })
+        throw new Error('HISTORY_ID_INVALID')
+      }
+
+      const error = await response.json()
+      throw new Error(error.error?.message || `History API error: ${response.statusText}`)
+    }
+
+    const result = await response.json()
+
+    logger.info('[Gmail API] ✅ History fetched successfully:', {
+      historyCount: result.history?.length || 0,
+      newHistoryId: result.historyId,
+      hasMore: !!result.nextPageToken,
+    })
+
+    return {
+      history: result.history || [],
+      historyId: result.historyId,
+      nextPageToken: result.nextPageToken,
+    }
+  } catch (error) {
+    logger.error('[Gmail API] Error fetching history:', error)
+    throw error
+  }
+}
+
+/**
+ * 🚀 NEW: Get emails by History ID changes
+ * Processes Gmail History API results to extract email details for specific messages
+ * @param accessToken - Valid Gmail API access token
+ * @param historyChanges - History changes from getHistory()
+ * @param contactEmail - Contact email to filter messages for
+ * @returns Promise with filtered and detailed emails
+ */
+export async function getEmailsByHistoryChanges(
+  accessToken: string,
+  historyChanges: any[],
+  contactEmail: string,
+): Promise<GmailEmail[]> {
+  try {
+    // Extract message IDs from history changes
+    const messageIds = historyChanges
+      .flatMap(h => h.messagesAdded || [])
+      .map(ma => ma.message?.id)
+      .filter(id => id)
+
+    if (messageIds.length === 0) {
+      logger.info('[Gmail API] No new messages in history changes')
+      return []
+    }
+
+    logger.info(`[Gmail API] Processing ${messageIds.length} messages from history changes`)
+
+    // Fetch detailed information for each message
+    const emailPromises = messageIds.map((messageId: string) => fetchEmailDetails(accessToken, messageId))
+
+    const emails = await Promise.all(emailPromises)
+    const validEmails = emails.filter(email => email !== null) as GmailEmail[]
+
+    // Filter emails related to the specific contact
+    const contactEmails = validEmails.filter(
+      email =>
+        email.from.email.toLowerCase() === contactEmail.toLowerCase() ||
+        email.to.some(recipient => recipient.email.toLowerCase() === contactEmail.toLowerCase()) ||
+        email.cc?.some(recipient => recipient.email.toLowerCase() === contactEmail.toLowerCase()),
+    )
+
+    logger.info(`[Gmail API] Found ${contactEmails.length} emails related to ${contactEmail}`)
+
+    return contactEmails
+  } catch (error) {
+    logger.error('[Gmail API] Error processing history changes:', error)
     throw error
   }
 }

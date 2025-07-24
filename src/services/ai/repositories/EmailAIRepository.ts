@@ -1,10 +1,10 @@
-import { AIProviderFactory } from '../factories/AIProviderFactory'
-import { EmailContextBuilder } from '../context/EmailContextBuilder'
-import { AIProvider } from '../providers/base/AIProvider'
-import { AIResponse, AIError } from '../providers/base/types'
-import { ContactInfo, EmailAIOptions } from '../index'
 import { TimelineActivity } from '@/hooks/use-timeline-activities-v2'
 import { logger } from '@/utils/logger'
+import { EmailContextBuilder } from '../context/EmailContextBuilder'
+import { AIProviderFactory } from '../factories/AIProviderFactory'
+import { ContactInfo, EmailAIOptions } from '../index'
+import { AIProvider } from '../providers/base/AIProvider'
+import { AIError, AIResponse } from '../providers/base/types'
 
 // ✅ SINGLETON: Global instance to prevent multiple AI Provider initializations
 let globalRepository: EmailAIRepository | null = null
@@ -60,9 +60,7 @@ export class EmailAIRepository {
     try {
       this.provider = AIProviderFactory.create(providerName || 'gemini')
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[EmailAIRepository] Singleton instance created successfully')
-      }
+      // Singleton instance created successfully (logging disabled to reduce console spam)
     } catch (error) {
       logger.error('[EmailAIRepository] Failed to initialize provider:', error)
       throw new AIError(`Failed to initialize AI provider: ${error.message}`, 'INITIALIZATION_FAILED')

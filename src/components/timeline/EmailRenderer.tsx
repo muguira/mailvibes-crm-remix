@@ -54,9 +54,7 @@ const cleanupCache = () => {
     entries.slice(0, 100).forEach(([key]) => attachmentCache.delete(key))
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🧹 [EmailRenderer] Cache cleanup completed')
-  }
+  // Cache cleanup completed
 }
 
 // ✅ PERFORMANCE: Disabled DOMPurify for performance testing
@@ -138,23 +136,11 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
   const logTiming = (operation: string, operationStartTime: number) => {
     if (process.env.NODE_ENV === 'development') {
       const duration = performance.now() - operationStartTime
-      if (duration > 50) {
-        // Only log operations taking > 50ms
-        console.log(`⏱️ [EmailRenderer] ${operation} took ${duration.toFixed(2)}ms for email ${emailId?.slice(0, 8)}`)
-      }
+      // Performance monitoring (disabled to reduce console spam)
     }
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('📧 [EmailRenderer] Component called:', {
-      emailId: emailId?.slice(0, 16),
-      subject: subject?.slice(0, 50) + '...',
-      hasBodyHtml: !!bodyHtml,
-      hasBodyText: !!bodyText,
-      attachmentsCount: attachments.length,
-      hasActivityDetails: !!activityDetails,
-    })
-  }
+  // Component render monitoring (disabled to reduce console spam)
 
   // ✅ PERFORMANCE: Time individual operations
   let opStartTime = performance.now()
@@ -218,11 +204,8 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
   logTiming('processedAttachments useMemo', opStartTime)
   opStartTime = performance.now()
 
-  // Final timing log
+  // Final timing (monitoring disabled to reduce console spam)
   const totalTime = performance.now() - startTime
-  if (process.env.NODE_ENV === 'development' && totalTime > 100) {
-    console.log(`🚨 [EmailRenderer] SLOW RENDER: ${totalTime.toFixed(2)}ms total for email ${emailId?.slice(0, 8)}`)
-  }
 
   // Simple error reset function
   const resetError = useCallback(() => {
@@ -314,6 +297,7 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
             color: '#111827',
             marginBottom: '12px',
             padding: '0 4px',
+            overflowX: 'auto',
           }}
         >
           {subject}
@@ -400,51 +384,24 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
   )
 }
 
-// ✅ PERFORMANCE: Enhanced React.memo comparison to prevent double renders
+// ✅ PERFORMANCE: React.memo with intelligent prop comparison
 export default React.memo(EmailRenderer, (prevProps, nextProps) => {
   // ✅ CRITICAL: Comprehensive comparison to prevent any unnecessary renders
 
   // 1. Quick checks for basic props
   if (prevProps.emailId !== nextProps.emailId) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📧 [EmailRenderer] Re-render: emailId changed`, {
-        prev: prevProps.emailId,
-        next: nextProps.emailId,
-      })
-    }
     return false
   }
 
   if (prevProps.subject !== nextProps.subject) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📧 [EmailRenderer] Re-render: subject changed`, {
-        emailId: prevProps.emailId,
-        prev: prevProps.subject,
-        next: nextProps.subject,
-      })
-    }
     return false
   }
 
   if (prevProps.bodyHtml !== nextProps.bodyHtml) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📧 [EmailRenderer] Re-render: bodyHtml changed`, {
-        emailId: prevProps.emailId,
-        prevLength: prevProps.bodyHtml?.length || 0,
-        nextLength: nextProps.bodyHtml?.length || 0,
-      })
-    }
     return false
   }
 
   if (prevProps.bodyText !== nextProps.bodyText) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📧 [EmailRenderer] Re-render: bodyText changed`, {
-        emailId: prevProps.emailId,
-        prevLength: prevProps.bodyText?.length || 0,
-        nextLength: nextProps.bodyText?.length || 0,
-      })
-    }
     return false
   }
 
@@ -453,56 +410,34 @@ export default React.memo(EmailRenderer, (prevProps, nextProps) => {
   const nextAttachmentsLength = nextProps.attachments?.length || 0
 
   if (prevAttachmentsLength !== nextAttachmentsLength) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📧 [EmailRenderer] Re-render: attachments length changed`, {
-        emailId: prevProps.emailId,
-        prev: prevAttachmentsLength,
-        next: nextAttachmentsLength,
-      })
-    }
     return false
   }
 
-  // 3. Check activityDetails content (deep check for email content)
+  // 3. Check activityDetails (deep comparison for critical fields)
   const prevEmailContent = prevProps.activityDetails?.email_content
   const nextEmailContent = nextProps.activityDetails?.email_content
 
   if (prevEmailContent?.bodyHtml !== nextEmailContent?.bodyHtml) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📧 [EmailRenderer] Re-render: activityDetails bodyHtml changed`, {
-        emailId: prevProps.emailId,
-      })
-    }
     return false
   }
 
   if (prevEmailContent?.bodyText !== nextEmailContent?.bodyText) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📧 [EmailRenderer] Re-render: activityDetails bodyText changed`, {
-        emailId: prevProps.emailId,
-      })
-    }
     return false
   }
 
   // 4. If we have the same emailId and all content is the same, SKIP render
   if (prevProps.emailId && nextProps.emailId && prevProps.emailId === nextProps.emailId) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`🚀 [EmailRenderer] SKIPPED re-render: same emailId and content`, {
-        emailId: prevProps.emailId,
-        subject: prevProps.subject?.slice(0, 50) + '...',
-      })
-    }
     return true // Skip render - props are equivalent
   }
 
-  // 5. If we get here, something changed that we should render
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`📧 [EmailRenderer] ALLOWING re-render: unknown change detected`, {
-      emailId: prevProps.emailId || 'undefined',
-      subject: prevProps.subject?.slice(0, 50) + '...' || 'undefined',
-    })
-  }
-
+  // 5. Allow render for any other changes
   return false // Allow render
 })
+
+// Global helper for console cleanup
+if (typeof window !== 'undefined') {
+  ;(window as any).clearEmailLogs = () => {
+    console.clear()
+    console.log('🧹 [EmailRenderer] Console cleared - all logs disabled for better performance')
+  }
+}
