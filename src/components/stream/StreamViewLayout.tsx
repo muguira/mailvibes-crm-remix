@@ -1,5 +1,6 @@
 import { useAuth } from '@/components/auth'
 import { EmptyState } from '@/components/ui/empty-state'
+import { useToast } from '@/components/ui/use-toast'
 import { useActivity } from '@/contexts/ActivityContext'
 import { useActivities } from '@/hooks/supabase/use-activities'
 import { useContactEmailSync } from '@/hooks/use-contact-email-sync'
@@ -63,6 +64,72 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
   // CRITICAL FIX: Coordinate email sync to prevent duplicate attachment saves
   const { syncContactEmails, syncState } = useContactEmailSync()
   const emailSyncExecutedRef = useRef<Record<string, boolean>>({})
+  const { toast } = useToast()
+  const syncToastRef = useRef<string | null>(null) // Track active toast ID
+
+  // Toast notifications for email sync status
+  useEffect(() => {
+    const contactEmail = contact.email
+    if (!contactEmail) return
+
+    if (syncState.isLoading) {
+      // Show "checking for new emails" toast when sync starts
+      if (!syncToastRef.current) {
+        const result = toast({
+          title: '📧 Checking for new emails...',
+          description: `Looking for recent emails from ${contactEmail}`,
+          duration: 0, // Keep open until sync completes
+        })
+
+        // Store toast ID if available
+        if (typeof result === 'object' && result?.id) {
+          syncToastRef.current = result.id
+        } else {
+          syncToastRef.current = 'active'
+        }
+
+        logger.info(`[StreamViewLayout] Started email sync toast for: ${contactEmail}`)
+      }
+    } else {
+      // Sync completed - show success and dismiss
+      if (syncToastRef.current) {
+        // Dismiss the loading toast
+        syncToastRef.current = null
+
+        // Show completion toast if we found emails
+        if (syncState.emailsCount > 0) {
+          toast({
+            title: '✅ Email sync completed',
+            description: `Found ${syncState.emailsCount} emails for ${contactEmail}`,
+            duration: 3000,
+          })
+          logger.info(`[StreamViewLayout] Email sync completed: ${syncState.emailsCount} emails`)
+        } else {
+          toast({
+            title: '📧 Email sync completed',
+            description: 'No new emails found',
+            duration: 2000,
+          })
+          logger.info(`[StreamViewLayout] Email sync completed: no new emails`)
+        }
+      }
+    }
+
+    // Handle sync errors
+    if (syncState.error && !syncState.isLoading) {
+      if (syncToastRef.current) {
+        syncToastRef.current = null
+      }
+
+      toast({
+        title: '⚠️ Email sync failed',
+        description: 'Unable to check for new emails. Please try again.',
+        variant: 'destructive',
+        duration: 4000,
+      })
+      logger.error(`[StreamViewLayout] Email sync failed: ${syncState.error}`)
+    }
+  }, [syncState.isLoading, syncState.emailsCount, syncState.error, contact.email, toast])
 
   // Execute email sync once per contact to prevent duplicate attachments
   useEffect(() => {
@@ -73,7 +140,7 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
       logger.info(`[StreamViewLayout] Starting coordinated email sync for: ${contactEmail}`)
       syncContactEmails(contactEmail, {
         silent: false,
-        showToast: false,
+        showToast: true, // Enable toast notifications for sync status
         forceFullSync: false,
       }).catch(error => {
         // Reset flag on error to allow retry
