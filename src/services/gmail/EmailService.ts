@@ -470,9 +470,9 @@ export class EmailService {
       const multiAccountResult = await this.getEmailsFromMultipleAccounts(contactEmail, accounts, maxResults, maxAge)
 
       if (multiAccountResult.emails.length > 0) {
-        // Update cache and trigger background sync
+        // Update cache (background sync disabled to prevent duplicate attachments)
         this.updateCache(contactEmail, multiAccountResult.emails)
-        this.triggerBackgroundSync(contactEmail)
+        // this.triggerBackgroundSync(contactEmail) // DISABLED: Prevents attachment duplicates
 
         // Log successful completion with multi-account stats
         const duration = Date.now() - startTime
@@ -528,9 +528,9 @@ export class EmailService {
 
       const response = await getRecentContactEmails(token, contactEmail, maxResults, false) // Limited sync for hybrid calls
 
-      // Update cache and trigger background sync
+      // Update cache (background sync disabled to prevent duplicate attachments)
       this.updateCache(contactEmail, response.emails)
-      this.triggerBackgroundSync(contactEmail)
+      // this.triggerBackgroundSync(contactEmail) // Disabled to prevent attachment duplicates
 
       // Log successful completion from single account fallback
       const duration = Date.now() - startTime
@@ -1239,21 +1239,27 @@ export class EmailService {
       })
     }
 
-    // Log the data we're about to save
-    logger.info(`[EmailService] Saving attachment data:`, {
-      count: attachmentData.length,
-      imagesStored: attachmentData.filter(att => att.storage_path).length,
+    // Log detailed attachment processing info
+    logger.info(`🔵 [EmailService] Processing ${attachmentData.length} attachments for email:`, {
+      emailId,
+      gmailId: gmailMessageId,
+      timestamp: new Date().toISOString(),
+      attachments: attachmentData.map(att => ({
+        filename: att.filename,
+        gmailAttachmentId: att.gmail_attachment_id?.substring(0, 20) + '...',
+        size: att.size_bytes,
+      })),
     })
 
-    // Use upsert without specifying onConflict - let Supabase handle unique constraints automatically
+    // Use standard upsert - duplicates are now prevented by disabling background sync
     const { error } = await supabase.from('email_attachments').upsert(attachmentData, {
       ignoreDuplicates: false,
     })
 
     if (error) {
-      logger.error('Error saving attachments:', error)
+      logger.error('[EmailService] Error saving attachments:', error)
       // Log the problematic data for debugging
-      logger.error('Problematic attachment data:', JSON.stringify(attachmentData, null, 2))
+      logger.error('[EmailService] Problematic attachment data:', JSON.stringify(attachmentData, null, 2))
     } else {
       logger.info(`[EmailService] Successfully saved ${attachmentData.length} attachments`)
     }

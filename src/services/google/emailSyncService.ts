@@ -715,17 +715,19 @@ export class EmailSyncService {
     logger.info(`[EmailSyncService] Saving attachment data:`, {
       count: attachmentData.length,
       imagesStored: attachmentData.filter(att => att.storage_path).length,
+      emailId,
+      gmailMessageId,
     })
 
-    // Use upsert without specifying onConflict - let Supabase handle unique constraints automatically
+    // Use standard upsert - let database constraints handle duplicates
     const { error } = await supabase.from('email_attachments').upsert(attachmentData, {
       ignoreDuplicates: false,
     })
 
     if (error) {
-      logger.error('Error saving attachments:', error)
+      logger.error('[EmailSyncService] Error saving attachments:', error)
       // Log the problematic data for debugging
-      logger.error('Problematic attachment data:', JSON.stringify(attachmentData, null, 2))
+      logger.error('[EmailSyncService] Problematic attachment data:', JSON.stringify(attachmentData, null, 2))
     } else {
       logger.info(`[EmailSyncService] Successfully saved ${attachmentData.length} attachments`)
     }
