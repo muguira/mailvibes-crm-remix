@@ -1367,3 +1367,50 @@ export async function getEmailsByHistoryChanges(
     throw error
   }
 }
+
+/**
+ * Download Gmail attachment using attachment ID
+ */
+export async function downloadGmailAttachment(
+  accessToken: string,
+  messageId: string,
+  attachmentId: string,
+  filename: string,
+  mimeType: string,
+): Promise<Blob> {
+  try {
+    logger.info(`[GmailApi] Downloading attachment ${filename} from message ${messageId}`)
+
+    const response = await fetch(`${GMAIL_API_BASE_URL}/users/me/messages/${messageId}/attachments/${attachmentId}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      logger.error(`[GmailApi] Error downloading attachment:`, error)
+      throw new Error(`Failed to download attachment: ${error.error?.message || 'Unknown error'}`)
+    }
+
+    const attachmentData = await response.json()
+
+    // Decode base64url data
+    const base64Data = attachmentData.data.replace(/-/g, '+').replace(/_/g, '/')
+    const binaryString = window.atob(base64Data)
+    const bytes = new Uint8Array(binaryString.length)
+
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i)
+    }
+
+    const blob = new Blob([bytes], { type: mimeType })
+    logger.info(`[GmailApi] Successfully downloaded attachment ${filename}`)
+
+    return blob
+  } catch (error) {
+    logger.error(`[GmailApi] Failed to download attachment ${filename}:`, error)
+    throw error
+  }
+}

@@ -1,3 +1,7 @@
+import { useToast } from '@/hooks/use-toast'
+import { supabase } from '@/integrations/supabase/client'
+import { downloadGmailAttachment } from '@/services/google/gmailApi'
+import { logger } from '@/utils/logger'
 import React from 'react'
 
 interface EmailRendererProps {
@@ -25,6 +29,169 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
   attachments,
   activityDetails,
 }) => {
+  const { toast } = useToast()
+
+  // Function to download attachment
+  const downloadAttachment = async (attachment: any) => {
+    try {
+      logger.info(`[EmailRenderer] Starting download for: ${attachment.filename}`)
+      logger.info(`[EmailRenderer] Attachment data:`, {
+        filename: attachment.filename,
+        mimeType: attachment.mimeType,
+        size: attachment.size,
+        id: attachment.id,
+        storage_path: attachment.storage_path,
+        storagePath: attachment.storagePath,
+        emailId: emailId,
+      })
+
+      // Check if we have a storage path (image stored in Supabase)
+      const storagePath = attachment.storage_path || attachment.storagePath
+
+      if (storagePath) {
+        logger.info(`[EmailRenderer] Using Supabase Storage path: ${storagePath}`)
+        // Download from Supabase Storage
+        const { data, error } = await supabase.storage.from('email-attachments').download(storagePath)
+
+        if (error) {
+          logger.error(`[EmailRenderer] Supabase download error:`, error)
+          throw error
+        }
+
+        if (data) {
+          // Create blob URL and trigger download
+          const url = window.URL.createObjectURL(data)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = attachment.filename
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          window.URL.revokeObjectURL(url)
+
+          toast({
+            title: '✅ Download started',
+            description: `${attachment.filename} is being downloaded`,
+            duration: 3000,
+          })
+
+          logger.info(`[EmailRenderer] Successfully downloaded from Supabase: ${attachment.filename}`)
+          return
+        }
+      } else {
+        logger.info(`[EmailRenderer] No storage path found, attempting Gmail API download`)
+      }
+
+      // Fallback: Download from Gmail API using attachment and message IDs
+      if (emailId && attachment.id) {
+        logger.info(`[EmailRenderer] Attempting Gmail API download for: ${attachment.filename}`)
+        logger.info(`[EmailRenderer] Using emailId: ${emailId}, attachmentId: ${attachment.id}`)
+
+        // Get email data with gmail_id from database
+        const { data: emailData, error: emailError } = await supabase
+          .from('emails')
+          .select('gmail_id, user_id, email_account_id')
+          .eq('gmail_id', emailId) // FIX: emailId is actually the Gmail message ID, not the table ID
+          .single()
+
+        logger.info(`[EmailRenderer] Database query result:`, { emailData, emailError })
+
+        if (emailError) {
+          logger.error(`[EmailRenderer] Error fetching email data:`, emailError)
+          throw new Error('Unable to find email information')
+        }
+
+        if (!emailData?.gmail_id) {
+          throw new Error('Gmail message ID not found')
+        }
+
+        // Get access token for Gmail API using email_account_id
+        const { data: tokenData, error: tokenError } = await supabase
+          .from('oauth_tokens')
+          .select('access_token')
+          .eq('email_account_id', emailData.email_account_id)
+          .single()
+
+        logger.info(`[EmailRenderer] Token query result:`, {
+          hasToken: !!tokenData?.access_token,
+          tokenError,
+          userId: emailData.user_id,
+        })
+
+        if (tokenError || !tokenData?.access_token) {
+          logger.error(`[EmailRenderer] Error getting access token:`, tokenError)
+          throw new Error('Unable to authenticate with Gmail')
+        }
+
+        // Download attachment from Gmail API
+        logger.info(`[EmailRenderer] Calling downloadGmailAttachment with:`, {
+          messageId: emailData.gmail_id,
+          attachmentId: attachment.id,
+          filename: attachment.filename,
+          mimeType: attachment.mimeType,
+        })
+
+        const blob = await downloadGmailAttachment(
+          tokenData.access_token,
+          emailData.gmail_id,
+          attachment.id, // This should be the gmail_attachment_id
+          attachment.filename,
+          attachment.mimeType,
+        )
+
+        logger.info(`[EmailRenderer] Gmail API download successful, blob size: ${blob.size}`)
+
+        // Create download link
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = attachment.filename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+
+        toast({
+          title: '✅ Download completed',
+          description: `${attachment.filename} has been downloaded`,
+          duration: 3000,
+        })
+
+        logger.info(`[EmailRenderer] Successfully downloaded from Gmail API: ${attachment.filename}`)
+        return
+      } else {
+        logger.warn(`[EmailRenderer] Missing required data:`, {
+          hasEmailId: !!emailId,
+          hasAttachmentId: !!attachment.id,
+          emailId,
+          attachmentId: attachment.id,
+        })
+      }
+
+      // If we reach here, we don't have enough information
+      toast({
+        title: '📎 Attachment info',
+        description: `${attachment.filename} (${Math.round(attachment.size / 1024)}KB) - Unable to download: missing attachment ID`,
+        duration: 4000,
+      })
+
+      logger.warn(`[EmailRenderer] Cannot download - missing emailId or attachment.id:`, {
+        emailId,
+        attachmentId: attachment.id,
+        filename: attachment.filename,
+      })
+    } catch (error) {
+      logger.error(`[EmailRenderer] Download failed for ${attachment.filename}:`, error)
+
+      toast({
+        title: '❌ Download failed',
+        description: `Unable to download ${attachment.filename}. ${error instanceof Error ? error.message : 'Please try again.'}`,
+        variant: 'destructive',
+        duration: 4000,
+      })
+    }
+  }
+
   // Debug: Log when we receive attachments (DISABLED to prevent spam)
   // if (attachments && attachments.length > 0) {
   //   console.log(`✅ [EmailRenderer] Found ${attachments.length} attachments for "${subject}"`)
@@ -142,10 +309,7 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
             {attachments.map((attachment, index) => (
               <button
                 key={index}
-                onClick={() => {
-                  console.log('Download attachment:', attachment.filename)
-                  // TODO: Implement download functionality
-                }}
+                onClick={() => downloadAttachment(attachment)}
                 style={{
                   background: 'none',
                   border: 'none',
