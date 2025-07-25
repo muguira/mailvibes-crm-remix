@@ -1,27 +1,25 @@
 import { supabase } from '@/integrations/supabase/client'
-import { logger } from '@/utils/logger'
 import {
-  getRecentContactEmails,
-  searchContactEmails,
-  GmailEmail,
-  GmailApiResponse,
-  sendEmail,
   createDraft,
+  getRecentContactEmails,
+  GmailEmail,
+  searchContactEmails,
+  sendEmail,
   SendEmailData,
   SendEmailResponse,
 } from '@/services/google/gmailApi'
+import { logger } from '@/utils/logger'
 import { triggerContactSync } from '@/workers/emailSyncWorker'
 import type { AuthService } from './AuthService'
 import type {
-  GmailServiceConfig,
-  SyncResult,
-  SyncOptions,
-  GetEmailsOptions,
-  SearchOptions,
-  GmailError,
-  ServiceState,
   EmailCache,
-  CacheEntry,
+  GetEmailsOptions,
+  GmailError,
+  GmailServiceConfig,
+  SearchOptions,
+  ServiceState,
+  SyncOptions,
+  SyncResult,
 } from './types'
 import { GmailErrorCode } from './types'
 
@@ -938,6 +936,11 @@ export class EmailService {
             updated++
           }
         }
+
+        // ✅ FIX: Save attachments if any (just like EmailSyncService does)
+        if (email.attachments && email.attachments.length > 0) {
+          await this.saveAttachments(data.id, email.attachments, email.id)
+        }
       } catch (error) {
         logger.error(`[EmailService] Error processing email ${email.id}:`, error)
       }
@@ -1169,5 +1172,217 @@ export class EmailService {
       GmailErrorCode.SERVICE_UNAVAILABLE,
     ]
     return retryableCodes.includes(code)
+  }
+
+  /**
+   * Save email attachments with image download and storage
+   * (Copied from EmailSyncService to fix attachment saving issue)
+   */
+  private async saveAttachments(emailId: string, attachments: any[], gmailMessageId: string) {
+    if (!attachments || attachments.length === 0) return
+
+    // Log attachment details and check field lengths
+    logger.info(`[EmailService] Processing ${attachments.length} attachments for email ${emailId}`)
+
+    const attachmentData = []
+
+    for (let index = 0; index < attachments.length; index++) {
+      const attachment = attachments[index]
+
+      // Check and log field lengths
+      const filename = attachment.filename || ''
+      const mimeType = attachment.mimeType || ''
+      const contentId = attachment.contentId || ''
+      const gmailAttachmentId = attachment.id || ''
+
+      // Log if any field is too long
+      if (filename.length > 1000) {
+        logger.warn(`[EmailService] Attachment ${index} filename too long: ${filename.length} chars`, {
+          filename: filename.substring(0, 100) + '...',
+          originalLength: filename.length,
+        })
+      }
+
+      let storagePath = null
+
+      // Download and store images
+      if (this.isImageAttachment(attachment)) {
+        logger.info(`[EmailService] Attempting to download image: ${filename} (${mimeType})`)
+        try {
+          storagePath = await this.downloadAndStoreAttachment(gmailMessageId, gmailAttachmentId, filename, mimeType)
+          logger.info(`[EmailService] Successfully stored image: ${filename} at ${storagePath}`)
+        } catch (error) {
+          logger.error(`[EmailService] Failed to download/store image ${filename}:`, error)
+          logger.error(`[EmailService] Error details:`, {
+            gmailMessageId,
+            gmailAttachmentId,
+            filename,
+            mimeType,
+            error: error instanceof Error ? error.message : error,
+          })
+          // Continue with metadata only, don't fail the whole process
+        }
+      } else {
+        logger.info(`[EmailService] Skipping non-image attachment: ${filename} (${mimeType})`)
+      }
+
+      attachmentData.push({
+        email_id: emailId,
+        gmail_attachment_id: gmailAttachmentId.substring(0, 500), // Truncate to avoid errors
+        filename: filename.substring(0, 1000), // Truncate to avoid errors
+        mime_type: mimeType.substring(0, 500), // Truncate to avoid errors
+        size_bytes: attachment.size || 0,
+        inline: attachment.inline || false,
+        content_id: contentId.substring(0, 500), // Truncate to avoid errors
+        storage_path: storagePath, // Store the Supabase Storage path
+        created_at: new Date().toISOString(),
+      })
+    }
+
+    // Log the data we're about to save
+    logger.info(`[EmailService] Saving attachment data:`, {
+      count: attachmentData.length,
+      imagesStored: attachmentData.filter(att => att.storage_path).length,
+    })
+
+    // Use upsert without specifying onConflict - let Supabase handle unique constraints automatically
+    const { error } = await supabase.from('email_attachments').upsert(attachmentData, {
+      ignoreDuplicates: false,
+    })
+
+    if (error) {
+      logger.error('Error saving attachments:', error)
+      // Log the problematic data for debugging
+      logger.error('Problematic attachment data:', JSON.stringify(attachmentData, null, 2))
+    } else {
+      logger.info(`[EmailService] Successfully saved ${attachmentData.length} attachments`)
+    }
+  }
+
+  /**
+   * Check if attachment is an image
+   */
+  private isImageAttachment(attachment: any): boolean {
+    const mimeType = attachment.mimeType || ''
+    const filename = attachment.filename || ''
+
+    return mimeType.startsWith('image/') || /\.(jpe?g|png|gif|webp|svg|bmp|tiff?)$/i.test(filename)
+  }
+
+  /**
+   * Download attachment from Gmail and store in Supabase Storage
+   */
+  private async downloadAndStoreAttachment(
+    messageId: string,
+    attachmentId: string,
+    filename: string,
+    mimeType: string,
+  ): Promise<string | null> {
+    logger.info(`[EmailService] Starting download for attachment: ${filename}`, {
+      messageId,
+      attachmentId,
+      mimeType,
+    })
+
+    try {
+      // Get valid access token first
+      const accounts = await this.authService.getConnectedAccounts()
+      if (accounts.length === 0) {
+        throw new Error('No connected Gmail accounts found')
+      }
+
+      const token = await this.authService.getValidToken(accounts[0].email)
+      if (!token) {
+        throw new Error('Unable to get valid access token')
+      }
+
+      // Download attachment from Gmail API
+      logger.info(`[EmailService] Fetching attachment from Gmail API...`)
+      const response = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}/attachments/${attachmentId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      )
+
+      logger.info(`[EmailService] Gmail API response status: ${response.status}`)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        logger.error(`[EmailService] Gmail API error response:`, errorText)
+        throw new Error(`Gmail API error: ${response.statusText} - ${errorText}`)
+      }
+
+      const attachmentData = await response.json()
+      logger.info(`[EmailService] Received attachment data:`, {
+        hasData: !!attachmentData.data,
+        dataLength: attachmentData.data ? attachmentData.data.length : 0,
+        size: attachmentData.size,
+      })
+
+      if (!attachmentData.data) {
+        throw new Error('No attachment data received from Gmail API')
+      }
+
+      // Decode base64url data to binary
+      logger.info(`[EmailService] Decoding base64url data...`)
+      const base64Data = attachmentData.data.replace(/-/g, '+').replace(/_/g, '/')
+      const paddedBase64 = base64Data + '='.repeat((4 - (base64Data.length % 4)) % 4)
+
+      // Convert to binary
+      const binaryString = atob(paddedBase64)
+      const bytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+
+      logger.info(`[EmailService] Converted to binary:`, {
+        originalLength: base64Data.length,
+        binaryLength: bytes.length,
+      })
+
+      // Generate unique filename with timestamp and user ID for RLS
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const fileExtension = filename.split('.').pop() || 'bin'
+      const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_')
+      const uniqueFilename = `${this.userId}/emails/${messageId}/${timestamp}-${cleanFilename}`
+
+      logger.info(`[EmailService] Uploading to Supabase Storage:`, {
+        filename: uniqueFilename,
+        userId: this.userId,
+        size: bytes.length,
+        mimeType,
+      })
+
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage.from('email-attachments').upload(uniqueFilename, bytes, {
+        contentType: mimeType,
+        cacheControl: '3600',
+        upsert: false,
+      })
+
+      if (error) {
+        logger.error(`[EmailService] Supabase Storage error:`, {
+          error: error.message,
+          filename: uniqueFilename,
+          userId: this.userId,
+        })
+        throw new Error(`Supabase Storage error: ${error.message}`)
+      }
+
+      logger.info(`[EmailService] Successfully uploaded to storage:`, {
+        path: data.path,
+        filename,
+      })
+
+      // Return the storage path
+      return data.path
+    } catch (error) {
+      logger.error(`[EmailService] Error downloading/storing attachment ${filename}:`, error)
+      throw error
+    }
   }
 }

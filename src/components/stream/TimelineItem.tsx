@@ -1322,14 +1322,16 @@ const TimelineItem = React.memo(
                       {(activity.source === 'gmail' && activity.type === 'email') ||
                       (activity.source === 'internal' && activity.type === 'email_sent') ? (
                         /* Regular single email display */
-                        <EmailRenderer
-                          bodyHtml={activity.bodyHtml}
-                          bodyText={activity.bodyText}
-                          subject={activity.subject}
-                          emailId={activity.id}
-                          attachments={activity.attachments}
-                          activityDetails={activity.details}
-                        />
+                        <>
+                          <EmailRenderer
+                            bodyHtml={activity.bodyHtml}
+                            bodyText={activity.bodyText}
+                            subject={activity.subject}
+                            emailId={activity.id}
+                            attachments={activity.attachments}
+                            activityDetails={activity.details}
+                          />
+                        </>
                       ) : (
                         /* Non-email activity display */
                         <div

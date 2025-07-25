@@ -169,6 +169,67 @@ export async function fetchEmailDetails(
 }
 
 /**
+ * Recursively extracts body content from email parts, handling nested multipart structures
+ * @param parts - Array of message parts to process
+ * @returns Object containing extracted body text, HTML, and calendar info
+ */
+function extractBodyContentRecursively(parts: any[]): {
+  bodyText: string
+  bodyHtml: string
+  isCalendarInvitation: boolean
+} {
+  let bodyText = ''
+  let bodyHtml = ''
+  let isCalendarInvitation = false
+
+  for (const part of parts) {
+    // Check if this part has its own parts (nested multipart)
+    if (part.parts && part.parts.length > 0) {
+      // Recursively process nested parts
+      const nestedContent = extractBodyContentRecursively(part.parts)
+
+      // Only use nested content if we haven't found content yet
+      // This preserves priority: top-level content > nested content
+      if (!bodyText && nestedContent.bodyText) {
+        bodyText = nestedContent.bodyText
+      }
+      if (!bodyHtml && nestedContent.bodyHtml) {
+        bodyHtml = nestedContent.bodyHtml
+      }
+      if (nestedContent.isCalendarInvitation) {
+        isCalendarInvitation = true
+      }
+    } else {
+      // Process this part directly
+      if (part.mimeType === 'text/plain' && part.body?.data && !bodyText) {
+        bodyText = base64UrlDecode(part.body.data)
+      } else if (part.mimeType === 'text/html' && part.body?.data && !bodyHtml) {
+        bodyHtml = base64UrlDecode(part.body.data)
+      } else if (part.mimeType === 'text/calendar' && part.body?.data) {
+        // Handle calendar invitation
+        isCalendarInvitation = true
+        const calendarData = base64UrlDecode(part.body.data)
+        const calendarInfo = parseCalendarData(calendarData)
+
+        // Use calendar info as body content if no other content exists
+        if (!bodyText && !bodyHtml) {
+          bodyText = calendarInfo
+        } else {
+          // Append calendar info to existing content
+          bodyText += '\n\n' + calendarInfo
+        }
+      }
+    }
+  }
+
+  return {
+    bodyText,
+    bodyHtml,
+    isCalendarInvitation,
+  }
+}
+
+/**
  * Parses Gmail API message format to our GmailEmail interface
  * @param gmailMessage - Raw Gmail API message object
  * @returns GmailEmail
@@ -217,26 +278,12 @@ function parseGmailMessage(gmailMessage: any): GmailEmail {
       bodyText = decodedContent
     }
   } else if (parts.length > 0) {
-    // Multipart message
-    for (const part of parts) {
-      if (part.mimeType === 'text/plain' && part.body?.data) {
-        bodyText = base64UrlDecode(part.body.data)
-      } else if (part.mimeType === 'text/html' && part.body?.data) {
-        bodyHtml = base64UrlDecode(part.body.data)
-      } else if (part.mimeType === 'text/calendar' && part.body?.data) {
-        // Handle calendar invitation
-        isCalendarInvitation = true
-        const calendarData = base64UrlDecode(part.body.data)
-        const calendarInfo = parseCalendarData(calendarData)
-
-        // Use calendar info as body content if no other content exists
-        if (!bodyText && !bodyHtml) {
-          bodyText = calendarInfo
-        } else {
-          // Append calendar info to existing content
-          bodyText += '\n\n' + calendarInfo
-        }
-      }
+    // Multipart message - use recursive function to extract content from all parts
+    const extractedContent = extractBodyContentRecursively(parts)
+    bodyText = extractedContent.bodyText
+    bodyHtml = extractedContent.bodyHtml
+    if (extractedContent.isCalendarInvitation) {
+      isCalendarInvitation = true
     }
   }
 
@@ -267,6 +314,7 @@ function parseGmailMessage(gmailMessage: any): GmailEmail {
 
   function extractAttachments(parts: any[]) {
     for (const part of parts) {
+      // Check if this part is an attachment
       if (part.filename && part.body?.attachmentId) {
         attachments.push({
           id: part.body.attachmentId,
@@ -279,8 +327,35 @@ function parseGmailMessage(gmailMessage: any): GmailEmail {
           contentId: part.headers?.find((h: any) => h.name.toLowerCase() === 'content-id')?.value?.replace(/[<>]/g, ''),
         })
       }
+      // Also check for attachments without filename but with attachment ID
+      // Some attachments might not have filename in the part but still be valid attachments
+      else if (
+        !part.filename &&
+        part.body?.attachmentId &&
+        part.mimeType &&
+        !part.mimeType.startsWith('text/') &&
+        !part.mimeType.startsWith('multipart/')
+      ) {
+        // Generate a filename based on mimeType if none provided
+        const fileExtension = part.mimeType.includes('image/')
+          ? part.mimeType.split('/')[1]
+          : part.mimeType.split('/')[1] || 'bin'
+        const generatedFilename = `attachment.${fileExtension}`
 
-      if (part.parts) {
+        attachments.push({
+          id: part.body.attachmentId,
+          filename: generatedFilename,
+          mimeType: part.mimeType,
+          size: part.body.size || 0,
+          inline: part.headers?.some(
+            (h: any) => h.name.toLowerCase() === 'content-disposition' && h.value.includes('inline'),
+          ),
+          contentId: part.headers?.find((h: any) => h.name.toLowerCase() === 'content-id')?.value?.replace(/[<>]/g, ''),
+        })
+      }
+
+      // Recursively process nested parts
+      if (part.parts && part.parts.length > 0) {
         extractAttachments(part.parts)
       }
     }
