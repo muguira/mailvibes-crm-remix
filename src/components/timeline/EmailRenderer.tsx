@@ -582,25 +582,8 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
       )
     }
 
-    // No content available
-    return (
-      <div
-        style={{
-          width: '100%',
-          minHeight: '100px',
-          background: '#f9fafb',
-          borderRadius: '4px',
-          padding: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#6b7280',
-          fontStyle: 'italic',
-        }}
-      >
-        No email content available
-      </div>
-    )
+    // No content available - return null to show nothing
+    return null
   }
 
   return (
