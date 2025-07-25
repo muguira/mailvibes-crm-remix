@@ -1327,7 +1327,7 @@ const TimelineItem = React.memo(
                             bodyHtml={activity.bodyHtml}
                             bodyText={activity.bodyText}
                             subject={activity.subject}
-                            emailId={activity.id}
+                            emailId={activity.id.startsWith('email-') ? activity.id.replace('email-', '') : activity.id}
                             attachments={activity.attachments}
                             activityDetails={activity.details}
                           />
