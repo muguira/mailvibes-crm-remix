@@ -128,19 +128,20 @@ export function StreamTimeline({ contactId, contactEmail, contactName }: StreamT
     }
   }, [contactId, contactEmail, contactName, throttledProps])
 
-  // Auto-sync emails when contact changes
-  useEffect(() => {
-    if (contactEmail && user?.id) {
-      // Start Gmail sync immediately in parallel with database loading
-      syncContactEmails(contactEmail, {
-        silent: false, // ✅ FIX: Show loading states so user knows emails are syncing
-        showToast: false, // Keep toasts minimal, but show loading indicators
-        forceFullSync: false, // Use cache if recent
-      }).catch(error => {
-        console.error('Auto-sync failed:', error)
-      })
-    }
-  }, [contactEmail, user?.id, syncContactEmails])
+  // DISABLED: Auto-sync moved to parent level to prevent duplicate execution
+  // The sync is now handled by StreamViewLayout or use-stream-view to avoid
+  // multiple simultaneous sync calls that cause duplicate attachments
+  // useEffect(() => {
+  //   if (contactEmail && user?.id) {
+  //     syncContactEmails(contactEmail, {
+  //       silent: false,
+  //       showToast: false,
+  //       forceFullSync: false,
+  //     }).catch(error => {
+  //       console.error('Auto-sync failed:', error)
+  //     })
+  //   }
+  // }, [contactEmail, user?.id, syncContactEmails])
 
   // ✅ PERFORMANCE: Use throttled props instead of direct props
   const {

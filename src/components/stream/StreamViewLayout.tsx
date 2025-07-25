@@ -2,10 +2,11 @@ import { useAuth } from '@/components/auth'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useActivity } from '@/contexts/ActivityContext'
 import { useActivities } from '@/hooks/supabase/use-activities'
+import { useContactEmailSync } from '@/hooks/use-contact-email-sync'
 import { usePerformanceMonitor } from '@/hooks/use-performance-monitor'
 import { logger } from '@/utils/logger'
 import { format } from 'date-fns'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ActionRow from './ActionRow'
 import FilterPanel from './FilterPanel'
 import { AboutThisContact, StreamProfileCard } from './index'
@@ -58,6 +59,29 @@ export default function StreamViewLayout({ contact }: StreamViewLayoutProps) {
   const { logCellEdit } = useActivity()
   const { user } = useAuth()
   const { activities: contactActivities, createActivity } = useActivities(contact.id)
+
+  // CRITICAL FIX: Coordinate email sync to prevent duplicate attachment saves
+  const { syncContactEmails, syncState } = useContactEmailSync()
+  const emailSyncExecutedRef = useRef<Record<string, boolean>>({})
+
+  // Execute email sync once per contact to prevent duplicate attachments
+  useEffect(() => {
+    const contactEmail = contact.email
+    if (contactEmail && user?.id && !emailSyncExecutedRef.current[contactEmail]) {
+      emailSyncExecutedRef.current[contactEmail] = true
+
+      logger.info(`[StreamViewLayout] Starting coordinated email sync for: ${contactEmail}`)
+      syncContactEmails(contactEmail, {
+        silent: false,
+        showToast: false,
+        forceFullSync: false,
+      }).catch(error => {
+        // Reset flag on error to allow retry
+        emailSyncExecutedRef.current[contactEmail] = false
+        logger.error('[StreamViewLayout] Coordinated email sync failed:', error)
+      })
+    }
+  }, [contact.email, user?.id, syncContactEmails])
 
   // Log performance summary periodically for monitoring
   useEffect(() => {
