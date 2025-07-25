@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo, useState } from 'react';
+import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useStore } from '@/stores';
 import { OpportunitiesGridViewContainer } from '@/components/grid-view/OpportunitiesGridViewContainer';
@@ -91,6 +91,9 @@ export function EditableOpportunitiesGrid({
   const memoizedColumnFilters = useMemo(() => {
     return editableOpportunitiesGridGetColumnFilters();
   }, [opportunitiesActiveFilters.columns, opportunitiesActiveFilters.values, opportunitiesColumns]);
+
+  // Ref to prevent repeated warnings
+  const hasWarnedRef = useRef(false);
 
   // 🚀 NEW: Instant opportunities with advanced filtering and search
   const storeOpportunities = useInstantOpportunities({
@@ -458,10 +461,31 @@ export function EditableOpportunitiesGrid({
 
   // Production-ready performance monitoring (only log errors and warnings)
   useEffect(() => {
-    if (instantOpportunities.rows.length === 0 && !instantOpportunities.loading && opportunitiesPagination.isInitialized) {
+    // Only warn once if no opportunities are loaded after initialization completes
+    // and we're not in a loading state
+    if (!hasWarnedRef.current &&
+        instantOpportunities.rows.length === 0 && 
+        !instantOpportunities.loading && 
+        opportunitiesPagination.isInitialized &&
+        opportunitiesPagination.firstBatchLoaded &&
+        !opportunitiesLoading.fetching &&
+        !opportunitiesLoading.initializing) {
       console.warn('⚠️ No opportunities loaded despite initialization being complete');
+      hasWarnedRef.current = true;
     }
-  }, [instantOpportunities.rows.length, instantOpportunities.loading, opportunitiesPagination.isInitialized]);
+    
+    // Reset warning flag if we start loading again
+    if (instantOpportunities.loading || opportunitiesLoading.fetching || opportunitiesLoading.initializing) {
+      hasWarnedRef.current = false;
+    }
+  }, [
+    instantOpportunities.rows.length, 
+    instantOpportunities.loading, 
+    opportunitiesPagination.isInitialized,
+    opportunitiesPagination.firstBatchLoaded,
+    opportunitiesLoading.fetching,
+    opportunitiesLoading.initializing
+  ]);
 
   // 🚀 NEW: Show loading skeleton when loading
   if (instantOpportunities.loading && instantOpportunities.rows.length === 0) {
