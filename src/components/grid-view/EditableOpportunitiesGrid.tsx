@@ -7,13 +7,19 @@ import { GridSkeleton } from '@/components/grid-view/GridSkeleton';
 import { GridPagination } from './GridPagination';
 import { useAuth } from '@/components/auth';
 import { useOpportunities } from '@/hooks/supabase/use-opportunities';
+import { useInstantOpportunities } from '@/hooks/use-instant-opportunities';
+import { useOpportunitiesRows } from '@/hooks/supabase/use-opportunities-rows';
 import { useDebounce } from '@/hooks/use-debounce';
 import { toast } from '@/components/ui/use-toast';
 import { useActivity } from "@/contexts/ActivityContext";
 import { DeleteColumnDialog } from '@/components/grid-view/DeleteColumnDialog';
+import { usePerformanceMonitor } from '@/hooks/use-performance-monitor';
+import { logger } from '@/utils/logger';
 
 interface EditableOpportunitiesGridProps {
   viewToggle?: React.ReactNode;
+  externalOpportunities?: any[];
+  externalLoading?: boolean;
 }
 
 /**
@@ -24,9 +30,16 @@ interface EditableOpportunitiesGridProps {
  * 
  * @component
  */
-export function EditableOpportunitiesGrid({ viewToggle }: EditableOpportunitiesGridProps = {}) {
+export function EditableOpportunitiesGrid({ 
+  viewToggle, 
+  externalOpportunities, 
+  externalLoading 
+}: EditableOpportunitiesGridProps = {}) {
   const { user } = useAuth();
   const { logCellEdit, logColumnAdd, logColumnDelete, logFilterChange } = useActivity();
+  
+  // Performance monitoring
+  const { logSummary, renderCount } = usePerformanceMonitor('EditableOpportunitiesGrid');
   
   // Destructure Zustand slice state and actions for opportunities
   const {
@@ -41,6 +54,7 @@ export function EditableOpportunitiesGrid({ viewToggle }: EditableOpportunitiesG
     opportunitiesDeleteColumnDialog,
     opportunitiesIsContactDeletionLoading,
     editableOpportunitiesGridSetCurrentPage,
+    editableOpportunitiesGridSetPageSize,
     editableOpportunitiesGridForceRerender,
     editableOpportunitiesGridSetIsLoading,
     editableOpportunitiesGridAddDynamicColumns,
@@ -56,86 +70,107 @@ export function EditableOpportunitiesGrid({ viewToggle }: EditableOpportunitiesG
     editableOpportunitiesGridDeleteOpportunities,
     editableOpportunitiesGridGetColumnFilters,
     editableOpportunitiesGridSetSearchTerm,
+    // 🚀 NEW: Advanced store infrastructure
+    opportunitiesCache,
+    opportunitiesOrderedIds,
+    opportunitiesLoading,
+    opportunitiesPagination,
+    opportunitiesInitialize,
+    opportunitiesAddOpportunity,
+    opportunitiesRemoveOpportunities,
+    opportunitiesEnsureMinimumLoaded,
   } = useStore();
 
-  // Opportunities management hook
+  // 🚀 NEW: Advanced hooks with real-time updates and performance optimization
   const { 
-    getOpportunities, 
-    updateOpportunity, 
     deleteOpportunity,
     bulkConvertContactsToOpportunities
   } = useOpportunities();
 
-  // Debounced search term
+  // 🚀 OPTIMIZED: Memoize column filters to prevent unnecessary re-calculations
+  const memoizedColumnFilters = useMemo(() => {
+    return editableOpportunitiesGridGetColumnFilters();
+  }, [opportunitiesActiveFilters.columns, opportunitiesActiveFilters.values, opportunitiesColumns]);
+
+  // 🚀 NEW: Instant opportunities with advanced filtering and search
+  const storeOpportunities = useInstantOpportunities({
+    searchTerm: opportunitiesSearchTerm, 
+    pageSize: opportunitiesPageSize,
+    currentPage: opportunitiesCurrentPage,
+    columnFilters: memoizedColumnFilters
+  });
+
+  // Use external data if provided (for fallback scenarios), otherwise use store data
+  const instantOpportunities = useMemo(() => {
+    if (externalOpportunities && externalOpportunities.length > 0) {
+      // Filter external data based on search term if needed
+      const filteredData = opportunitiesSearchTerm 
+        ? externalOpportunities.filter(opp => 
+            opp.opportunity?.toLowerCase().includes(opportunitiesSearchTerm.toLowerCase()) ||
+            opp.company?.toLowerCase().includes(opportunitiesSearchTerm.toLowerCase()) ||
+            opp.status?.toLowerCase().includes(opportunitiesSearchTerm.toLowerCase())
+          )
+        : externalOpportunities;
+
+      return {
+        rows: filteredData,
+        loading: externalLoading || false,
+        totalCount: filteredData.length,
+        isBackgroundLoading: false,
+        loadedCount: filteredData.length
+      };
+    }
+    
+    return storeOpportunities;
+  }, [externalOpportunities, externalLoading, opportunitiesSearchTerm, storeOpportunities]);
+
+  // 🚀 NEW: Opportunities rows management with chunked loading
+  const opportunitiesRows = useOpportunitiesRows();
+
+  // Debounced search term for performance
   const debouncedSearchTerm = useDebounce(opportunitiesSearchTerm, 200);
 
-  // State for opportunities data
-  const [opportunities, setOpportunities] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-  const [retryCount, setRetryCount] = useState(0);
+  // 🚀 REMOVED: Manual state management - now using store infrastructure
+  // const [opportunities, setOpportunities] = useState<any[]>([]);
+  // const [loading, setLoading] = useState(true);
+  // const [totalCount, setTotalCount] = useState(0);
+  // const [retryCount, setRetryCount] = useState(0);
 
-  // Fetch opportunities from database
-  // 🚀 OPTIMIZED: Updated to use new paginated API with improved error handling
-  const fetchOpportunities = useCallback(async () => {
-    setLoading(true);
-    
-    try {
-      // 🚀 PERFORMANCE: Use optimized API with server-side filtering and pagination
-      const filters = {
-        searchTerm: debouncedSearchTerm || undefined,
-        // TODO: Add other filters from editableOpportunitiesGridGetColumnFilters()
-      };
-      
-      const response = await getOpportunities(filters, {
-        page: opportunitiesCurrentPage,
-        pageSize: opportunitiesPageSize,
-        sortBy: 'created_at',
-        sortOrder: 'desc'
-      });
-      
-      // Extract data from the new response format
-      const { data: opportunitiesData, totalCount: responseTotal } = response;
-      
-      setTotalCount(responseTotal);
-      setOpportunities(opportunitiesData);
-      setRetryCount(0); // Reset retry count on success
-    } catch (error) {
-      console.error('Error fetching opportunities:', error);
-      
-      // Implement retry logic for network errors (but not infinite retries)
-      if (retryCount < 2) {
-        console.log(`Retrying opportunities fetch (attempt ${retryCount + 1})`);
-        setRetryCount(prev => prev + 1);
-        // Retry after a short delay
-        setTimeout(() => {
-          fetchOpportunities();
-        }, 2000); // 2 second delay
-        return;
-      }
-      
-      // Show error only after retries fail
-      toast({
-        title: "Error",
-        description: "Failed to load opportunities. Please refresh the page.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+  // 🚀 NEW: Initialize store when user is available
+  useEffect(() => {
+    if (user?.id && !opportunitiesPagination.isInitialized) {
+      logger.log('Initializing opportunities store for user:', user.id);
+      opportunitiesInitialize(user.id);
     }
-  }, [getOpportunities, debouncedSearchTerm, opportunitiesCurrentPage, opportunitiesPageSize]);
+  }, [user?.id, opportunitiesPagination.isInitialized, opportunitiesInitialize]);
 
-  // Cleanup function to abort requests when component unmounts
+  // 🚀 NEW: Ensure minimum data is loaded for current page size
   useEffect(() => {
-    return () => {
-      // No abortController to manage here as it's removed from fetchOpportunities
-    };
-  }, []);
+    if (opportunitiesPagination.isInitialized && opportunitiesPageSize > opportunitiesPagination.loadedCount) {
+      const minimumRequired = opportunitiesCurrentPage * opportunitiesPageSize;
+      if (minimumRequired > opportunitiesPagination.loadedCount) {
+        logger.log(`Ensuring minimum ${minimumRequired} opportunities are loaded`);
+        opportunitiesEnsureMinimumLoaded(minimumRequired);
+      }
+    }
+  }, [opportunitiesPageSize, opportunitiesCurrentPage, opportunitiesPagination.loadedCount, opportunitiesPagination.isInitialized, opportunitiesEnsureMinimumLoaded]);
 
-  // Fetch opportunities on mount and when dependencies change
+  // 🚀 NEW: Performance monitoring
   useEffect(() => {
-    fetchOpportunities();
-  }, [debouncedSearchTerm, opportunitiesCurrentPage, opportunitiesPageSize]); // Removed fetchOpportunities from deps to prevent infinite loop
+    if (renderCount > 0 && renderCount % 10 === 0) {
+      logSummary();
+    }
+  }, [renderCount, logSummary]);
+
+  // 🚀 NEW: Reset to first page when search term changes
+  useEffect(() => {
+    if (debouncedSearchTerm !== opportunitiesSearchTerm) {
+      // Search term changed, reset to first page for better UX
+      if (opportunitiesCurrentPage !== 1) {
+        editableOpportunitiesGridSetCurrentPage(1);
+      }
+    }
+  }, [debouncedSearchTerm, opportunitiesSearchTerm, opportunitiesCurrentPage, editableOpportunitiesGridSetCurrentPage]);
 
   // Render function for opportunity name column with navigation link to contact stream view
   const renderOpportunityLink = useCallback(
@@ -167,58 +202,105 @@ export function EditableOpportunitiesGrid({ viewToggle }: EditableOpportunitiesG
     }
   }, [opportunitiesColumns, renderOpportunityLink, editableOpportunitiesGridPersistColumns, editableOpportunitiesGridSetColumns, user]);
 
-  // Handle cell value changes
+  // 🚀 NEW: Add dynamic columns when new fields are detected in opportunity data
+  useEffect(() => {
+    if (instantOpportunities.rows.length > 0) {
+      editableOpportunitiesGridAddDynamicColumns(instantOpportunities.rows);
+    }
+  }, [instantOpportunities.rows, editableOpportunitiesGridAddDynamicColumns]);
+
+  // 🚀 NEW: Handle cell value changes with optimistic updates
   const handleCellChange = useCallback(async (rowId: string, columnId: string, value: any) => {
+    // Check if this is a readonly column
+    const column = opportunitiesColumns.find(col => col.id === columnId);
+    if (column && column.editable === false) {
+      console.warn(`Cannot edit readonly column: ${columnId}`);
+      return; // Exit early for readonly columns
+    }
+    
+    console.log('EditableOpportunitiesGrid handleCellChange called:', {
+      rowId,
+      columnId,
+      value,
+      timestamp: new Date().toISOString()
+    });
+    
     try {
+      // Handle grid-specific updates (formatting, validation, etc.)
       await editableOpportunitiesGridHandleCellEdit(rowId, columnId, value);
       
-      // Update in database
-      const updates: any = { [columnId]: value };
-      
-      // Handle special cases for column types
-      if (columnId === 'revenue' && typeof value === 'string') {
-        // Parse currency string to number
-        const numValue = parseFloat(value.replace(/[^0-9.-]+/g, ''));
-        updates.revenue = numValue;
+      const { lastCellEdit } = useStore.getState();
+      if (!lastCellEdit || lastCellEdit.rowId !== rowId || lastCellEdit.columnId !== columnId) {
+        throw new Error('Cell edit processing failed');
       }
       
-      await updateOpportunity(rowId, updates);
+      const { finalValue } = lastCellEdit;
       
-      // Log the edit
-      const row = opportunities.find(r => r.id === rowId);
-      const oldValue = row ? row[columnId] : null;
-      logCellEdit(rowId, columnId, value, oldValue);
-      
-      // Refresh data
-      await fetchOpportunities();
+      const opportunity = instantOpportunities.rows.find(r => r.id === rowId);
+      const oldValue = opportunity ? opportunity[columnId] : null;
+
+      console.log('Opportunity found for handleCellChange:', {
+        rowId,
+        opportunityFound: !!opportunity,
+        opportunityName: opportunity?.opportunity,
+        oldValue,
+        newValue: finalValue,
+        columnId
+      });
+
+      // Update using opportunities rows hook (handles both store + database)
+      await opportunitiesRows.updateCell({ rowId, columnId, value: finalValue });
+
+      logCellEdit(
+        rowId,
+        columnId,
+        finalValue, 
+        oldValue
+      );
+
     } catch (error) {
       console.error('Error updating opportunity:', error);
       toast({
         title: "Error",
-        description: "Failed to update opportunity",
+        description: "Failed to update opportunity. Please try again.",
         variant: "destructive",
       });
     }
-  }, [opportunities, updateOpportunity, logCellEdit, editableOpportunitiesGridHandleCellEdit, fetchOpportunities]);
+  }, [instantOpportunities.rows, opportunitiesRows.updateCell, logCellEdit, editableOpportunitiesGridHandleCellEdit, opportunitiesColumns]);
 
-  // Handle opportunity deletion
+  // 🚀 NEW: Handle opportunity deletion with optimistic updates
   const handleDeleteOpportunities = useCallback(async (opportunityIds: string[]) => {
     try {
+      //  OPTIMISTIC: Remove from store immediately for instant UI feedback
+      opportunitiesRemoveOpportunities(opportunityIds);
+      
+      // Handle grid-specific deletion logic
       await editableOpportunitiesGridDeleteOpportunities(opportunityIds);
       
-      // Delete from database
-      for (const id of opportunityIds) {
-        await deleteOpportunity(id);
+      // 🚀 BACKGROUND: Delete from database with error recovery
+      try {
+        if (opportunitiesRows.deleteOpportunities) {
+          // Use the sophisticated deletion from opportunitiesRows if available
+          await opportunitiesRows.deleteOpportunities(opportunityIds);
+        } else {
+          // Fallback to individual deletions
+          for (const id of opportunityIds) {
+            await deleteOpportunity(id);
+          }
+        }
+        
+        toast({
+          title: "Opportunities deleted",
+          description: `Successfully deleted ${opportunityIds.length} opportunit${opportunityIds.length === 1 ? 'y' : 'ies'}.`,
+        });
+        
+        logger.log(`✅ Successfully deleted ${opportunityIds.length} opportunities`);
+      } catch (dbError) {
+        // 🚀 ERROR RECOVERY: If database deletion fails, we'd need to restore
+        // For now, just log the error as the opportunities are already removed from UI
+        logger.error(`❌ Database deletion failed:`, dbError);
+        throw dbError;
       }
-      
-      toast({
-        title: "Opportunities deleted",
-        description: `Successfully deleted ${opportunityIds.length} opportunit${opportunityIds.length === 1 ? 'y' : 'ies'}.`,
-      });
-      
-      // Refresh data
-      await fetchOpportunities();
-      
     } catch (error) {
       console.error('Error deleting opportunities:', error);
       toast({
@@ -227,7 +309,7 @@ export function EditableOpportunitiesGrid({ viewToggle }: EditableOpportunitiesG
         variant: "destructive",
       });
     }
-  }, [deleteOpportunity, editableOpportunitiesGridDeleteOpportunities, fetchOpportunities]);
+  }, [opportunitiesRemoveOpportunities, opportunitiesRows, deleteOpportunity, editableOpportunitiesGridDeleteOpportunities]);
 
   // Handle column operations
   const handleAddColumn = useCallback(async (afterColumnId: string) => {
@@ -270,7 +352,7 @@ export function EditableOpportunitiesGrid({ viewToggle }: EditableOpportunitiesG
     return showHiddenColumns && opportunitiesHiddenColumns.some(col => col.id === columnId);
   }, [opportunitiesActiveFilters.values, opportunitiesHiddenColumns]);
 
-  // Handle converting contacts to opportunities (for Add Opportunities button)
+  // 🚀 NEW: Handle converting contacts to opportunities with optimistic updates
   const handleConvertToOpportunities = useCallback(async (
     contacts: Array<{ id: string; name: string; email?: string; company?: string; phone?: string; }>,
     conversionData: {
@@ -301,9 +383,27 @@ export function EditableOpportunitiesGrid({ viewToggle }: EditableOpportunitiesG
       const result = await bulkConvertContactsToOpportunities(contactsForConversion, conversionData);
       
       if (result.success) {
-        console.log('✅ Successfully created opportunity:', conversionData.accountName);
-        // Refresh opportunities data
-        await fetchOpportunities();
+        logger.log('✅ Successfully created opportunity:', conversionData.accountName);
+        
+        // 🚀 OPTIMISTIC: Add to store immediately for instant UI feedback
+        // Generate a temporary ID until database ID is available
+        const newOpportunity = {
+          id: `temp-${Date.now()}`, // Temporary ID
+          opportunity: conversionData.accountName,
+          company: conversionData.accountName,
+          status: conversionData.stage,
+          stage: conversionData.stage,
+          revenue: conversionData.dealValue,
+          closeDate: conversionData.closeDate?.toISOString().split('T')[0] || '',
+          priority: conversionData.priority,
+          owner: user?.email || '',
+          originalContactId: contacts[0]?.id || null,
+          userId: user?.id || '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        opportunitiesAddOpportunity(newOpportunity);
         
         toast({
           title: "Opportunity created",
@@ -319,7 +419,7 @@ export function EditableOpportunitiesGrid({ viewToggle }: EditableOpportunitiesG
       });
       throw error;
     }
-  }, [bulkConvertContactsToOpportunities, fetchOpportunities]);
+  }, [bulkConvertContactsToOpportunities, opportunitiesAddOpportunity, user]);
 
   // Compute display columns
   const displayColumns = useMemo(() => {
@@ -350,25 +450,32 @@ export function EditableOpportunitiesGrid({ viewToggle }: EditableOpportunitiesG
     return opportunitiesColumns;
   }, [opportunitiesColumns, opportunitiesHiddenColumns, opportunitiesActiveFilters.values]);
 
-  // Calculate total pages
-  const totalPages = useMemo(() => Math.ceil(totalCount / opportunitiesPageSize), [totalCount, opportunitiesPageSize]);
+  // 🚀 NEW: Calculate total pages using store data
+  const totalPages = useMemo(() => Math.ceil(instantOpportunities.totalCount / opportunitiesPageSize), [instantOpportunities.totalCount, opportunitiesPageSize]);
   
   // Stable grid key
   const gridKey = useMemo(() => `opportunities-grid-${opportunitiesForceRenderKey}`, [opportunitiesForceRenderKey]);
 
-  // Show loading skeleton when loading
-  if (loading && opportunities.length === 0) {
+  // Production-ready performance monitoring (only log errors and warnings)
+  useEffect(() => {
+    if (instantOpportunities.rows.length === 0 && !instantOpportunities.loading && opportunitiesPagination.isInitialized) {
+      console.warn('⚠️ No opportunities loaded despite initialization being complete');
+    }
+  }, [instantOpportunities.rows.length, instantOpportunities.loading, opportunitiesPagination.isInitialized]);
+
+  // 🚀 NEW: Show loading skeleton when loading
+  if (instantOpportunities.loading && instantOpportunities.rows.length === 0) {
     return <GridSkeleton rowCount={10} columnCount={10} loadingText="Loading opportunities..." />;
   }
 
-  // Render the grid
+  // 🚀 NEW: Render the grid with store data
   return (
     <div className="h-full w-full flex flex-col">
       <div className="flex-1 overflow-hidden relative">
         <OpportunitiesGridViewContainer 
           key={gridKey}
           columns={displayColumns as any} 
-          data={opportunities}
+          data={instantOpportunities.rows}
           firstRowIndex={0}
           onCellChange={handleCellChange}
           onAddColumn={handleAddColumn}
@@ -386,17 +493,25 @@ export function EditableOpportunitiesGrid({ viewToggle }: EditableOpportunitiesG
       </div>
       <GridPagination
         totalPages={totalPages}
-        totalItems={totalCount}
-        loading={loading}
-        isBackgroundLoading={false}
-        loadedCount={opportunities.length}
+        totalItems={instantOpportunities.totalCount}
+        loading={instantOpportunities.loading}
+        isBackgroundLoading={instantOpportunities.isBackgroundLoading}
+        loadedCount={instantOpportunities.loadedCount}
         currentPage={opportunitiesCurrentPage}
         pageSize={opportunitiesPageSize}
         onPageChange={editableOpportunitiesGridSetCurrentPage}
         onPageSizeChange={(size) => {
-          // Note: We should implement setPageSize in the opportunities slice
-          // For now, just log it to prevent errors
-          console.log('Page size change requested:', size);
+          // 🚀 IMPLEMENTED: Set page size in opportunities store
+          logger.log('Page size change requested:', size);
+          editableOpportunitiesGridSetPageSize(size);
+          
+          // Ensure we have enough data loaded for the new page size
+          if (opportunitiesPagination.isInitialized) {
+            const minimumRequired = size;
+            if (minimumRequired > opportunitiesPagination.loadedCount) {
+              opportunitiesEnsureMinimumLoaded(minimumRequired);
+            }
+          }
         }}
       />
       

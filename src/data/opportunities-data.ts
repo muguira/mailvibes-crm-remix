@@ -1,4 +1,129 @@
 
+import { Column } from '@/components/grid-view/types';
+import { DEFAULT_COLUMN_WIDTH } from '@/components/grid-view/grid-constants';
+
+/**
+ * Get default opportunities columns configuration
+ * @returns {Column[]} Array of default column configurations
+ */
+export const getDefaultOpportunitiesColumns = (): Column[] => [
+  {
+    id: 'opportunity',
+    title: 'Opportunity',
+    type: 'text',
+    width: 180,
+    frozen: true, // Make opportunity column frozen like the name column in contacts
+    editable: true,
+    renderCell: undefined, // Will be set by the grid component
+  },
+  {
+    id: 'status',
+    title: 'Status',
+    type: 'status',
+    width: 150,
+    frozen: false,
+    editable: true,
+    options: ['Lead/New', 'Qualified', 'Discovery', 'Proposal', 'Negotiation', 'Closing', 'Won', 'Lost'],
+    colors: {
+      'Lead/New': '#6b7280',
+      'Qualified': '#3b82f6',
+      'Discovery': '#f97316',
+      'Proposal': '#eab308',
+      'Negotiation': '#8b5cf6',
+      'Closing': '#06b6d4',
+      'Won': '#22c55e',
+      'Lost': '#ef4444',
+    },
+  },
+  {
+    id: 'revenue',
+    title: 'Revenue',
+    type: 'currency',
+    width: 120,
+    frozen: false,
+    editable: true,
+  },
+  {
+    id: 'closeDate',
+    title: 'Close Date',
+    type: 'date',
+    width: 140,
+    frozen: false,
+    editable: true,
+  },
+  {
+    id: 'owner',
+    title: 'Owner',
+    type: 'text',
+    width: 150,
+    frozen: false,
+    editable: true,
+  },
+  {
+    id: 'company',
+    title: 'Company',
+    type: 'text',
+    width: 180,
+    frozen: false,
+    editable: true,
+  },
+  {
+    id: 'priority',
+    title: 'Priority',
+    type: 'status',
+    width: 120,
+    frozen: false,
+    editable: true,
+    options: ['Low', 'Medium', 'High', 'Critical'],
+    colors: {
+      'Low': '#6b7280',
+      'Medium': '#3b82f6', 
+      'High': '#f97316',
+      'Critical': '#ef4444',
+    },
+  },
+  {
+    id: 'lastContacted',
+    title: 'Last Contacted',
+    type: 'date',
+    width: 140,
+    frozen: false,
+    editable: true,
+  },
+  {
+    id: 'leadSource',
+    title: 'Lead Source',
+    type: 'text',
+    width: 150,
+    frozen: false,
+    editable: true,
+  },
+  {
+    id: 'nextMeeting',
+    title: 'Next Meeting',
+    type: 'date',
+    width: 140,
+    frozen: false,
+    editable: true,
+  },
+  {
+    id: 'createdAt',
+    title: 'Created At',
+    type: 'date',
+    width: 140,
+    frozen: false,
+    editable: false, // Readonly field
+  },
+  {
+    id: 'updatedAt',
+    title: 'Updated At',
+    type: 'date',
+    width: 140,
+    frozen: false,
+    editable: false, // Readonly field
+  },
+];
+
 // Sample data for the opportunities list
 export const opportunityColumns = [
   { key: "opportunity", header: "Opportunity", type: "text" as const, editable: true, frozen: true },

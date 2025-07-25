@@ -355,14 +355,34 @@ export function useOpportunities() {
       const fieldMapping: { [key: string]: string } = {
         'closeDate': 'close_date',
         'companyName': 'company_name',
+        'company': 'company_name', // Grid uses 'company', DB uses 'company_name'
         'companyLinkedin': 'company_linkedin',
         'lastContacted': 'last_contacted',
-        'nextMeeting': 'next_meeting'
+        'nextMeeting': 'next_meeting',
+        'leadSource': 'lead_source',
+        'stage': 'status', // Kanban uses 'stage', DB uses 'status'
+        'createdAt': 'created_at',
+        'updatedAt': 'updated_at',
+        // Add reverse mapping for data that comes from DB in snake_case
+        'close_date': 'close_date',
+        'company_name': 'company_name', 
+        'company_linkedin': 'company_linkedin',
+        'last_contacted': 'last_contacted',
+        'next_meeting': 'next_meeting',
+        'lead_source': 'lead_source',
+        'created_at': 'created_at',
+        'updated_at': 'updated_at'
       };
       
       // Apply field mappings and copy values
       for (const [key, value] of Object.entries(updates)) {
         const dbFieldName = fieldMapping[key] || key; // Use mapped name or original if no mapping
+        
+        // Skip readonly fields that shouldn't be updated
+        if (['created_at', 'updated_at', 'id'].includes(dbFieldName)) {
+          continue;
+        }
+        
         dbUpdates[dbFieldName] = value;
       }
       

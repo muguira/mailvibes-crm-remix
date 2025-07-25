@@ -1464,6 +1464,7 @@ export const MainGridView = forwardRef(function MainGridView({
       {/* Header row */}
       <div
         className="main-grid-header"
+        data-type={dataType}
         ref={headerRef}
         style={{
           height: HEADER_HEIGHT,
@@ -1517,6 +1518,7 @@ export const MainGridView = forwardRef(function MainGridView({
         <Grid
           ref={gridRef}
           className="data-grid"
+          data-type={dataType}
           columnCount={columns.length}
           columnWidth={getColumnWidth}
           rowCount={data.length}
@@ -1683,11 +1685,16 @@ const EditCell = ({
       if (datePickerOpen) {
         const target = event.target as HTMLElement;
         // Don't close if clicking on calendar, input, or calendar button
-        if (!target.closest('.react-day-picker') && 
-            !target.closest('[data-testid="calendar"]') &&
-            !target.closest('button[type="button"]') && 
-            inputRef.current && !inputRef.current.contains(target) &&
-            !target.closest('.fixed.z-\[10010\]')) {
+        // More specific: only close if clicking outside calendar and input areas
+        const isCalendarClick = target.closest('.react-day-picker') || 
+                               target.closest('[data-testid="calendar"]') ||
+                               target.closest('.rdp') ||
+                               target.closest('[role="dialog"]') ||
+                               target.closest('button[type="button"]') ||
+                               target.closest('.fixed.z-\\[10010\\]');
+        const isInputClick = inputRef.current && inputRef.current.contains(target);
+        
+        if (!isCalendarClick && !isInputClick) {
           setDatePickerOpen(false);
         }
       }

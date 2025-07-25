@@ -77,6 +77,7 @@ export function GridViewContainer({
   
   // Opportunities management
   const { bulkConvertContactsToOpportunities } = useOpportunities();
+  const { opportunitiesInitialize, opportunitiesAddOpportunity } = useStore();
 
   // Listen for immediate delete feedback to close dialog quickly
   useEffect(() => {
@@ -176,13 +177,53 @@ export function GridViewContainer({
       if (result.success) {
         console.log('✅ Successfully created opportunity:', conversionData.accountName);
         
+        // 🚀 OPTIMISTIC: Add to opportunities store immediately for instant UI feedback
+        if (result.data && user?.id) {
+          const newOpportunity = {
+            id: result.data.id || `temp-${Date.now()}`,
+            opportunity: conversionData.accountName,
+            company: conversionData.accountName, 
+            status: conversionData.stage,
+            stage: conversionData.stage,
+            revenue: conversionData.dealValue,
+            closeDate: conversionData.closeDate?.toISOString().split('T')[0] || '',
+            priority: conversionData.priority,
+            owner: user.email || '',
+            originalContactId: contacts[0]?.id || null,
+            userId: user.id,
+            createdAt: result.data.created_at || new Date().toISOString(),
+            updatedAt: result.data.updated_at || new Date().toISOString(),
+            ...result.data // Include any additional fields from the database
+          };
+          
+          console.log('🚀 Adding opportunity to store for instant display:', newOpportunity.opportunity);
+          opportunitiesAddOpportunity(newOpportunity);
+        }
+        
         // Clear selected contacts
         setSelectedRowIds(new Set());
         
         toast({
           title: "Opportunity created",
-          description: `Successfully created opportunity "${conversionData.accountName}".`,
+          description: `Successfully created opportunity "${conversionData.accountName}". Redirecting to opportunities...`,
         });
+
+        // 🚀 NEW: Refresh opportunities store to ensure data consistency and navigate
+        if (user?.id) {
+          console.log('🔄 Refreshing opportunities store after creation...');
+          // Re-initialize opportunities store with the user ID to ensure data consistency
+          opportunitiesInitialize(user.id).then(() => {
+            console.log('✅ Opportunities store refreshed');
+          }).catch((error) => {
+            console.error('❌ Error refreshing opportunities store:', error);
+            // Even if refresh fails, still navigate since we have optimistic update
+          });
+          
+          // Navigate to opportunities tab after a brief delay to allow the toast to show
+          setTimeout(() => {
+            navigate('/opportunities');
+          }, 1500);
+        }
       }
     } catch (error) {
       console.error('❌ Error creating opportunity:', error);
@@ -193,7 +234,7 @@ export function GridViewContainer({
       });
       throw error;
     }
-  }, [bulkConvertContactsToOpportunities]);
+  }, [bulkConvertContactsToOpportunities, user, navigate, opportunitiesInitialize, opportunitiesAddOpportunity]);
 
   // Estado para columnas fijas (frozen)
   const [frozenColumnIds, setFrozenColumnIds] = useState<string[]>(() => {

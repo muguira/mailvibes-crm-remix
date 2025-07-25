@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { EditableOpportunitiesGrid } from '@/components/grid-view/EditableOpportunitiesGrid';
 import { ErrorBoundary } from '@/components/error-boundary/ErrorBoundary';
@@ -6,6 +6,7 @@ import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
 import { OpportunitiesKanbanBoard } from '@/components/opportunities/OpportunitiesKanbanBoard';
 import { useOpportunities } from '@/hooks/supabase/use-opportunities';
 import { useStore } from '@/stores';
+import { useAuth } from '@/components/auth';
 import { toast } from '@/components/ui/use-toast';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/button';
@@ -23,47 +24,46 @@ import '@/components/grid-view/styles/grid-layout.css';
  */
 
 export default function Opportunities() {
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [boardSearchTerm, setBoardSearchTerm] = useState('');
   const [isContactSelectionModalOpen, setIsContactSelectionModalOpen] = useState(false);
   const [isConvertLoading, setIsConvertLoading] = useState(false);
-  const [opportunities, setOpportunities] = useState<any[]>([]);
-  const [isOpportunitiesLoading, setIsOpportunitiesLoading] = useState(true);
   
-  const { updateOpportunity, bulkConvertContactsToOpportunities, getOpportunities, getOpportunitiesCount } = useOpportunities();
-  const { editableOpportunitiesGridSetActiveFilters, opportunitiesActiveFilters } = useStore();
+  const { updateOpportunity, bulkConvertContactsToOpportunities, getOpportunities } = useOpportunities();
+  
+  // 🚀 NEW: Use store infrastructure instead of manual state
+  const { 
+    editableOpportunitiesGridSetActiveFilters, 
+    opportunitiesActiveFilters,
+    opportunitiesCache,
+    opportunitiesOrderedIds,
+    opportunitiesLoading,
+    opportunitiesPagination,
+    opportunitiesInitialize,
+    opportunitiesUpdateOpportunity,
+  } = useStore();
 
-  // 🚀 SIMPLIFIED: Fetch opportunities data without complex caching
-  const fetchOpportunities = async (forceRefresh = false) => {
-    setIsOpportunitiesLoading(true);
-    
-    try {
-      // 🚀 PERFORMANCE: Use paginated API with filters
-      const filters = {
-        searchTerm: boardSearchTerm || undefined
-      };
-      
-      const response = await getOpportunities(filters, { 
-        page: 1, 
-        pageSize: 100,
-        sortBy: 'created_at',
-        sortOrder: 'desc'
-      });
-      
-      const opportunitiesData = response.data || [];
-      setOpportunities(opportunitiesData);
-    } catch (error) {
-      console.error('Error fetching opportunities:', error);
-      setOpportunities([]);
-    } finally {
-      setIsOpportunitiesLoading(false);
-    }
-  };
+  // Get opportunities from store
+  const opportunities = useMemo(() => {
+    return opportunitiesOrderedIds.map(id => opportunitiesCache[id]).filter(Boolean);
+  }, [opportunitiesOrderedIds, opportunitiesCache]);
 
-  // Load opportunities on mount
+  const isOpportunitiesLoading = opportunitiesLoading.initializing || opportunitiesLoading.fetching;
+
+  // Initialize store when user is available
   useEffect(() => {
-    fetchOpportunities();
-  }, []);
+    if (user?.id && !opportunitiesPagination.isInitialized) {
+      opportunitiesInitialize(user.id);
+    }
+  }, [user?.id, opportunitiesPagination.isInitialized, opportunitiesInitialize]);
+
+  // 🚀 FALLBACK: Force initialization if marked as initialized but no data loaded
+  useEffect(() => {
+    if (user?.id && opportunitiesPagination.isInitialized && opportunities.length === 0 && !isOpportunitiesLoading) {
+      opportunitiesInitialize(user.id);
+    }
+  }, [user?.id, opportunitiesPagination.isInitialized, opportunities.length, isOpportunitiesLoading, opportunitiesInitialize]);
 
   const handleViewChange = (newView: ViewMode) => {
     setViewMode(newView);
@@ -72,31 +72,56 @@ export default function Opportunities() {
   // Handle stage update from Kanban board
   const handleStageUpdate = async (opportunityId: string, newStage: string) => {
     try {
-      await updateOpportunity(opportunityId, { stage: newStage });
-      
-      // Update local state and cache
-      const updatedOpportunities = opportunities.map(opp => 
-        opp.id === opportunityId ? { ...opp, stage: newStage } : opp
-      );
-      setOpportunities(updatedOpportunities);
-      
-      // Update cache
-      // opportunitiesCache = {
-      //   ...opportunitiesCache,
-      //   data: updatedOpportunities,
-      //   timestamp: Date.now()
-      // };
-      
-      toast({
-        title: "Stage updated",
-        description: "The opportunity has been moved to the new stage.",
-      });
+      // 🚀 OPTIMISTIC UPDATE: Update store immediately for instant UI feedback
+      const currentOpportunity = opportunitiesCache[opportunityId];
+      if (currentOpportunity) {
+        const oldStage = currentOpportunity.stage;
+        
+        console.log(`🚀 Kanban: Optimistically updating opportunity ${opportunityId} stage from "${oldStage}" to "${newStage}"`);
+        
+        // Update store immediately (optimistic update)
+        opportunitiesUpdateOpportunity(opportunityId, { 
+          stage: newStage, 
+          status: newStage // Keep stage and status in sync
+        });
+        
+        try {
+          // 🚀 BACKGROUND: Update database (with error recovery)
+          await updateOpportunity(opportunityId, { stage: newStage });
+          console.log(`✅ Successfully updated opportunity ${opportunityId} stage in database`);
+          
+          toast({
+            title: "Stage updated",
+            description: "The opportunity has been moved to the new stage.",
+          });
+        } catch (dbError) {
+          // 🚀 ERROR RECOVERY: Revert optimistic update if database fails
+          console.error(`❌ Database update failed for opportunity ${opportunityId}:`, dbError);
+          opportunitiesUpdateOpportunity(opportunityId, { 
+            stage: oldStage, 
+            status: oldStage 
+          });
+          
+          toast({
+            title: "Error",
+            description: "Failed to update opportunity stage. Please try again.",
+            variant: "destructive",
+          });
+          throw dbError; // Re-throw to trigger revert in Kanban board
+        }
+      } else {
+        console.warn(`Opportunity ${opportunityId} not found in cache for stage update`);
+        throw new Error('Opportunity not found');
+      }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update opportunity stage. Please try again.",
-        variant: "destructive",
-      });
+      if (!error.message?.includes('not found')) {
+        // Only show toast for non-"not found" errors since we already handle that above
+        toast({
+          title: "Error",
+          description: "Failed to update opportunity stage. Please try again.",
+          variant: "destructive",
+        });
+      }
       throw error; // Re-throw to trigger revert in Kanban board
     }
   };
@@ -134,8 +159,7 @@ export default function Opportunities() {
       
       if (result.success) {
         console.log('✅ Successfully created opportunity:', conversionData.accountName);
-        // Refresh opportunities data (force refresh to get new data)
-        await fetchOpportunities(true);
+        // 🚀 NEW: Store will be updated automatically by the conversion process
         
         toast({
           title: "Opportunity created",
@@ -164,7 +188,7 @@ export default function Opportunities() {
     >
       <ErrorBoundary sectionName="Opportunities Page">
         <TopNavbar />
-        <div className="h-screen bg-gray-50">
+        <div className="h-screen bg-gray-50 overflow-hidden">
           <ErrorBoundary sectionName="Opportunities View">
           {viewMode === 'list' ? (
             <EditableOpportunitiesGrid 
@@ -174,6 +198,8 @@ export default function Opportunities() {
                   onViewChange={handleViewChange}
                 />
               }
+              externalOpportunities={opportunities}
+              externalLoading={isOpportunitiesLoading}
             />
           ) : (
             <div className="grid-view h-full">

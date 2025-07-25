@@ -342,3 +342,170 @@ export const extractDynamicFields = (rows: any[]): Set<string> => {
     
     return dynamicFields;
   };
+
+/**
+ * Loads opportunities grid column configuration from Supabase user settings
+ * @param {any} user - The authenticated user object containing user.id
+ * @returns {Promise<Column[] | null>} Promise resolving to column configurations or null
+ * @description Attempts to load user-specific opportunities column settings from Supabase.
+ * Gracefully handles missing tables and 404 errors by returning null.
+ * @example
+ * ```typescript
+ * const user = { id: 'user-123' };
+ * const columns = await loadOpportunitiesColumnsFromSupabase(user);
+ * if (columns) {
+ *   setColumns(columns);
+ * }
+ * ```
+ */
+export const loadOpportunitiesColumnsFromSupabase = async (
+  user: any
+): Promise<Column[] | null> => {
+  if (!user) return null;
+
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data, error } = await supabase
+      .from("user_settings" as any) // Type assertion to bypass TypeScript error
+      .select("setting_value")
+      .eq("user_id", user.id)
+      .eq("setting_key", "opportunities_grid_columns")
+      .single();
+
+    if (error) {
+      // Return null for 404 errors or table not found errors
+      if (
+        error.message?.includes("404") ||
+        error.code === "PGRST116" ||
+        error.code === "42P01"
+      ) {
+        return null;
+      }
+      // Only log other errors
+      logger.error("Error loading opportunities columns from Supabase:", error);
+      return null;
+    }
+
+    return (data as any)?.setting_value as Column[];
+  } catch (error) {
+    // Silently fail for 404 errors
+    if (!String(error).includes("404") && !String(error).includes("42P01")) {
+      logger.error("Error loading opportunities columns from Supabase:", error);
+    }
+    return null;
+  }
+};
+
+/**
+ * Loads opportunities hidden columns from Supabase user settings
+ * @param {any} user - The authenticated user object containing user.id
+ * @returns {Promise<Column[] | null>} Promise resolving to hidden column configurations or null
+ */
+export const loadOpportunitiesHiddenColumnsFromSupabase = async (
+  user: any
+): Promise<Column[] | null> => {
+  if (!user) return null;
+
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data, error } = await supabase
+      .from("user_settings" as any)
+      .select("setting_value")
+      .eq("user_id", user.id)
+      .eq("setting_key", "opportunities_hidden_columns")
+      .single();
+
+    if (error) {
+      if (
+        error.message?.includes("404") ||
+        error.code === "PGRST116" ||
+        error.code === "42P01"
+      ) {
+        return null;
+      }
+      logger.error("Error loading opportunities hidden columns from Supabase:", error);
+      return null;
+    }
+
+    return (data as any)?.setting_value as Column[];
+  } catch (error) {
+    if (!String(error).includes("404") && !String(error).includes("42P01")) {
+      logger.error("Error loading opportunities hidden columns from Supabase:", error);
+    }
+    return null;
+  }
+};
+
+/**
+ * Saves opportunities grid columns to Supabase user settings
+ * @param {Column[]} columns - The column configurations to save
+ * @param {any} user - The authenticated user object containing user.id
+ * @returns {Promise<void>}
+ */
+export const saveOpportunitiesColumnsToSupabase = async (
+  columns: Column[],
+  user: any
+): Promise<void> => {
+  if (!user) return;
+
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { error } = await supabase.from('user_settings' as any).upsert(
+      {
+        user_id: user.id,
+        setting_key: 'opportunities_grid_columns',
+        setting_value: columns,
+      },
+      {
+        onConflict: 'user_id,setting_key',
+      },
+    );
+
+    if (error) {
+      logger.error('Supabase opportunities columns save error:', error);
+      throw new Error(`Supabase sync failed: ${error.message}`);
+    } else {
+      logger.log('✅ Opportunities columns synced to Supabase successfully');
+    }
+  } catch (error) {
+    logger.error('Error saving opportunities columns to Supabase:', error);
+    throw error;
+  }
+};
+
+/**
+ * Saves opportunities hidden columns to Supabase user settings
+ * @param {Column[]} hiddenColumns - The hidden column configurations to save
+ * @param {any} user - The authenticated user object containing user.id
+ * @returns {Promise<void>}
+ */
+export const saveOpportunitiesHiddenColumnsToSupabase = async (
+  hiddenColumns: Column[],
+  user: any
+): Promise<void> => {
+  if (!user) return;
+
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { error } = await supabase.from('user_settings' as any).upsert(
+      {
+        user_id: user.id,
+        setting_key: 'opportunities_hidden_columns',
+        setting_value: hiddenColumns,
+      },
+      {
+        onConflict: 'user_id,setting_key',
+      },
+    );
+
+    if (error) {
+      logger.error('Supabase opportunities hidden columns save error:', error);
+      throw new Error(`Supabase sync failed: ${error.message}`);
+    } else {
+      logger.log('✅ Opportunities hidden columns synced to Supabase successfully');
+    }
+  } catch (error) {
+    logger.error('Error saving opportunities hidden columns to Supabase:', error);
+    throw error;
+  }
+};

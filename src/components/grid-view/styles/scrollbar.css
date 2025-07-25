@@ -1,5 +1,59 @@
 /* Custom Scrollbar Styles */
 
+/* Auto-hiding scrollbars for opportunities grid - matches global behavior */
+.data-grid[data-type="opportunities"] {
+  scrollbar-width: thin !important; /* For Firefox */
+  scrollbar-color: rgba(140, 158, 165, 0.3) transparent !important; /* Auto-hiding style */
+}
+
+.data-grid[data-type="opportunities"]::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.data-grid[data-type="opportunities"]::-webkit-scrollbar-track {
+  background: transparent !important; /* Invisible track */
+}
+
+.data-grid[data-type="opportunities"]::-webkit-scrollbar-thumb {
+  background-color: rgba(140, 158, 165, 0.3) !important; /* Semi-transparent */
+  border-radius: 4px !important;
+  border: none !important;
+}
+
+.data-grid[data-type="opportunities"]::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(140, 158, 165, 0.5) !important; /* Slightly more visible on hover */
+}
+
+.data-grid[data-type="opportunities"]::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+
+/* Also apply to opportunities grid header */
+.main-grid-header[data-type="opportunities"] {
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(140, 158, 165, 0.3) transparent !important;
+}
+
+.main-grid-header[data-type="opportunities"]::-webkit-scrollbar {
+  height: 8px !important;
+  width: 8px !important;
+}
+
+.main-grid-header[data-type="opportunities"]::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.main-grid-header[data-type="opportunities"]::-webkit-scrollbar-thumb {
+  background-color: rgba(140, 158, 165, 0.3) !important;
+  border-radius: 4px !important;
+  border: none !important;
+}
+
+.main-grid-header[data-type="opportunities"]::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(140, 158, 165, 0.5) !important;
+}
+
 /* Enable scrollbars for the data grid */
 .data-grid {
   scrollbar-width: thin !important; /* For Firefox */
