@@ -47,27 +47,15 @@ export class EmailSyncWorker {
    */
   start() {
     if (this.isRunning) {
-      console.log('⚠️ [EmailSyncWorker] Worker already running, ignoring start request')
       return
     }
-
-    console.log('🚀 [EmailSyncWorker] Starting worker with config:', {
-      syncIntervalMs: this.config.syncIntervalMs,
-      maxConcurrentSyncs: this.config.maxConcurrentSyncs,
-      retryAttempts: this.config.retryAttempts,
-      retryDelayMs: this.config.retryDelayMs,
-      currentQueueSize: this.syncQueue.length,
-    })
 
     this.isRunning = true
 
     // Start periodic sync scheduling
     this.intervalId = setInterval(() => {
-      console.log('⏰ [EmailSyncWorker] Periodic sync check triggered')
       this.schedulePeriodicSyncs()
     }, this.config.syncIntervalMs)
-
-    console.log('✅ [EmailSyncWorker] Worker started successfully, processing existing queue')
 
     // Process any existing jobs in the queue
     this.processQueue()
@@ -79,13 +67,6 @@ export class EmailSyncWorker {
    * Stop the worker
    */
   stop() {
-    console.log('🛑 [EmailSyncWorker] Stopping worker:', {
-      isRunning: this.isRunning,
-      queueSize: this.syncQueue.length,
-      activeSyncs: this.activeSyncs.size,
-      hasInterval: !!this.intervalId,
-    })
-
     this.isRunning = false
 
     if (this.intervalId) {
@@ -93,7 +74,6 @@ export class EmailSyncWorker {
       this.intervalId = undefined
     }
 
-    console.log('✅ [EmailSyncWorker] Worker stopped')
     logger.info('Email sync worker stopped')
   }
 
@@ -108,27 +88,6 @@ export class EmailSyncWorker {
       scheduledAt: new Date(),
     }
 
-    console.log('📋 [EmailSyncWorker] Adding sync job:', {
-      newJob: {
-        type: job.type,
-        userId: job.userId,
-        emailAccountEmail: job.emailAccountEmail,
-        contactEmail: job.contactEmail,
-        priority: job.priority,
-        generatedId: syncJob.id,
-      },
-      currentQueueSize: this.syncQueue.length,
-      existingJobsInQueue: this.syncQueue.map(j => ({
-        id: j.id,
-        type: j.type,
-        emailAccountEmail: j.emailAccountEmail,
-        contactEmail: j.contactEmail,
-        userId: j.userId,
-        priority: j.priority,
-        scheduledAt: j.scheduledAt,
-      })),
-    })
-
     // Check if similar job already exists
     const existingJob = this.syncQueue.find(
       j =>
@@ -139,32 +98,6 @@ export class EmailSyncWorker {
     )
 
     if (existingJob) {
-      console.warn('⚠️ [EmailSyncWorker] Similar sync job already queued, skipping:', {
-        existingJobId: existingJob.id,
-        existingJob: {
-          userId: existingJob.userId,
-          emailAccountEmail: existingJob.emailAccountEmail,
-          type: existingJob.type,
-          contactEmail: existingJob.contactEmail,
-          priority: existingJob.priority,
-          scheduledAt: existingJob.scheduledAt,
-          attempts: existingJob.attempts,
-        },
-        newJobWouldBe: {
-          userId: job.userId,
-          emailAccountEmail: job.emailAccountEmail,
-          type: job.type,
-          contactEmail: job.contactEmail,
-          priority: job.priority,
-        },
-        comparisonResult: {
-          userIdMatch: existingJob.userId === job.userId,
-          emailAccountMatch: existingJob.emailAccountEmail === job.emailAccountEmail,
-          typeMatch: existingJob.type === job.type,
-          contactEmailMatch: existingJob.contactEmail === job.contactEmail,
-        },
-      })
-
       logger.debug('Similar sync job already queued, skipping', {
         jobId: existingJob.id,
       })
@@ -176,15 +109,6 @@ export class EmailSyncWorker {
     this.syncQueue.sort((a, b) => {
       const priorityOrder = { high: 3, medium: 2, low: 1 }
       return priorityOrder[b.priority] - priorityOrder[a.priority]
-    })
-
-    console.log('✅ [EmailSyncWorker] Added sync job to queue:', {
-      jobId: syncJob.id,
-      queueSize: this.syncQueue.length,
-      jobPosition: this.syncQueue.findIndex(j => j.id === syncJob.id) + 1,
-      isRunning: this.isRunning,
-      activeSyncs: this.activeSyncs.size,
-      maxConcurrentSyncs: this.config.maxConcurrentSyncs,
     })
 
     logger.debug('Added sync job to queue', {
@@ -244,78 +168,31 @@ export class EmailSyncWorker {
    * Process the sync queue
    */
   private async processQueue() {
-    console.log('🔄 [EmailSyncWorker] processQueue called:', {
-      isRunning: this.isRunning,
-      activeSyncs: this.activeSyncs.size,
-      maxConcurrentSyncs: this.config.maxConcurrentSyncs,
-      queueSize: this.syncQueue.length,
-      canProcessMore: this.isRunning && this.activeSyncs.size < this.config.maxConcurrentSyncs,
-    })
-
     if (!this.isRunning || this.activeSyncs.size >= this.config.maxConcurrentSyncs) {
-      console.log('🚫 [EmailSyncWorker] Cannot process queue:', {
-        reason: !this.isRunning ? 'Worker not running' : 'Max concurrent syncs reached',
-        isRunning: this.isRunning,
-        activeSyncs: this.activeSyncs.size,
-        maxConcurrent: this.config.maxConcurrentSyncs,
-      })
       return
     }
 
     const job = this.syncQueue.shift()
     if (!job) {
-      console.log('📭 [EmailSyncWorker] No jobs in queue to process')
       return
     }
 
-    console.log('📋 [EmailSyncWorker] Processing job from queue:', {
-      jobId: job.id,
-      type: job.type,
-      contactEmail: job.contactEmail,
-      emailAccountEmail: job.emailAccountEmail,
-      priority: job.priority,
-      attempts: job.attempts,
-      remainingInQueue: this.syncQueue.length,
-    })
-
     // Check if job is already being processed
     if (this.activeSyncs.has(job.id)) {
-      console.warn('⚠️ [EmailSyncWorker] Job already being processed:', {
-        jobId: job.id,
-        activeSyncsIds: Array.from(this.activeSyncs),
-      })
       return
     }
 
     this.activeSyncs.add(job.id)
 
-    console.log('🚀 [EmailSyncWorker] Starting job execution:', {
-      jobId: job.id,
-      activeSyncsCount: this.activeSyncs.size,
-      activeSyncsIds: Array.from(this.activeSyncs),
-    })
-
     try {
       await this.executeSync(job)
     } catch (error) {
-      console.error('💥 [EmailSyncWorker] Error executing sync job:', {
-        jobId: job.id,
-        error: error instanceof Error ? error.message : error,
-      })
       logger.error('Error executing sync job:', error)
     } finally {
       this.activeSyncs.delete(job.id)
 
-      console.log('🏁 [EmailSyncWorker] Job execution finished:', {
-        jobId: job.id,
-        activeSyncsCount: this.activeSyncs.size,
-        remainingInQueue: this.syncQueue.length,
-        willContinueProcessing: this.isRunning && this.syncQueue.length > 0,
-      })
-
       // Continue processing queue
       if (this.isRunning && this.syncQueue.length > 0) {
-        console.log('⏭️ [EmailSyncWorker] Continuing to process next job after delay')
         // Small delay to prevent overwhelming the system
         setTimeout(() => this.processQueue(), 1000)
       }
@@ -326,36 +203,13 @@ export class EmailSyncWorker {
    * Execute a sync job
    */
   private async executeSync(job: SyncJob) {
-    console.log('🚀 [EmailSyncWorker] Starting to execute sync job:', {
-      jobId: job.id,
-      type: job.type,
-      userId: job.userId,
-      emailAccountEmail: job.emailAccountEmail,
-      contactEmail: job.contactEmail,
-      priority: job.priority,
-      attempts: job.attempts,
-      scheduledAt: job.scheduledAt,
-    })
-
     logger.info('Executing sync job', { jobId: job.id, type: job.type })
 
     try {
       let result: SyncResult
 
-      console.log('🔄 [EmailSyncWorker] Determining sync type and parameters:', {
-        jobType: job.type,
-        contactEmail: job.contactEmail,
-        hasContactEmail: !!job.contactEmail,
-      })
-
       switch (job.type) {
         case 'full':
-          console.log('📂 [EmailSyncWorker] Executing FULL sync:', {
-            userId: job.userId,
-            emailAccountEmail: job.emailAccountEmail,
-            maxEmails: 100,
-          })
-
           result = await syncAllEmails(job.userId, job.emailAccountEmail, {
             maxEmails: 100,
           })
@@ -366,15 +220,6 @@ export class EmailSyncWorker {
             throw new Error('Contact email required for contact sync')
           }
 
-          console.log('👤 [EmailSyncWorker] Executing CONTACT sync:', {
-            userId: job.userId,
-            emailAccountEmail: job.emailAccountEmail,
-            contactEmail: job.contactEmail,
-            maxEmails: 'Infinity (unlimited)',
-            isUnlimited: true,
-            forceFullSync: job.forceFullSync || false,
-          })
-
           result = await syncContactEmails(job.userId, job.emailAccountEmail, job.contactEmail, {
             maxEmails: Infinity, // Full contact history sync - no limits
             forceFullSync: job.forceFullSync || false,
@@ -382,12 +227,6 @@ export class EmailSyncWorker {
           break
 
         case 'incremental':
-          console.log('📈 [EmailSyncWorker] Executing INCREMENTAL sync:', {
-            userId: job.userId,
-            emailAccountEmail: job.emailAccountEmail,
-            maxEmails: 20,
-          })
-
           // For incremental sync, we sync recent emails for all contacts
           result = await syncAllEmails(job.userId, job.emailAccountEmail, {
             maxEmails: 20, // Fewer emails for incremental sync
@@ -399,16 +238,6 @@ export class EmailSyncWorker {
       }
 
       if (result.success) {
-        console.log('✅ [EmailSyncWorker] Sync job completed successfully:', {
-          jobId: job.id,
-          type: job.type,
-          contactEmail: job.contactEmail,
-          emailsSynced: result.emailsSynced,
-          emailsCreated: result.emailsCreated,
-          emailsUpdated: result.emailsUpdated,
-          success: result.success,
-        })
-
         logger.info('Sync job completed successfully', {
           jobId: job.id,
           emailsSynced: result.emailsSynced,
@@ -424,15 +253,6 @@ export class EmailSyncWorker {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
-      console.error('❌ [EmailSyncWorker] Sync job failed:', {
-        jobId: job.id,
-        type: job.type,
-        contactEmail: job.contactEmail,
-        error: errorMessage,
-        attempts: job.attempts,
-        maxRetries: this.config.retryAttempts,
-      })
-
       logger.error('Sync job failed', { jobId: job.id, error: errorMessage })
 
       // Retry logic
@@ -440,13 +260,6 @@ export class EmailSyncWorker {
       job.lastError = errorMessage
 
       if (job.attempts < this.config.retryAttempts) {
-        console.log('🔄 [EmailSyncWorker] Retrying sync job:', {
-          jobId: job.id,
-          attempt: job.attempts,
-          maxAttempts: this.config.retryAttempts,
-          retryDelayMs: this.config.retryDelayMs,
-        })
-
         logger.info('Retrying sync job', {
           jobId: job.id,
           attempt: job.attempts,
@@ -459,13 +272,6 @@ export class EmailSyncWorker {
           }
         }, this.config.retryDelayMs)
       } else {
-        console.error('💀 [EmailSyncWorker] Sync job failed after max retries:', {
-          jobId: job.id,
-          finalAttempts: job.attempts,
-          maxRetries: this.config.retryAttempts,
-          finalError: errorMessage,
-        })
-
         logger.error('Sync job failed after max retries', { jobId: job.id })
 
         // Update account sync status
@@ -555,14 +361,7 @@ let globalSyncWorker: EmailSyncWorker | null = null
  */
 export function getSyncWorker(): EmailSyncWorker {
   if (!globalSyncWorker) {
-    console.log('🔧 [EmailSyncWorker] Creating new global sync worker instance')
     globalSyncWorker = new EmailSyncWorker()
-  } else {
-    console.log('♻️ [EmailSyncWorker] Using existing global sync worker instance:', {
-      isRunning: globalSyncWorker['isRunning'],
-      queueSize: globalSyncWorker['syncQueue'].length,
-      activeSyncs: globalSyncWorker['activeSyncs'].size,
-    })
   }
   return globalSyncWorker
 }
@@ -571,15 +370,9 @@ export function getSyncWorker(): EmailSyncWorker {
  * Start the global sync worker
  */
 export function startSyncWorker(config?: Partial<SyncWorkerConfig>) {
-  console.log('🚀 [EmailSyncWorker] startSyncWorker called with config:', config)
-
   const worker = getSyncWorker()
 
   if (config) {
-    console.log('⚙️ [EmailSyncWorker] Updating worker config:', {
-      oldConfig: worker['config'],
-      newConfig: config,
-    })
     // Update config
     Object.assign(worker['config'], config)
   }
@@ -601,19 +394,10 @@ export function stopSyncWorker() {
  * Add a sync job to the global worker
  */
 export function addSyncJob(job: Omit<SyncJob, 'id' | 'attempts' | 'scheduledAt'>) {
-  console.log('📬 [EmailSyncWorker] addSyncJob called:', {
-    type: job.type,
-    userId: job.userId,
-    emailAccountEmail: job.emailAccountEmail,
-    contactEmail: job.contactEmail,
-    priority: job.priority,
-  })
-
   const worker = getSyncWorker()
 
   // Auto-start worker if not running
   if (!worker['isRunning']) {
-    console.log('🚀 [EmailSyncWorker] Auto-starting worker since it was not running')
     worker.start()
   }
 

@@ -38,6 +38,9 @@ interface GmailState {
   syncResults: Record<string, SyncResult>
   importResults: Record<string, ImportResult>
 
+  // Request deduplication to prevent multiple simultaneous API calls
+  contactEmailsLoading?: Record<string, Promise<GmailEmail[]>>
+
   // Connection state
   connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error'
 }
@@ -103,6 +106,7 @@ const initialState: GmailState = {
   contactEmails: {},
   syncResults: {},
   importResults: {},
+  contactEmailsLoading: {},
   connectionStatus: 'disconnected',
 }
 
@@ -629,20 +633,41 @@ export const useGmailStore = create<GmailStore>()(
           return cached
         }
 
+        // CRITICAL FIX: Prevent multiple simultaneous requests for the same contact
+        const state = get()
+        if (state.contactEmailsLoading && state.contactEmailsLoading[contactEmail]) {
+          // Wait for existing request to complete
+          return await state.contactEmailsLoading[contactEmail]
+        }
+
         set(state => {
           state.loading = true
           state.error = null
+          // Track this specific request to prevent duplicates
+          if (!state.contactEmailsLoading) state.contactEmailsLoading = {}
         })
 
         try {
-          const emails = await service.getContactEmails(contactEmail, {
+          // Create a promise for this request and store it
+          const requestPromise = service.getContactEmails(contactEmail, {
             maxResults: options.maxResults || 500,
             preferDatabase: options.preferDatabase !== false,
           })
 
+          // Store the promise to prevent duplicate requests
+          set(state => {
+            state.contactEmailsLoading![contactEmail] = requestPromise
+          })
+
+          const emails = await requestPromise
+
           set(state => {
             state.loading = false
             state.contactEmails[contactEmail] = emails
+            // Clean up the loading state
+            if (state.contactEmailsLoading) {
+              delete state.contactEmailsLoading[contactEmail]
+            }
           })
 
           logger.info('[GmailStore] Contact emails retrieved', { contactEmail, count: emails.length })
@@ -652,6 +677,10 @@ export const useGmailStore = create<GmailStore>()(
           set(state => {
             state.loading = false
             state.error = errorMessage
+            // Clean up the loading state on error
+            if (state.contactEmailsLoading) {
+              delete state.contactEmailsLoading[contactEmail]
+            }
           })
           logger.error('[GmailStore] Failed to get contact emails', error)
           return []

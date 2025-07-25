@@ -207,6 +207,11 @@ const useEmailsStore = create<EmailsStore>()(
             storage_path: att.storage_path, // Include storage path for local images
           })) || []
 
+        // 🔍 DEBUG: Log attachment conversion for this specific email (DISABLED to prevent spam)
+        // if (dbEmail.email_attachments && dbEmail.email_attachments.length > 0) {
+        //   console.log(`🔍 [convertDatabaseEmail] Converting email ${dbEmail.gmail_id} with attachments:`)
+        // }
+
         return {
           id: dbEmail.gmail_id,
           threadId: dbEmail.gmail_thread_id || '', // ✅ FIX: Map real threadId from database
@@ -280,6 +285,20 @@ const useEmailsStore = create<EmailsStore>()(
               .limit(fallbackLimit)
 
             if (fallbackError) throw fallbackError
+
+            // 🔍 DEBUG: Log raw database results for emails with attachments
+            if (fallbackData && fallbackData.length > 0) {
+              const emailsWithAttachments = fallbackData.filter(
+                email => email.email_attachments && email.email_attachments.length > 0,
+              )
+              if (emailsWithAttachments.length > 0) {
+                // console.log(`🔍 [DB Query] Found ${emailsWithAttachments.length} emails with attachments (DISABLED to prevent spam)`)
+              } else {
+                console.log(
+                  `🔍 [DB Query] No emails with attachments found in database. Total emails: ${fallbackData.length}`,
+                )
+              }
+            }
 
             // Fallback raw database results logging (disabled to reduce console spam)
 

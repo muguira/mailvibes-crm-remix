@@ -271,13 +271,27 @@ const groupEmailsByThread = (emailActivities: TimelineActivity[]): TimelineActiv
         snippet: latestEmail.snippet,
         isRead: latestEmail.isRead,
         isImportant: latestEmail.isImportant,
+        bodyText: latestEmail.bodyText, // ✅ FIX: Include body text for EmailRenderer
+        bodyHtml: latestEmail.bodyHtml, // ✅ FIX: Include body HTML for EmailRenderer
         labels: latestEmail.labels,
+        attachments: latestEmail.attachments, // ✅ FIX: Include attachments from latest email
 
         // Thread-specific data
         emailsInThread: sortedEmails,
         threadEmailCount: sortedEmails.length,
         latestEmail: latestEmail,
         isThreadExpanded: false, // Default to collapsed
+      }
+
+      // 🔍 DEBUG: Log thread activity creation with attachments
+      if (latestEmail.attachments && latestEmail.attachments.length > 0) {
+        console.log(`🔍 [Timeline] Created thread activity with ${latestEmail.attachments.length} attachments:`, {
+          threadId,
+          latestEmailId: latestEmail.id,
+          latestEmailSubject: latestEmail.subject,
+          latestEmailAttachments: latestEmail.attachments,
+          threadActivityAttachments: threadActivity.attachments,
+        })
       }
 
       result.push(threadActivity)
@@ -555,6 +569,11 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
         attachments: email.attachments,
         is_pinned: isEmailPinned(email.id),
       }
+
+      // 🔍 DEBUG: Log attachment transfer from email to activity (DISABLED to prevent spam)
+      // if (email.attachments && email.attachments.length > 0) {
+      //   console.log(`🔍 [Timeline] Created activity for email ${email.id} with ${email.attachments.length} attachments`)
+      // }
 
       ACTIVITY_TRANSFORM_CACHE.set(cacheKey, activity)
 
