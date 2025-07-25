@@ -59,7 +59,7 @@ export function TopNavbar({ className }: TopNavbarProps) {
           </NavLink>
 
           <NavLink
-            to="/lists"
+            to="/opportunities"
             className={({ isActive }) =>
               `px-4 h-12 flex items-center hover:bg-[#2D7289]/50 border-b-4 ${isActive ? 'border-b-teal-400' : 'border-b-transparent'}`
             }

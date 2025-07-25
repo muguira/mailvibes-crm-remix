@@ -237,14 +237,14 @@ export function StatusFilterSelector({ column, value, onChange, data }: FilterVa
 
   // Extract unique status values from data or use predefined options
   const statusOptions = column.options || [
-    'New',
+    'Lead/New',
     'Qualified',
-    'Negotiation', 
-    'Deal Won',
-    'Deal Lost',
-    'Contacted',
-    'Follow-up',
-    'Unqualified'
+    'Discovery',
+    'Proposal',
+    'Negotiation',
+    'Closing',
+    'Won',
+    'Lost'
   ];
 
   useEffect(() => {

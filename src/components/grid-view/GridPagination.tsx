@@ -6,13 +6,16 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useStore } from "@/stores";
 
 interface GridPaginationProps {
-  // currentPage, pageSize - now obtained from Zustand slice internally
-  // onPageChange, onPageSizeChange - now obtained from Zustand slice internally
   totalPages: number;
   totalItems: number;
   loading?: boolean;
   isBackgroundLoading?: boolean;
   loadedCount?: number;
+  // Make pagination state configurable
+  currentPage?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
 }
 
 export function GridPagination({
@@ -20,17 +23,27 @@ export function GridPagination({
   totalItems,
   loading = false,
   isBackgroundLoading = false,
-  loadedCount = 0
+  loadedCount = 0,
+  currentPage: propCurrentPage,
+  pageSize: propPageSize,
+  onPageChange: propOnPageChange,
+  onPageSizeChange: propOnPageSizeChange
 }: GridPaginationProps) {
   const isMobile = useIsMobile();
   
-  // Get pagination state and actions from Zustand slice
+  // Get pagination state and actions from Zustand slice (fallback for contacts)
   const {
-    currentPage,
-    pageSize,
+    currentPage: contactsCurrentPage,
+    pageSize: contactsPageSize,
     editableLeadsGridHandlePageChange,
     editableLeadsGridHandlePageSizeChange
   } = useStore();
+
+  // Use provided props or fallback to contacts state
+  const currentPage = propCurrentPage ?? contactsCurrentPage;
+  const pageSize = propPageSize ?? contactsPageSize;
+  const onPageChange = propOnPageChange ?? editableLeadsGridHandlePageChange;
+  const onPageSizeChange = propOnPageSizeChange ?? editableLeadsGridHandlePageSizeChange;
   
   // Calculate the range of items being displayed
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;

@@ -144,7 +144,8 @@ export function StaticColumns({
               style={{ 
                 cursor: 'pointer', 
                 transition: 'opacity 0.2s',
-                display: col.id === 'name' ? 'none' : 'flex'
+                // Hide pin icon for name and opportunity columns since they're always pinned
+                display: (col.id === 'name' || col.id === 'opportunity') ? 'none' : 'flex'
               }}
               onClick={e => { e.stopPropagation(); onTogglePin(col.id); }}
             >

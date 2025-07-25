@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Upload, Mail } from 'lucide-react';
 import { useStore } from '@/stores';
 import { useAuth } from '@/components/auth';
+import { useOpportunities } from '@/hooks/supabase/use-opportunities';
 
 export function GridViewContainer({
   columns,
@@ -27,11 +28,11 @@ export function GridViewContainer({
   onUnhideColumn,
   onShowColumn,
   onDeleteContacts,
-  isColumnTemporarilyVisible
+  isColumnTemporarilyVisible,
+  listType = 'Lead',
+  listName = 'All Leads'
 }: GridContainerProps) {
-  // Static configuration constants
-  const listName = 'All Leads';
-  const listType = 'Lead';
+  // Static configuration constants  
   const listId = 'leads-grid';
   // Get state and actions from Zustand slice
   const {
@@ -73,6 +74,10 @@ export function GridViewContainer({
 
   // Add navigate hook
   const navigate = useNavigate();
+  
+  // Opportunities management
+  const { bulkConvertContactsToOpportunities } = useOpportunities();
+  const { opportunitiesInitialize, opportunitiesAddOpportunity } = useStore();
 
   // Listen for immediate delete feedback to close dialog quickly
   useEffect(() => {
@@ -138,6 +143,98 @@ export function GridViewContainer({
         });
     }
   }, [onDeleteContacts, selectedRowIds]);
+
+  // Handle converting contacts to opportunities
+  const handleConvertToOpportunities = useCallback(async (
+    contacts: Array<{ id: string; name: string; email?: string; company?: string; phone?: string; }>,
+    conversionData: {
+      accountName: string;
+      dealValue: number;
+      closeDate?: Date;
+      stage: string;
+      priority: string;
+      contacts: Array<{
+        id: string;
+        name: string;
+        email?: string;
+        company?: string;
+        role: string;
+      }>;
+    }
+  ) => {
+    try {
+      // Map contacts to the expected format for conversion
+      const contactsForConversion = contacts.map(contact => ({
+        id: contact.id,
+        name: contact.name,
+        email: contact.email || '',
+        company: contact.company || '',
+        source: 'Contact Conversion'
+      }));
+
+      const result = await bulkConvertContactsToOpportunities(contactsForConversion, conversionData);
+      
+      if (result.success) {
+        console.log('✅ Successfully created opportunity:', conversionData.accountName);
+        
+        // 🚀 OPTIMISTIC: Add to opportunities store immediately for instant UI feedback
+        if (result.data && user?.id) {
+          const newOpportunity = {
+            id: result.data.id || `temp-${Date.now()}`,
+            opportunity: conversionData.accountName,
+            company: conversionData.accountName, 
+            status: conversionData.stage,
+            stage: conversionData.stage,
+            revenue: conversionData.dealValue,
+            closeDate: conversionData.closeDate?.toISOString().split('T')[0] || '',
+            priority: conversionData.priority,
+            owner: user.email || '',
+            originalContactId: contacts[0]?.id || null,
+            userId: user.id,
+            createdAt: result.data.created_at || new Date().toISOString(),
+            updatedAt: result.data.updated_at || new Date().toISOString(),
+            ...result.data // Include any additional fields from the database
+          };
+          
+          console.log('🚀 Adding opportunity to store for instant display:', newOpportunity.opportunity);
+          opportunitiesAddOpportunity(newOpportunity);
+        }
+        
+        // Clear selected contacts
+        setSelectedRowIds(new Set());
+        
+        toast({
+          title: "Opportunity created",
+          description: `Successfully created opportunity "${conversionData.accountName}". Redirecting to opportunities...`,
+        });
+
+        // 🚀 NEW: Refresh opportunities store to ensure data consistency and navigate
+        if (user?.id) {
+          console.log('🔄 Refreshing opportunities store after creation...');
+          // Re-initialize opportunities store with the user ID to ensure data consistency
+          opportunitiesInitialize(user.id).then(() => {
+            console.log('✅ Opportunities store refreshed');
+          }).catch((error) => {
+            console.error('❌ Error refreshing opportunities store:', error);
+            // Even if refresh fails, still navigate since we have optimistic update
+          });
+          
+          // Navigate to opportunities tab after a brief delay to allow the toast to show
+          setTimeout(() => {
+            navigate('/opportunities');
+          }, 1500);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error creating opportunity:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create opportunity. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  }, [bulkConvertContactsToOpportunities, user, navigate, opportunitiesInitialize, opportunitiesAddOpportunity]);
 
   // Estado para columnas fijas (frozen)
   const [frozenColumnIds, setFrozenColumnIds] = useState<string[]>(() => {
@@ -319,6 +416,7 @@ export function GridViewContainer({
             setShowDeleteDialog(true);
           }
         }}
+        onConvertToOpportunities={handleConvertToOpportunities}
         isContactDeletionLoading={isContactDeletionLoading}
       />
 
@@ -416,6 +514,7 @@ export function GridViewContainer({
               allColumns={columns}
               selectedRowIds={selectedRowIds}
               isColumnTemporarilyVisible={isColumnTemporarilyVisible}
+              dataType="contacts"
             />
           </>
         )}

@@ -34,7 +34,8 @@ export interface GridContainerProps {
   columns: Column[]
   data: GridRow[]
   firstRowIndex?: number
-  // listName, listType, listId - now constants within GridViewContainer
+  listType?: string // Optional override for list type (defaults to 'Lead')
+  listName?: string // Optional override for list name (defaults to 'All Leads')
   // className - now handled internally with fixed styles
   // searchTerm, onSearchChange - now obtained from Zustand slice internally
   // activeFilters, onApplyFilters - now obtained from Zustand slice internally
