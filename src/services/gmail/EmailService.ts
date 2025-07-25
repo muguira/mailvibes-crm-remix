@@ -1181,8 +1181,8 @@ export class EmailService {
   private async saveAttachments(emailId: string, attachments: any[], gmailMessageId: string) {
     if (!attachments || attachments.length === 0) return
 
-    // Log attachment details and check field lengths
-    logger.info(`[EmailService] Processing ${attachments.length} attachments for email ${emailId}`)
+    // Temporarily disable logs to prevent spam
+    // logger.info(`[EmailService] Processing ${attachments.length} attachments for email ${emailId}`)
 
     const attachmentData = []
 
@@ -1239,29 +1239,25 @@ export class EmailService {
       })
     }
 
-    // Log detailed attachment processing info
-    logger.info(`🔵 [EmailService] Processing ${attachmentData.length} attachments for email:`, {
-      emailId,
-      gmailId: gmailMessageId,
-      timestamp: new Date().toISOString(),
-      attachments: attachmentData.map(att => ({
-        filename: att.filename,
-        gmailAttachmentId: att.gmail_attachment_id?.substring(0, 20) + '...',
-        size: att.size_bytes,
-      })),
-    })
+    // Strategy: Delete existing attachments for this email, then insert new ones
+    // This prevents duplicates more reliably than upsert with onConflict
+    const { error: deleteError } = await supabase.from('email_attachments').delete().eq('email_id', emailId)
 
-    // Use standard upsert - duplicates are now prevented by disabling background sync
-    const { error } = await supabase.from('email_attachments').upsert(attachmentData, {
-      ignoreDuplicates: false,
-    })
+    if (deleteError) {
+      logger.error('[EmailService] Error deleting existing attachments:', deleteError)
+      return
+    }
+
+    // Insert new attachments
+    const { error } = await supabase.from('email_attachments').insert(attachmentData)
 
     if (error) {
       logger.error('[EmailService] Error saving attachments:', error)
       // Log the problematic data for debugging
       logger.error('[EmailService] Problematic attachment data:', JSON.stringify(attachmentData, null, 2))
     } else {
-      logger.info(`[EmailService] Successfully saved ${attachmentData.length} attachments`)
+      // Temporarily disable success logs to prevent spam
+      // logger.info(`[EmailService] Successfully saved ${attachmentData.length} attachments`)
     }
   }
 

@@ -570,18 +570,10 @@ export function useTimelineActivitiesV2(options: UseTimelineActivitiesV2Options 
         is_pinned: isEmailPinned(email.id),
       }
 
-      // 🔍 DEBUG: Log attachment transfer from email to activity
-      if (email.attachments && email.attachments.length > 0) {
-        console.log(
-          `🔍 [Timeline] Created activity for email ${email.id} with ${email.attachments.length} attachments:`,
-          {
-            emailId: email.id,
-            subject: email.subject,
-            emailAttachments: email.attachments,
-            activityAttachments: activity.attachments,
-          },
-        )
-      }
+      // 🔍 DEBUG: Log attachment transfer from email to activity (DISABLED to prevent spam)
+      // if (email.attachments && email.attachments.length > 0) {
+      //   console.log(`🔍 [Timeline] Created activity for email ${email.id} with ${email.attachments.length} attachments`)
+      // }
 
       ACTIVITY_TRANSFORM_CACHE.set(cacheKey, activity)
 

@@ -93,10 +93,22 @@ export async function searchContactEmails(
       }
     }
 
-    // Fetch detailed information for each message
-    const emailPromises = searchData.messages.map((message: any) => fetchEmailDetails(accessToken, message.id))
+    // Fetch detailed information for each message with batching to avoid API overload
+    const emails: (GmailEmail | null)[] = []
+    const batchSize = 10 // Process 10 emails at a time to avoid overwhelming the API
 
-    const emails = await Promise.all(emailPromises)
+    for (let i = 0; i < searchData.messages.length; i += batchSize) {
+      const batch = searchData.messages.slice(i, i + batchSize)
+      const batchPromises = batch.map((message: any) => fetchEmailDetails(accessToken, message.id))
+
+      const batchEmails = await Promise.all(batchPromises)
+      emails.push(...batchEmails)
+
+      // Add small delay between batches to respect rate limits
+      if (i + batchSize < searchData.messages.length) {
+        await delay(500) // 500ms delay between batches
+      }
+    }
 
     return {
       emails: emails.filter(email => email !== null) as GmailEmail[],

@@ -207,16 +207,10 @@ const useEmailsStore = create<EmailsStore>()(
             storage_path: att.storage_path, // Include storage path for local images
           })) || []
 
-        // 🔍 DEBUG: Log attachment conversion for this specific email
-        if (dbEmail.email_attachments && dbEmail.email_attachments.length > 0) {
-          console.log(`🔍 [convertDatabaseEmail] Converting email ${dbEmail.gmail_id} with attachments:`, {
-            gmail_id: dbEmail.gmail_id,
-            subject: dbEmail.subject,
-            rawAttachments: dbEmail.email_attachments,
-            convertedAttachments: attachments,
-            attachmentsCount: attachments.length,
-          })
-        }
+        // 🔍 DEBUG: Log attachment conversion for this specific email (DISABLED to prevent spam)
+        // if (dbEmail.email_attachments && dbEmail.email_attachments.length > 0) {
+        //   console.log(`🔍 [convertDatabaseEmail] Converting email ${dbEmail.gmail_id} with attachments:`)
+        // }
 
         return {
           id: dbEmail.gmail_id,
@@ -298,15 +292,7 @@ const useEmailsStore = create<EmailsStore>()(
                 email => email.email_attachments && email.email_attachments.length > 0,
               )
               if (emailsWithAttachments.length > 0) {
-                console.log(`🔍 [DB Query] Found ${emailsWithAttachments.length} emails with attachments:`, {
-                  total: fallbackData.length,
-                  withAttachments: emailsWithAttachments.length,
-                  examples: emailsWithAttachments.slice(0, 2).map(email => ({
-                    gmail_id: email.gmail_id,
-                    subject: email.subject,
-                    email_attachments: email.email_attachments,
-                  })),
-                })
+                // console.log(`🔍 [DB Query] Found ${emailsWithAttachments.length} emails with attachments (DISABLED to prevent spam)`)
               } else {
                 console.log(
                   `🔍 [DB Query] No emails with attachments found in database. Total emails: ${fallbackData.length}`,

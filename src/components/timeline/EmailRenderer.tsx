@@ -25,23 +25,17 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
   attachments,
   activityDetails,
 }) => {
-  // Debug: Log when we receive attachments
-  if (attachments && attachments.length > 0) {
-    console.log(`✅ [EmailRenderer] Found ${attachments.length} attachments for "${subject}"`)
-    console.log(`🔍 [EmailRenderer] Attachments data:`, attachments)
-  }
+  // Debug: Log when we receive attachments (DISABLED to prevent spam)
+  // if (attachments && attachments.length > 0) {
+  //   console.log(`✅ [EmailRenderer] Found ${attachments.length} attachments for "${subject}"`)
+  // }
 
   const hasAttachments = attachments && attachments.length > 0
 
-  // Debug: Log hasAttachments calculation
-  if (attachments) {
-    console.log(`🔍 [EmailRenderer] hasAttachments calculation for "${subject}":`, {
-      attachments_exists: !!attachments,
-      attachments_length: attachments.length,
-      hasAttachments: hasAttachments,
-      will_render_attachments: hasAttachments,
-    })
-  }
+  // Debug: Log hasAttachments calculation (DISABLED to prevent spam)
+  // if (attachments) {
+  //   console.log(`🔍 [EmailRenderer] hasAttachments calculation for "${subject}":`)
+  // }
 
   return (
     <div style={{ width: '100%' }}>
