@@ -145,7 +145,7 @@ export function EditableOpportunitiesGrid({
       logger.log('Initializing opportunities store for user:', user.id);
       opportunitiesInitialize(user.id);
     }
-  }, [user?.id, opportunitiesPagination.isInitialized, opportunitiesInitialize]);
+  }, [user?.id, opportunitiesPagination.isInitialized]); // Remove function dependency to prevent infinite loops
 
   // 🚀 NEW: Ensure minimum data is loaded for current page size
   useEffect(() => {
@@ -156,7 +156,7 @@ export function EditableOpportunitiesGrid({
         opportunitiesEnsureMinimumLoaded(minimumRequired);
       }
     }
-  }, [opportunitiesPageSize, opportunitiesCurrentPage, opportunitiesPagination.loadedCount, opportunitiesPagination.isInitialized, opportunitiesEnsureMinimumLoaded]);
+  }, [opportunitiesPageSize, opportunitiesCurrentPage, opportunitiesPagination.loadedCount, opportunitiesPagination.isInitialized]); // Remove function dependency
 
   // 🚀 NEW: Performance monitoring
   useEffect(() => {
