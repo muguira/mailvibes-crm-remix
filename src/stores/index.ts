@@ -64,19 +64,17 @@ export const useStore = create<TStore>()(
           // Note: We don't persist loading states, errors, or temporary data
         }
 
-        // Debug log to see what's being persisted (only in development)
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🔄 Zustand persist - saving to localStorage:', {
-            columnsCount: persistedState.columns.length,
-            columnIds: persistedState.columns.map(c => c.id),
-            hiddenColumnsCount: persistedState.hiddenColumns.length,
-            hiddenColumnIds: persistedState.hiddenColumns.map(c => c.id),
-            activeFilters: persistedState.activeFilters,
-            deletedColumnIds: persistedState.deletedColumnIds,
-            opportunitiesDeletedIds: persistedState.opportunitiesDeletedIds,
-            opportunitiesInitialized: persistedState.opportunitiesPagination.isInitialized,
-          })
-        }
+        // Debug log to see what's being persisted
+        console.log('🔄 Zustand persist - saving to localStorage:', {
+          columnsCount: persistedState.columns.length,
+          columnIds: persistedState.columns.map(c => c.id),
+          hiddenColumnsCount: persistedState.hiddenColumns.length,
+          hiddenColumnIds: persistedState.hiddenColumns.map(c => c.id),
+          activeFilters: persistedState.activeFilters,
+          deletedColumnIds: persistedState.deletedColumnIds,
+          opportunitiesDeletedIds: persistedState.opportunitiesDeletedIds,
+          opportunitiesInitialized: persistedState.opportunitiesPagination.isInitialized,
+        })
 
         return persistedState
       },

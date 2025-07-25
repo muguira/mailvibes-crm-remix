@@ -42,6 +42,7 @@ export default function Opportunities() {
     opportunitiesPagination,
     opportunitiesInitialize,
     opportunitiesUpdateOpportunity,
+    opportunitiesErrors,
   } = useStore();
 
   // Get opportunities from store
@@ -53,7 +54,13 @@ export default function Opportunities() {
 
   // Initialize store when user is available
   useEffect(() => {
+    console.log('🚀 Opportunities page - User effect:', { 
+      userId: user?.id, 
+      isInitialized: opportunitiesPagination.isInitialized,
+      isLoading: isOpportunitiesLoading 
+    })
     if (user?.id && !opportunitiesPagination.isInitialized) {
+      console.log('🚀 Starting opportunities initialization...')
       opportunitiesInitialize(user.id);
     }
   }, [user?.id, opportunitiesPagination.isInitialized, opportunitiesInitialize]);
@@ -190,59 +197,84 @@ export default function Opportunities() {
         <TopNavbar />
         <div className="h-screen bg-gray-50 overflow-hidden">
           <ErrorBoundary sectionName="Opportunities View">
-          {viewMode === 'list' ? (
-            <EditableOpportunitiesGrid 
-              viewToggle={
-                <ViewToggle 
-                  currentView={viewMode} 
-                  onViewChange={handleViewChange}
-                />
-              }
-              externalOpportunities={opportunities}
-              externalLoading={isOpportunitiesLoading}
-            />
-          ) : (
-            <div className="grid-view h-full">
-              {/* Board View Header - Match Grid Toolbar exactly */}
-              <div className="grid-toolbar bg-white border-b border-gray-200">
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center">
-                    <SearchInput 
-                      value={boardSearchTerm}
-                      onChange={setBoardSearchTerm}
-                      placeholder="Search opportunities..."
-                      className="w-full max-w-xs"
-                    />
-                    <div className="ml-4">
-                      <ViewToggle 
-                        currentView={viewMode} 
-                        onViewChange={handleViewChange}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      size="sm"
-                      onClick={() => setIsContactSelectionModalOpen(true)}
-                      className="bg-[#32BAB0] hover:bg-[#28a79d] text-white"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Opportunities
-                    </Button>
-                  </div>
+          {/* Error State */}
+          {opportunitiesErrors.initialize && !isOpportunitiesLoading && (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center p-8">
+                <div className="text-red-600 text-lg font-semibold mb-2">
+                  Failed to load opportunities
                 </div>
-              </div>
-              
-              {/* Kanban Board */}
-              <div className="flex-1 overflow-hidden bg-gray-50">
-                <OpportunitiesKanbanBoard
-                  opportunities={opportunities}
-                  onStageUpdate={handleStageUpdate}
-                  isLoading={isOpportunitiesLoading}
-                  searchTerm={boardSearchTerm}
-                />
+                <div className="text-gray-600 mb-4">
+                  {opportunitiesErrors.initialize}
+                </div>
+                <Button 
+                  onClick={() => user?.id && opportunitiesInitialize(user.id)}
+                  className="bg-[#32BAB0] hover:bg-[#28a79d] text-white"
+                >
+                  Try Again
+                </Button>
               </div>
             </div>
+          )}
+          
+          {/* Normal Content */}
+          {!opportunitiesErrors.initialize && (
+            <>
+              {viewMode === 'list' ? (
+                <EditableOpportunitiesGrid 
+                  viewToggle={
+                    <ViewToggle 
+                      currentView={viewMode} 
+                      onViewChange={handleViewChange}
+                    />
+                  }
+                  externalOpportunities={opportunities}
+                  externalLoading={isOpportunitiesLoading}
+                />
+              ) : (
+                <div className="grid-view h-full">
+                  {/* Board View Header - Match Grid Toolbar exactly */}
+                  <div className="grid-toolbar bg-white border-b border-gray-200">
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center">
+                        <SearchInput 
+                          value={boardSearchTerm}
+                          onChange={setBoardSearchTerm}
+                          placeholder="Search opportunities..."
+                          className="w-full max-w-xs"
+                        />
+                        <div className="ml-4">
+                          <ViewToggle 
+                            currentView={viewMode} 
+                            onViewChange={handleViewChange}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          size="sm"
+                          onClick={() => setIsContactSelectionModalOpen(true)}
+                          className="bg-[#32BAB0] hover:bg-[#28a79d] text-white"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Opportunities
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Kanban Board */}
+                  <div className="flex-1 overflow-hidden bg-gray-50">
+                    <OpportunitiesKanbanBoard
+                      opportunities={opportunities}
+                      onStageUpdate={handleStageUpdate}
+                      isLoading={isOpportunitiesLoading}
+                      searchTerm={boardSearchTerm}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </ErrorBoundary>
 
