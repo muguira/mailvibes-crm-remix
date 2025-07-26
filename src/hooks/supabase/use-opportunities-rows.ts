@@ -1,14 +1,13 @@
 // @ts-nocheck
 import { useAuth } from '@/components/auth'
 import { supabase } from '@/integrations/supabase/client'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from '../use-toast'
-import { v4 as uuidv4 } from 'uuid'
-import { useState, useEffect, useCallback } from 'react'
-import { Opportunity } from '@/stores/useOpportunitiesSlice'
-import { withRetrySupabase } from '@/utils/supabaseRetry'
-import { logger } from '@/utils/logger'
 import { useStore } from '@/stores/index'
+import { Opportunity } from '@/stores/useOpportunitiesSlice'
+import { logger } from '@/utils/logger'
+import { useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { v4 as uuidv4 } from 'uuid'
+import { toast } from '../use-toast'
 
 /**
  * Helper function to transform row IDs to database-compatible format
@@ -171,7 +170,9 @@ export function useOpportunitiesRows() {
         // Fetch only the opportunities for the current page
         let query = supabase
           .from('opportunities')
-          .select('id, opportunity, company_name, status, revenue, close_date, priority, owner, user_id, data, original_contact_id, created_at, updated_at')
+          .select(
+            'id, opportunity, company_name, status, revenue, close_date, priority, owner, user_id, data, original_contact_id, created_at, updated_at',
+          )
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }) // Most recent first
           .range(offset, offset + actualPageSize - 1) // Use range for pagination
@@ -203,7 +204,8 @@ export function useOpportunitiesRows() {
             const processedOpportunity: Opportunity = {
               id: opportunity.id, // Use the actual database ID - no mapping needed
               opportunity: opportunity.opportunity || '',
-              company: opportunity.company_name || '',
+              company: opportunity.company_name || '', // Map company_name to company
+              companyName: opportunity.company_name || '', // Also provide companyName for compatibility
               status: opportunity.status || 'Lead/New',
               stage: opportunity.status || 'Lead/New', // Use status as stage for now
               revenue: opportunity.revenue || 0,
@@ -320,7 +322,8 @@ export function useOpportunitiesRows() {
       // Save to Supabase opportunities table if user is authenticated
       if (user) {
         // Extract basic opportunity fields
-        const { id, opportunity, company, stage, status, revenue, closeDate, priority, owner, originalContactId } = updatedRow
+        const { id, opportunity, company, stage, status, revenue, closeDate, priority, owner, originalContactId } =
+          updatedRow
 
         // Everything else goes in the data field
         const data = { ...updatedRow }
@@ -445,13 +448,20 @@ export function useOpportunitiesRows() {
           closeDate: 'close_date',
           originalContactId: 'original_contact_id',
           company: 'company_name',
+          companyName: 'company_name', // Handle both variants
+          lastContacted: 'last_contacted',
+          nextMeeting: 'next_meeting',
+          leadSource: 'lead_source',
+          companyLinkedin: 'company_linkedin',
         }
 
         // Map field name if needed
         const dbFieldName = fieldMapping[columnId] || columnId
 
-        // Handle date formatting for close_date
+        // Handle data type conversions
         let dbValue = value
+
+        // Handle date formatting for close_date
         if (columnId === 'closeDate' && value) {
           if (value instanceof Date) {
             dbValue = value.toISOString().split('T')[0]
@@ -463,23 +473,105 @@ export function useOpportunitiesRows() {
           }
         }
 
-        const { error } = await supabase
+        // Handle revenue conversion to number
+        if (columnId === 'revenue' && value !== null && value !== undefined) {
+          // Convert string currency values to numbers
+          if (typeof value === 'string') {
+            // Remove currency symbols and commas
+            const cleanValue = value.replace(/[$,]/g, '')
+            const numericValue = parseFloat(cleanValue)
+            dbValue = isNaN(numericValue) ? 0 : numericValue
+          } else if (typeof value === 'number') {
+            dbValue = value
+          }
+        }
+
+        // Check if this is a direct column or should go in data field
+        const DIRECT_COLUMNS = [
+          'id',
+          'opportunity',
+          'company_name',
+          'status',
+          'revenue',
+          'close_date',
+          'priority',
+          'owner',
+          'original_contact_id',
+          'user_id',
+          'created_at',
+          'updated_at',
+          'last_contacted',
+          'next_meeting',
+          'lead_source',
+          'company_linkedin',
+          'website',
+          'employees',
+        ]
+
+        let updateData: any = { updated_at: new Date().toISOString() }
+
+        if (DIRECT_COLUMNS.includes(dbFieldName)) {
+          // Direct column update
+          updateData[dbFieldName] = dbValue
+        } else {
+          // Custom field - update in data JSONB field
+          // First get current data
+          const { data: currentOpportunity, error: fetchError } = await supabase
+            .from('opportunities')
+            .select('data')
+            .eq('id', rowId)
+            .eq('user_id', user.id)
+            .single()
+
+          if (fetchError) throw fetchError
+
+          // Update the data field
+          const updatedData = {
+            ...(currentOpportunity?.data && typeof currentOpportunity.data === 'object' ? currentOpportunity.data : {}),
+            [columnId]: dbValue, // Use original columnId, not dbFieldName for custom fields
+          }
+
+          updateData.data = updatedData
+        }
+
+        // Log the update data being sent to Supabase
+        logger.log('💾 Sending update to Supabase:', {
+          updateData,
+          rowId,
+          columnId,
+          dbFieldName,
+          originalValue: currentRow[columnId],
+          newValue: dbValue,
+          opportunityName: currentRow.opportunity,
+        })
+
+        const { data: updateResult, error } = await supabase
           .from('opportunities')
-          .update({ [dbFieldName]: dbValue, updated_at: new Date().toISOString() })
+          .update(updateData)
           .eq('id', rowId)
           .eq('user_id', user.id)
+          .select() // ← Add select to see what was actually updated
 
         if (error) {
-          logger.error('UpdateCell returned error for opportunity:', {
+          logger.error('❌ UpdateCell returned error for opportunity:', {
             error: error,
             rowId,
             columnId,
             dbFieldName,
+            updateData,
             originalName: currentRow.opportunity,
-            updatedName: updatedRow.opportunity,
           })
           throw error
         }
+
+        // Log successful update with returned data
+        logger.log('✅ Successfully updated opportunity in database:', {
+          rowId,
+          columnId,
+          dbFieldName,
+          updateResult,
+          sentData: updateData,
+        })
 
         // Log successful update
         logger.log('UpdateCell completed successfully for opportunity:', {
@@ -491,6 +583,39 @@ export function useOpportunitiesRows() {
           hadUserIdBefore: !!currentRow.userId,
           hasUserIdAfter: !!user?.id,
         })
+
+        // 🚀 FORCE CACHE INVALIDATION: Clear page cache to ensure fresh data on next load
+        pageCache.clear()
+        logger.log('🗑️ Cleared page cache to ensure fresh data on next load')
+
+        // Also update the OpportunitiesStore to reflect database changes
+        try {
+          const { opportunitiesUpdateOpportunity } = useStore.getState()
+          if (updateResult && updateResult.length > 0) {
+            const updatedOpportunity = updateResult[0]
+            // Update store with the actual database result
+            const storeUpdate: any = {}
+
+            // Map database fields back to store format
+            if (updatedOpportunity.company_name !== undefined) {
+              storeUpdate.company = updatedOpportunity.company_name
+              storeUpdate.companyName = updatedOpportunity.company_name
+            }
+            if (updatedOpportunity.close_date !== undefined) {
+              storeUpdate.closeDate = updatedOpportunity.close_date
+            }
+            if (updatedOpportunity.original_contact_id !== undefined) {
+              storeUpdate.originalContactId = updatedOpportunity.original_contact_id
+            }
+            // Add the original field that was updated
+            storeUpdate[columnId] = dbValue
+
+            opportunitiesUpdateOpportunity(rowId, storeUpdate)
+            logger.log('🔄 Updated opportunities store with database result')
+          }
+        } catch (storeError) {
+          logger.warn('⚠️ Failed to update opportunities store:', storeError)
+        }
       }
     } catch (error) {
       logger.error('Error updating opportunity cell:', {
@@ -537,7 +662,20 @@ export function useOpportunitiesRows() {
     })
 
     // List of columns that are directly in the opportunities table
-    const DIRECT_COLUMNS = ['id', 'opportunity', 'company_name', 'status', 'revenue', 'close_date', 'priority', 'owner', 'original_contact_id', 'user_id', 'created_at', 'updated_at']
+    const DIRECT_COLUMNS = [
+      'id',
+      'opportunity',
+      'company_name',
+      'status',
+      'revenue',
+      'close_date',
+      'priority',
+      'owner',
+      'original_contact_id',
+      'user_id',
+      'created_at',
+      'updated_at',
+    ]
 
     try {
       let affectedRows = 0
@@ -649,13 +787,15 @@ export function useOpportunitiesRows() {
 
       // Update local OpportunitiesStore cache to reflect the changes
       try {
-        const { opportunitiesCache: cache, opportunitiesUpdateOpportunity: updateOpportunityInCache } = useStore.getState()
+        const { opportunitiesCache: cache, opportunitiesUpdateOpportunity: updateOpportunityInCache } =
+          useStore.getState()
         Object.keys(cache).forEach(opportunityId => {
           const opportunity = cache[opportunityId]
           if (opportunity.userId === user.id) {
             // Check both direct column and data object
             const hasDirectColumn = opportunity[columnId] !== undefined
-            const hasDataColumn = opportunity.data && typeof opportunity.data === 'object' && columnId in opportunity.data
+            const hasDataColumn =
+              opportunity.data && typeof opportunity.data === 'object' && columnId in opportunity.data
 
             if (hasDirectColumn || hasDataColumn) {
               const updateData: any = {}
@@ -751,7 +891,8 @@ export function useOpportunitiesRows() {
         }, 100) // Small delay to ensure state has updated
 
         // Extract fields for Supabase
-        const { opportunity, company, stage, status, revenue, closeDate, priority, owner, originalContactId } = opportunityToSave
+        const { opportunity, company, stage, status, revenue, closeDate, priority, owner, originalContactId } =
+          opportunityToSave
 
         // Create data object for other fields
         const data = { ...opportunityToSave }
@@ -874,11 +1015,7 @@ export function useOpportunitiesRows() {
         console.log(`🗄️ [DELETE TIMING] Starting database operation at ${dbStartTime.toFixed(2)}ms`)
 
         // Delete opportunities from database
-        const { error } = await supabase
-          .from('opportunities')
-          .delete()
-          .in('id', dbIds)
-          .eq('user_id', user.id)
+        const { error } = await supabase.from('opportunities').delete().in('id', dbIds).eq('user_id', user.id)
 
         const dbEndTime = performance.now()
         console.log(`🗄️ [DELETE TIMING] Database operation completed in ${(dbEndTime - dbStartTime).toFixed(2)}ms`)
@@ -904,7 +1041,9 @@ export function useOpportunitiesRows() {
         }
 
         const totalTime = dbEndTime - deleteStartTime
-        console.log(`🎉 [DELETE TIMING] Successfully deleted ${opportunityIds.length} opportunities in ${totalTime.toFixed(2)}ms`)
+        console.log(
+          `🎉 [DELETE TIMING] Successfully deleted ${opportunityIds.length} opportunities in ${totalTime.toFixed(2)}ms`,
+        )
         logger.log(`Deleted ${opportunityIds.length} opportunities`)
       }
 
@@ -962,4 +1101,4 @@ export function useOpportunitiesRows() {
     fetchOpportunitiesRows,
     totalCount,
   }
-} 
+}

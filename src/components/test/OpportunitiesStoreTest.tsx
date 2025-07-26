@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react'
-import { useStore } from '@/stores/index'
 import { useAuth } from '@/components/auth'
-import { useInstantOpportunities } from '@/hooks/use-instant-opportunities'
-import { useOpportunitiesRows } from '@/hooks/supabase/use-opportunities-rows'
-import { usePerformanceMonitor, useMemoryMonitor } from '@/hooks/use-performance-monitor'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CheckCircle, XCircle, Clock, Zap, Database, Cpu, Search } from 'lucide-react'
+import { useOpportunitiesRows } from '@/hooks/supabase/use-opportunities-rows'
+import { useInstantOpportunities } from '@/hooks/use-instant-opportunities'
+import { useMemoryMonitor, usePerformanceMonitor } from '@/hooks/use-performance-monitor'
+import { supabase } from '@/integrations/supabase/client'
+import { useStore } from '@/stores/index'
 import { logger } from '@/utils/logger'
+import { CheckCircle, Clock, Cpu, Database, Search, XCircle, Zap } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
 
 interface TestResult {
   testName: string
@@ -23,7 +23,7 @@ interface TestResult {
 
 export const OpportunitiesStoreTest: React.FC = () => {
   const { user } = useAuth()
-  
+
   // Performance monitoring
   const { getMetrics, logSummary, renderCount } = usePerformanceMonitor('OpportunitiesStoreTest')
   useMemoryMonitor(5000) // Monitor memory every 5 seconds
@@ -68,7 +68,7 @@ export const OpportunitiesStoreTest: React.FC = () => {
       { testName: 'Cache Management', status: 'pending' },
       { testName: 'State Persistence', status: 'pending' },
       { testName: 'Error Handling', status: 'pending' },
-      
+
       // Batch 2: Data Loading & Performance Tests
       { testName: 'Background Loading', status: 'pending' },
       { testName: 'Chunked Fetching', status: 'pending' },
@@ -76,6 +76,8 @@ export const OpportunitiesStoreTest: React.FC = () => {
       { testName: 'Intelligent Caching', status: 'pending' },
       { testName: 'Search Functionality', status: 'pending' },
       { testName: 'Real-time Updates', status: 'pending' },
+      { testName: 'Cell Edit Persistence', status: 'pending' },
+      { testName: 'Database Persistence', status: 'pending' },
     ]
     setTests(initialTests)
   }, [])
@@ -84,25 +86,21 @@ export const OpportunitiesStoreTest: React.FC = () => {
   const runTest = async (testName: string, testFunction: () => Promise<void>): Promise<TestResult> => {
     setCurrentTest(testName)
     const startTime = performance.now()
-    
+
     try {
-      setTests(prev => prev.map(t => 
-        t.testName === testName ? { ...t, status: 'running' } : t
-      ))
+      setTests(prev => prev.map(t => (t.testName === testName ? { ...t, status: 'running' } : t)))
 
       await testFunction()
-      
+
       const duration = performance.now() - startTime
       const result: TestResult = {
         testName,
         status: 'passed',
         duration,
-        details: `Test completed successfully in ${duration.toFixed(2)}ms`
+        details: `Test completed successfully in ${duration.toFixed(2)}ms`,
       }
 
-      setTests(prev => prev.map(t => 
-        t.testName === testName ? result : t
-      ))
+      setTests(prev => prev.map(t => (t.testName === testName ? result : t)))
 
       return result
     } catch (error) {
@@ -112,12 +110,10 @@ export const OpportunitiesStoreTest: React.FC = () => {
         status: 'failed',
         duration,
         error: error instanceof Error ? error.message : 'Unknown error',
-        details: `Test failed after ${duration.toFixed(2)}ms`
+        details: `Test failed after ${duration.toFixed(2)}ms`,
       }
 
-      setTests(prev => prev.map(t => 
-        t.testName === testName ? result : t
-      ))
+      setTests(prev => prev.map(t => (t.testName === testName ? result : t)))
 
       return result
     }
@@ -126,76 +122,76 @@ export const OpportunitiesStoreTest: React.FC = () => {
   // Individual test functions
   const testStoreInitialization = async () => {
     if (!user?.id) throw new Error('User not authenticated')
-    
+
     // Clear store first
     opportunitiesClear()
-    
+
     // Initialize store
     await opportunitiesInitialize(user.id)
-    
+
     // Verify initialization
     const state = useStore.getState()
     if (!state.opportunitiesPagination.isInitialized) {
       throw new Error('Store not properly initialized')
     }
-    
+
     logger.log('✅ Store initialization test passed')
   }
 
   const testCacheManagement = async () => {
     const state = useStore.getState()
-    
+
     // Test cache structure
     if (typeof state.opportunitiesCache !== 'object') {
       throw new Error('Cache is not an object')
     }
-    
+
     if (!Array.isArray(state.opportunitiesOrderedIds)) {
       throw new Error('OrderedIds is not an array')
     }
-    
+
     // Test cache consistency
     const cacheIds = Object.keys(state.opportunitiesCache)
     const orderedIds = state.opportunitiesOrderedIds
-    
+
     for (const id of orderedIds) {
       if (!cacheIds.includes(id)) {
         throw new Error(`Inconsistent cache: ${id} in orderedIds but not in cache`)
       }
     }
-    
+
     logger.log('✅ Cache management test passed')
   }
 
   const testStatePersistence = async () => {
     const state = useStore.getState()
-    
+
     // Test that state has required properties
     const requiredProperties = [
       'opportunitiesCache',
       'opportunitiesOrderedIds',
       'opportunitiesLoading',
       'opportunitiesPagination',
-      'opportunitiesDeletedIds'
+      'opportunitiesDeletedIds',
     ]
-    
+
     for (const prop of requiredProperties) {
       if (!(prop in state)) {
         throw new Error(`Missing required state property: ${prop}`)
       }
     }
-    
+
     logger.log('✅ State persistence test passed')
   }
 
   const testErrorHandling = async () => {
     // Test error state management
     const state = useStore.getState()
-    
+
     if (typeof state.opportunitiesErrors !== 'object') {
       throw new Error('Error state not properly structured')
     }
-    
+
     // Test that error properties exist
     const errorProperties = ['fetch', 'initialize', 'update', 'delete', 'restore']
     for (const prop of errorProperties) {
@@ -203,84 +199,84 @@ export const OpportunitiesStoreTest: React.FC = () => {
         throw new Error(`Missing error property: ${prop}`)
       }
     }
-    
+
     logger.log('✅ Error handling test passed')
   }
 
   const testBackgroundLoading = async () => {
     if (!user?.id) throw new Error('User not authenticated')
-    
+
     const stateBefore = useStore.getState()
     const initialCount = stateBefore.opportunitiesPagination.loadedCount
-    
+
     // Start background loading
     await opportunitiesStartBackgroundLoading()
-    
+
     // Wait a moment for background loading
     await new Promise(resolve => setTimeout(resolve, 1000))
-    
+
     const stateAfter = useStore.getState()
-    
+
     // Check that background loading was activated
     if (!stateAfter.opportunitiesLoading.backgroundLoading) {
       logger.log('Background loading not active - this may be expected if all data is already loaded')
     }
-    
+
     logger.log('✅ Background loading test passed')
   }
 
   const testChunkedFetching = async () => {
     const state = useStore.getState()
-    
+
     // Test pagination state
     if (typeof state.opportunitiesPagination.offset !== 'number') {
       throw new Error('Pagination offset not properly managed')
     }
-    
+
     if (typeof state.opportunitiesPagination.hasMore !== 'boolean') {
       throw new Error('Pagination hasMore not properly managed')
     }
-    
+
     if (typeof state.opportunitiesPagination.loadedCount !== 'number') {
       throw new Error('Pagination loadedCount not properly managed')
     }
-    
+
     logger.log('✅ Chunked fetching test passed')
   }
 
   const testPerformanceOptimization = async () => {
     const metrics = getMetrics()
-    
+
     // Test that performance monitoring is working
     if (metrics.renderCount < 1) {
       throw new Error('Performance monitoring not working')
     }
-    
+
     // Test that average render time is reasonable (under 50ms)
     if (metrics.averageRenderTime > 50) {
       logger.warn(`Average render time is high: ${metrics.averageRenderTime.toFixed(2)}ms`)
     }
-    
+
     logger.log('✅ Performance optimization test passed')
   }
 
   const testIntelligentCaching = async () => {
     const state = useStore.getState()
-    
+
     // Test cache-to-ordered-ids consistency
     const cacheSize = Object.keys(state.opportunitiesCache).length
     const orderedSize = state.opportunitiesOrderedIds.length
-    
+
     if (cacheSize !== orderedSize) {
       throw new Error(`Cache size mismatch: cache=${cacheSize}, ordered=${orderedSize}`)
     }
-    
+
     // Test deduplication by checking for duplicate IDs
     const uniqueIds = new Set(state.opportunitiesOrderedIds)
     if (uniqueIds.size !== state.opportunitiesOrderedIds.length) {
       throw new Error('Duplicate IDs found in orderedIds')
     }
-    
+
     logger.log('✅ Intelligent caching test passed')
   }
 
@@ -289,15 +285,15 @@ export const OpportunitiesStoreTest: React.FC = () => {
     if (typeof instantOpportunities.rows !== 'object' || !Array.isArray(instantOpportunities.rows)) {
       throw new Error('InstantOpportunities rows not properly structured')
     }
-    
+
     if (typeof instantOpportunities.loading !== 'boolean') {
       throw new Error('InstantOpportunities loading state not boolean')
     }
-    
+
     if (typeof instantOpportunities.totalCount !== 'number') {
       throw new Error('InstantOpportunities totalCount not number')
     }
-    
+
     logger.log('✅ Search functionality test passed')
   }
 
@@ -317,41 +313,165 @@ export const OpportunitiesStoreTest: React.FC = () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
-    
+
     // Test add
     opportunitiesAddOpportunity(testOpportunity)
-    
+
     const stateAfterAdd = useStore.getState()
     if (!stateAfterAdd.opportunitiesCache[testOpportunity.id]) {
       throw new Error('Opportunity not added to cache')
     }
-    
+
     // Test update
     opportunitiesUpdateOpportunity(testOpportunity.id, { revenue: 20000 })
-    
+
     const stateAfterUpdate = useStore.getState()
     if (stateAfterUpdate.opportunitiesCache[testOpportunity.id].revenue !== 20000) {
       throw new Error('Opportunity not updated in cache')
     }
-    
+
     // Test remove
     opportunitiesRemoveOpportunities([testOpportunity.id])
-    
+
     const stateAfterRemove = useStore.getState()
     if (stateAfterRemove.opportunitiesCache[testOpportunity.id]) {
       throw new Error('Opportunity not removed from cache')
     }
-    
+
     logger.log('✅ Real-time updates test passed')
+  }
+
+  const testCellEditPersistence = async () => {
+    if (!user?.id) throw new Error('User not authenticated')
+
+    // Check if we have opportunities to test with
+    const state = useStore.getState()
+    const opportunities = state.opportunitiesOrderedIds.map(id => state.opportunitiesCache[id]).filter(Boolean)
+
+    if (opportunities.length === 0) {
+      throw new Error('No opportunities available for cell edit testing')
+    }
+
+    const testOpportunity = opportunities[0]
+
+    // Test multiple field types to ensure proper mapping
+    const testCases = [
+      { field: 'revenue', value: Math.floor(Math.random() * 10000) + 1000 },
+      { field: 'company', value: `Test Company ${Date.now()}` },
+      { field: 'priority', value: 'High' },
+      { field: 'status', value: 'Discovery' },
+    ]
+
+    logger.log(`Testing cell edits for opportunity: ${testOpportunity.opportunity}`)
+
+    // Test the updateCell function from useOpportunitiesRows
+    if (!opportunitiesRows?.updateCell) {
+      throw new Error('OpportunitiesRows updateCell function not available')
+    }
+
+    // Test each field type
+    for (const testCase of testCases) {
+      const originalValue = testOpportunity[testCase.field]
+
+      try {
+        logger.log(`Testing ${testCase.field}: ${originalValue} -> ${testCase.value}`)
+
+        // Perform the cell update
+        await opportunitiesRows.updateCell({
+          rowId: testOpportunity.id,
+          columnId: testCase.field,
+          value: testCase.value,
+        })
+
+        // Wait for the update to propagate
+        await new Promise(resolve => setTimeout(resolve, 1000))
+
+        // Check if the update was applied to the store
+        const updatedState = useStore.getState()
+        const updatedOpportunity = updatedState.opportunitiesCache[testOpportunity.id]
+
+        if (!updatedOpportunity) {
+          throw new Error(`Opportunity not found in cache after ${testCase.field} update`)
+        }
+
+        if (updatedOpportunity[testCase.field] !== testCase.value) {
+          throw new Error(
+            `${testCase.field} edit failed - expected ${testCase.value}, got ${updatedOpportunity[testCase.field]}`,
+          )
+        }
+
+        logger.log(`✅ ${testCase.field} updated successfully`)
+      } catch (error) {
+        throw new Error(
+          `Failed to update ${testCase.field}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        )
+      }
+    }
+
+    logger.log('✅ Cell edit persistence test passed - all field types updated successfully')
+  }
+
+  const testDatabasePersistence = async () => {
+    if (!user?.id) throw new Error('User not authenticated')
+
+    // Check if we have opportunities to test with
+    const state = useStore.getState()
+    const opportunities = state.opportunitiesOrderedIds.map(id => state.opportunitiesCache[id]).filter(Boolean)
+
+    if (opportunities.length === 0) {
+      throw new Error('No opportunities available for persistence testing')
+    }
+
+    const testOpportunity = opportunities[0]
+    const testValue = `Persistence Test ${Date.now()}`
+
+    logger.log(`Testing database persistence for opportunity: ${testOpportunity.opportunity}`)
+
+    // Update the company field
+    if (!opportunitiesRows?.updateCell) {
+      throw new Error('OpportunitiesRows updateCell function not available')
+    }
+
+    // Perform the update
+    await opportunitiesRows.updateCell({
+      rowId: testOpportunity.id,
+      columnId: 'company',
+      value: testValue,
+    })
+
+    // Wait for the update to complete
+    await new Promise(resolve => setTimeout(resolve, 2000))
+
+    // Now fetch directly from database to verify persistence
+    const { data: directDbResult, error } = await supabase
+      .from('opportunities')
+      .select('company_name, opportunity')
+      .eq('id', testOpportunity.id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (error) {
+      throw new Error(`Failed to fetch from database: ${error.message}`)
+    }
+
+    if (!directDbResult) {
+      throw new Error('No data returned from database')
+    }
+
+    if (directDbResult.company_name !== testValue) {
+      throw new Error(`Database persistence failed - expected "${testValue}", got "${directDbResult.company_name}"`)
+    }
+
+    logger.log('✅ Database persistence test passed - data correctly saved to database')
   }
 
   // Run all tests
   const runAllTests = async () => {
     setIsRunning(true)
     setCurrentTest(null)
-    
+
     logger.log('🧪 Starting OpportunitiesStore test suite...')
-    
+
     const testFunctions = [
       { name: 'Store Initialization', fn: testStoreInitialization },
       { name: 'Cache Management', fn: testCacheManagement },
@@ -363,20 +483,22 @@ export const OpportunitiesStoreTest: React.FC = () => {
       { name: 'Intelligent Caching', fn: testIntelligentCaching },
       { name: 'Search Functionality', fn: testSearchFunctionality },
       { name: 'Real-time Updates', fn: testRealTimeUpdates },
+      { name: 'Cell Edit Persistence', fn: testCellEditPersistence },
+      { name: 'Database Persistence', fn: testDatabasePersistence },
     ]
-    
+
     for (const test of testFunctions) {
       await runTest(test.name, test.fn)
       // Small delay between tests
       await new Promise(resolve => setTimeout(resolve, 500))
     }
-    
+
     setIsRunning(false)
     setCurrentTest(null)
-    
+
     const passed = tests.filter(t => t.status === 'passed').length
     const failed = tests.filter(t => t.status === 'failed').length
-    
+
     logger.log(`🏁 Test suite completed: ${passed} passed, ${failed} failed`)
     logSummary()
   }
@@ -391,14 +513,30 @@ export const OpportunitiesStoreTest: React.FC = () => {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">OpportunitiesStore Test Suite</h2>
-        <Button 
-          onClick={runAllTests} 
-          disabled={isRunning}
-          className="flex items-center gap-2"
-        >
-          {isRunning ? <Clock className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-          {isRunning ? 'Running Tests...' : 'Run All Tests'}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => runTest('Cell Edit Persistence', testCellEditPersistence)}
+            disabled={isRunning}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Database className="h-4 w-4" />
+            Test Cell Edit
+          </Button>
+          <Button
+            onClick={() => runTest('Database Persistence', testDatabasePersistence)}
+            disabled={isRunning}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Database className="h-4 w-4" />
+            Test DB Persistence
+          </Button>
+          <Button onClick={runAllTests} disabled={isRunning} className="flex items-center gap-2">
+            {isRunning ? <Clock className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+            {isRunning ? 'Running Tests...' : 'Run All Tests'}
+          </Button>
+        </div>
       </div>
 
       {/* Progress Overview */}
@@ -413,8 +551,12 @@ export const OpportunitiesStoreTest: React.FC = () => {
           <div className="space-y-4">
             <Progress value={progressPercentage} className="w-full" />
             <div className="flex justify-between text-sm text-muted-foreground">
-              <span>{passedTests + failedTests} of {totalTests} tests completed</span>
-              <span>{passedTests} passed, {failedTests} failed</span>
+              <span>
+                {passedTests + failedTests} of {totalTests} tests completed
+              </span>
+              <span>
+                {passedTests} passed, {failedTests} failed
+              </span>
             </div>
             {currentTest && (
               <Alert>
@@ -457,17 +599,17 @@ export const OpportunitiesStoreTest: React.FC = () => {
           <CardContent className="pt-0">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Badge variant={opportunitiesLoading.fetching ? "default" : "secondary"}>
+                <Badge variant={opportunitiesLoading.fetching ? 'default' : 'secondary'}>
                   Fetching: {opportunitiesLoading.fetching ? 'Yes' : 'No'}
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={opportunitiesLoading.backgroundLoading ? "default" : "secondary"}>
+                <Badge variant={opportunitiesLoading.backgroundLoading ? 'default' : 'secondary'}>
                   Background: {opportunitiesLoading.backgroundLoading ? 'Yes' : 'No'}
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={opportunitiesPagination.isInitialized ? "default" : "destructive"}>
+                <Badge variant={opportunitiesPagination.isInitialized ? 'default' : 'destructive'}>
                   Initialized: {opportunitiesPagination.isInitialized ? 'Yes' : 'No'}
                 </Badge>
               </div>
@@ -511,11 +653,15 @@ export const OpportunitiesStoreTest: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   {test.duration && <span>{test.duration.toFixed(2)}ms</span>}
-                  <Badge 
+                  <Badge
                     variant={
-                      test.status === 'passed' ? 'default' : 
-                      test.status === 'failed' ? 'destructive' : 
-                      test.status === 'running' ? 'default' : 'secondary'
+                      test.status === 'passed'
+                        ? 'default'
+                        : test.status === 'failed'
+                          ? 'destructive'
+                          : test.status === 'running'
+                            ? 'default'
+                            : 'secondary'
                     }
                   >
                     {test.status}
@@ -558,4 +704,4 @@ export const OpportunitiesStoreTest: React.FC = () => {
       </Card>
     </div>
   )
-} 
+}
