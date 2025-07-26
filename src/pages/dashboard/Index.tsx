@@ -1,6 +1,6 @@
 import { useAuth } from '@/components/auth'
-import { ActivityFeedDashboard } from '@/components/home/activity-feed-dashboard'
 import { AddTeammatesCard } from '@/components/home/add-teammates-card'
+import { OptimizedActivityFeedDashboard } from '@/components/home/optimized-activity-feed-dashboard'
 import { TasksPanel } from '@/components/home/tasks-panel'
 import { WelcomeHeader } from '@/components/home/welcome-header'
 import { TopNavbar } from '@/components/layout/top-navbar'
@@ -75,13 +75,12 @@ const Index = () => {
                 <AddTeammatesCard />
 
                 {/* Enhanced Activity Feed Dashboard with Team Support */}
-                <ActivityFeedDashboard
+                <OptimizedActivityFeedDashboard
                   organizationId={organization?.id}
                   defaultView="personal"
                   showStats={true}
                   showFilters={true}
                   enableRealtime={true}
-                  autoRefresh={false}
                 />
               </div>
             </div>
@@ -89,13 +88,12 @@ const Index = () => {
             {/* Mobile view - Show teammates card and enhanced feed below tasks */}
             <div className="md:hidden mt-6 space-y-4">
               <AddTeammatesCard />
-              <ActivityFeedDashboard
+              <OptimizedActivityFeedDashboard
                 organizationId={organization?.id}
                 defaultView="personal"
                 showStats={true}
                 showFilters={true}
                 enableRealtime={true}
-                autoRefresh={false}
               />
             </div>
           </div>

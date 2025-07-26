@@ -52,6 +52,7 @@
     "@react-email/render": "1.1.3",
     "@supabase/supabase-js": "^2.49.4",
     "@tanstack/react-query": "^5.56.2",
+    "@tanstack/react-query-devtools": "^5.83.0",
     "@tiptap/extension-code-block-lowlight": "^2.25.1",
     "@tiptap/extension-link": "^2.25.1",
     "@tiptap/extension-underline": "^2.25.1",
