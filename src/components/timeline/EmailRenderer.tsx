@@ -541,7 +541,7 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
     if (processedHtml) {
       return (
         <div
-          className="email-html-content"
+          className="email-html-content overflow-x-auto"
           style={{
             width: '100%',
             minHeight: '160px',
@@ -554,6 +554,7 @@ const EmailRenderer: React.FC<EmailRendererProps> = ({
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             wordWrap: 'break-word',
             overflowWrap: 'break-word',
+            overflowX: 'auto',
           }}
           dangerouslySetInnerHTML={{ __html: processedHtml }}
         />

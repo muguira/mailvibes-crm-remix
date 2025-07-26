@@ -72,7 +72,7 @@ const renderMarkdown = (text: string) => {
   // Código en bloque (con lenguaje opcional)
   html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
     const language = lang ? `<span class="text-xs text-gray-500 mb-1 block">${lang}</span>` : ''
-    return `<div class="bg-gray-50 border border-gray-200 rounded-md p-3 my-3 overflow-x-auto">
+    return `<div class="bg-gray-50 border border-gray-200 rounded-md p-3 my-3">
       ${language}
       <pre><code class="text-sm font-mono text-gray-800 whitespace-pre-wrap">${code.trim()}</code></pre>
     </div>`
@@ -436,7 +436,6 @@ const TimelineItem = React.memo(
     const [isSendingReply, setIsSendingReply] = useState(false)
 
     // ✅ NEW: Email threading states - threads are always expanded
-    const [isThreadExpanded, setIsThreadExpanded] = useState(true)
 
     // Check if this is an email thread
     const isEmailThread = activity.type === 'email_thread'
@@ -1099,11 +1098,17 @@ const TimelineItem = React.memo(
         {/* Activity card with white background */}
         <div
           className={cn(
-            'relative bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md',
+            'relative bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md ',
             'transition-all duration-500 ease-out',
             isExpanded && 'shadow-md',
-            // Responsive width and padding
-            isMobile ? 'w-[calc(100%-16px)] p-3' : 'w-[calc(100%-20px)] p-4',
+            // Responsive width and padding - FIX: Cambiar el width para emails
+            activityProps.isEmail
+              ? isMobile
+                ? 'w-full max-w-[calc(100vw-32px)] p-3 overflow-hidden'
+                : 'w-full max-w-[calc(100vw-80px)] p-4 overflow-hidden'
+              : isMobile
+                ? 'w-[calc(100%-16px)] p-3'
+                : 'w-[calc(100%-20px)] p-4',
           )}
         >
           {/* Dropdown menu */}
@@ -1322,7 +1327,7 @@ const TimelineItem = React.memo(
                       {(activity.source === 'gmail' && activity.type === 'email') ||
                       (activity.source === 'internal' && activity.type === 'email_sent') ? (
                         /* Regular single email display */
-                        <>
+                        <div className="w-full overflow-x-auto">
                           <EmailRenderer
                             bodyHtml={activity.bodyHtml}
                             bodyText={activity.bodyText}
@@ -1331,7 +1336,7 @@ const TimelineItem = React.memo(
                             attachments={activity.attachments}
                             activityDetails={activity.details}
                           />
-                        </>
+                        </div>
                       ) : (
                         /* Non-email activity display */
                         <div
@@ -1406,7 +1411,7 @@ const TimelineItem = React.memo(
                   {/* Reply Toolbar + Action Buttons */}
                   <div className="border-t border-gray-100 pt-3">
                     {/* Toolbar - responsive wrapper */}
-                    <div className={cn('mb-3 transition-all duration-300 ease-in-out overflow-x-auto scrollbar-hide')}>
+                    <div className={cn('mb-3 transition-all duration-300 ease-in-out scrollbar-hide')}>
                       <MarkdownToolbar
                         editor={replyEditor}
                         onFormat={handleReplyFormat}

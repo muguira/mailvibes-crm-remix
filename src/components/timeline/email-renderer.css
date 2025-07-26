@@ -121,6 +121,35 @@
   padding: 16px;
 }
 
+/* ✅ FIX: Estilos para contenido HTML de emails que puede ser ancho */
+.email-html-content table,
+.email-text-content table {
+  max-width: 100%;
+  table-layout: auto;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.email-html-content img,
+.email-text-content img {
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain;
+}
+
+.email-html-content div,
+.email-text-content div {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* Contenido con estilos inline que puede ser problemático */
+.email-html-content [style*='width'],
+.email-text-content [style*='width'] {
+  max-width: 100% !important;
+}
+
 /* Loading indicator overlay */
 .email-body::before {
   content: '';
@@ -247,6 +276,26 @@
   .email-attachment-link {
     font-size: 12px;
     max-width: 150px;
+  }
+
+  /* ✅ FIX: Estilos específicos para contenido de email en móvil */
+  .email-html-content,
+  .email-text-content {
+    padding: 12px;
+    font-size: 13px;
+    min-width: 100%;
+    overflow-x: auto;
+  }
+
+  .email-html-content table,
+  .email-text-content table {
+    min-width: 300px;
+    font-size: 12px;
+  }
+
+  .email-html-content img,
+  .email-text-content img {
+    max-width: calc(100vw - 64px) !important;
   }
 }
 
