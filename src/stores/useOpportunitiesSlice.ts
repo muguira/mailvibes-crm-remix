@@ -8,17 +8,17 @@
  * @version 1.0.0
  */
 
-import { StateCreator } from 'zustand'
-import { TStore } from '@/types/store/store'
-import { TOpportunitiesStore } from '@/types/store/opportunities'
-import { supabase } from '@/integrations/supabase/client'
-import { logger } from '@/utils/logger'
 import {
   INITIAL_OPPORTUNITIES_STATE,
-  RESET_OPPORTUNITIES_STATE,
   OPPORTUNITIES_CONFIG,
   OPPORTUNITIES_ERROR_MESSAGES,
+  RESET_OPPORTUNITIES_STATE,
 } from '@/constants/store/opportunities'
+import { supabase } from '@/integrations/supabase/client'
+import { TOpportunitiesStore } from '@/types/store/opportunities'
+import { TStore } from '@/types/store/store'
+import { logger } from '@/utils/logger'
+import { StateCreator } from 'zustand'
 
 // Store the background loading promise outside of the store
 let backgroundLoadingPromise: Promise<void> | null = null
@@ -79,8 +79,11 @@ export const useOpportunitiesSlice: StateCreator<
    * Inicializa el store de opportunities con el primer batch de datos
    */
   opportunitiesInitialize: async (userId: string) => {
+    console.log('🔥 [INIT] opportunitiesInitialize called with userId:', userId)
+
     // Si hay una inicialización en curso, esperar a que complete
     if (initializationPromise) {
+      console.log('⏳ [INIT] Waiting for existing initialization to complete...')
       return initializationPromise
     }
 
@@ -101,15 +104,18 @@ export const useOpportunitiesSlice: StateCreator<
       })
     }
 
-    // Si ya está inicializado para este usuario y tenemos el primer batch, solo reanudar background loading si es necesario
+    // VERIFICACIÓN ESTRICTA: Solo considerar inicializado si realmente hay datos
+    const hasRealData = state.opportunitiesOrderedIds.length > 0 && Object.keys(state.opportunitiesCache).length > 0
+
     if (
       state.opportunitiesInternal.userId === userId &&
       state.opportunitiesPagination.isInitialized &&
-      state.opportunitiesPagination.firstBatchLoaded
+      state.opportunitiesPagination.firstBatchLoaded &&
+      hasRealData
     ) {
-      if (process.env.NODE_ENV === 'development') {
-        logger.log('Opportunities store already initialized for this user with first batch loaded')
-      }
+      logger.log(
+        `✅ Opportunities store already initialized with ${state.opportunitiesOrderedIds.length} opportunities`,
+      )
 
       // Si no hemos cargado todas las opportunities y no estamos cargando actualmente, reanudar background loading
       if (
@@ -125,13 +131,28 @@ export const useOpportunitiesSlice: StateCreator<
       return
     }
 
+    // ❌ Si llegamos aquí, significa que NO se usó el cache - diagnostiquemos por qué
+    logger.log(`🚨 [DEBUG] Fresh initialization required. Cache not used because:`, {
+      userIdMatch: state.opportunitiesInternal.userId === userId,
+      isInitialized: state.opportunitiesPagination.isInitialized,
+      firstBatchLoaded: state.opportunitiesPagination.firstBatchLoaded,
+      orderedIdsLength: state.opportunitiesOrderedIds.length,
+      cacheLength: Object.keys(state.opportunitiesCache).length,
+      hasRealData,
+      currentUserId: userId,
+      storeUserId: state.opportunitiesInternal.userId,
+    })
+
     // Si cambiamos de usuario, limpiar todo
     if (state.opportunitiesInternal.userId && state.opportunitiesInternal.userId !== userId) {
-      logger.log(`Switching users from ${state.opportunitiesInternal.userId} to ${userId}, clearing opportunities store`)
+      logger.log(
+        `Switching users from ${state.opportunitiesInternal.userId} to ${userId}, clearing opportunities store`,
+      )
       get().opportunitiesClear()
     }
 
     logger.log(`Starting fresh opportunities initialization for user ${userId}`)
+    console.log('🚀 [INIT] About to create initialization promise for user:', userId)
 
     // Crear y trackear la promesa de inicialización
     initializationPromise = (async () => {
@@ -139,6 +160,9 @@ export const useOpportunitiesSlice: StateCreator<
         state.opportunitiesInternal.userId = userId
         state.opportunitiesLoading.initializing = true
       })
+
+      logger.log(`🚀 [INIT] Starting opportunities initialization for user: ${userId}`)
+      console.log('🚀 [INIT] Inside promise - about to start Supabase query')
 
       // Iniciar timing del load inicial
       const initStartTime = performance.now()
@@ -164,7 +188,8 @@ export const useOpportunitiesSlice: StateCreator<
         const fetchStartTime = performance.now()
         const { data, error } = await supabase
           .from('opportunities')
-          .select(`
+          .select(
+            `
             id,
             opportunity,
             status,
@@ -176,15 +201,24 @@ export const useOpportunitiesSlice: StateCreator<
             original_contact_id,
             created_at,
             updated_at
-          `)
+          `,
+          )
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .range(0, OPPORTUNITIES_CONFIG.FIRST_BATCH_SIZE - 1)
 
         const fetchEndTime = performance.now()
-        logger.log(`[PERF] First opportunities batch query completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`)
+        logger.log(
+          `[PERF] First opportunities batch query completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`,
+        )
 
-        if (error) throw error
+        if (error) {
+          logger.error('🚨 [INIT] Supabase query error:', error)
+          throw error
+        }
+
+        logger.log(`🚀 [INIT] Supabase query returned ${data?.length || 0} opportunities`)
+        console.log('🔍 [DEBUG] Raw data from Supabase (first 2):', data?.slice(0, 2))
 
         if (data && data.length > 0) {
           const processStartTime = performance.now()
@@ -201,23 +235,23 @@ export const useOpportunitiesSlice: StateCreator<
           // Status mapping from database values to frontend values
           const statusMapping: Record<string, string> = {
             'Demo agendada': 'Lead/New',
-            'Demo asistida': 'Discovery', 
+            'Demo asistida': 'Discovery',
             'Propuesta enviada': 'Proposal',
             'Int. de cierre': 'Closing',
             'Confirmación verbal': 'Negotiation',
-            'Ganado': 'Won',
-            'Perdido': 'Lost',
+            Ganado: 'Won',
+            Perdido: 'Lost',
             'Contract Sent': 'Proposal',
             'In Procurement': 'Discovery',
             'Deal Won': 'Won',
-            'Qualified': 'Qualified',
+            Qualified: 'Qualified',
             'Lead/New': 'Lead/New',
-            'Discovery': 'Discovery',
-            'Proposal': 'Proposal',
-            'Negotiation': 'Negotiation',
-            'Closing': 'Closing',
-            'Won': 'Won',
-            'Lost': 'Lost'
+            Discovery: 'Discovery',
+            Proposal: 'Proposal',
+            Negotiation: 'Negotiation',
+            Closing: 'Closing',
+            Won: 'Won',
+            Lost: 'Lost',
           }
 
           // Procesar opportunities
@@ -238,6 +272,7 @@ export const useOpportunitiesSlice: StateCreator<
               closeDate: opp.close_date || '',
               owner: opp.owner || '',
               company: opp.company_name || '',
+              companyName: opp.company_name || '', // ← ADDED: Map to companyName as well
               priority: opp.priority || 'Medium',
               originalContactId: opp.original_contact_id,
               createdAt: opp.created_at,
@@ -246,6 +281,16 @@ export const useOpportunitiesSlice: StateCreator<
 
             cache[opp.id] = opportunity
             orderedIds.push(opp.id)
+
+            // Debug logging for first opportunity to verify mapping
+            if (orderedIds.length === 1) {
+              console.log('🔍 [DEBUG] First opportunity mapped:', {
+                id: opportunity.id,
+                company: opportunity.company,
+                companyName: opportunity.companyName,
+                rawCompanyName: opp.company_name,
+              })
+            }
           })
 
           const processEndTime = performance.now()
@@ -261,7 +306,8 @@ export const useOpportunitiesSlice: StateCreator<
             state.opportunitiesOrderedIds = orderedIds
             state.opportunitiesPagination.loadedCount = orderedIds.length
             state.opportunitiesPagination.offset = orderedIds.length
-            state.opportunitiesPagination.hasMore = orderedIds.length < (count || 0) && orderedIds.length === OPPORTUNITIES_CONFIG.FIRST_BATCH_SIZE
+            state.opportunitiesPagination.hasMore =
+              orderedIds.length < (count || 0) && orderedIds.length === OPPORTUNITIES_CONFIG.FIRST_BATCH_SIZE
             state.opportunitiesPagination.firstBatchLoaded = true
             state.opportunitiesPagination.isInitialized = true
 
@@ -271,9 +317,21 @@ export const useOpportunitiesSlice: StateCreator<
             }
           })
 
+          logger.log(`🚀 [INIT] Store updated successfully:`, {
+            cacheSize: Object.keys(cache).length,
+            orderedIdsLength: orderedIds.length,
+            sampleOpportunity: orderedIds.length > 0 ? cache[orderedIds[0]] : null,
+            hasMore: get().opportunitiesPagination.hasMore,
+            isInitialized: get().opportunitiesPagination.isInitialized,
+          })
+
           const initEndTime = performance.now()
-          logger.log(`[PERF] Total opportunities initialization completed in ${(initEndTime - initStartTime).toFixed(2)}ms`)
-          logger.log(`[Initialize] Loaded ${orderedIds.length} opportunities. Has more: ${get().opportunitiesPagination.hasMore}`)
+          logger.log(
+            `[PERF] Total opportunities initialization completed in ${(initEndTime - initStartTime).toFixed(2)}ms`,
+          )
+          logger.log(
+            `[Initialize] Loaded ${orderedIds.length} opportunities. Has more: ${get().opportunitiesPagination.hasMore}`,
+          )
 
           // Iniciar background loading para el resto de opportunities si hay más datos
           if (get().opportunitiesPagination.hasMore) {
@@ -297,10 +355,11 @@ export const useOpportunitiesSlice: StateCreator<
         console.error('🚨 ERROR DETAILS:', {
           message: error instanceof Error ? error.message : 'Unknown error',
           userId,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         })
         set(state => {
-          state.opportunitiesErrors.initialize = error instanceof Error ? error.message : OPPORTUNITIES_ERROR_MESSAGES.INITIALIZE_FAILED
+          state.opportunitiesErrors.initialize =
+            error instanceof Error ? error.message : OPPORTUNITIES_ERROR_MESSAGES.INITIALIZE_FAILED
           // Clear loading state even on error to prevent infinite loading
           state.opportunitiesLoading.initializing = false
         })
@@ -338,7 +397,8 @@ export const useOpportunitiesSlice: StateCreator<
     try {
       const { data, error } = await supabase
         .from('opportunities')
-        .select(`
+        .select(
+          `
           id,
           opportunity,
           status,
@@ -350,12 +410,13 @@ export const useOpportunitiesSlice: StateCreator<
           original_contact_id,
           created_at,
           updated_at
-        `)
+        `,
+        )
         .eq('user_id', state.opportunitiesInternal.userId)
         .order('created_at', { ascending: false })
         .range(
           state.opportunitiesPagination.offset,
-          state.opportunitiesPagination.offset + state.opportunitiesInternal.chunkSize - 1
+          state.opportunitiesPagination.offset + state.opportunitiesInternal.chunkSize - 1,
         )
 
       if (error) throw error
@@ -368,23 +429,23 @@ export const useOpportunitiesSlice: StateCreator<
         // Status mapping
         const statusMapping: Record<string, string> = {
           'Demo agendada': 'Lead/New',
-          'Demo asistida': 'Discovery', 
+          'Demo asistida': 'Discovery',
           'Propuesta enviada': 'Proposal',
           'Int. de cierre': 'Closing',
           'Confirmación verbal': 'Negotiation',
-          'Ganado': 'Won',
-          'Perdido': 'Lost',
+          Ganado: 'Won',
+          Perdido: 'Lost',
           'Contract Sent': 'Proposal',
           'In Procurement': 'Discovery',
           'Deal Won': 'Won',
-          'Qualified': 'Qualified',
+          Qualified: 'Qualified',
           'Lead/New': 'Lead/New',
-          'Discovery': 'Discovery',
-          'Proposal': 'Proposal',
-          'Negotiation': 'Negotiation',
-          'Closing': 'Closing',
-          'Won': 'Won',
-          'Lost': 'Lost'
+          Discovery: 'Discovery',
+          Proposal: 'Proposal',
+          Negotiation: 'Negotiation',
+          Closing: 'Closing',
+          Won: 'Won',
+          Lost: 'Lost',
         }
 
         data.forEach(opp => {
@@ -431,7 +492,8 @@ export const useOpportunitiesSlice: StateCreator<
     } catch (error) {
       logger.error('[FetchNext] Error fetching opportunities:', error)
       set(state => {
-        state.opportunitiesErrors.fetch = error instanceof Error ? error.message : OPPORTUNITIES_ERROR_MESSAGES.FETCH_FAILED
+        state.opportunitiesErrors.fetch =
+          error instanceof Error ? error.message : OPPORTUNITIES_ERROR_MESSAGES.FETCH_FAILED
       })
       throw error
     } finally {
@@ -484,7 +546,8 @@ export const useOpportunitiesSlice: StateCreator<
       } catch (error) {
         logger.error('[BackgroundLoading] Error during background loading:', error)
         set(state => {
-          state.opportunitiesErrors.fetch = error instanceof Error ? error.message : OPPORTUNITIES_ERROR_MESSAGES.BACKGROUND_LOADING_FAILED
+          state.opportunitiesErrors.fetch =
+            error instanceof Error ? error.message : OPPORTUNITIES_ERROR_MESSAGES.BACKGROUND_LOADING_FAILED
         })
       } finally {
         set(state => {
@@ -513,7 +576,7 @@ export const useOpportunitiesSlice: StateCreator<
    */
   opportunitiesResumeBackgroundLoading: () => {
     const state = get()
-    
+
     logger.log('[BackgroundLoading] Resuming background loading')
     set(state => {
       state.opportunitiesInternal.backgroundLoadingPaused = false
@@ -530,11 +593,16 @@ export const useOpportunitiesSlice: StateCreator<
   opportunitiesEnsureMinimumLoaded: async (minimumRequired: number) => {
     const state = get()
 
-    if (state.opportunitiesPagination.loadedCount >= minimumRequired || state.opportunitiesPagination.allOpportunitiesLoaded) {
+    if (
+      state.opportunitiesPagination.loadedCount >= minimumRequired ||
+      state.opportunitiesPagination.allOpportunitiesLoaded
+    ) {
       return
     }
 
-    logger.log(`[EnsureMinimum] Need to load ${minimumRequired - state.opportunitiesPagination.loadedCount} more opportunities`)
+    logger.log(
+      `[EnsureMinimum] Need to load ${minimumRequired - state.opportunitiesPagination.loadedCount} more opportunities`,
+    )
 
     while (state.opportunitiesPagination.loadedCount < minimumRequired && state.opportunitiesPagination.hasMore) {
       await get().opportunitiesFetchNext()
@@ -546,7 +614,7 @@ export const useOpportunitiesSlice: StateCreator<
    */
   opportunitiesClear: () => {
     logger.log('[Clear] Clearing opportunities store')
-    
+
     // Cancel any ongoing background loading
     backgroundLoadingPromise = null
     initializationPromise = null
@@ -599,7 +667,10 @@ export const useOpportunitiesSlice: StateCreator<
       state.opportunitiesOrderedIds = newOrderedIds
       state.opportunitiesDeletedIds = newDeletedIds
       state.opportunitiesPagination.loadedCount = newOrderedIds.length
-      state.opportunitiesPagination.totalCount = Math.max(0, state.opportunitiesPagination.totalCount - opportunityIds.length)
+      state.opportunitiesPagination.totalCount = Math.max(
+        0,
+        state.opportunitiesPagination.totalCount - opportunityIds.length,
+      )
     })
   },
 
@@ -681,6 +752,11 @@ export const useOpportunitiesSlice: StateCreator<
     }
 
     logger.log(`[updateOpportunity] Updating opportunity: ${opportunityId}`, updates)
+    console.log('🔄 [STORE] opportunitiesUpdateOpportunity called:', {
+      opportunityId,
+      updates,
+      existsInCache: !!state.opportunitiesCache[opportunityId],
+    })
 
     set(state => {
       // Crear nuevo cache con el opportunity actualizado
@@ -693,8 +769,14 @@ export const useOpportunitiesSlice: StateCreator<
       }
 
       state.opportunitiesCache = newCache
+
+      console.log('✅ [STORE] Store updated successfully:', {
+        opportunityId,
+        updatedOpportunity: newCache[opportunityId],
+        cacheSize: Object.keys(newCache).length,
+      })
     })
 
     logger.log(`[updateOpportunity] Successfully updated opportunity in store`)
   },
-}) 
+})
