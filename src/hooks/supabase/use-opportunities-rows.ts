@@ -86,14 +86,15 @@ const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes cache
 const OPPORTUNITIES_STORAGE_KEY = 'opportunities-data'
 
 const loadOpportunitiesFromLocal = (): Opportunity[] => {
-  try {
-    const savedRows = localStorage.getItem(OPPORTUNITIES_STORAGE_KEY)
-    if (savedRows) {
-      return JSON.parse(savedRows)
-    }
-  } catch (error) {
-    logger.error('Failed to load opportunities from localStorage:', error)
-  }
+  // 🚀 TEMP DISABLE: Don't load from localStorage to test if this is causing conflicts
+  // try {
+  //   const savedRows = localStorage.getItem(OPPORTUNITIES_STORAGE_KEY)
+  //   if (savedRows) {
+  //     return JSON.parse(savedRows)
+  //   }
+  // } catch (error) {
+  //   logger.error('Failed to load opportunities from localStorage:', error)
+  // }
   return []
 }
 
@@ -252,21 +253,21 @@ export function useOpportunitiesRows() {
           // Cache the data in memory
           pageCache.set(cacheKey, { data: sortedRows, timestamp: Date.now() })
 
-          // Also cache first page to localStorage for instant load next time
-          if (page === 1) {
-            try {
-              localStorage.setItem(
-                'opportunities-first-page',
-                JSON.stringify({
-                  data: sortedRows,
-                  totalCount: count,
-                  timestamp: Date.now(),
-                }),
-              )
-            } catch (e) {
-              logger.warn('Failed to cache opportunities to localStorage:', e)
-            }
-          }
+          // 🚀 TEMP DISABLE: Don't cache to localStorage to test if this is causing conflicts
+          // if (page === 1) {
+          //   try {
+          //     localStorage.setItem(
+          //       'opportunities-first-page',
+          //       JSON.stringify({
+          //         data: sortedRows,
+          //         totalCount: count,
+          //         timestamp: Date.now(),
+          //       }),
+          //     )
+          //   } catch (e) {
+          //     logger.warn('Failed to cache opportunities to localStorage:', e)
+          //   }
+          // }
 
           // Return the total count for pagination controls
           return { totalCount: count || 0 }
