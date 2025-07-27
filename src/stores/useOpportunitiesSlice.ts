@@ -78,43 +78,27 @@ export const useOpportunitiesSlice: StateCreator<
   /**
    * Inicializa el store de opportunities con el primer batch de datos
    */
+  // 🚀 OPTIMIZED: Initialize opportunities with enhanced pagination and caching
   opportunitiesInitialize: async (userId: string) => {
     console.log('🔥 [INIT] opportunitiesInitialize called with userId:', userId)
 
     // Si hay una inicialización en curso, esperar a que complete
     if (initializationPromise) {
-      console.log('⏳ [INIT] Waiting for existing initialization to complete...')
+      logger.log('Initialization already in progress, waiting for completion...')
       return initializationPromise
     }
 
     const state = get()
+    const hasRealData = state.opportunitiesOrderedIds.length > 0
+    const isAlreadyInitialized =
+      state.opportunitiesPagination.isInitialized && state.opportunitiesPagination.firstBatchLoaded
+    const isCurrentUser = state.opportunitiesInternal.userId === userId
+    const isCurrentlyLoading = state.opportunitiesLoading.initializing || state.opportunitiesLoading.fetching
 
-    // Only log initialization details in development
-    if (process.env.NODE_ENV === 'development') {
-      logger.log(`Initialize opportunities called for user ${userId}. Current state:`, {
-        currentUserId: state.opportunitiesInternal.userId,
-        hasData: state.opportunitiesOrderedIds.length > 0,
-        loadedCount: state.opportunitiesPagination.loadedCount,
-        totalCount: state.opportunitiesPagination.totalCount,
-        hasMore: state.opportunitiesPagination.hasMore,
-        isBackgroundLoading: state.opportunitiesInternal.backgroundLoadingActive,
-        isInitialized: state.opportunitiesPagination.isInitialized,
-        firstBatchLoaded: state.opportunitiesPagination.firstBatchLoaded,
-        allOpportunitiesLoaded: state.opportunitiesPagination.allOpportunitiesLoaded,
-      })
-    }
-
-    // VERIFICACIÓN ESTRICTA: Solo considerar inicializado si realmente hay datos
-    const hasRealData = state.opportunitiesOrderedIds.length > 0 && Object.keys(state.opportunitiesCache).length > 0
-
-    if (
-      state.opportunitiesInternal.userId === userId &&
-      state.opportunitiesPagination.isInitialized &&
-      state.opportunitiesPagination.firstBatchLoaded &&
-      hasRealData
-    ) {
+    // 🚀 STRICT CHECK: Return early if already properly initialized for this user
+    if (isCurrentUser && isAlreadyInitialized && hasRealData) {
       logger.log(
-        `✅ Opportunities store already initialized with ${state.opportunitiesOrderedIds.length} opportunities`,
+        `✅ [SKIP] Opportunities store already initialized with ${state.opportunitiesOrderedIds.length} opportunities`,
       )
 
       // Si no hemos cargado todas las opportunities y no estamos cargando actualmente, reanudar background loading
@@ -131,16 +115,28 @@ export const useOpportunitiesSlice: StateCreator<
       return
     }
 
-    // ❌ Si llegamos aquí, significa que NO se usó el cache - diagnostiquemos por qué
-    logger.log(`🚨 [DEBUG] Fresh initialization required. Cache not used because:`, {
-      userIdMatch: state.opportunitiesInternal.userId === userId,
-      isInitialized: state.opportunitiesPagination.isInitialized,
-      firstBatchLoaded: state.opportunitiesPagination.firstBatchLoaded,
-      orderedIdsLength: state.opportunitiesOrderedIds.length,
-      cacheLength: Object.keys(state.opportunitiesCache).length,
-      hasRealData,
-      currentUserId: userId,
-      storeUserId: state.opportunitiesInternal.userId,
+    // 🚀 LOADING CHECK: Prevent multiple concurrent initializations
+    if (isCurrentlyLoading) {
+      logger.log('⏸️ [SKIP] Already loading opportunities, waiting for completion...')
+      return initializationPromise
+    }
+
+    // 🚀 ENHANCED: Better diagnostic logging for why initialization is needed
+    logger.log(`🔄 [INIT] Fresh initialization required. Reasons:`, {
+      userChange: !isCurrentUser ? `${state.opportunitiesInternal.userId} → ${userId}` : false,
+      notInitialized: !isAlreadyInitialized,
+      noData: !hasRealData,
+      dataStats: {
+        orderedIds: state.opportunitiesOrderedIds.length,
+        cacheSize: Object.keys(state.opportunitiesCache).length,
+        totalCount: state.opportunitiesPagination.totalCount,
+        loadedCount: state.opportunitiesPagination.loadedCount,
+      },
+      flags: {
+        isInitialized: state.opportunitiesPagination.isInitialized,
+        firstBatchLoaded: state.opportunitiesPagination.firstBatchLoaded,
+        allLoaded: state.opportunitiesPagination.allOpportunitiesLoaded,
+      },
     })
 
     // Si cambiamos de usuario, limpiar todo
@@ -171,6 +167,7 @@ export const useOpportunitiesSlice: StateCreator<
       try {
         // Obtener count total primero
         const countStartTime = performance.now()
+
         const { count } = await supabase
           .from('opportunities')
           .select('*', { count: 'exact', head: true })
@@ -311,6 +308,9 @@ export const useOpportunitiesSlice: StateCreator<
             state.opportunitiesPagination.firstBatchLoaded = true
             state.opportunitiesPagination.isInitialized = true
 
+            // 🚀 FIX: Clear loading state immediately upon successful completion
+            state.opportunitiesLoading.initializing = false
+
             // Si no hay más datos que cargar, marcar como completo
             if (!state.opportunitiesPagination.hasMore) {
               state.opportunitiesPagination.allOpportunitiesLoaded = true
@@ -345,6 +345,9 @@ export const useOpportunitiesSlice: StateCreator<
             state.opportunitiesPagination.isInitialized = true
             state.opportunitiesPagination.allOpportunitiesLoaded = true
             state.opportunitiesPagination.hasMore = false
+
+            // 🚀 FIX: Clear loading state when no data found
+            state.opportunitiesLoading.initializing = false
           })
 
           logger.log('[Initialize] No opportunities found for user')
@@ -356,18 +359,27 @@ export const useOpportunitiesSlice: StateCreator<
           message: error instanceof Error ? error.message : 'Unknown error',
           userId,
           timestamp: new Date().toISOString(),
+          stackTrace: error instanceof Error ? error.stack : undefined,
         })
         set(state => {
           state.opportunitiesErrors.initialize =
             error instanceof Error ? error.message : OPPORTUNITIES_ERROR_MESSAGES.INITIALIZE_FAILED
-          // Clear loading state even on error to prevent infinite loading
+          // 🚀 CRITICAL: Clear all loading states to prevent infinite loops
           state.opportunitiesLoading.initializing = false
+          state.opportunitiesLoading.fetching = false
+          // 🚀 IMPORTANT: Reset initialization flags to allow retry
+          state.opportunitiesPagination.isInitialized = false
+          state.opportunitiesPagination.firstBatchLoaded = false
         })
-        // Don't throw the error to prevent crashing the UI
+        // Don't throw the error to prevent crashing the UI - let the component handle error state
+        console.log('🛡️ [SAFETY] Error handled gracefully, UI remains functional')
         return
       } finally {
+        // 🚀 SAFETY: Only clear loading if not already cleared in success case
         set(state => {
-          state.opportunitiesLoading.initializing = false
+          if (state.opportunitiesLoading.initializing) {
+            state.opportunitiesLoading.initializing = false
+          }
         })
         initializationPromise = null
       }
@@ -412,7 +424,7 @@ export const useOpportunitiesSlice: StateCreator<
           updated_at
         `,
         )
-        .eq('user_id', state.opportunitiesInternal.userId)
+        .eq('user_id', get().opportunitiesInternal.userId)
         .order('created_at', { ascending: false })
         .range(
           state.opportunitiesPagination.offset,
