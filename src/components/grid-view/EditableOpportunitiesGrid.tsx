@@ -87,7 +87,7 @@ export function EditableOpportunitiesGrid({
     opportunitiesOrderedIds,
     opportunitiesLoading,
     opportunitiesPagination,
-    opportunitiesInitialize,
+    opportunitiesErrors,
     opportunitiesAddOpportunity,
     opportunitiesRemoveOpportunities,
     opportunitiesEnsureMinimumLoaded,
@@ -146,13 +146,9 @@ export function EditableOpportunitiesGrid({
   // const [totalCount, setTotalCount] = useState(0);
   // const [retryCount, setRetryCount] = useState(0);
 
-  // 🚀 NEW: Initialize store when user is available
-  useEffect(() => {
-    if (user?.id && !opportunitiesPagination.isInitialized) {
-      logger.log('Initializing opportunities store for user:', user.id)
-      opportunitiesInitialize(user.id)
-    }
-  }, [user?.id, opportunitiesPagination.isInitialized, opportunitiesInitialize])
+  // 🚀 REMOVED: Initialization now handled centrally in Opportunities.tsx to prevent race conditions
+  // Previously this component also initialized the store, causing duplicate API calls
+  // Now we rely on the parent page to handle initialization properly
 
   // 🚀 NEW: Ensure minimum data is loaded for current page size
   useEffect(() => {
@@ -536,9 +532,31 @@ export function EditableOpportunitiesGrid({
   // Stable grid key
   const gridKey = useMemo(() => `opportunities-grid-${opportunitiesForceRenderKey}`, [opportunitiesForceRenderKey])
 
-  // Show extended loading state while data is being fetched
+  // 🚀 FIXED: Improved loading logic to prevent infinite loader
   const isStillLoading =
-    instantOpportunities.loading || (opportunitiesPagination.isInitialized && instantOpportunities.rows.length === 0)
+    // Show loading only if we're actually initializing AND have no data
+    (opportunitiesLoading.initializing && instantOpportunities.rows.length === 0) ||
+    // OR if not initialized yet and no external data
+    (!opportunitiesPagination.isInitialized && !externalOpportunities?.length)
+
+  // 🚀 DEBUG: Log the loading state to understand why loader persists
+  useEffect(() => {
+    console.log('🔍 EditableOpportunitiesGrid Loading Debug:', {
+      'instantOpportunities.loading': instantOpportunities.loading,
+      'instantOpportunities.rows.length': instantOpportunities.rows.length,
+      'opportunitiesPagination.isInitialized': opportunitiesPagination.isInitialized,
+      isStillLoading: isStillLoading,
+      externalLoading: externalLoading,
+      opportunitiesLoading: opportunitiesLoading,
+    })
+  }, [
+    instantOpportunities.loading,
+    instantOpportunities.rows.length,
+    opportunitiesPagination.isInitialized,
+    isStillLoading,
+    externalLoading,
+    opportunitiesLoading,
+  ])
 
   // Debug logging instead of warning (this is normal during loading)
   useEffect(() => {
@@ -556,8 +574,9 @@ export function EditableOpportunitiesGrid({
     }
   }, [instantOpportunities.rows.length, instantOpportunities.loading, opportunitiesPagination.isInitialized, user?.id])
 
-  // 🚀 Show loading skeleton when loading or data not yet available
-  if (isStillLoading && instantOpportunities.rows.length === 0) {
+  // 🚀 FIXED: Simple and clear loading logic
+  // Show loader only during initial loading, not when initialized (even with no data)
+  if (opportunitiesLoading.initializing) {
     return <GridSkeleton rowCount={10} columnCount={10} loadingText="Loading opportunities..." />
   }
 

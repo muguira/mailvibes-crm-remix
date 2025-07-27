@@ -14,8 +14,9 @@ import { toast } from '@/components/ui/use-toast'
 import { ViewMode, ViewToggle } from '@/components/ui/view-toggle'
 import { useOpportunities } from '@/hooks/supabase/use-opportunities'
 import { useStore } from '@/stores'
+import { useOrganizationStore } from '@/stores/organizationStore'
 import { Plus } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 /**
  * Opportunities Page Component
@@ -29,6 +30,11 @@ export default function Opportunities() {
   const [boardSearchTerm, setBoardSearchTerm] = useState('')
   const [isContactSelectionModalOpen, setIsContactSelectionModalOpen] = useState(false)
   const [isConvertLoading, setIsConvertLoading] = useState(false)
+
+  // 🚀 NEW: Use direct opportunities hook for organization-based data
+  const [opportunitiesFromHook, setOpportunitiesFromHook] = useState<any[]>([])
+  const [hookLoading, setHookLoading] = useState(true)
+  const [hookInitialized, setHookInitialized] = useState(false)
 
   const { updateOpportunity, bulkConvertContactsToOpportunities, getOpportunities } = useOpportunities()
 
@@ -46,12 +52,72 @@ export default function Opportunities() {
     opportunitiesClear,
   } = useStore()
 
-  // Get opportunities from store
-  const opportunities = useMemo(() => {
+  const { currentOrganization } = useOrganizationStore()
+
+  // 🚀 NEW: Load opportunities directly using the updated hook
+  useEffect(() => {
+    const loadOpportunitiesDirectly = async () => {
+      if (!user?.id || !currentOrganization?.id) {
+        setHookLoading(false)
+        setHookInitialized(true)
+        return
+      }
+
+      try {
+        setHookLoading(true)
+        console.log('🔄 Loading opportunities directly with organization:', currentOrganization.id)
+
+        const result = await getOpportunities({}, { page: 1, pageSize: 100 })
+        setOpportunitiesFromHook(result.data || [])
+        console.log('✅ Loaded opportunities directly:', result.data?.length || 0)
+      } catch (error) {
+        console.error('❌ Error loading opportunities directly:', error)
+        setOpportunitiesFromHook([])
+      } finally {
+        setHookLoading(false)
+        setHookInitialized(true)
+      }
+    }
+
+    loadOpportunitiesDirectly()
+  }, [user?.id, currentOrganization?.id, getOpportunities])
+
+  // Get opportunities from store (as fallback)
+  const opportunitiesFromStore = useMemo(() => {
     return opportunitiesOrderedIds.map(id => opportunitiesCache[id]).filter(Boolean)
   }, [opportunitiesOrderedIds, opportunitiesCache])
 
-  const isOpportunitiesLoading = opportunitiesLoading.initializing || opportunitiesLoading.fetching
+  // 🚀 IMPROVED: Better loading and data logic to prevent flickering
+  const hasHookData = hookInitialized && opportunitiesFromHook.length > 0
+  const hasStoreData = opportunitiesPagination.isInitialized && opportunitiesFromStore.length > 0
+
+  // Use hook data if available and initialized, otherwise fall back to store data
+  const opportunities = hasHookData ? opportunitiesFromHook : opportunitiesFromStore
+
+  // Show loading only if we're actually loading and don't have any data yet
+  const isOpportunitiesLoading =
+    (hookLoading && !hasHookData && !hasStoreData) ||
+    (opportunitiesLoading.initializing && !hasHookData && !hasStoreData)
+
+  // 🚀 FIXED: Use useRef to prevent multiple initializations and stable callback
+  const initializationAttempted = useRef(false)
+  const stableOpportunitiesInitialize = useCallback(
+    (userId: string) => {
+      if (initializationAttempted.current) {
+        console.log('🛡️ Initialization already attempted, skipping...')
+        return
+      }
+      initializationAttempted.current = true
+      console.log('🔥 CALLING opportunitiesInitialize with user:', userId)
+      return opportunitiesInitialize(userId).finally(() => {
+        // Reset flag after completion (success or error) to allow retry if needed
+        setTimeout(() => {
+          initializationAttempted.current = false
+        }, 1000) // 1 second cooldown
+      })
+    },
+    [opportunitiesInitialize],
+  )
 
   // Initialize store when user is available
   useEffect(() => {
@@ -62,28 +128,46 @@ export default function Opportunities() {
       isLoading: isOpportunitiesLoading,
       opportunitiesCount: opportunities.length,
       hasRealData,
+      initializationAttempted: initializationAttempted.current,
+      loadingStates: {
+        initializing: opportunitiesLoading.initializing,
+        fetching: opportunitiesLoading.fetching,
+        backgroundLoading: opportunitiesLoading.backgroundLoading,
+      },
     })
 
-    // Force initialization if no real data regardless of isInitialized flag
-    if (user?.id && (!opportunitiesPagination.isInitialized || !hasRealData)) {
-      console.log('🔥 CALLING opportunitiesInitialize with user:', user.id, {
-        reason: !opportunitiesPagination.isInitialized ? 'not initialized' : 'no data',
-      })
-      opportunitiesInitialize(user.id)
+    // Only initialize if we have a user, haven't attempted initialization recently, and need data
+    if (
+      user?.id &&
+      !initializationAttempted.current &&
+      !opportunitiesPagination.isInitialized &&
+      !isOpportunitiesLoading
+    ) {
+      console.log('🔥 Starting initialization for user:', user.id)
+      stableOpportunitiesInitialize(user.id)
     }
-  }, [user?.id, opportunitiesPagination.isInitialized, opportunities.length, opportunitiesInitialize])
+  }, [user?.id, opportunitiesPagination.isInitialized, isOpportunitiesLoading, stableOpportunitiesInitialize])
 
-  // 🚀 FALLBACK: Force initialization if marked as initialized but no data loaded
+  // 🚀 SIMPLIFIED FALLBACK: Only retry if we have clear initialization failure
   useEffect(() => {
-    if (user?.id && opportunitiesPagination.isInitialized && opportunities.length === 0 && !isOpportunitiesLoading) {
-      opportunitiesInitialize(user.id)
+    // Only retry if we're marked as initialized but have no data and no loading state
+    // This handles edge cases where initialization completes but data wasn't loaded properly
+    if (
+      user?.id &&
+      opportunitiesPagination.isInitialized &&
+      opportunities.length === 0 &&
+      !isOpportunitiesLoading &&
+      !initializationAttempted.current
+    ) {
+      console.log('🔄 Fallback: Retrying initialization due to no data despite initialized flag')
+      stableOpportunitiesInitialize(user.id)
     }
   }, [
     user?.id,
     opportunitiesPagination.isInitialized,
     opportunities.length,
     isOpportunitiesLoading,
-    opportunitiesInitialize,
+    stableOpportunitiesInitialize,
   ])
 
   const handleViewChange = (newView: ViewMode) => {
@@ -213,8 +297,8 @@ export default function Opportunities() {
         <TopNavbar />
         <div className="h-screen bg-gray-50 overflow-hidden">
           <ErrorBoundary sectionName="Opportunities View">
-            {/* Error State */}
-            {opportunitiesErrors.initialize && !isOpportunitiesLoading && (
+            {/* Error State - Only show if we have a real error and not loading */}
+            {opportunitiesErrors.initialize && !isOpportunitiesLoading && hookInitialized && (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center p-8">
                   <div className="text-red-600 text-lg font-semibold mb-2">Failed to load opportunities</div>
@@ -229,8 +313,8 @@ export default function Opportunities() {
               </div>
             )}
 
-            {/* Normal Content */}
-            {!opportunitiesErrors.initialize && (
+            {/* Normal Content - Only show when not loading */}
+            {!opportunitiesErrors.initialize && !isOpportunitiesLoading && (
               <>
                 {viewMode === 'list' ? (
                   <EditableOpportunitiesGrid
@@ -257,7 +341,9 @@ export default function Opportunities() {
                             <div className="ml-4 text-xs bg-gray-100 px-2 py-1 rounded flex items-center gap-2">
                               <span>
                                 Cache: {Object.keys(opportunitiesCache).length} | Total: {opportunities.length} |
-                                {isOpportunitiesLoading ? ' 🔄 Loading...' : ' ✅ Ready'}
+                                {isOpportunitiesLoading ? ' 🔄 Initializing...' : ' ✅ Ready'} |
+                                {opportunitiesLoading.fetching ? ' 📥 Fetching' : ''} |
+                                {opportunitiesLoading.backgroundLoading ? ' ⚡ Background' : ''}
                               </span>
                               <button
                                 onClick={() => {
@@ -340,9 +426,9 @@ export default function Opportunities() {
             isLoading={isConvertLoading}
           />
 
-          {/* Debug Tools - Remove after testing */}
+          {/* Debug Tools - Hide with CSS during loading to prevent flickering */}
           {process.env.NODE_ENV === 'development' && (
-            <div className="mt-8 border-t pt-8 space-y-4">
+            <div className={`mt-8 border-t pt-8 space-y-4 ${isOpportunitiesLoading ? 'hidden' : ''}`}>
               <div className="flex gap-4 items-center">
                 <h3 className="text-lg font-semibold">🧪 Development Tools</h3>
                 <button

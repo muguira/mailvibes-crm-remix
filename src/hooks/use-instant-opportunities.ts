@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useCallback } from 'react'
-import { useStore } from '@/stores/index'
 import { useAuth } from '@/components/auth'
+import { useStore } from '@/stores/index'
 import { Opportunity } from '@/stores/useOpportunitiesSlice'
+import { useEffect, useMemo } from 'react'
 import { usePerformanceMonitor } from './use-performance-monitor'
 
 interface ColumnFilter {
@@ -145,8 +145,24 @@ export function useInstantOpportunities({
     opportunitiesInitialize: initialize,
   } = useStore()
 
-  // Combine loading states
-  const loading = fetching || initializing
+  // 🚀 FIX: Only show main loading for initial load, not for background fetching
+  // Background fetching and pagination should not block the main UI
+  const loading = initializing
+
+  // 🚀 DEBUG: Temporary logging to understand loading state
+  useEffect(() => {
+    console.log('🔍 useInstantOpportunities Debug:', {
+      loading,
+      initializing,
+      fetching,
+      isBackgroundLoading,
+      isInitialized,
+      cacheSize: Object.keys(cache).length,
+      orderedIdsLength: orderedIds.length,
+      totalCount,
+      loadedCount,
+    })
+  }, [loading, initializing, fetching, isBackgroundLoading, isInitialized, cache, orderedIds, totalCount, loadedCount])
 
   // Log performance summary periodically for monitoring
   useEffect(() => {
@@ -305,4 +321,4 @@ export function useInstantOpportunities({
     isBackgroundLoading,
     loadedCount,
   }
-} 
+}

@@ -1,199 +1,159 @@
-import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/components/auth';
-import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client'
+import { useStore } from '@/stores'
+import { useOrganizationStore } from '@/stores/organizationStore'
+import { OpportunityFilters, PaginationOptions } from '@/types/opportunities'
+import { useCallback } from 'react'
 
-interface CreateOpportunityData {
-  contactId: string;
-  contactName: string;
-  contactEmail?: string;
-  company?: string;
-  dealValue: number;
-  closeDate: Date;
-  stage: string;
-  priority: string;
-  leadSource?: string;
-  owner?: string;
-}
-
-interface OpportunityFilters {
-  stage?: string;
-  priority?: string;
-  searchTerm?: string;
-  dateRange?: { start: string; end: string };
-}
-
-interface PaginationOptions {
-  page?: number;
-  pageSize?: number;
-  sortBy?: 'created_at' | 'revenue' | 'close_date' | 'opportunity';
-  sortOrder?: 'asc' | 'desc';
+// Transform opportunity data from Supabase to frontend format
+const transformOpportunity = (opportunity: any) => {
+  return {
+    id: opportunity.id,
+    opportunity: opportunity.opportunity,
+    status: opportunity.status,
+    revenue: opportunity.revenue,
+    revenue_display: opportunity.revenue_display,
+    close_date: opportunity.close_date,
+    owner: opportunity.owner,
+    website: opportunity.website,
+    company_name: opportunity.company_name,
+    company_linkedin: opportunity.company_linkedin,
+    employees: opportunity.employees,
+    last_contacted: opportunity.last_contacted,
+    next_meeting: opportunity.next_meeting,
+    lead_source: opportunity.lead_source,
+    priority: opportunity.priority,
+    original_contact_id: opportunity.original_contact_id,
+    converted_at: opportunity.converted_at,
+    data: opportunity.data || {},
+    created_at: opportunity.created_at,
+    updated_at: opportunity.updated_at,
+    organization_id: opportunity.organization_id, // Include organization_id
+  }
 }
 
 export function useOpportunities() {
-  const { user } = useAuth();
+  const { authUser: user } = useStore()
+  const { currentOrganization } = useOrganizationStore()
 
-  // Convert contact to opportunity
-  const convertContactToOpportunity = useCallback(async (
-    contactData: CreateOpportunityData
-  ) => {
-    if (!user) {
-      throw new Error('User not authenticated');
+  // Helper to get current organization ID
+  const getCurrentOrganizationId = useCallback(() => {
+    if (!currentOrganization?.id) {
+      throw new Error('No organization selected. Please select an organization first.')
     }
+    return currentOrganization.id
+  }, [currentOrganization])
 
-    try {
-      const newOpportunity = {
-        user_id: user.id,
-        opportunity: contactData.contactName || 'Unnamed Opportunity',
-        status: contactData.stage,
-        revenue: contactData.dealValue,
-        revenue_display: `$${contactData.dealValue.toLocaleString()}`,
-        close_date: contactData.closeDate.toISOString().split('T')[0], // YYYY-MM-DD format
-        owner: contactData.owner || user.email || 'Unknown',
-        company_name: contactData.company || 'Unknown Company',
-        website: '',
-        company_linkedin: '',
-        employees: 0,
-        last_contacted: new Date().toISOString().split('T')[0],
-        next_meeting: null,
-        lead_source: contactData.leadSource || 'Converted Contact',
-        priority: contactData.priority,
-        original_contact_id: contactData.contactId,
-        data: {
-          email: contactData.contactEmail
-        }
-      };
-
-      const { data, error } = await supabase
-        .from('opportunities')
-        .insert([newOpportunity])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('❌ Supabase error creating opportunity:', error);
-        throw error;
-      }
-
-      console.log('✅ Opportunity created successfully:', data);
-      
-      return {
-        success: true,
-        opportunity: data
-      };
-      
-    } catch (error) {
-      console.error('❌ Error creating opportunity:', error);
-      throw error;
-    }
-  }, [user]);
-
-  // Bulk convert multiple contacts to opportunities
-  const bulkConvertContactsToOpportunities = useCallback(async (
-    contacts: Array<{
-      id: string;
-      name?: string;
-      email?: string;
-      company?: string;
-      source?: string;
-    }>,
-    conversionData: {
-      accountName: string;
-      dealValue: number;
-      closeDate?: Date;
-      stage: string;
-      priority: string;
+  // 🚀 OPTIMIZED: Bulk convert contacts to opportunities with better error handling
+  const bulkConvertContactsToOpportunities = useCallback(
+    async (
       contacts: Array<{
-        id: string;
-        name: string;
-        email?: string;
-        company?: string;
-        role: string;
-      }>;
-    }
-  ) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    try {
-      // Create a single opportunity using the account name
-      const opportunityToInsert = {
-        user_id: user.id,
-        opportunity: conversionData.accountName, // Use account name as opportunity name
-        status: conversionData.stage,
-        revenue: conversionData.dealValue,
-        revenue_display: `$${conversionData.dealValue.toLocaleString()}`,
-        close_date: conversionData.closeDate ? conversionData.closeDate.toISOString().split('T')[0] : null,
-        owner: user.email || 'Unknown',
-        company_name: conversionData.accountName, // Use account name for company
-        website: '',
-        company_linkedin: '',
-        employees: 0,
-        last_contacted: new Date().toISOString().split('T')[0],
-        next_meeting: null,
-        lead_source: 'Converted Contact',
-        priority: conversionData.priority,
-        original_contact_id: contacts[0]?.id || null, // Primary contact
-        data: {
-          contacts: conversionData.contacts, // Store contact roles in JSONB data
-          conversion_source: 'multiple_contacts'
-        }
-      };
-
-      const { data, error } = await supabase
-        .from('opportunities')
-        .insert([opportunityToInsert])
-        .select();
-
-      if (error) {
-        console.error('❌ Supabase error creating opportunity:', error);
-        throw error;
+        id: string
+        name?: string
+        email?: string
+        company?: string
+        source?: string
+      }>,
+      conversionData: {
+        accountName: string
+        dealValue: number
+        closeDate?: Date
+        stage: string
+        priority: string
+        contacts: Array<{
+          id: string
+          name: string
+          email?: string
+          company?: string
+          role: string
+        }>
+      },
+    ) => {
+      if (!user) {
+        throw new Error('User not authenticated')
       }
 
-      console.log('✅ Successfully created opportunity:', data);
+      const organizationId = getCurrentOrganizationId()
 
-      return {
-        success: true,
-        data,
-        convertedCount: 1 // One opportunity created from multiple contacts
-      };
-    } catch (error) {
-      console.error('❌ Error in bulkConvertContactsToOpportunities:', error);
-      throw error;
-    }
-  }, [user]);
+      try {
+        console.log('🔄 Converting contacts to opportunity...', {
+          contactCount: contacts.length,
+          organizationId,
+          conversionData,
+        })
+
+        // Create a single opportunity from multiple contacts
+        const opportunityData = {
+          user_id: user.id,
+          organization_id: organizationId, // Add organization_id
+          opportunity: conversionData.accountName,
+          status: conversionData.stage,
+          revenue: conversionData.dealValue,
+          revenue_display: `$${conversionData.dealValue.toLocaleString()}`,
+          close_date: conversionData.closeDate?.toISOString().split('T')[0] || null,
+          priority: conversionData.priority,
+          company_name: conversionData.accountName,
+          owner: user.email || '',
+          lead_source: contacts[0]?.source || 'Contact Conversion',
+          original_contact_id: contacts[0]?.id || null,
+          data: {
+            converted_from_contacts: contacts.map(c => ({
+              id: c.id,
+              name: c.name,
+              email: c.email,
+              company: c.company,
+            })),
+            contact_roles: conversionData.contacts.reduce(
+              (acc, contact) => {
+                acc[contact.id] = contact.role
+                return acc
+              },
+              {} as Record<string, string>,
+            ),
+          },
+        }
+
+        const { data, error } = await supabase.from('opportunities').insert([opportunityData]).select().single()
+
+        if (error) {
+          console.error('❌ Error creating opportunity:', error)
+          throw error
+        }
+
+        console.log('✅ Successfully created opportunity:', data)
+
+        return {
+          success: true,
+          data,
+          convertedCount: 1, // One opportunity created from multiple contacts
+        }
+      } catch (error) {
+        console.error('❌ Error in bulkConvertContactsToOpportunities:', error)
+        throw error
+      }
+    },
+    [user, getCurrentOrganizationId],
+  )
 
   // 🚀 OPTIMIZED: Get opportunities with pagination, filtering, and field selection
-  const getOpportunities = useCallback(async (
-    filters: OpportunityFilters = {},
-    pagination: PaginationOptions = {}
-  ) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
+  const getOpportunities = useCallback(
+    async (filters: OpportunityFilters = {}, pagination: PaginationOptions = {}) => {
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
 
-    const startTime = performance.now();
+      const organizationId = getCurrentOrganizationId()
+      const startTime = performance.now()
 
-    try {
-      const {
-        page = 1,
-        pageSize = 50,
-        sortBy = 'created_at',
-        sortOrder = 'desc'
-      } = pagination;
+      try {
+        const { page = 1, pageSize = 50, sortBy = 'created_at', sortOrder = 'desc' } = pagination
 
-      const {
-        stage,
-        priority,
-        searchTerm,
-        dateRange
-      } = filters;
+        const { stage, priority, searchTerm, dateRange } = filters
 
-      // 🚀 PERFORMANCE: Select only essential fields to reduce payload size
-      let query = supabase
-        .from('opportunities')
-        .select(`
+        // 🚀 PERFORMANCE: Select only essential fields to reduce payload size
+        let query = supabase
+          .from('opportunities')
+          .select(
+            `
           id,
           opportunity,
           status,
@@ -205,268 +165,243 @@ export function useOpportunities() {
           priority,
           original_contact_id,
           created_at,
-          updated_at
-        `)
-        .eq('user_id', user.id);
+          updated_at,
+          organization_id
+        `,
+          )
+          .eq('organization_id', organizationId) // Filter by organization instead of user
 
-      // 🚀 PERFORMANCE: Apply filters at database level
-      if (stage) {
-        query = query.eq('status', stage);
-      }
+        // 🚀 PERFORMANCE: Apply filters at database level
+        if (stage) {
+          query = query.eq('status', stage)
+        }
 
-      if (priority) {
-        query = query.eq('priority', priority);
-      }
+        if (priority) {
+          query = query.eq('priority', priority)
+        }
 
-      if (searchTerm && searchTerm.trim()) {
-        query = query.or(`opportunity.ilike.%${searchTerm}%,company_name.ilike.%${searchTerm}%,owner.ilike.%${searchTerm}%`);
-      }
+        if (searchTerm && searchTerm.trim()) {
+          query = query.or(
+            `opportunity.ilike.%${searchTerm}%,company_name.ilike.%${searchTerm}%,owner.ilike.%${searchTerm}%`,
+          )
+        }
 
-      if (dateRange) {
+        if (dateRange) {
+          query = query.gte('close_date', dateRange.start).lte('close_date', dateRange.end)
+        }
+
+        // 🚀 PERFORMANCE: Add sorting and pagination
         query = query
-          .gte('close_date', dateRange.start)
-          .lte('close_date', dateRange.end);
+          .order(sortBy, { ascending: sortOrder === 'asc' })
+          .range((page - 1) * pageSize, page * pageSize - 1)
+
+        // 🚀 PERFORMANCE: Get count separately to avoid heavy payload
+        const [dataResult, countResult] = await Promise.all([
+          query,
+          supabase
+            .from('opportunities')
+            .select('*', { count: 'exact', head: true })
+            .eq('organization_id', organizationId), // Filter count by organization too
+        ])
+
+        const { data, error } = dataResult
+        const { count } = countResult
+
+        if (error) {
+          console.error('❌ Error fetching opportunities:', error)
+          throw error
+        }
+
+        const endTime = performance.now()
+        console.log(`⚡ Opportunities fetched in ${(endTime - startTime).toFixed(2)}ms`, {
+          count: data?.length,
+          total: count,
+          page,
+          organizationId,
+        })
+
+        // 🚀 PERFORMANCE: Transform data efficiently
+        const transformedData = data?.map(transformOpportunity) || []
+
+        return {
+          data: transformedData,
+          totalCount: count || 0,
+          hasMore: data && data.length === pageSize,
+          page,
+          pageSize,
+        }
+      } catch (error) {
+        console.error('❌ Error fetching opportunities:', error)
+        throw error
       }
-
-      // 🚀 PERFORMANCE: Apply sorting and pagination
-      query = query
-        .order(sortBy, { ascending: sortOrder === 'asc' })
-        .range((page - 1) * pageSize, page * pageSize - 1);
-
-      const { data, error, count } = await query;
-
-      if (error) {
-        console.error('❌ Error fetching opportunities:', error);
-        throw error;
-      }
-
-      const endTime = performance.now();
-      console.log(`🚀 Opportunities query took ${(endTime - startTime).toFixed(2)}ms`);
-
-      // Status mapping from database values to pipeline stages
-      const statusMapping: Record<string, string> = {
-        // Old Spanish stages mapped to new English stages
-        'Demo agendada': 'Lead/New',
-        'Demo asistida': 'Discovery', 
-        'Propuesta enviada': 'Proposal',
-        'Int. de cierre': 'Closing',
-        'Confirmación verbal': 'Negotiation',
-        'Ganado': 'Won',
-        'Perdido': 'Lost',
-        
-        // Old English stages mapped to new stages  
-        'Contract Sent': 'Proposal',
-        'In Procurement': 'Discovery',
-        'Deal Won': 'Won',
-        'Qualified': 'Qualified',
-        
-        // New stages (direct mapping)
-        'Lead/New': 'Lead/New',
-        'Discovery': 'Discovery',
-        'Proposal': 'Proposal',
-        'Negotiation': 'Negotiation',
-        'Closing': 'Closing',
-        'Won': 'Won',
-        'Lost': 'Lost'
-      };
-
-      // 🚀 PERFORMANCE: Minimal transformation - moved from client to here but kept lightweight
-      const transformedData = data?.map(opp => ({
-        id: opp.id,
-        opportunity: opp.opportunity,
-        status: opp.status,
-        stage: statusMapping[opp.status] || opp.status, // Map status to stage for Kanban
-        revenue: parseInt(opp.revenue?.toString() || '0'), // Convert revenue to number for calculations
-        closeDate: opp.close_date || '',
-        owner: opp.owner,
-        company: opp.company_name,
-        priority: opp.priority,
-        originalContactId: opp.original_contact_id,
-        createdAt: opp.created_at,
-        updatedAt: opp.updated_at
-      })) || [];
-
-      return {
-        data: transformedData,
-        totalCount: count || 0,
-        hasMore: data && data.length === pageSize,
-        page,
-        pageSize
-      };
-    } catch (error) {
-      console.error('❌ Error fetching opportunities:', error);
-      throw error;
-    }
-  }, [user]);
+    },
+    [user, getCurrentOrganizationId],
+  )
 
   // 🚀 OPTIMIZED: Get opportunities count only (for dashboards/stats)
-  const getOpportunitiesCount = useCallback(async (filters: OpportunityFilters = {}) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    try {
-      let query = supabase
-        .from('opportunities')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      // Apply same filters as main query
-      if (filters.stage) {
-        query = query.eq('status', filters.stage);
+  const getOpportunitiesCount = useCallback(
+    async (filters: OpportunityFilters = {}) => {
+      if (!user) {
+        throw new Error('User not authenticated')
       }
 
-      if (filters.priority) {
-        query = query.eq('priority', filters.priority);
-      }
+      const organizationId = getCurrentOrganizationId()
 
-      if (filters.searchTerm && filters.searchTerm.trim()) {
-        query = query.or(`opportunity.ilike.%${filters.searchTerm}%,company_name.ilike.%${filters.searchTerm}%,owner.ilike.%${filters.searchTerm}%`);
-      }
+      try {
+        let query = supabase
+          .from('opportunities')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', organizationId) // Filter by organization instead of user
 
-      const { count, error } = await query;
-
-      if (error) {
-        console.error('❌ Error fetching opportunities count:', error);
-        throw error;
-      }
-
-      return count || 0;
-    } catch (error) {
-      console.error('❌ Error fetching opportunities count:', error);
-      throw error;
-    }
-  }, [user]);
-
-  // Update opportunity
-  const updateOpportunity = useCallback(async (
-    opportunityId: string,
-    updates: Partial<any>
-  ) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    try {
-      // Transform updates to match database schema - map camelCase to snake_case
-      const dbUpdates: any = {};
-      
-      // Field mapping from camelCase (grid) to snake_case (database)
-      const fieldMapping: { [key: string]: string } = {
-        'closeDate': 'close_date',
-        'companyName': 'company_name',
-        'company': 'company_name', // Grid uses 'company', DB uses 'company_name'
-        'companyLinkedin': 'company_linkedin',
-        'lastContacted': 'last_contacted',
-        'nextMeeting': 'next_meeting',
-        'leadSource': 'lead_source',
-        'stage': 'status', // Kanban uses 'stage', DB uses 'status'
-        'createdAt': 'created_at',
-        'updatedAt': 'updated_at',
-        // Add reverse mapping for data that comes from DB in snake_case
-        'close_date': 'close_date',
-        'company_name': 'company_name', 
-        'company_linkedin': 'company_linkedin',
-        'last_contacted': 'last_contacted',
-        'next_meeting': 'next_meeting',
-        'lead_source': 'lead_source',
-        'created_at': 'created_at',
-        'updated_at': 'updated_at'
-      };
-      
-      // Apply field mappings and copy values
-      for (const [key, value] of Object.entries(updates)) {
-        const dbFieldName = fieldMapping[key] || key; // Use mapped name or original if no mapping
-        
-        // Skip readonly fields that shouldn't be updated
-        if (['created_at', 'updated_at', 'id'].includes(dbFieldName)) {
-          continue;
+        // Apply same filters as main query
+        if (filters.stage) {
+          query = query.eq('status', filters.stage)
         }
-        
-        dbUpdates[dbFieldName] = value;
-      }
-      
-      // Handle revenue formatting
-      if (dbUpdates.revenue && typeof dbUpdates.revenue === 'number') {
-        dbUpdates.revenue_display = `$${dbUpdates.revenue.toLocaleString()}`;
-      }
 
-      // Handle date formatting for all date fields
-      const dateFields = ['close_date', 'last_contacted', 'next_meeting'];
-      dateFields.forEach(field => {
-        const dateValue = dbUpdates[field];
-        if (dateValue) {
-          let formattedDate: string;
-          
-          if (dateValue instanceof Date) {
-            formattedDate = dateValue.toISOString().split('T')[0];
-          } else if (typeof dateValue === 'string') {
-            // Handle ISO string dates from grid editing
-            const date = new Date(dateValue);
-            if (!isNaN(date.getTime())) {
-              formattedDate = date.toISOString().split('T')[0];
-            } else {
-              throw new Error(`Invalid date format for ${field}: ${dateValue}`);
-            }
-          } else {
-            throw new Error(`Unsupported date type for ${field}: ${typeof dateValue}`);
-          }
-          
-          dbUpdates[field] = formattedDate;
+        if (filters.priority) {
+          query = query.eq('priority', filters.priority)
         }
-      });
 
-      const { data, error } = await supabase
-        .from('opportunities')
-        .update(dbUpdates)
-        .eq('id', opportunityId)
-        .eq('user_id', user.id)
-        .select()
-        .single();
+        if (filters.searchTerm && filters.searchTerm.trim()) {
+          query = query.or(
+            `opportunity.ilike.%${filters.searchTerm}%,company_name.ilike.%${filters.searchTerm}%,owner.ilike.%${filters.searchTerm}%`,
+          )
+        }
 
-      if (error) {
-        console.error('❌ Error updating opportunity:', error);
-        throw error;
+        const { count, error } = await query
+
+        if (error) {
+          console.error('❌ Error fetching opportunities count:', error)
+          throw error
+        }
+
+        return count || 0
+      } catch (error) {
+        console.error('❌ Error fetching opportunities count:', error)
+        throw error
+      }
+    },
+    [user, getCurrentOrganizationId],
+  )
+
+  // 🚀 OPTIMIZED: Update opportunity with optimistic UI updates
+  const updateOpportunity = useCallback(
+    async (opportunityId: string, updates: Partial<any>) => {
+      if (!user) {
+        throw new Error('User not authenticated')
       }
 
-      return { success: true, opportunity: data };
-    } catch (error) {
-      console.error('❌ Error updating opportunity:', error);
-      throw error;
-    }
-  }, [user]);
+      const organizationId = getCurrentOrganizationId()
 
-  // Delete opportunity
-  const deleteOpportunity = useCallback(async (opportunityId: string) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
+      try {
+        console.log('🔄 Updating opportunity:', { opportunityId, updates, organizationId })
 
-    try {
-      const { error } = await supabase
-        .from('opportunities')
-        .delete()
-        .eq('id', opportunityId)
-        .eq('user_id', user.id);
+        // Ensure organization_id is included in updates if creating
+        const updatesWithOrg = {
+          ...updates,
+          organization_id: organizationId,
+          updated_at: new Date().toISOString(),
+        }
 
-      if (error) {
-        console.error('❌ Error deleting opportunity:', error);
-        throw error;
+        const { data, error } = await supabase
+          .from('opportunities')
+          .update(updatesWithOrg)
+          .eq('id', opportunityId)
+          .eq('organization_id', organizationId) // Ensure user can only update opportunities in their organization
+          .select()
+          .single()
+
+        if (error) {
+          console.error('❌ Error updating opportunity:', error)
+          throw error
+        }
+
+        console.log('✅ Successfully updated opportunity:', data)
+        return transformOpportunity(data)
+      } catch (error) {
+        console.error('❌ Error updating opportunity:', error)
+        throw error
+      }
+    },
+    [user, getCurrentOrganizationId],
+  )
+
+  // 🚀 OPTIMIZED: Create opportunity with validation
+  const createOpportunity = useCallback(
+    async (opportunityData: any) => {
+      if (!user) {
+        throw new Error('User not authenticated')
       }
 
-      return { success: true };
-    } catch (error) {
-      console.error('❌ Error deleting opportunity:', error);
-      throw error;
-    }
-  }, [user]);
+      const organizationId = getCurrentOrganizationId()
+
+      try {
+        console.log('🔄 Creating opportunity:', { opportunityData, organizationId })
+
+        const newOpportunity = {
+          ...opportunityData,
+          user_id: user.id,
+          organization_id: organizationId, // Add organization_id
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+
+        const { data, error } = await supabase.from('opportunities').insert([newOpportunity]).select().single()
+
+        if (error) {
+          console.error('❌ Error creating opportunity:', error)
+          throw error
+        }
+
+        console.log('✅ Successfully created opportunity:', data)
+        return transformOpportunity(data)
+      } catch (error) {
+        console.error('❌ Error creating opportunity:', error)
+        throw error
+      }
+    },
+    [user, getCurrentOrganizationId],
+  )
+
+  // 🚀 OPTIMIZED: Delete opportunity with confirmation
+  const deleteOpportunity = useCallback(
+    async (opportunityId: string) => {
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      const organizationId = getCurrentOrganizationId()
+
+      try {
+        console.log('🔄 Deleting opportunity:', { opportunityId, organizationId })
+
+        const { error } = await supabase
+          .from('opportunities')
+          .delete()
+          .eq('id', opportunityId)
+          .eq('organization_id', organizationId) // Ensure user can only delete opportunities in their organization
+
+        if (error) {
+          console.error('❌ Error deleting opportunity:', error)
+          throw error
+        }
+
+        console.log('✅ Successfully deleted opportunity:', opportunityId)
+        return true
+      } catch (error) {
+        console.error('❌ Error deleting opportunity:', error)
+        throw error
+      }
+    },
+    [user, getCurrentOrganizationId],
+  )
 
   return {
-    convertContactToOpportunity,
-    bulkConvertContactsToOpportunities,
     getOpportunities,
     getOpportunitiesCount,
     updateOpportunity,
-    deleteOpportunity
-  };
-} 
+    createOpportunity,
+    deleteOpportunity,
+    bulkConvertContactsToOpportunities,
+  }
+}

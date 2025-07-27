@@ -2,10 +2,11 @@
 import { useAuth } from '@/components/auth'
 import { supabase } from '@/integrations/supabase/client'
 import { useStore } from '@/stores/index'
+import { useOrganizationStore } from '@/stores/organizationStore'
 import { Opportunity } from '@/stores/useOpportunitiesSlice'
 import { logger } from '@/utils/logger'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { toast } from '../use-toast'
 
@@ -113,12 +114,21 @@ const fetchingPages = new Set<string>()
  */
 export function useOpportunitiesRows() {
   const { user } = useAuth()
+  const { currentOrganization } = useOrganizationStore()
   const queryClient = useQueryClient()
   const [rows, setRows] = useState<Opportunity[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
   const [totalCount, setTotalCount] = useState(0) // Add state for total count
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+  // Helper to get current organization ID
+  const getCurrentOrganizationId = useCallback(() => {
+    if (!currentOrganization?.id) {
+      throw new Error('No organization selected. Please select an organization first.')
+    }
+    return currentOrganization.id
+  }, [currentOrganization])
 
   // Function to get cache key
   const getCacheKey = (page: number, pageSize: number) => {
@@ -161,6 +171,8 @@ export function useOpportunitiesRows() {
     try {
       // First try to fetch from Supabase using opportunities table
       if (user) {
+        const organizationId = getCurrentOrganizationId()
+
         // Calculate offset for pagination
         const offset = (page - 1) * pageSize
 
@@ -171,16 +183,19 @@ export function useOpportunitiesRows() {
         let query = supabase
           .from('opportunities')
           .select(
-            'id, opportunity, company_name, status, revenue, close_date, priority, owner, user_id, data, original_contact_id, created_at, updated_at',
+            'id, opportunity, company_name, status, revenue, close_date, priority, owner, user_id, organization_id, data, original_contact_id, created_at, updated_at',
           )
-          .eq('user_id', user.id)
+          .eq('organization_id', organizationId) // Filter by organization instead of user
           .order('created_at', { ascending: false }) // Most recent first
           .range(offset, offset + actualPageSize - 1) // Use range for pagination
 
         // Start both queries in parallel for better performance
         const [dataResult, countResult] = await Promise.all([
           query,
-          supabase.from('opportunities').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+          supabase
+            .from('opportunities')
+            .select('*', { count: 'exact', head: true })
+            .eq('organization_id', organizationId), // Filter count by organization too
         ])
 
         const { data, error } = dataResult
@@ -191,7 +206,9 @@ export function useOpportunitiesRows() {
           throw error
         }
 
-        logger.log(`Loaded opportunity page ${page} with ${data?.length || 0} opportunities (Total: ${count || 0})`)
+        logger.log(
+          `Loaded opportunity page ${page} with ${data?.length || 0} opportunities (Total: ${count || 0}) for organization ${organizationId}`,
+        )
 
         // Store the total count
         setTotalCount(count || 0)
@@ -214,6 +231,7 @@ export function useOpportunitiesRows() {
               owner: opportunity.owner || '',
               originalContactId: opportunity.original_contact_id || '',
               userId: opportunity.user_id,
+              organizationId: opportunity.organization_id, // Add organizationId
               createdAt: opportunity.created_at,
               updatedAt: opportunity.updated_at,
               // Spread the rest of the data field
@@ -340,6 +358,7 @@ export function useOpportunitiesRows() {
         delete data.owner
         delete data.originalContactId
         delete data.userId
+        delete data.organizationId // Remove organizationId from data
         delete data.createdAt
         delete data.updatedAt
 
@@ -354,6 +373,7 @@ export function useOpportunitiesRows() {
           owner: owner || '',
           original_contact_id: originalContactId || null,
           user_id: user.id,
+          organization_id: getCurrentOrganizationId(), // Add organization_id
           data,
           updated_at: new Date().toISOString(),
         })
@@ -498,6 +518,7 @@ export function useOpportunitiesRows() {
           'owner',
           'original_contact_id',
           'user_id',
+          'organization_id', // Add organization_id to direct columns
           'created_at',
           'updated_at',
           'last_contacted',
@@ -520,7 +541,7 @@ export function useOpportunitiesRows() {
             .from('opportunities')
             .select('data')
             .eq('id', rowId)
-            .eq('user_id', user.id)
+            .eq('organization_id', getCurrentOrganizationId())
             .single()
 
           if (fetchError) throw fetchError
@@ -549,7 +570,7 @@ export function useOpportunitiesRows() {
           .from('opportunities')
           .update(updateData)
           .eq('id', rowId)
-          .eq('user_id', user.id)
+          .eq('organization_id', getCurrentOrganizationId())
           .select() // ← Add select to see what was actually updated
 
         if (error) {
@@ -673,6 +694,7 @@ export function useOpportunitiesRows() {
       'owner',
       'original_contact_id',
       'user_id',
+      'organization_id', // Add organization_id to direct columns
       'created_at',
       'updated_at',
     ]
@@ -687,7 +709,7 @@ export function useOpportunitiesRows() {
         const { data, error, count } = await supabase
           .from('opportunities')
           .update({ [columnId]: null })
-          .eq('user_id', user.id)
+          .eq('organization_id', getCurrentOrganizationId()) // Filter by organization instead of user
           .select('id', { count: 'exact' })
 
         if (error) {
@@ -708,7 +730,7 @@ export function useOpportunitiesRows() {
         const { data: opportunities, error: fetchError } = await supabase
           .from('opportunities')
           .select('id, data')
-          .eq('user_id', user.id)
+          .eq('organization_id', getCurrentOrganizationId()) // Filter by organization instead of user
           .not('data', 'is', null)
 
         if (fetchError) {
@@ -752,7 +774,7 @@ export function useOpportunitiesRows() {
                   .from('opportunities')
                   .update({ data: update.data })
                   .eq('id', update.id)
-                  .eq('user_id', user.id)
+                  .eq('organization_id', getCurrentOrganizationId()) // Filter by organization instead of user
 
                 if (updateError) {
                   logger.error('❌ Custom opportunity column update failed:', {
@@ -858,6 +880,8 @@ export function useOpportunitiesRows() {
           ...newOpportunity,
           id: dbId, // Use database ID directly - no mapping needed
           opportunity: newOpportunity.opportunity || 'Untitled Opportunity', // Ensure opportunity field is used
+          user_id: user.id, // Add user_id
+          organization_id: getCurrentOrganizationId(), // Add organization_id
         }
 
         logger.log('Adding new opportunity with name:', opportunityToSave.opportunity)
@@ -871,9 +895,9 @@ export function useOpportunitiesRows() {
 
         // Also update the opportunities store for consistent UI across components
         try {
-          const { opportunitiesAddOpportunity: addOpportunity } = useStore.getState()
-          if (typeof addOpportunity === 'function') {
-            addOpportunity(opportunityToSave)
+          const { opportunitiesAddOpportunity } = useStore.getState()
+          if (typeof opportunitiesAddOpportunity === 'function') {
+            opportunitiesAddOpportunity(opportunityToSave)
             logger.log('Opportunity also added to opportunitiesStore for immediate visibility')
           }
         } catch (err) {
@@ -907,6 +931,7 @@ export function useOpportunitiesRows() {
         delete data.owner
         delete data.originalContactId
         delete data.userId
+        delete data.organizationId // Remove organizationId from data
         delete data.createdAt
         delete data.updatedAt
 
@@ -922,6 +947,7 @@ export function useOpportunitiesRows() {
           owner: owner || '',
           original_contact_id: originalContactId || null,
           user_id: user.id,
+          organization_id: getCurrentOrganizationId(), // Add organization_id
           data,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -1015,7 +1041,11 @@ export function useOpportunitiesRows() {
         console.log(`🗄️ [DELETE TIMING] Starting database operation at ${dbStartTime.toFixed(2)}ms`)
 
         // Delete opportunities from database
-        const { error } = await supabase.from('opportunities').delete().in('id', dbIds).eq('user_id', user.id)
+        const { error } = await supabase
+          .from('opportunities')
+          .delete()
+          .in('id', dbIds)
+          .eq('organization_id', getCurrentOrganizationId())
 
         const dbEndTime = performance.now()
         console.log(`🗄️ [DELETE TIMING] Database operation completed in ${(dbEndTime - dbStartTime).toFixed(2)}ms`)
