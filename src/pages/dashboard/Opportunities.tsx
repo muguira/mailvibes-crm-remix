@@ -25,6 +25,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
  */
 
 export default function Opportunities() {
+  // 🚀 TEMP FIX: Clear all localStorage caches on every load to prevent stale data conflicts
+  useEffect(() => {
+    try {
+      localStorage.removeItem('opportunities-first-page')
+      localStorage.removeItem('opportunities-data')
+      console.log('🧹 Cleared localStorage caches to prevent stale data')
+    } catch (error) {
+      console.warn('Failed to clear localStorage:', error)
+    }
+  }, [])
+
   const { user } = useAuth()
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [boardSearchTerm, setBoardSearchTerm] = useState('')
@@ -36,7 +47,23 @@ export default function Opportunities() {
   const [hookLoading, setHookLoading] = useState(true)
   const [hookInitialized, setHookInitialized] = useState(false)
 
+  // 🚀 NEW: Handle external data updates from grid editing
+  const handleExternalDataUpdate = useCallback((updatedOpportunities: any[]) => {
+    console.log('🔄 [OPPORTUNITIES] External data update received:', updatedOpportunities.length)
+    setOpportunitiesFromHook(updatedOpportunities)
+  }, [])
+
+  // 🚀 FIX: Track if we've already loaded data to prevent infinite loops
+  const dataLoadedRef = useRef(false)
+
   const { updateOpportunity, bulkConvertContactsToOpportunities, getOpportunities } = useOpportunities()
+
+  // Update ref with latest function
+  useEffect(() => {
+    getOpportunitiesRef.current = getOpportunities
+  }, [getOpportunities])
+
+  const getOpportunitiesRef = useRef(getOpportunities)
 
   // 🚀 NEW: Use store infrastructure instead of manual state
   const {
@@ -56,10 +83,25 @@ export default function Opportunities() {
 
   // 🚀 NEW: Load opportunities directly using the updated hook
   useEffect(() => {
+    console.log('🚀 [OPPORTUNITIES] Effect triggered - loadOpportunitiesDirectly', {
+      hasUser: !!user?.id,
+      hasOrg: !!currentOrganization?.id,
+      currentDataLength: opportunitiesFromHook.length,
+      isDataLoaded: dataLoadedRef.current,
+    })
+
     const loadOpportunitiesDirectly = async () => {
       if (!user?.id || !currentOrganization?.id) {
         setHookLoading(false)
         setHookInitialized(true)
+        dataLoadedRef.current = false
+        return
+      }
+
+      // 🚀 FIX: Prevent reloading if we already have data loaded for this user/org combination
+      const userOrgKey = `${user.id}-${currentOrganization.id}`
+      if (dataLoadedRef.current && opportunitiesFromHook.length > 0) {
+        console.log('⏸️ Skipping reload - data already loaded for:', userOrgKey)
         return
       }
 
@@ -67,12 +109,71 @@ export default function Opportunities() {
         setHookLoading(true)
         console.log('🔄 Loading opportunities directly with organization:', currentOrganization.id)
 
-        const result = await getOpportunities({}, { page: 1, pageSize: 100 })
+        const result = await getOpportunitiesRef.current({}, { page: 1, pageSize: 100 })
         setOpportunitiesFromHook(result.data || [])
         console.log('✅ Loaded opportunities directly:', result.data?.length || 0)
+
+        // 🚀 FIX: Mark data as loaded to prevent reloads
+        if (result.data && result.data.length > 0) {
+          dataLoadedRef.current = true
+        }
+
+        // 🚀 FIX: Populate store cache with external opportunities for editing to work
+        if (result.data && result.data.length > 0) {
+          // console.log('🔄 Populating store cache with external opportunities...')
+
+          // Get current store state to check if we need to populate cache
+          const currentState = useStore.getState()
+          const cacheSize = Object.keys(currentState.opportunitiesCache).length
+
+          // 🚀 SIMPLIFIED: Always clear and refresh cache with properly transformed data
+          const { opportunitiesAddOpportunity, opportunitiesClear } = useStore.getState()
+
+          console.log('🔄 CLEARING existing cache to prevent stale data conflicts...')
+          opportunitiesClear()
+
+          // Transform and add each opportunity to the store cache (use same transform logic)
+          result.data.forEach(opp => {
+            const opportunity = {
+              id: opp.id,
+              opportunity: opp.opportunity || '',
+              status: opp.status || 'Lead/New',
+              stage: opp.status || 'Lead/New',
+              revenue: parseInt(opp.revenue?.toString() || '0'),
+              closeDate: opp.close_date || '',
+              owner: opp.owner || '',
+              company: opp.company_name || '',
+              companyName: opp.company_name || '', // 🚀 CRITICAL: Both variants for compatibility
+              priority: opp.priority || 'Medium',
+              originalContactId: opp.original_contact_id,
+              createdAt: opp.created_at,
+              updatedAt: opp.updated_at,
+              userId: user?.id,
+              organizationId: currentOrganization?.id,
+              // Include other fields
+              website: opp.website,
+              companyLinkedin: opp.company_linkedin,
+              employees: opp.employees,
+              lastContacted: opp.last_contacted,
+              nextMeeting: opp.next_meeting,
+              leadSource: opp.lead_source,
+              convertedAt: opp.converted_at,
+              data: opp.data || {},
+            }
+
+            try {
+              opportunitiesAddOpportunity(opportunity)
+            } catch (error) {
+              console.warn('Failed to add opportunity to cache:', opportunity.id, error)
+            }
+          })
+
+          console.log('✅ Store cache REFRESHED with', result.data.length, 'fresh opportunities')
+        }
       } catch (error) {
         console.error('❌ Error loading opportunities directly:', error)
         setOpportunitiesFromHook([])
+        dataLoadedRef.current = false
       } finally {
         setHookLoading(false)
         setHookInitialized(true)
@@ -80,7 +181,7 @@ export default function Opportunities() {
     }
 
     loadOpportunitiesDirectly()
-  }, [user?.id, currentOrganization?.id, getOpportunities])
+  }, [user?.id, currentOrganization?.id])
 
   // Get opportunities from store (as fallback)
   const opportunitiesFromStore = useMemo(() => {
@@ -92,7 +193,54 @@ export default function Opportunities() {
   const hasStoreData = opportunitiesPagination.isInitialized && opportunitiesFromStore.length > 0
 
   // Use hook data if available and initialized, otherwise fall back to store data
-  const opportunities = hasHookData ? opportunitiesFromHook : opportunitiesFromStore
+  const rawOpportunities = hasHookData ? opportunitiesFromHook : opportunitiesFromStore
+
+  // 🚀 FIX: Transform data to match grid expectations (camelCase)
+  const opportunities = useMemo(() => {
+    if (!rawOpportunities || rawOpportunities.length === 0) return []
+
+    console.log('🔄 [DATA TRANSFORM] Input data sample:', rawOpportunities[0])
+
+    const transformed = rawOpportunities.map(opp => {
+      // If data is already in camelCase (from store), return as-is
+      if (opp.companyName !== undefined || opp.closeDate !== undefined) {
+        console.log('✅ [DATA TRANSFORM] Using camelCase data (from store)')
+        return opp
+      }
+
+      // Transform snake_case to camelCase (from direct API)
+      console.log('🔄 [DATA TRANSFORM] Transforming snake_case to camelCase (from API)')
+      return {
+        id: opp.id,
+        opportunity: opp.opportunity || '',
+        status: opp.status || 'Lead/New',
+        stage: opp.status || 'Lead/New',
+        revenue: parseInt(opp.revenue?.toString() || '0'),
+        closeDate: opp.close_date || '',
+        owner: opp.owner || '',
+        company: opp.company_name || '',
+        companyName: opp.company_name || '',
+        priority: opp.priority || 'Medium',
+        originalContactId: opp.original_contact_id,
+        createdAt: opp.created_at,
+        updatedAt: opp.updated_at,
+        userId: user?.id,
+        organizationId: currentOrganization?.id,
+        // Include any other fields that might exist
+        website: opp.website,
+        companyLinkedin: opp.company_linkedin,
+        employees: opp.employees,
+        lastContacted: opp.last_contacted,
+        nextMeeting: opp.next_meeting,
+        leadSource: opp.lead_source,
+        convertedAt: opp.converted_at,
+        data: opp.data || {},
+      }
+    })
+
+    console.log('✅ [DATA TRANSFORM] Output data sample:', transformed[0])
+    return transformed
+  }, [rawOpportunities, user?.id, currentOrganization?.id])
 
   // Show loading only if we're actually loading and don't have any data yet
   const isOpportunitiesLoading =
@@ -128,7 +276,10 @@ export default function Opportunities() {
       isLoading: isOpportunitiesLoading,
       opportunitiesCount: opportunities.length,
       hasRealData,
+      hasHookData,
+      hasStoreData,
       initializationAttempted: initializationAttempted.current,
+      willSkipStoreInit: hasHookData, // 🚀 NEW: Track if we're skipping store init due to external data
       loadingStates: {
         initializing: opportunitiesLoading.initializing,
         fetching: opportunitiesLoading.fetching,
@@ -136,12 +287,13 @@ export default function Opportunities() {
       },
     })
 
-    // Only initialize if we have a user, haven't attempted initialization recently, and need data
+    // Only initialize if we have a user, haven't attempted initialization recently, need data, AND don't have external data
     if (
       user?.id &&
       !initializationAttempted.current &&
       !opportunitiesPagination.isInitialized &&
-      !isOpportunitiesLoading
+      !isOpportunitiesLoading &&
+      !hasHookData // 🚀 FIX: Don't initialize store if we already have data from external hook
     ) {
       console.log('🔥 Starting initialization for user:', user.id)
       stableOpportunitiesInitialize(user.id)
@@ -321,6 +473,7 @@ export default function Opportunities() {
                     viewToggle={<ViewToggle currentView={viewMode} onViewChange={handleViewChange} />}
                     externalOpportunities={opportunities}
                     externalLoading={isOpportunitiesLoading}
+                    onExternalDataUpdate={handleExternalDataUpdate}
                   />
                 ) : (
                   <div className="grid-view h-full">
@@ -415,6 +568,32 @@ export default function Opportunities() {
                   </div>
                 )}
               </>
+            )}
+
+            {/* 🚀 TEMP DEBUG: Monitor all store updates */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="fixed bottom-4 right-4 bg-black text-white p-4 rounded-lg text-xs max-w-sm opacity-80 z-50">
+                <div className="font-bold mb-2">�� Debug Monitor</div>
+                <div>Cache size: {Object.keys(opportunitiesCache).length}</div>
+                <div>External data: {opportunities.length}</div>
+                <div>User ID: {user?.id?.slice(0, 8)}...</div>
+                <div>Org ID: {currentOrganization?.id?.slice(0, 8)}...</div>
+                <button
+                  onClick={() => {
+                    console.log('🔍 FULL DEBUG STATE:', {
+                      opportunitiesCache: Object.keys(opportunitiesCache).length,
+                      opportunities: opportunities.length,
+                      sampleOpportunity: opportunities[0],
+                      sampleCacheEntry: Object.values(opportunitiesCache)[0],
+                      user: { id: user?.id, email: user?.email },
+                      organization: { id: currentOrganization?.id, name: currentOrganization?.name },
+                    })
+                  }}
+                  className="mt-2 px-2 py-1 bg-blue-600 rounded text-xs"
+                >
+                  Log Full State
+                </button>
+              </div>
             )}
           </ErrorBoundary>
 
