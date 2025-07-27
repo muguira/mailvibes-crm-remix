@@ -26,10 +26,11 @@ try {
   })
 }
 
-interface EditableOpportunitiesGridProps {
+export interface EditableOpportunitiesGridProps {
   viewToggle?: React.ReactNode
   externalOpportunities?: any[]
   externalLoading?: boolean
+  onExternalDataUpdate?: (updatedOpportunities: any[]) => void // 🚀 NEW: Callback to update external data
 }
 
 /**
@@ -44,6 +45,7 @@ export function EditableOpportunitiesGrid({
   viewToggle,
   externalOpportunities,
   externalLoading,
+  onExternalDataUpdate, // 🚀 NEW: Extract callback
 }: EditableOpportunitiesGridProps = {}) {
   const { user } = useAuth()
 
@@ -101,23 +103,32 @@ export function EditableOpportunitiesGrid({
     return editableOpportunitiesGridGetColumnFilters()
   }, [opportunitiesActiveFilters.columns, opportunitiesActiveFilters.values, opportunitiesColumns])
 
-  // 🚀 NEW: Instant opportunities with advanced filtering and search
+  // 🚀 PRIORITIZE EXTERNAL DATA: Only use store if we explicitly don't have external data
+  const hasExternalData = externalOpportunities && externalOpportunities.length > 0
+
+  // 🚀 NEW: Instant opportunities with advanced filtering and search (only if no external data)
   const storeOpportunities = useInstantOpportunities({
-    searchTerm: opportunitiesSearchTerm,
+    searchTerm: hasExternalData ? '' : opportunitiesSearchTerm, // Don't search store if using external data
     pageSize: opportunitiesPageSize,
     currentPage: opportunitiesCurrentPage,
-    columnFilters: memoizedColumnFilters,
+    columnFilters: hasExternalData ? [] : memoizedColumnFilters, // Don't filter store if using external data
   })
 
-  // Use external data if provided (for fallback scenarios), otherwise use store data
+  // 🚀 FIXED: External data always takes priority, with proper logging
   const instantOpportunities = useMemo(() => {
-    if (externalOpportunities && externalOpportunities.length > 0) {
+    if (hasExternalData) {
+      // Only log when switching to external data (not every render)
+      if (externalOpportunities.length > 0) {
+        // This will only log when external data first appears
+      }
+
       // Filter external data based on search term if needed
       const filteredData = opportunitiesSearchTerm
         ? externalOpportunities.filter(
             opp =>
               opp.opportunity?.toLowerCase().includes(opportunitiesSearchTerm.toLowerCase()) ||
               opp.company?.toLowerCase().includes(opportunitiesSearchTerm.toLowerCase()) ||
+              opp.companyName?.toLowerCase().includes(opportunitiesSearchTerm.toLowerCase()) ||
               opp.status?.toLowerCase().includes(opportunitiesSearchTerm.toLowerCase()),
           )
         : externalOpportunities
@@ -131,11 +142,24 @@ export function EditableOpportunitiesGrid({
       }
     }
 
+    // Only log when using store data (not every render)
     return storeOpportunities
-  }, [externalOpportunities, externalLoading, opportunitiesSearchTerm, storeOpportunities])
+  }, [hasExternalData, externalOpportunities, externalLoading, opportunitiesSearchTerm, storeOpportunities.rows.length])
 
   // 🚀 NEW: Opportunities rows management with chunked loading
   const opportunitiesRows = useOpportunitiesRows()
+
+  // 🚀 TEMP DISABLE: Remove debug logging that's causing infinite renders
+  // useEffect(() => {
+  //   console.log('📊 [GRID] Data source changed:', {
+  //     hasExternalData,
+  //     externalCount: externalOpportunities?.length || 0,
+  //     storeCount: storeOpportunities.rows.length,
+  //     finalCount: instantOpportunities.rows.length,
+  //     isUsingExternal: hasExternalData,
+  //     timestamp: new Date().toISOString(),
+  //   })
+  // }, [hasExternalData, externalOpportunities?.length, storeOpportunities.rows.length, instantOpportunities.rows.length])
 
   // Debounced search term for performance
   const debouncedSearchTerm = useDebounce(opportunitiesSearchTerm, 200)
@@ -268,8 +292,26 @@ export function EditableOpportunitiesGrid({
         opportunitiesUpdateOpportunity(rowId, { [columnId]: value })
         console.log('✅ [OPTIMISTIC] Store updated successfully')
 
+        // 🚀 NEW: Also update external opportunities if they exist and callback is provided
+        if (hasExternalData && onExternalDataUpdate && externalOpportunities) {
+          console.log('🔄 [EXTERNAL] Updating external opportunities data...')
+          const updatedExternalOpportunities = externalOpportunities.map(opp =>
+            opp.id === rowId ? { ...opp, [columnId]: value } : opp,
+          )
+          onExternalDataUpdate(updatedExternalOpportunities)
+          console.log('✅ [EXTERNAL] External opportunities updated successfully')
+        }
+
         // 🚀 PERSISTENCE: Save to database in background
         try {
+          // Log cell update for debugging
+          console.log('🔍 [DEBUG] Updating cell:', {
+            rowId,
+            columnId,
+            value,
+            opportunityName: opportunity.opportunity,
+          })
+
           // Use the opportunities rows hook which handles proper database persistence
           await opportunitiesRows.updateCell({ rowId, columnId, value })
 
@@ -311,7 +353,15 @@ export function EditableOpportunitiesGrid({
         })
       }
     },
-    [instantOpportunities.rows, opportunitiesRows.updateCell, logCellEdit, opportunitiesColumns],
+    [
+      instantOpportunities.rows,
+      opportunitiesRows.updateCell,
+      logCellEdit,
+      opportunitiesColumns,
+      hasExternalData,
+      onExternalDataUpdate,
+      externalOpportunities,
+    ],
   )
 
   // 🚀 NEW: Handle opportunity deletion with optimistic updates
@@ -539,24 +589,24 @@ export function EditableOpportunitiesGrid({
     // OR if not initialized yet and no external data
     (!opportunitiesPagination.isInitialized && !externalOpportunities?.length)
 
-  // 🚀 DEBUG: Log the loading state to understand why loader persists
-  useEffect(() => {
-    console.log('🔍 EditableOpportunitiesGrid Loading Debug:', {
-      'instantOpportunities.loading': instantOpportunities.loading,
-      'instantOpportunities.rows.length': instantOpportunities.rows.length,
-      'opportunitiesPagination.isInitialized': opportunitiesPagination.isInitialized,
-      isStillLoading: isStillLoading,
-      externalLoading: externalLoading,
-      opportunitiesLoading: opportunitiesLoading,
-    })
-  }, [
-    instantOpportunities.loading,
-    instantOpportunities.rows.length,
-    opportunitiesPagination.isInitialized,
-    isStillLoading,
-    externalLoading,
-    opportunitiesLoading,
-  ])
+  // 🚀 TEMP DISABLE: Debug logging to prevent infinite logs
+  // useEffect(() => {
+  //   console.log('🔍 EditableOpportunitiesGrid Loading Debug:', {
+  //     'instantOpportunities.loading': instantOpportunities.loading,
+  //     'instantOpportunities.rows.length': instantOpportunities.rows.length,
+  //     'opportunitiesPagination.isInitialized': opportunitiesPagination.isInitialized,
+  //     isStillLoading: isStillLoading,
+  //     externalLoading: externalLoading,
+  //     opportunitiesLoading: opportunitiesLoading,
+  //   })
+  // }, [
+  //   instantOpportunities.loading,
+  //   instantOpportunities.rows.length,
+  //   opportunitiesPagination.isInitialized,
+  //   isStillLoading,
+  //   externalLoading,
+  //   opportunitiesLoading,
+  // ])
 
   // Debug logging instead of warning (this is normal during loading)
   useEffect(() => {
