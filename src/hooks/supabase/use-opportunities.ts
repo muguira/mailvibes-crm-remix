@@ -284,7 +284,7 @@ export function useOpportunities() {
     [user, getCurrentOrganizationId],
   )
 
-  // 🚀 OPTIMIZED: Update opportunity with optimistic UI updates
+  // 🚀 OPTIMIZED: Update opportunity with field mapping and optimistic UI updates
   const updateOpportunity = useCallback(
     async (opportunityId: string, updates: Partial<any>) => {
       if (!user) {
@@ -296,12 +296,36 @@ export function useOpportunities() {
       try {
         console.log('🔄 Updating opportunity:', { opportunityId, updates, organizationId })
 
-        // Ensure organization_id is included in updates if creating
+        // 🔧 FIX: Map frontend field names to database field names
+        const fieldMapping: { [key: string]: string } = {
+          'stage': 'status',              // Main fix: stage → status  
+          'company': 'company_name',      // company → company_name
+          'closeDate': 'close_date',      // closeDate → close_date
+          'originalContactId': 'original_contact_id', // originalContactId → original_contact_id
+          'lastContacted': 'last_contacted',  // lastContacted → last_contacted
+          'nextMeeting': 'next_meeting',      // nextMeeting → next_meeting
+          'leadSource': 'lead_source',        // leadSource → lead_source
+          'companyLinkedin': 'company_linkedin', // companyLinkedin → company_linkedin
+          'convertedAt': 'converted_at',      // convertedAt → converted_at
+          'createdAt': 'created_at',          // createdAt → created_at
+          'updatedAt': 'updated_at'           // updatedAt → updated_at
+        };
+
+        // Apply field mapping to updates
+        const mappedUpdates: Record<string, any> = {};
+        for (const [key, value] of Object.entries(updates)) {
+          const dbFieldName = fieldMapping[key] || key;
+          mappedUpdates[dbFieldName] = value;
+        }
+
+        // Ensure organization_id is included in updates
         const updatesWithOrg = {
-          ...updates,
+          ...mappedUpdates,
           organization_id: organizationId,
           updated_at: new Date().toISOString(),
         }
+
+        console.log('🔄 Mapped updates:', { original: updates, mapped: updatesWithOrg })
 
         const { data, error } = await supabase
           .from('opportunities')
