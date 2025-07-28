@@ -221,34 +221,6 @@ $$;
 ALTER FUNCTION "public"."auto_accept_invitation"("p_invitation_id" "uuid", "p_user_id" "uuid") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."backfill_activity_organization_ids"() RETURNS integer
-    LANGUAGE "plpgsql"
-    AS $$
-DECLARE
-    rows_updated INTEGER := 0;
-BEGIN
-    UPDATE public.user_activities ua
-    SET organization_id = p.current_organization_id,
-        activity_scope = CASE 
-            WHEN ua.activity_type IN ('login', 'note_add', 'contact_add', 'email', 'call', 'meeting') THEN 'team'
-            ELSE 'personal'
-        END
-    FROM public.profiles p
-    WHERE ua.user_id = p.id 
-    AND ua.organization_id IS NULL 
-    AND p.current_organization_id IS NOT NULL;
-    
-    GET DIAGNOSTICS rows_updated = ROW_COUNT;
-    
-    RAISE NOTICE 'Backfilled organization_id for % activity records', rows_updated;
-    RETURN rows_updated;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."backfill_activity_organization_ids"() OWNER TO "postgres";
-
-
 CREATE OR REPLACE FUNCTION "public"."cancel_organization_invitation"("p_invitation_id" "uuid") RETURNS TABLE("success" boolean, "message" "text")
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -432,68 +404,6 @@ $$;
 ALTER FUNCTION "public"."count_unique_jsonb_field_values"("p_user_id" "uuid", "p_field_name" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."create_organization_with_admin"("p_org_name" "text", "p_org_domain" "text", "p_user_id" "uuid" DEFAULT "auth"."uid"()) RETURNS "json"
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-DECLARE
-    v_org_id UUID;
-    v_result JSON;
-BEGIN
-    -- Validate inputs
-    IF p_org_name IS NULL OR trim(p_org_name) = '' THEN
-        RAISE EXCEPTION 'Organization name is required';
-    END IF;
-    
-    IF p_user_id IS NULL THEN
-        RAISE EXCEPTION 'User ID is required';
-    END IF;
-
-    -- Create organization
-    INSERT INTO organizations (name, domain, plan, member_count, max_members)
-    VALUES (
-        trim(p_org_name),
-        COALESCE(trim(p_org_domain), lower(regexp_replace(trim(p_org_name), '[^a-zA-Z0-9]', '', 'g')) || '-' || extract(epoch from now())::bigint || '.workspace'),
-        'free',
-        1,
-        25
-    )
-    RETURNING id INTO v_org_id;
-
-    -- Add user as admin (this bypasses RLS since function is SECURITY DEFINER)
-    INSERT INTO organization_members (user_id, organization_id, role, status, joined_at)
-    VALUES (p_user_id, v_org_id, 'admin', 'active', now());
-
-    -- Update user's current organization in profiles
-    UPDATE profiles 
-    SET current_organization = v_org_id 
-    WHERE id = p_user_id;
-
-    -- Return success result
-    SELECT json_build_object(
-        'success', true,
-        'organization_id', v_org_id,
-        'message', 'Organization created successfully'
-    ) INTO v_result;
-
-    RETURN v_result;
-
-EXCEPTION WHEN OTHERS THEN
-    -- Return error result
-    SELECT json_build_object(
-        'success', false,
-        'error', SQLERRM,
-        'code', SQLSTATE
-    ) INTO v_result;
-    
-    RETURN v_result;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."create_organization_with_admin"("p_org_name" "text", "p_org_domain" "text", "p_user_id" "uuid") OWNER TO "postgres";
-
-
 CREATE OR REPLACE FUNCTION "public"."create_user_api_key"("p_user_id" "uuid", "p_api_key" "text", "p_name" "text") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -658,48 +568,6 @@ $$;
 ALTER FUNCTION "public"."get_invitation_details_public"("p_token_or_id" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."get_invitations_by_emails"("org_id" "uuid", "email_list" "text"[]) RETURNS TABLE("id" "uuid", "organization_id" "uuid", "email" "text", "role" "text", "status" "text", "invited_by" "uuid", "expires_at" timestamp with time zone, "token" "text", "created_at" timestamp with time zone, "updated_at" timestamp with time zone)
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-BEGIN
-    -- Check if user is admin of the organization
-    IF NOT EXISTS (
-        SELECT 1 
-        FROM organization_members om 
-        WHERE om.organization_id = org_id 
-        AND om.user_id = auth.uid() 
-        AND om.role = 'admin'
-        AND om.status = 'active'
-    ) THEN
-        RAISE EXCEPTION 'Access denied: User is not an admin of this organization';
-    END IF;
-
-    -- Return specific invitations
-    RETURN QUERY
-    SELECT 
-        oi.id,
-        oi.organization_id,
-        oi.email,
-        oi.role,
-        oi.status,
-        oi.invited_by,
-        oi.expires_at,
-        oi.token,
-        oi.created_at,
-        oi.updated_at
-    FROM organization_invitations oi
-    WHERE oi.organization_id = org_id
-    AND oi.email = ANY(email_list)
-    AND oi.status = 'pending'
-    ORDER BY oi.created_at DESC;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_invitations_by_emails"("org_id" "uuid", "email_list" "text"[]) OWNER TO "postgres";
-
-
 CREATE OR REPLACE FUNCTION "public"."get_organization_details_safe"("p_org_id" "uuid") RETURNS TABLE("id" "uuid", "name" "text", "domain" "text", "plan" "text", "member_count" integer, "max_members" integer, "created_at" timestamp with time zone, "updated_at" timestamp with time zone)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -743,47 +611,6 @@ $$;
 
 
 ALTER FUNCTION "public"."get_organization_details_safe"("p_org_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_organization_invitations"("org_id" "uuid") RETURNS TABLE("id" "uuid", "organization_id" "uuid", "email" "text", "role" "text", "status" "text", "invited_by" "uuid", "expires_at" timestamp with time zone, "token" "text", "created_at" timestamp with time zone, "updated_at" timestamp with time zone)
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-BEGIN
-    -- Check if user is admin of the organization
-    IF NOT EXISTS (
-        SELECT 1 
-        FROM organization_members om 
-        WHERE om.organization_id = org_id 
-        AND om.user_id = auth.uid() 
-        AND om.role = 'admin'
-        AND om.status = 'active'
-    ) THEN
-        RAISE EXCEPTION 'Access denied: User is not an admin of this organization';
-    END IF;
-
-    -- Return invitations for this organization
-    RETURN QUERY
-    SELECT 
-        oi.id,
-        oi.organization_id,
-        oi.email,
-        oi.role,
-        oi.status,
-        oi.invited_by,
-        oi.expires_at,
-        oi.token,
-        oi.created_at,
-        oi.updated_at
-    FROM organization_invitations oi
-    WHERE oi.organization_id = org_id
-    AND oi.status = 'pending'
-    ORDER BY oi.created_at DESC;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_organization_invitations"("org_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."get_organization_invitations_safe"("p_org_id" "uuid") RETURNS TABLE("id" "uuid", "organization_id" "uuid", "email" "text", "role" "text", "status" "text", "invited_by" "uuid", "expires_at" timestamp with time zone, "accepted_at" timestamp with time zone, "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "token" "text", "inviter_email" "text", "inviter_name" "text")
@@ -841,42 +668,6 @@ $$;
 
 
 ALTER FUNCTION "public"."get_organization_invitations_safe"("p_org_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_organization_members"("org_id" "uuid") RETURNS TABLE("id" "uuid", "user_id" "uuid", "role" "text", "status" "text", "joined_at" timestamp with time zone, "user_email" "text", "user_first_name" "text", "user_last_name" "text", "user_avatar_url" "text")
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        om.id,  -- Include actual member ID from organization_members table
-        om.user_id,
-        om.role::text,  -- Explicit cast to text
-        om.status::text,  -- Explicit cast to text
-        om.created_at as joined_at,
-        COALESCE(au.email::text, '') as user_email,  -- Cast email to text
-        -- Extract first name from email prefix (before @)
-        COALESCE(
-            INITCAP(SPLIT_PART(SPLIT_PART(au.email, '@', 1), '.', 1)),
-            'User'
-        )::text as user_first_name,  -- Cast to text
-        -- Extract last name from email prefix (after first .)
-        COALESCE(
-            NULLIF(INITCAP(SPLIT_PART(SPLIT_PART(au.email, '@', 1), '.', 2)), ''),
-            ''
-        )::text as user_last_name,  -- Cast to text
-        ''::text as user_avatar_url  -- Cast to text
-    FROM organization_members om
-    LEFT JOIN auth.users au ON om.user_id = au.id
-    WHERE om.organization_id = org_id
-    AND om.status = 'active'
-    ORDER BY om.created_at ASC;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_organization_members"("org_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."get_organization_members_safe"("p_org_id" "uuid") RETURNS TABLE("id" "uuid", "user_id" "uuid", "organization_id" "uuid", "role" "text", "status" "text", "invited_by" "uuid", "joined_at" timestamp with time zone, "created_at" timestamp with time zone, "updated_at" timestamp with time zone, "user_email" "text", "user_first_name" "text", "user_last_name" "text", "user_avatar_url" "text")
@@ -955,157 +746,6 @@ $$;
 ALTER FUNCTION "public"."get_pending_invitations_for_email"("p_email" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."get_single_user_info"("user_id" "uuid") RETURNS TABLE("id" "uuid", "email" "text", "first_name" "text", "last_name" "text", "avatar_url" "text")
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-BEGIN
-    RETURN QUERY
-    SELECT * FROM get_user_info(ARRAY[user_id]);
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_single_user_info"("user_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_team_activity_feed"("p_organization_id" "uuid", "p_limit" integer DEFAULT 50, "p_offset" integer DEFAULT 0, "p_activity_type" "text" DEFAULT NULL::"text", "p_user_id" "uuid" DEFAULT NULL::"uuid", "p_hours_back" integer DEFAULT 168) RETURNS TABLE("id" "uuid", "user_id" "uuid", "user_name" "text", "user_full_name" "text", "user_avatar_url" "text", "user_role" "text", "activity_timestamp" timestamp with time zone, "activity_type" "text", "entity_id" "text", "entity_type" "text", "entity_name" "text", "field_name" "text", "old_value" "jsonb", "new_value" "jsonb", "details" "jsonb", "is_pinned" boolean, "activity_recency" "text", "total_count" bigint)
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
-DECLARE
-    total_activities BIGINT;
-BEGIN
-    -- Get total count for pagination
-    SELECT COUNT(*) INTO total_activities
-    FROM public.team_activity_feed taf
-    WHERE taf.organization_id = p_organization_id
-    AND taf.timestamp >= NOW() - (p_hours_back || ' hours')::INTERVAL
-    AND (p_activity_type IS NULL OR taf.activity_type = p_activity_type)
-    AND (p_user_id IS NULL OR taf.user_id = p_user_id);
-
-    -- Return paginated results with total count
-    RETURN QUERY
-    SELECT 
-        taf.id,
-        taf.user_id,
-        taf.user_name,
-        taf.user_full_name,
-        taf.user_avatar_url,
-        taf.user_role,
-        taf.timestamp,
-        taf.activity_type,
-        taf.entity_id,
-        taf.entity_type,
-        taf.entity_name,
-        taf.field_name,
-        taf.old_value,
-        taf.new_value,
-        taf.details,
-        taf.is_pinned,
-        taf.activity_recency,
-        total_activities
-    FROM public.team_activity_feed taf
-    WHERE taf.organization_id = p_organization_id
-    AND taf.timestamp >= NOW() - (p_hours_back || ' hours')::INTERVAL
-    AND (p_activity_type IS NULL OR taf.activity_type = p_activity_type)
-    AND (p_user_id IS NULL OR taf.user_id = p_user_id)
-    ORDER BY taf.timestamp DESC, taf.id DESC
-    LIMIT p_limit
-    OFFSET p_offset;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_team_activity_feed"("p_organization_id" "uuid", "p_limit" integer, "p_offset" integer, "p_activity_type" "text", "p_user_id" "uuid", "p_hours_back" integer) OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_team_activity_stats"("p_organization_id" "uuid", "p_hours_back" integer DEFAULT 24) RETURNS TABLE("total_activities" bigint, "active_users" bigint, "activity_types" "jsonb", "hourly_distribution" "jsonb", "top_contributors" "jsonb")
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    AS $$
-DECLARE
-    result_total_activities BIGINT;
-    result_active_users BIGINT;
-    result_activity_types JSONB;
-    result_hourly_distribution JSONB;
-    result_top_contributors JSONB;
-BEGIN
-    -- Total activities
-    SELECT COUNT(*) INTO result_total_activities
-    FROM public.team_activity_feed taf
-    WHERE taf.organization_id = p_organization_id
-    AND taf.timestamp >= NOW() - (p_hours_back || ' hours')::INTERVAL;
-
-    -- Active users
-    SELECT COUNT(DISTINCT taf.user_id) INTO result_active_users
-    FROM public.team_activity_feed taf
-    WHERE taf.organization_id = p_organization_id
-    AND taf.timestamp >= NOW() - (p_hours_back || ' hours')::INTERVAL;
-
-    -- Activity types distribution
-    SELECT jsonb_object_agg(activity_type, activity_count) INTO result_activity_types
-    FROM (
-        SELECT 
-            taf.activity_type,
-            COUNT(*) as activity_count
-        FROM public.team_activity_feed taf
-        WHERE taf.organization_id = p_organization_id
-        AND taf.timestamp >= NOW() - (p_hours_back || ' hours')::INTERVAL
-        GROUP BY taf.activity_type
-        ORDER BY activity_count DESC
-    ) activity_stats;
-
-    -- Hourly distribution
-    SELECT jsonb_object_agg(activity_hour::text, hour_count) INTO result_hourly_distribution
-    FROM (
-        SELECT 
-            taf.activity_hour,
-            COUNT(*) as hour_count
-        FROM public.team_activity_feed taf
-        WHERE taf.organization_id = p_organization_id
-        AND taf.timestamp >= NOW() - (p_hours_back || ' hours')::INTERVAL
-        GROUP BY taf.activity_hour
-        ORDER BY taf.activity_hour
-    ) hourly_stats;
-
-    -- Top contributors
-    SELECT jsonb_agg(
-        jsonb_build_object(
-            'user_id', user_id,
-            'user_name', user_name,
-            'user_full_name', user_full_name,
-            'user_avatar_url', user_avatar_url,
-            'activity_count', activity_count
-        )
-    ) INTO result_top_contributors
-    FROM (
-        SELECT 
-            taf.user_id,
-            taf.user_name,
-            taf.user_full_name,
-            taf.user_avatar_url,
-            COUNT(*) as activity_count
-        FROM public.team_activity_feed taf
-        WHERE taf.organization_id = p_organization_id
-        AND taf.timestamp >= NOW() - (p_hours_back || ' hours')::INTERVAL
-        GROUP BY taf.user_id, taf.user_name, taf.user_full_name, taf.user_avatar_url
-        ORDER BY activity_count DESC
-        LIMIT 10
-    ) contributor_stats;
-
-    -- Return all statistics
-    RETURN QUERY SELECT 
-        result_total_activities,
-        result_active_users,
-        COALESCE(result_activity_types, '{}'::jsonb),
-        COALESCE(result_hourly_distribution, '{}'::jsonb),
-        COALESCE(result_top_contributors, '[]'::jsonb);
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_team_activity_stats"("p_organization_id" "uuid", "p_hours_back" integer) OWNER TO "postgres";
-
-
 CREATE OR REPLACE FUNCTION "public"."get_unique_jsonb_field_values"("p_user_id" "uuid", "p_field_name" "text", "p_limit" integer DEFAULT 100) RETURNS TABLE("value" "text", "count" bigint)
     LANGUAGE "plpgsql"
     AS $$
@@ -1130,35 +770,6 @@ $$;
 ALTER FUNCTION "public"."get_unique_jsonb_field_values"("p_user_id" "uuid", "p_field_name" "text", "p_limit" integer) OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."get_user_info"("user_ids" "uuid"[]) RETURNS TABLE("id" "uuid", "email" "text", "first_name" "text", "last_name" "text", "avatar_url" "text")
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        au.id,
-        au.email,
-        -- Extract first name from email prefix (before @)
-        COALESCE(
-            INITCAP(SPLIT_PART(SPLIT_PART(au.email, '@', 1), '.', 1)),
-            'User'
-        ) as first_name,
-        -- Extract last name from email prefix (after first .)
-        COALESCE(
-            NULLIF(INITCAP(SPLIT_PART(SPLIT_PART(au.email, '@', 1), '.', 2)), ''),
-            ''
-        ) as last_name,
-        '' as avatar_url  -- No avatar column exists, return empty string
-    FROM auth.users au
-    WHERE au.id = ANY(user_ids);
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_user_info"("user_ids" "uuid"[]) OWNER TO "postgres";
-
-
 CREATE OR REPLACE FUNCTION "public"."get_user_organization"("p_user_id" "uuid") RETURNS TABLE("organization_id" "uuid", "role" "text")
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -1175,30 +786,6 @@ $$;
 
 
 ALTER FUNCTION "public"."get_user_organization"("p_user_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_user_organization_membership"("user_uuid" "uuid") RETURNS TABLE("organization_id" "uuid", "organization_name" "text", "organization_domain" "text", "user_role" "text", "user_status" "text")
-    LANGUAGE "plpgsql" SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        o.id as organization_id,
-        o.name as organization_name,
-        o.domain as organization_domain,
-        om.role as user_role,
-        om.status as user_status
-    FROM organization_members om
-    INNER JOIN organizations o ON om.organization_id = o.id
-    WHERE om.user_id = user_uuid
-    AND om.status = 'active'
-    LIMIT 1;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_user_organization_membership"("user_uuid" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."get_user_organization_safe"("p_user_id" "uuid") RETURNS TABLE("organization_id" "uuid", "role" "text", "status" "text")
@@ -1366,65 +953,6 @@ $$;
 ALTER FUNCTION "public"."is_organization_member"("p_org_id" "uuid", "p_user_id" "uuid") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."notify_team_activity"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$
-DECLARE
-    notification_payload JSON;
-BEGIN
-    -- Create enhanced notification payload
-    notification_payload := json_build_object(
-        'id', NEW.id,
-        'user_id', NEW.user_id,
-        'user_name', NEW.user_name,
-        'organization_id', NEW.organization_id,
-        'activity_type', NEW.activity_type,
-        'activity_scope', NEW.activity_scope,
-        'timestamp', NEW.timestamp,
-        'entity_type', NEW.entity_type,
-        'entity_name', NEW.entity_name
-    );
-    
-    -- Notify personal activity channel
-    PERFORM pg_notify('user_activity_' || NEW.user_id, notification_payload::text);
-    
-    -- Notify team activity channel if applicable
-    IF NEW.organization_id IS NOT NULL AND NEW.activity_scope IN ('team', 'public') THEN
-        PERFORM pg_notify('team_activity_' || NEW.organization_id, notification_payload::text);
-    END IF;
-    
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."notify_team_activity"() OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."populate_user_activity_organization"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$
-DECLARE
-    user_org_id UUID;
-BEGIN
-    -- Get the user's current organization_id from profiles
-    SELECT current_organization_id INTO user_org_id
-    FROM public.profiles
-    WHERE id = NEW.user_id;
-    
-    -- Set organization_id if user has one and activity scope allows team visibility
-    IF user_org_id IS NOT NULL AND NEW.activity_scope IN ('team', 'public') THEN
-        NEW.organization_id := user_org_id;
-    END IF;
-    
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."populate_user_activity_organization"() OWNER TO "postgres";
-
-
 CREATE OR REPLACE FUNCTION "public"."resend_organization_invitation"("p_invitation_id" "uuid") RETURNS TABLE("success" boolean, "invitation_id" "uuid", "new_expires_at" timestamp with time zone, "message" "text")
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -1582,8 +1110,8 @@ BEGIN
                 invited_by = v_user_id,
                 token = v_token,
                 updated_at = NOW()
-            WHERE id = v_existing_invitation
-            RETURNING id INTO v_invitation_id;
+            WHERE organization_invitations.id = v_existing_invitation
+            RETURNING organization_invitations.id INTO v_invitation_id;
         ELSE
             -- Check for any existing invitation (even non-pending)
             SELECT oi.id INTO v_existing_invitation
@@ -1600,8 +1128,8 @@ BEGIN
                     invited_by = v_user_id,
                     token = v_token,
                     updated_at = NOW()
-                WHERE id = v_existing_invitation
-                RETURNING id INTO v_invitation_id;
+                WHERE organization_invitations.id = v_existing_invitation
+                RETURNING organization_invitations.id INTO v_invitation_id;
             ELSE
                 -- Create new invitation
                 INSERT INTO organization_invitations (
@@ -1611,12 +1139,15 @@ BEGIN
                     p_organization_id, v_email, p_role, 'pending', v_user_id,
                     v_expires_at, v_token, NOW(), NOW()
                 )
-                RETURNING id INTO v_invitation_id;
+                RETURNING organization_invitations.id INTO v_invitation_id;
             END IF;
         END IF;
         
-        -- Add to temp table
-        INSERT INTO temp_invitations
+        -- Add to temp table with explicit column selection
+        INSERT INTO temp_invitations (
+            id, organization_id, email, role, status,
+            invited_by, expires_at, created_at, token
+        )
         SELECT 
             oi.id, oi.organization_id, oi.email, oi.role, oi.status,
             oi.invited_by, oi.expires_at, oi.created_at, oi.token
@@ -1624,8 +1155,12 @@ BEGIN
         WHERE oi.id = v_invitation_id;
     END LOOP;
     
-    -- Return all processed invitations
-    RETURN QUERY SELECT * FROM temp_invitations;
+    -- Return all processed invitations with explicit column selection
+    RETURN QUERY 
+    SELECT 
+        ti.id, ti.organization_id, ti.email, ti.role, ti.status,
+        ti.invited_by, ti.expires_at, ti.created_at, ti.token
+    FROM temp_invitations ti;
 END;
 $$;
 
@@ -2142,6 +1677,7 @@ CREATE TABLE IF NOT EXISTS "public"."opportunities" (
     "data" "jsonb" DEFAULT '{}'::"jsonb",
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"(),
+    "organization_id" "uuid" NOT NULL,
     CONSTRAINT "opportunities_priority_check" CHECK (("priority" = ANY (ARRAY['High'::"text", 'Medium'::"text", 'Low'::"text"])))
 );
 
@@ -2154,6 +1690,10 @@ COMMENT ON TABLE "public"."opportunities" IS 'Stores sales opportunities with pi
 
 
 COMMENT ON COLUMN "public"."opportunities"."status" IS 'Pipeline stage: Discovered, Qualified, Contract Sent, In Procurement, Deal Won, Not Now';
+
+
+
+COMMENT ON COLUMN "public"."opportunities"."organization_id" IS 'Organization ID for multi-tenant access. All organization members can view and manage these opportunities.';
 
 
 
@@ -2212,6 +1752,20 @@ COMMENT ON TABLE "public"."organizations" IS 'Organizations table with RLS polic
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."pinned_emails" (
+    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "email_id" "text" NOT NULL,
+    "contact_email" "text" NOT NULL,
+    "is_pinned" boolean DEFAULT true,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."pinned_emails" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "id" "uuid" NOT NULL,
     "email" "text",
@@ -2225,88 +1779,6 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
 
 
 ALTER TABLE "public"."profiles" OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "public"."user_activities" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "user_id" "uuid" NOT NULL,
-    "user_name" "text" NOT NULL,
-    "user_email" "text",
-    "timestamp" timestamp with time zone DEFAULT "now"(),
-    "activity_type" "text" NOT NULL,
-    "entity_id" "text",
-    "entity_type" "text",
-    "entity_name" "text",
-    "field_name" "text",
-    "old_value" "jsonb",
-    "new_value" "jsonb",
-    "details" "jsonb",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "is_pinned" boolean DEFAULT false,
-    "organization_id" "uuid",
-    "activity_scope" "text" DEFAULT 'personal'::"text",
-    CONSTRAINT "user_activities_activity_scope_check" CHECK (("activity_scope" = ANY (ARRAY['personal'::"text", 'team'::"text", 'public'::"text"])))
-);
-
-
-ALTER TABLE "public"."user_activities" OWNER TO "postgres";
-
-
-COMMENT ON COLUMN "public"."user_activities"."organization_id" IS 'Organization context for team activity visibility';
-
-
-
-COMMENT ON COLUMN "public"."user_activities"."activity_scope" IS 'Visibility scope: personal (user only), team (organization), public (all)';
-
-
-
-CREATE OR REPLACE VIEW "public"."personal_activity_feed" AS
- SELECT "ua"."id",
-    "ua"."user_id",
-    "ua"."user_name",
-    "ua"."user_email",
-    "ua"."timestamp",
-    "ua"."activity_type",
-    "ua"."entity_id",
-    "ua"."entity_type",
-    "ua"."entity_name",
-    "ua"."field_name",
-    "ua"."old_value",
-    "ua"."new_value",
-    "ua"."details",
-    "ua"."is_pinned",
-    "ua"."organization_id",
-    "ua"."activity_scope",
-    "p"."full_name" AS "user_full_name",
-    "p"."avatar_url" AS "user_avatar_url",
-    "date"("ua"."timestamp") AS "activity_date",
-        CASE
-            WHEN ("ua"."timestamp" >= ("now"() - '01:00:00'::interval)) THEN 'recent'::"text"
-            WHEN ("ua"."timestamp" >= ("now"() - '24:00:00'::interval)) THEN 'today'::"text"
-            WHEN ("ua"."timestamp" >= ("now"() - '7 days'::interval)) THEN 'this_week'::"text"
-            ELSE 'older'::"text"
-        END AS "activity_recency"
-   FROM ("public"."user_activities" "ua"
-     JOIN "public"."profiles" "p" ON (("ua"."user_id" = "p"."id")))
-  WHERE ("ua"."user_id" = "auth"."uid"())
-  ORDER BY "ua"."timestamp" DESC;
-
-
-ALTER TABLE "public"."personal_activity_feed" OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "public"."pinned_emails" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "user_id" "uuid" NOT NULL,
-    "email_id" "text" NOT NULL,
-    "contact_email" "text" NOT NULL,
-    "is_pinned" boolean DEFAULT true,
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
-);
-
-
-ALTER TABLE "public"."pinned_emails" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."tasks" (
@@ -2329,43 +1801,26 @@ CREATE TABLE IF NOT EXISTS "public"."tasks" (
 ALTER TABLE "public"."tasks" OWNER TO "postgres";
 
 
-CREATE OR REPLACE VIEW "public"."team_activity_feed" WITH ("security_barrier"='true') AS
- SELECT "ua"."id",
-    "ua"."user_id",
-    "ua"."user_name",
-    "ua"."user_email",
-    "ua"."timestamp",
-    "ua"."activity_type",
-    "ua"."entity_id",
-    "ua"."entity_type",
-    "ua"."entity_name",
-    "ua"."field_name",
-    "ua"."old_value",
-    "ua"."new_value",
-    "ua"."details",
-    "ua"."is_pinned",
-    "ua"."organization_id",
-    "ua"."activity_scope",
-    "o"."name" AS "organization_name",
-    "om"."role" AS "user_role",
-    "p"."full_name" AS "user_full_name",
-    "p"."avatar_url" AS "user_avatar_url",
-    "date"("ua"."timestamp") AS "activity_date",
-    EXTRACT(hour FROM "ua"."timestamp") AS "activity_hour",
-        CASE
-            WHEN ("ua"."timestamp" >= ("now"() - '01:00:00'::interval)) THEN 'recent'::"text"
-            WHEN ("ua"."timestamp" >= ("now"() - '24:00:00'::interval)) THEN 'today'::"text"
-            WHEN ("ua"."timestamp" >= ("now"() - '7 days'::interval)) THEN 'this_week'::"text"
-            ELSE 'older'::"text"
-        END AS "activity_recency"
-   FROM ((("public"."user_activities" "ua"
-     JOIN "public"."profiles" "p" ON (("ua"."user_id" = "p"."id")))
-     LEFT JOIN "public"."organizations" "o" ON (("ua"."organization_id" = "o"."id")))
-     LEFT JOIN "public"."organization_members" "om" ON ((("ua"."user_id" = "om"."user_id") AND ("ua"."organization_id" = "om"."organization_id"))))
-  WHERE (("ua"."activity_scope" = ANY (ARRAY['team'::"text", 'public'::"text"])) AND ("ua"."organization_id" IS NOT NULL));
+CREATE TABLE IF NOT EXISTS "public"."user_activities" (
+    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "user_name" "text" NOT NULL,
+    "user_email" "text",
+    "timestamp" timestamp with time zone DEFAULT "now"(),
+    "activity_type" "text" NOT NULL,
+    "entity_id" "text",
+    "entity_type" "text",
+    "entity_name" "text",
+    "field_name" "text",
+    "old_value" "jsonb",
+    "new_value" "jsonb",
+    "details" "jsonb",
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "is_pinned" boolean DEFAULT false
+);
 
 
-ALTER TABLE "public"."team_activity_feed" OWNER TO "postgres";
+ALTER TABLE "public"."user_activities" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."user_activity_comments" (
@@ -2758,6 +2213,10 @@ CREATE INDEX "idx_opportunities_data_gin" ON "public"."opportunities" USING "gin
 
 
 
+CREATE INDEX "idx_opportunities_organization_id" ON "public"."opportunities" USING "btree" ("organization_id");
+
+
+
 CREATE INDEX "idx_opportunities_original_contact" ON "public"."opportunities" USING "btree" ("original_contact_id");
 
 
@@ -2826,19 +2285,11 @@ CREATE INDEX "idx_organization_members_org_id" ON "public"."organization_members
 
 
 
-CREATE INDEX "idx_organization_members_org_role" ON "public"."organization_members" USING "btree" ("organization_id", "role");
-
-
-
 CREATE INDEX "idx_organization_members_organization_id" ON "public"."organization_members" USING "btree" ("organization_id");
 
 
 
 CREATE INDEX "idx_organization_members_user_id" ON "public"."organization_members" USING "btree" ("user_id");
-
-
-
-CREATE INDEX "idx_organization_members_user_org" ON "public"."organization_members" USING "btree" ("user_id", "organization_id");
 
 
 
@@ -2878,31 +2329,11 @@ CREATE INDEX "idx_tasks_user_id" ON "public"."tasks" USING "btree" ("user_id");
 
 
 
-CREATE INDEX "idx_user_activities_org_scope_timestamp" ON "public"."user_activities" USING "btree" ("organization_id", "activity_scope", "timestamp" DESC) WHERE (("organization_id" IS NOT NULL) AND ("activity_scope" = ANY (ARRAY['team'::"text", 'public'::"text"])));
-
-
-
-CREATE INDEX "idx_user_activities_org_timestamp" ON "public"."user_activities" USING "btree" ("organization_id", "timestamp" DESC) WHERE ("organization_id" IS NOT NULL);
-
-
-
 CREATE INDEX "idx_user_activities_pinned" ON "public"."user_activities" USING "btree" ("is_pinned", "timestamp" DESC);
 
 
 
-CREATE INDEX "idx_user_activities_scope_timestamp" ON "public"."user_activities" USING "btree" ("activity_scope", "timestamp" DESC);
-
-
-
-CREATE INDEX "idx_user_activities_type_org_timestamp" ON "public"."user_activities" USING "btree" ("activity_type", "organization_id", "timestamp" DESC) WHERE ("organization_id" IS NOT NULL);
-
-
-
 CREATE INDEX "idx_user_activities_user_id" ON "public"."user_activities" USING "btree" ("user_id");
-
-
-
-CREATE INDEX "idx_user_activities_user_org_timestamp" ON "public"."user_activities" USING "btree" ("user_id", "organization_id", "timestamp" DESC);
 
 
 
@@ -2946,15 +2377,7 @@ CREATE OR REPLACE TRIGGER "on_invitation_accepted" AFTER UPDATE ON "public"."org
 
 
 
-CREATE OR REPLACE TRIGGER "on_new_activity" AFTER INSERT ON "public"."user_activities" FOR EACH ROW EXECUTE FUNCTION "public"."notify_team_activity"();
-
-
-
 CREATE OR REPLACE TRIGGER "opportunities_updated_at_trigger" BEFORE UPDATE ON "public"."opportunities" FOR EACH ROW EXECUTE FUNCTION "public"."update_opportunities_updated_at"();
-
-
-
-CREATE OR REPLACE TRIGGER "populate_user_activity_organization_trigger" BEFORE INSERT ON "public"."user_activities" FOR EACH ROW EXECUTE FUNCTION "public"."populate_user_activity_organization"();
 
 
 
@@ -3055,6 +2478,11 @@ ALTER TABLE ONLY "public"."oauth_tokens"
 
 
 ALTER TABLE ONLY "public"."opportunities"
+    ADD CONSTRAINT "opportunities_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."opportunities"
     ADD CONSTRAINT "opportunities_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
@@ -3110,11 +2538,6 @@ ALTER TABLE ONLY "public"."tasks"
 
 
 ALTER TABLE ONLY "public"."user_activities"
-    ADD CONSTRAINT "user_activities_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."user_activities"
     ADD CONSTRAINT "user_activities_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
@@ -3144,6 +2567,12 @@ ALTER TABLE ONLY "public"."zapier_sessions"
 
 
 
+CREATE POLICY "Admins can manage invitations" ON "public"."organization_invitations" USING ((EXISTS ( SELECT 1
+   FROM "public"."organization_members" "om"
+  WHERE (("om"."user_id" = "auth"."uid"()) AND ("om"."organization_id" = "organization_invitations"."organization_id") AND ("om"."role" = 'admin'::"text")))));
+
+
+
 CREATE POLICY "Allow delete access to leads_rows" ON "public"."leads_rows" FOR DELETE USING (true);
 
 
@@ -3157,6 +2586,14 @@ CREATE POLICY "Allow read access to leads_rows" ON "public"."leads_rows" FOR SEL
 
 
 CREATE POLICY "Allow update access to leads_rows" ON "public"."leads_rows" FOR UPDATE USING (true);
+
+
+
+CREATE POLICY "Anyone can view invitations" ON "public"."organization_invitations" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Anyone can view pending invitations" ON "public"."organization_invitations" FOR SELECT USING (("status" = 'pending'::"text"));
 
 
 
@@ -3184,11 +2621,41 @@ CREATE POLICY "Contacts: user can update own rows" ON "public"."contacts" FOR UP
 
 
 
+CREATE POLICY "Organization members can delete opportunities" ON "public"."opportunities" FOR DELETE USING (("organization_id" IN ( SELECT "om"."organization_id"
+   FROM "public"."organization_members" "om"
+  WHERE ("om"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Organization members can insert opportunities" ON "public"."opportunities" FOR INSERT WITH CHECK (("organization_id" IN ( SELECT "om"."organization_id"
+   FROM "public"."organization_members" "om"
+  WHERE ("om"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Organization members can update opportunities" ON "public"."opportunities" FOR UPDATE USING (("organization_id" IN ( SELECT "om"."organization_id"
+   FROM "public"."organization_members" "om"
+  WHERE ("om"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "Organization members can view opportunities" ON "public"."opportunities" FOR SELECT USING (("organization_id" IN ( SELECT "om"."organization_id"
+   FROM "public"."organization_members" "om"
+  WHERE ("om"."user_id" = "auth"."uid"()))));
+
+
+
 CREATE POLICY "Service role can access all sessions" ON "public"."zapier_sessions" USING (true);
 
 
 
 CREATE POLICY "Service role can manage all tokens" ON "public"."oauth_tokens" USING (("auth"."role"() = 'service_role'::"text"));
+
+
+
+CREATE POLICY "Users can accept their invitations" ON "public"."organization_invitations" FOR UPDATE USING ((("email" = (( SELECT "users"."email"
+   FROM "auth"."users"
+  WHERE ("users"."id" = "auth"."uid"())))::"text") AND ("status" = 'pending'::"text")));
 
 
 
@@ -3221,10 +2688,6 @@ CREATE POLICY "Users can delete attachments of own emails" ON "public"."email_at
 
 
 CREATE POLICY "Users can delete own email accounts" ON "public"."email_accounts" FOR DELETE USING (("auth"."uid"() = "user_id"));
-
-
-
-CREATE POLICY "Users can delete own opportunities" ON "public"."opportunities" FOR DELETE USING (("auth"."uid"() = "user_id"));
 
 
 
@@ -3280,15 +2743,7 @@ CREATE POLICY "Users can insert own email accounts" ON "public"."email_accounts"
 
 
 
-CREATE POLICY "Users can insert own opportunities" ON "public"."opportunities" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
-
-
-
 CREATE POLICY "Users can insert own tokens" ON "public"."oauth_tokens" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
-
-
-
-CREATE POLICY "Users can insert their own activities" ON "public"."user_activities" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
 
 
 
@@ -3323,10 +2778,6 @@ CREATE POLICY "Users can update attachments of own emails" ON "public"."email_at
 
 
 CREATE POLICY "Users can update own email accounts" ON "public"."email_accounts" FOR UPDATE USING (("auth"."uid"() = "user_id"));
-
-
-
-CREATE POLICY "Users can update own opportunities" ON "public"."opportunities" FOR UPDATE USING (("auth"."uid"() = "user_id"));
 
 
 
@@ -3386,21 +2837,11 @@ CREATE POLICY "Users can view own email accounts" ON "public"."email_accounts" F
 
 
 
-CREATE POLICY "Users can view own opportunities" ON "public"."opportunities" FOR SELECT USING (("auth"."uid"() = "user_id"));
-
-
-
 CREATE POLICY "Users can view own profile" ON "public"."profiles" FOR SELECT USING (("auth"."uid"() = "id"));
 
 
 
 CREATE POLICY "Users can view own tokens" ON "public"."oauth_tokens" FOR SELECT USING (("auth"."uid"() = "user_id"));
-
-
-
-CREATE POLICY "Users can view team activities" ON "public"."user_activities" FOR SELECT USING ((("activity_scope" = ANY (ARRAY['team'::"text", 'public'::"text"])) AND ("organization_id" IN ( SELECT "organization_members"."organization_id"
-   FROM "public"."organization_members"
-  WHERE (("organization_members"."user_id" = "auth"."uid"()) AND ("organization_members"."status" = 'active'::"text"))))));
 
 
 
@@ -3438,21 +2879,15 @@ CREATE POLICY "admin_delete_members" ON "public"."organization_members" FOR DELE
 
 
 
-CREATE POLICY "admin_update_members" ON "public"."organization_members" FOR UPDATE USING ((EXISTS ( SELECT 1
+CREATE POLICY "admin_insert_members" ON "public"."organization_members" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."organization_members" "existing"
   WHERE (("existing"."user_id" = "auth"."uid"()) AND ("existing"."organization_id" = "organization_members"."organization_id") AND ("existing"."role" = 'admin'::"text")))));
 
 
 
-CREATE POLICY "admins_can_create_invitations" ON "public"."organization_invitations" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
-   FROM "public"."organization_members" "om"
-  WHERE (("om"."organization_id" = "organization_invitations"."organization_id") AND ("om"."user_id" = "auth"."uid"()) AND ("om"."role" = 'admin'::"text") AND ("om"."status" = 'active'::"text")))));
-
-
-
-CREATE POLICY "admins_can_delete_invitations" ON "public"."organization_invitations" FOR DELETE USING ((EXISTS ( SELECT 1
-   FROM "public"."organization_members" "om"
-  WHERE (("om"."organization_id" = "organization_invitations"."organization_id") AND ("om"."user_id" = "auth"."uid"()) AND ("om"."role" = 'admin'::"text") AND ("om"."status" = 'active'::"text")))));
+CREATE POLICY "admin_update_members" ON "public"."organization_members" FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM "public"."organization_members" "existing"
+  WHERE (("existing"."user_id" = "auth"."uid"()) AND ("existing"."organization_id" = "organization_members"."organization_id") AND ("existing"."role" = 'admin'::"text")))));
 
 
 
@@ -3462,33 +2897,11 @@ CREATE POLICY "admins_can_delete_organizations" ON "public"."organizations" FOR 
 
 
 
-CREATE POLICY "admins_can_update_invitations" ON "public"."organization_invitations" FOR UPDATE USING ((EXISTS ( SELECT 1
-   FROM "public"."organization_members" "om"
-  WHERE (("om"."organization_id" = "organization_invitations"."organization_id") AND ("om"."user_id" = "auth"."uid"()) AND ("om"."role" = 'admin'::"text") AND ("om"."status" = 'active'::"text"))))) WITH CHECK ((EXISTS ( SELECT 1
-   FROM "public"."organization_members" "om"
-  WHERE (("om"."organization_id" = "organization_invitations"."organization_id") AND ("om"."user_id" = "auth"."uid"()) AND ("om"."role" = 'admin'::"text") AND ("om"."status" = 'active'::"text")))));
-
-
-
 CREATE POLICY "admins_can_update_organizations" ON "public"."organizations" FOR UPDATE TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."organization_members" "om"
   WHERE (("om"."organization_id" = "organizations"."id") AND ("om"."user_id" = "auth"."uid"()) AND ("om"."role" = 'admin'::"text"))))) WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."organization_members" "om"
   WHERE (("om"."organization_id" = "organizations"."id") AND ("om"."user_id" = "auth"."uid"()) AND ("om"."role" = 'admin'::"text")))));
-
-
-
-CREATE POLICY "admins_can_view_org_invitations" ON "public"."organization_invitations" FOR SELECT USING ((EXISTS ( SELECT 1
-   FROM "public"."organization_members" "om"
-  WHERE (("om"."organization_id" = "organization_invitations"."organization_id") AND ("om"."user_id" = "auth"."uid"()) AND ("om"."role" = 'admin'::"text") AND ("om"."status" = 'active'::"text")))));
-
-
-
-CREATE POLICY "allow_organization_creation_and_admin_insert" ON "public"."organization_members" FOR INSERT WITH CHECK (((("user_id" = "auth"."uid"()) AND ("role" = 'admin'::"text") AND (NOT (EXISTS ( SELECT 1
-   FROM "public"."organization_members" "existing_members"
-  WHERE ("existing_members"."organization_id" = "organization_members"."organization_id"))))) OR (EXISTS ( SELECT 1
-   FROM "public"."organization_members" "admin_check"
-  WHERE (("admin_check"."user_id" = "auth"."uid"()) AND ("admin_check"."organization_id" = "organization_members"."organization_id") AND ("admin_check"."role" = 'admin'::"text"))))));
 
 
 
@@ -3559,10 +2972,6 @@ ALTER TABLE "public"."pinned_emails" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "public_can_view_invitations_by_token" ON "public"."organization_invitations" FOR SELECT USING ((("status" = 'pending'::"text") AND ("token" IS NOT NULL)));
-
-
-
 ALTER TABLE "public"."tasks" ENABLE ROW LEVEL SECURITY;
 
 
@@ -3578,21 +2987,11 @@ ALTER TABLE "public"."user_api_keys" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."user_settings" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "users_can_accept_own_invitations" ON "public"."organization_invitations" FOR UPDATE USING ((("email" = (( SELECT "users"."email"
-   FROM "auth"."users"
-  WHERE ("users"."id" = "auth"."uid"())))::"text") AND ("status" = 'pending'::"text"))) WITH CHECK ((("email" = (( SELECT "users"."email"
-   FROM "auth"."users"
-  WHERE ("users"."id" = "auth"."uid"())))::"text") AND ("status" = ANY (ARRAY['accepted'::"text", 'declined'::"text"]))));
+CREATE POLICY "view_org_members" ON "public"."organization_members" FOR SELECT USING ((("user_id" = "auth"."uid"()) OR "public"."is_organization_member"("organization_id", "auth"."uid"())));
 
 
 
-CREATE POLICY "users_can_view_own_memberships" ON "public"."organization_members" FOR SELECT USING (("user_id" = "auth"."uid"()));
-
-
-
-CREATE POLICY "users_can_view_own_pending_invitations" ON "public"."organization_invitations" FOR SELECT USING ((("email" = (( SELECT "users"."email"
-   FROM "auth"."users"
-  WHERE ("users"."id" = "auth"."uid"())))::"text") AND ("status" = 'pending'::"text")));
+CREATE POLICY "view_own_membership" ON "public"."organization_members" FOR SELECT USING (("user_id" = "auth"."uid"()));
 
 
 
@@ -3789,12 +3188,6 @@ GRANT ALL ON FUNCTION "public"."auto_accept_invitation"("p_invitation_id" "uuid"
 
 
 
-GRANT ALL ON FUNCTION "public"."backfill_activity_organization_ids"() TO "anon";
-GRANT ALL ON FUNCTION "public"."backfill_activity_organization_ids"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."backfill_activity_organization_ids"() TO "service_role";
-
-
-
 GRANT ALL ON FUNCTION "public"."cancel_organization_invitation"("p_invitation_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."cancel_organization_invitation"("p_invitation_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."cancel_organization_invitation"("p_invitation_id" "uuid") TO "service_role";
@@ -3831,12 +3224,6 @@ GRANT ALL ON FUNCTION "public"."count_unique_jsonb_field_values"("p_user_id" "uu
 
 
 
-GRANT ALL ON FUNCTION "public"."create_organization_with_admin"("p_org_name" "text", "p_org_domain" "text", "p_user_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."create_organization_with_admin"("p_org_name" "text", "p_org_domain" "text", "p_user_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."create_organization_with_admin"("p_org_name" "text", "p_org_domain" "text", "p_user_id" "uuid") TO "service_role";
-
-
-
 GRANT ALL ON FUNCTION "public"."create_user_api_key"("p_user_id" "uuid", "p_api_key" "text", "p_name" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."create_user_api_key"("p_user_id" "uuid", "p_api_key" "text", "p_name" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."create_user_api_key"("p_user_id" "uuid", "p_api_key" "text", "p_name" "text") TO "service_role";
@@ -3861,33 +3248,15 @@ GRANT ALL ON FUNCTION "public"."get_invitation_details_public"("p_token_or_id" "
 
 
 
-GRANT ALL ON FUNCTION "public"."get_invitations_by_emails"("org_id" "uuid", "email_list" "text"[]) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_invitations_by_emails"("org_id" "uuid", "email_list" "text"[]) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_invitations_by_emails"("org_id" "uuid", "email_list" "text"[]) TO "service_role";
-
-
-
 GRANT ALL ON FUNCTION "public"."get_organization_details_safe"("p_org_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."get_organization_details_safe"("p_org_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_organization_details_safe"("p_org_id" "uuid") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."get_organization_invitations"("org_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_organization_invitations"("org_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_organization_invitations"("org_id" "uuid") TO "service_role";
-
-
-
 GRANT ALL ON FUNCTION "public"."get_organization_invitations_safe"("p_org_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."get_organization_invitations_safe"("p_org_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_organization_invitations_safe"("p_org_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_organization_members"("org_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_organization_members"("org_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_organization_members"("org_id" "uuid") TO "service_role";
 
 
 
@@ -3903,45 +3272,15 @@ GRANT ALL ON FUNCTION "public"."get_pending_invitations_for_email"("p_email" "te
 
 
 
-GRANT ALL ON FUNCTION "public"."get_single_user_info"("user_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_single_user_info"("user_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_single_user_info"("user_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_team_activity_feed"("p_organization_id" "uuid", "p_limit" integer, "p_offset" integer, "p_activity_type" "text", "p_user_id" "uuid", "p_hours_back" integer) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_team_activity_feed"("p_organization_id" "uuid", "p_limit" integer, "p_offset" integer, "p_activity_type" "text", "p_user_id" "uuid", "p_hours_back" integer) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_team_activity_feed"("p_organization_id" "uuid", "p_limit" integer, "p_offset" integer, "p_activity_type" "text", "p_user_id" "uuid", "p_hours_back" integer) TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_team_activity_stats"("p_organization_id" "uuid", "p_hours_back" integer) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_team_activity_stats"("p_organization_id" "uuid", "p_hours_back" integer) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_team_activity_stats"("p_organization_id" "uuid", "p_hours_back" integer) TO "service_role";
-
-
-
 GRANT ALL ON FUNCTION "public"."get_unique_jsonb_field_values"("p_user_id" "uuid", "p_field_name" "text", "p_limit" integer) TO "anon";
 GRANT ALL ON FUNCTION "public"."get_unique_jsonb_field_values"("p_user_id" "uuid", "p_field_name" "text", "p_limit" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_unique_jsonb_field_values"("p_user_id" "uuid", "p_field_name" "text", "p_limit" integer) TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."get_user_info"("user_ids" "uuid"[]) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_user_info"("user_ids" "uuid"[]) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_user_info"("user_ids" "uuid"[]) TO "service_role";
-
-
-
 GRANT ALL ON FUNCTION "public"."get_user_organization"("p_user_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."get_user_organization"("p_user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_user_organization"("p_user_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."get_user_organization_membership"("user_uuid" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_user_organization_membership"("user_uuid" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_user_organization_membership"("user_uuid" "uuid") TO "service_role";
 
 
 
@@ -3978,18 +3317,6 @@ GRANT ALL ON FUNCTION "public"."has_organization"("p_user_id" "uuid") TO "servic
 GRANT ALL ON FUNCTION "public"."is_organization_member"("p_org_id" "uuid", "p_user_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."is_organization_member"("p_org_id" "uuid", "p_user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."is_organization_member"("p_org_id" "uuid", "p_user_id" "uuid") TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."notify_team_activity"() TO "anon";
-GRANT ALL ON FUNCTION "public"."notify_team_activity"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."notify_team_activity"() TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."populate_user_activity_organization"() TO "anon";
-GRANT ALL ON FUNCTION "public"."populate_user_activity_organization"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."populate_user_activity_organization"() TO "service_role";
 
 
 
@@ -4158,27 +3485,15 @@ GRANT ALL ON TABLE "public"."organizations" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."profiles" TO "anon";
-GRANT ALL ON TABLE "public"."profiles" TO "authenticated";
-GRANT ALL ON TABLE "public"."profiles" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."user_activities" TO "anon";
-GRANT ALL ON TABLE "public"."user_activities" TO "authenticated";
-GRANT ALL ON TABLE "public"."user_activities" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."personal_activity_feed" TO "anon";
-GRANT ALL ON TABLE "public"."personal_activity_feed" TO "authenticated";
-GRANT ALL ON TABLE "public"."personal_activity_feed" TO "service_role";
-
-
-
 GRANT ALL ON TABLE "public"."pinned_emails" TO "anon";
 GRANT ALL ON TABLE "public"."pinned_emails" TO "authenticated";
 GRANT ALL ON TABLE "public"."pinned_emails" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."profiles" TO "anon";
+GRANT ALL ON TABLE "public"."profiles" TO "authenticated";
+GRANT ALL ON TABLE "public"."profiles" TO "service_role";
 
 
 
@@ -4188,9 +3503,9 @@ GRANT ALL ON TABLE "public"."tasks" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."team_activity_feed" TO "anon";
-GRANT ALL ON TABLE "public"."team_activity_feed" TO "authenticated";
-GRANT ALL ON TABLE "public"."team_activity_feed" TO "service_role";
+GRANT ALL ON TABLE "public"."user_activities" TO "anon";
+GRANT ALL ON TABLE "public"."user_activities" TO "authenticated";
+GRANT ALL ON TABLE "public"."user_activities" TO "service_role";
 
 
 
