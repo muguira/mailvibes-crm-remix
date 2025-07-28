@@ -56,25 +56,24 @@ export const useStore = create<TStore>()(
 
           // Persist Opportunities state
           opportunitiesDeletedIds: Array.from(state.opportunitiesDeletedIds || new Set()), // Convert Set to Array for JSON serialization
-          opportunitiesPagination: {
-            isInitialized: state.opportunitiesPagination?.isInitialized || false,
-          },
+          // Don't persist opportunitiesPagination.isInitialized - it should be determined by actual data presence
+          // This prevents infinite loops when the persisted flag doesn't match the actual data state
 
           // Persist other critical user preferences (add as needed)
           // Note: We don't persist loading states, errors, or temporary data
         }
 
         // Debug log to see what's being persisted
-        console.log('🔄 Zustand persist - saving to localStorage:', {
-          columnsCount: persistedState.columns.length,
-          columnIds: persistedState.columns.map(c => c.id),
-          hiddenColumnsCount: persistedState.hiddenColumns.length,
-          hiddenColumnIds: persistedState.hiddenColumns.map(c => c.id),
-          activeFilters: persistedState.activeFilters,
-          deletedColumnIds: persistedState.deletedColumnIds,
-          opportunitiesDeletedIds: persistedState.opportunitiesDeletedIds,
-          opportunitiesInitialized: persistedState.opportunitiesPagination.isInitialized,
-        })
+        // Commented out to reduce console noise
+        // console.log('🔄 Zustand persist - saving to localStorage:', {
+        //   columnsCount: persistedState.columns.length,
+        //   columnIds: persistedState.columns.map(c => c.id),
+        //   hiddenColumnsCount: persistedState.hiddenColumns.length,
+        //   hiddenColumnIds: persistedState.hiddenColumns.map(c => c.id),
+        //   activeFilters: persistedState.activeFilters,
+        //   deletedColumnIds: persistedState.deletedColumnIds,
+        //   opportunitiesDeletedIds: persistedState.opportunitiesDeletedIds,
+        // })
 
         return persistedState
       },
@@ -153,7 +152,6 @@ export const useStore = create<TStore>()(
               hiddenColumnIds: state?.hiddenColumns?.map(c => c.id) || [],
               deletedColumnIds: state?.deletedColumnIds ? Array.from(state.deletedColumnIds) : [],
               opportunitiesDeletedIds: state?.opportunitiesDeletedIds ? Array.from(state.opportunitiesDeletedIds) : [],
-              opportunitiesInitialized: state?.opportunitiesPagination?.isInitialized || false,
               fullState: !!state,
             })
           }

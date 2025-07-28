@@ -155,8 +155,12 @@ export function useInstantOpportunities({
     }
   }, [renderCount, logSummary])
 
-  // 🚀 REMOVED: Initialization moved to page level to avoid race conditions
-  // The Opportunities page now handles store initialization
+  // Initialize store when user is available - but only if not already initialized
+  useEffect(() => {
+    if (user?.id && !isInitialized) {
+      initialize(user.id)
+    }
+  }, [user?.id, isInitialized, initialize])
 
   // OPTIMIZED: Memoize processed search term to avoid repeated processing
   const processedSearchTerm = useMemo(() => {

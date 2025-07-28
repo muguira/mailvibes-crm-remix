@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth';
 import { 
   useOrganizationData, 
@@ -28,7 +28,7 @@ interface Organization {
 
 export const usePendingInvitations = () => {
   const { user } = useAuth();
-  const { organization } = useOrganizationData();
+  const { currentOrganization: organization } = useOrganizationData();
   const { loadOrganization } = useOrganizationActions();
   
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
@@ -36,7 +36,7 @@ export const usePendingInvitations = () => {
   const [loading, setLoading] = useState(false);
 
   // Check for pending invitations
-  const checkPendingInvitations = async () => {
+  const checkPendingInvitations = useCallback(async () => {
     if (!user?.email) return;
 
     try {
@@ -74,10 +74,10 @@ export const usePendingInvitations = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.email, user?.id]);
 
   // Get user's current role in their organization
-  const getUserRole = async () => {
+  const getUserRole = useCallback(async () => {
     if (!user?.id || !organization?.id) return;
 
     try {
@@ -94,10 +94,10 @@ export const usePendingInvitations = () => {
     } catch (error) {
       console.error('Error getting user role:', error);
     }
-  };
+  }, [user?.id, organization?.id]);
 
   // Handle user's choice to stay or switch organizations
-  const handleInvitationChoice = async (
+  const handleInvitationChoice = useCallback(async (
     invitationId: string, 
     choice: 'stay' | 'switch'
   ): Promise<void> => {
@@ -175,17 +175,17 @@ export const usePendingInvitations = () => {
       console.error('Error handling invitation choice:', error);
       throw error;
     }
-  };
+  }, [user?.id, pendingInvitations, organization, loadOrganization]);
 
-  // Load data when user or organization changes
+  // Load data when user or organization changes - only on organization ID change
   useEffect(() => {
-    if (user?.email && organization) {
+    if (user?.email && organization?.id) {
       checkPendingInvitations();
       getUserRole();
     }
-  }, [user?.email, organization?.id]);
+  }, [user?.email, organization?.id, checkPendingInvitations, getUserRole]);
 
-  // Check for new invitations every 30 seconds
+  // Check for new invitations every 30 seconds - but only if user exists
   useEffect(() => {
     if (!user?.email) return;
 
@@ -194,7 +194,7 @@ export const usePendingInvitations = () => {
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
-  }, [user?.email]);
+  }, [user?.email, checkPendingInvitations]);
 
   return {
     pendingInvitations,

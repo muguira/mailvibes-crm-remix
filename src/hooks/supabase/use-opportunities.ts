@@ -360,7 +360,6 @@ export function useOpportunities() {
         'lastContacted': 'last_contacted',
         'nextMeeting': 'next_meeting',
         'leadSource': 'lead_source',
-        'stage': 'status', // Kanban uses 'stage', DB uses 'status'
         'createdAt': 'created_at',
         'updatedAt': 'updated_at',
         // Add reverse mapping for data that comes from DB in snake_case

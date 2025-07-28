@@ -75,7 +75,6 @@ export function EditableOpportunitiesGrid({
     opportunitiesOrderedIds,
     opportunitiesLoading,
     opportunitiesPagination,
-    opportunitiesInitialize,
     opportunitiesAddOpportunity,
     opportunitiesRemoveOpportunities,
     opportunitiesEnsureMinimumLoaded,
@@ -136,13 +135,8 @@ export function EditableOpportunitiesGrid({
   // const [totalCount, setTotalCount] = useState(0);
   // const [retryCount, setRetryCount] = useState(0);
 
-  // 🚀 NEW: Initialize store when user is available
-  useEffect(() => {
-    if (user?.id && !opportunitiesPagination.isInitialized) {
-      logger.log('Initializing opportunities store for user:', user.id);
-      opportunitiesInitialize(user.id);
-    }
-  }, [user?.id, opportunitiesPagination.isInitialized, opportunitiesInitialize]);
+  // 🚀 REMOVED: Initialization is now handled at the page level (Opportunities.tsx)
+  // to avoid race conditions and duplicate initialization
 
   // 🚀 NEW: Ensure minimum data is loaded for current page size
   useEffect(() => {
@@ -387,8 +381,9 @@ export function EditableOpportunitiesGrid({
         
         // 🚀 OPTIMISTIC: Add to store immediately for instant UI feedback
         // Generate a temporary ID until database ID is available
+        const tempId = `temp-${Date.now()}`;
         const newOpportunity = {
-          id: `temp-${Date.now()}`, // Temporary ID
+          id: tempId, // Temporary ID
           opportunity: conversionData.accountName,
           company: conversionData.accountName,
           status: conversionData.stage,
@@ -403,7 +398,33 @@ export function EditableOpportunitiesGrid({
           updatedAt: new Date().toISOString(),
         };
         
+        // Add to store with temp ID for immediate UI feedback
         opportunitiesAddOpportunity(newOpportunity);
+        
+        // 🔄 REAL DATABASE: Save to database and get real ID
+        try {
+          const result = await bulkConvertContactsToOpportunities(contacts, conversionData);
+          
+          if (result.success && result.data && result.data.length > 0) {
+            const realOpportunity = result.data[0]; // Get the real opportunity from database
+            
+            // 🔄 SYNC: Replace temp opportunity with real one using database ID
+            console.log(`🔄 Replacing temp ID ${tempId} with real ID ${realOpportunity.id}`);
+            
+            // Remove temp opportunity and add real one
+            opportunitiesRemoveOpportunities([tempId]);
+            opportunitiesAddOpportunity({
+              ...newOpportunity,
+              id: realOpportunity.id, // Use real database ID
+              ...realOpportunity, // Include any other fields from database
+            });
+            
+            console.log('✅ Successfully synced opportunity with real database ID');
+          }
+        } catch (dbError) {
+          console.error('❌ Database sync failed, keeping temp opportunity:', dbError);
+          // Keep the temp opportunity in store for user visibility
+        }
         
         toast({
           title: "Opportunity created",
@@ -419,7 +440,7 @@ export function EditableOpportunitiesGrid({
       });
       throw error;
     }
-  }, [bulkConvertContactsToOpportunities, opportunitiesAddOpportunity, user]);
+  }, [bulkConvertContactsToOpportunities, opportunitiesAddOpportunity, opportunitiesRemoveOpportunities, user]);
 
   // Compute display columns
   const displayColumns = useMemo(() => {

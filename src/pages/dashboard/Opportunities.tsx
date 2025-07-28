@@ -40,9 +40,8 @@ export default function Opportunities() {
     opportunitiesOrderedIds,
     opportunitiesLoading,
     opportunitiesPagination,
-    opportunitiesInitialize,
     opportunitiesUpdateOpportunity,
-    opportunitiesErrors,
+    opportunitiesInitialize,
   } = useStore();
 
   // Get opportunities from store
@@ -50,27 +49,11 @@ export default function Opportunities() {
     return opportunitiesOrderedIds.map(id => opportunitiesCache[id]).filter(Boolean);
   }, [opportunitiesOrderedIds, opportunitiesCache]);
 
-  const isOpportunitiesLoading = opportunitiesLoading.initializing || opportunitiesLoading.fetching;
+  // Simple loading state - only show loading during actual initialization
+  const isOpportunitiesLoading = opportunitiesLoading.initializing;
 
-  // Initialize store when user is available
-  useEffect(() => {
-    console.log('🚀 Opportunities page - User effect:', { 
-      userId: user?.id, 
-      isInitialized: opportunitiesPagination.isInitialized,
-      isLoading: isOpportunitiesLoading 
-    })
-    if (user?.id && !opportunitiesPagination.isInitialized) {
-      console.log('🚀 Starting opportunities initialization...')
-      opportunitiesInitialize(user.id);
-    }
-  }, [user?.id, opportunitiesPagination.isInitialized, opportunitiesInitialize]);
-
-  // 🚀 FALLBACK: Force initialization if marked as initialized but no data loaded
-  useEffect(() => {
-    if (user?.id && opportunitiesPagination.isInitialized && opportunities.length === 0 && !isOpportunitiesLoading) {
-      opportunitiesInitialize(user.id);
-    }
-  }, [user?.id, opportunitiesPagination.isInitialized, opportunities.length, isOpportunitiesLoading, opportunitiesInitialize]);
+  // 🚀 REMOVED: Manual initialization - now handled automatically by useInstantOpportunities hook
+  // This matches how the contacts page works (no manual initialization)
 
   const handleViewChange = (newView: ViewMode) => {
     setViewMode(newView);
@@ -79,6 +62,21 @@ export default function Opportunities() {
   // Handle stage update from Kanban board
   const handleStageUpdate = async (opportunityId: string, newStage: string) => {
     try {
+      // 🚀 Check if this is a temp ID
+      if (opportunityId.startsWith('temp-')) {
+        console.warn(`⚠️ Attempting to update temp opportunity ${opportunityId} - refreshing data first`);
+        
+        // Force refresh opportunities to get real IDs
+        await opportunitiesInitialize(user?.id || '');
+        
+        toast({
+          title: "Please try again",
+          description: "The opportunity is still syncing. Please try moving it again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // 🚀 OPTIMISTIC UPDATE: Update store immediately for instant UI feedback
       const currentOpportunity = opportunitiesCache[opportunityId];
       if (currentOpportunity) {
@@ -94,7 +92,7 @@ export default function Opportunities() {
         
         try {
           // 🚀 BACKGROUND: Update database (with error recovery)
-          await updateOpportunity(opportunityId, { stage: newStage });
+          await updateOpportunity(opportunityId, { status: newStage });
           console.log(`✅ Successfully updated opportunity ${opportunityId} stage in database`);
           
           toast({
@@ -197,84 +195,59 @@ export default function Opportunities() {
         <TopNavbar />
         <div className="h-screen bg-gray-50 overflow-hidden">
           <ErrorBoundary sectionName="Opportunities View">
-          {/* Error State */}
-          {opportunitiesErrors.initialize && !isOpportunitiesLoading && (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center p-8">
-                <div className="text-red-600 text-lg font-semibold mb-2">
-                  Failed to load opportunities
-                </div>
-                <div className="text-gray-600 mb-4">
-                  {opportunitiesErrors.initialize}
-                </div>
-                <Button 
-                  onClick={() => user?.id && opportunitiesInitialize(user.id)}
-                  className="bg-[#32BAB0] hover:bg-[#28a79d] text-white"
-                >
-                  Try Again
-                </Button>
-              </div>
-            </div>
-          )}
-          
-          {/* Normal Content */}
-          {!opportunitiesErrors.initialize && (
-            <>
-              {viewMode === 'list' ? (
-                <EditableOpportunitiesGrid 
-                  viewToggle={
-                    <ViewToggle 
-                      currentView={viewMode} 
-                      onViewChange={handleViewChange}
-                    />
-                  }
-                  externalOpportunities={opportunities}
-                  externalLoading={isOpportunitiesLoading}
+          {viewMode === 'list' ? (
+            <EditableOpportunitiesGrid 
+              viewToggle={
+                <ViewToggle 
+                  currentView={viewMode} 
+                  onViewChange={handleViewChange}
                 />
-              ) : (
-                <div className="grid-view h-full">
-                  {/* Board View Header - Match Grid Toolbar exactly */}
-                  <div className="grid-toolbar bg-white border-b border-gray-200">
-                    <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center">
-                        <SearchInput 
-                          value={boardSearchTerm}
-                          onChange={setBoardSearchTerm}
-                          placeholder="Search opportunities..."
-                          className="w-full max-w-xs"
-                        />
-                        <div className="ml-4">
-                          <ViewToggle 
-                            currentView={viewMode} 
-                            onViewChange={handleViewChange}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          size="sm"
-                          onClick={() => setIsContactSelectionModalOpen(true)}
-                          className="bg-[#32BAB0] hover:bg-[#28a79d] text-white"
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add Opportunities
-                        </Button>
-                      </div>
+              }
+              externalOpportunities={opportunities}
+              externalLoading={isOpportunitiesLoading}
+            />
+          ) : (
+            <div className="grid-view h-full">
+              {/* Board View Header - Match Grid Toolbar exactly */}
+              <div className="grid-toolbar bg-white border-b border-gray-200">
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center">
+                    <SearchInput 
+                      value={boardSearchTerm}
+                      onChange={setBoardSearchTerm}
+                      placeholder="Search opportunities..."
+                      className="w-full max-w-xs"
+                    />
+                    <div className="ml-4">
+                      <ViewToggle 
+                        currentView={viewMode} 
+                        onViewChange={handleViewChange}
+                      />
                     </div>
                   </div>
-                  
-                  {/* Kanban Board */}
-                  <div className="flex-1 overflow-hidden bg-gray-50">
-                    <OpportunitiesKanbanBoard
-                      opportunities={opportunities}
-                      onStageUpdate={handleStageUpdate}
-                      isLoading={isOpportunitiesLoading}
-                      searchTerm={boardSearchTerm}
-                    />
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      size="sm"
+                      onClick={() => setIsContactSelectionModalOpen(true)}
+                      className="bg-[#32BAB0] hover:bg-[#28a79d] text-white"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Opportunities
+                    </Button>
                   </div>
                 </div>
-              )}
-            </>
+              </div>
+              
+              {/* Kanban Board */}
+              <div className="flex-1 overflow-hidden bg-gray-50">
+                <OpportunitiesKanbanBoard
+                  opportunities={opportunities}
+                  onStageUpdate={handleStageUpdate}
+                  isLoading={isOpportunitiesLoading}
+                  searchTerm={boardSearchTerm}
+                />
+              </div>
+            </div>
           )}
         </ErrorBoundary>
 

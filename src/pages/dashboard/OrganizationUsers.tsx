@@ -77,12 +77,36 @@ const OrganizationUsers: React.FC = () => {
     getUserRole();
   }, [members]);
 
-  // Load organization data on mount
+  // Load organization data on mount - ensure members are loaded
   useEffect(() => {
-    if (!organization && !loadingStates.loadingOrganization) {
-      loadOrganization();
+    // Only load if we have an organization but no members, and we're not currently loading
+    if (organization?.id && (!members || members.length === 0) && !loadingStates.loadingOrganization) {
+      console.log('🔄 Loading organization members for org:', organization.id);
+      loadOrganization(true); // Force reload to get fresh members data
     }
-  }, [organization, loadingStates.loadingOrganization, loadOrganization]);
+  }, [organization?.id]); // Only depend on organization ID to prevent excessive reloads
+
+  // Early loading state check - if we have org but no members and not loading, show loading
+  const shouldShowLoading = loadingStates.loadingOrganization || 
+    (organization && (!members || members.length === 0) && !errors.loadOrganization);
+
+  // Show loading state while data is being fetched
+  if (shouldShowLoading) {
+    return (
+      <SettingsLayout title="Settings">
+        <Card className="bg-white shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00A991] mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading organization members...</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </SettingsLayout>
+    );
+  }
 
   // Handle invite users
   const handleInviteUsers = async (formData: InviteUserForm) => {
@@ -176,24 +200,6 @@ const OrganizationUsers: React.FC = () => {
     ...invitations,
     ...optimisticUpdates.pendingInvitations
   ];
-
-  // Show loading state
-  if (loadingStates.loadingOrganization && !organization) {
-    return (
-      <SettingsLayout title="Settings">
-        <Card className="bg-white shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00A991] mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading organization data...</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </SettingsLayout>
-    );
-  }
 
   // Show error state
   if (errors.loadOrganization && !organization) {
@@ -376,12 +382,12 @@ const OrganizationUsers: React.FC = () => {
             <div className="space-y-3">
               {effectiveMembers.map((member) => {
                 const isCurrentUser = member.user_id === organizationMocks.currentUser.id;
-                const isUpdatingRole = loadingStates.updatingRole[member.id];
-                const isRemoving = loadingStates.removingMember[member.id];
+                const isUpdatingRole = loadingStates.updatingRole?.[member.id] || false;
+                const isRemoving = loadingStates.removingMember?.[member.id] || false;
                 const roleError = errors.updateRole?.[member.id];
                 const removeError = errors.removeMember?.[member.id];
-                const pendingRole = optimisticUpdates.pendingRoleChanges[member.id];
-                const isPendingRemoval = optimisticUpdates.pendingRemovals.includes(member.id);
+                const pendingRole = optimisticUpdates.pendingRoleChanges?.[member.id];
+                const isPendingRemoval = optimisticUpdates.pendingRemovals?.includes(member.id) || false;
                 
                 return (
                   <div 
