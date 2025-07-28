@@ -1,7 +1,7 @@
 import { useAuth } from '@/components/auth'
 import { supabase } from '@/integrations/supabase/client'
 import { useOrganizationActions, useOrganizationData } from '@/stores/organizationStore'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 interface PendingInvitation {
   id: string
@@ -21,18 +21,17 @@ interface Organization {
   member_count: number
   plan: string
 }
-
 export const usePendingInvitations = () => {
   const { user } = useAuth()
-  const { organization } = useOrganizationData()
-  const { loadOrganization } = useOrganizationActions()
+  const { currentOrganization } = useOrganizationData()
+  const { loadOrganization: refreshOrganization } = useOrganizationActions()
 
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([])
   const [userRole, setUserRole] = useState<string>('member')
   const [loading, setLoading] = useState(false)
 
   // Check for pending invitations
-  const checkPendingInvitations = async () => {
+  const checkPendingInvitations = useCallback(async () => {
     if (!user?.email) return
 
     try {
@@ -47,18 +46,20 @@ export const usePendingInvitations = () => {
       // Filter out invitations to organizations the user is already a member of
       const filteredInvitations = []
 
-      for (const invitation of invitations || []) {
-        // Check if user is already a member of this organization
-        const { data: existingMember } = await supabase
-          .from('organization_members')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('organization_id', invitation.organization_id)
-          .single()
+      if (Array.isArray(invitations)) {
+        for (const invitation of invitations as PendingInvitation[]) {
+          // Check if user is already a member of this organization
+          const { data: existingMember } = await supabase
+            .from('organization_members')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('organization_id', invitation.organization_id)
+            .single()
 
-        // Only include invitations to organizations the user is NOT already a member of
-        if (!existingMember) {
-          filteredInvitations.push(invitation)
+          // Only include invitations to organizations the user is NOT already a member of
+          if (!existingMember) {
+            filteredInvitations.push(invitation)
+          }
         }
       }
 
@@ -68,18 +69,18 @@ export const usePendingInvitations = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.email])
 
   // Get user's current role in their organization
-  const getUserRole = async () => {
-    if (!user?.id || !organization?.id) return
+  const getUserRole = useCallback(async () => {
+    if (!user?.id || !currentOrganization?.id) return
 
     try {
       const { data: member } = await supabase
         .from('organization_members')
         .select('role')
         .eq('user_id', user.id)
-        .eq('organization_id', organization.id)
+        .eq('organization_id', currentOrganization.id)
         .single()
 
       if (member) {
@@ -88,89 +89,91 @@ export const usePendingInvitations = () => {
     } catch (error) {
       console.error('Error getting user role:', error)
     }
-  }
+  }, [user?.id, currentOrganization?.id])
 
   // Handle user's choice to stay or switch organizations
-  const handleInvitationChoice = async (invitationId: string, choice: 'stay' | 'switch'): Promise<void> => {
-    if (!user?.id) throw new Error('User not authenticated')
+  const handleInvitationChoice = useCallback(
+    async (invitationId: string, choice: 'stay' | 'switch'): Promise<void> => {
+      if (!user?.id) throw new Error('User not authenticated')
 
-    try {
-      if (choice === 'stay') {
-        // Decline the invitation
-        const { error } = await supabase
-          .from('organization_invitations')
-          .update({
-            status: 'declined',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', invitationId)
-
-        if (error) throw error
-
-        // Remove from local state
-        setPendingInvitations(prev => prev.filter(inv => inv.id !== invitationId))
-      } else {
-        // Switch to the new organization
-        const invitation = pendingInvitations.find(inv => inv.id === invitationId)
-        if (!invitation) throw new Error('Invitation not found')
-
-        // First, remove user from current organization (if they have one)
-        if (organization?.id) {
-          const { error: removeError } = await supabase
-            .from('organization_members')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('organization_id', organization.id)
-
-          if (removeError) throw removeError
-
-          // Update old organization member count
-          const { error: updateOldOrgError } = await supabase
-            .from('organizations')
+      try {
+        if (choice === 'stay') {
+          // Decline the invitation
+          const { error } = await supabase
+            .from('organization_invitations')
             .update({
-              member_count: Math.max(0, (organization.member_count || 1) - 1),
+              status: 'declined',
               updated_at: new Date().toISOString(),
             })
-            .eq('id', organization.id)
+            .eq('id', invitationId)
 
-          if (updateOldOrgError) throw updateOldOrgError
+          if (error) throw error
+
+          // Remove from local state
+          setPendingInvitations(prev => prev.filter(inv => inv.id !== invitationId))
+        } else {
+          // Switch to the new organization
+          const invitation = pendingInvitations.find(inv => inv.id === invitationId)
+          if (!invitation) throw new Error('Invitation not found')
+
+          // First, remove user from current organization (if they have one)
+          if (currentOrganization?.id) {
+            const { error: removeError } = await supabase
+              .from('organization_members')
+              .delete()
+              .eq('user_id', user.id)
+              .eq('organization_id', currentOrganization.id)
+
+            if (removeError) throw removeError
+
+            // Update old organization member count
+            const { error: updateOldOrgError } = await supabase
+              .from('organizations')
+              .update({
+                member_count: Math.max(0, (currentOrganization.member_count || 1) - 1),
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', currentOrganization.id)
+
+            if (updateOldOrgError) throw updateOldOrgError
+          }
+
+          // Accept the invitation using the existing RPC function
+          const { data: result, error: acceptError } = await supabase.rpc('auto_accept_invitation', {
+            p_invitation_id: invitationId,
+            p_user_id: user.id,
+          })
+
+          if (acceptError) throw acceptError
+
+          const acceptResult = result?.[0]
+          if (!acceptResult?.success) {
+            throw new Error(acceptResult?.message || 'Failed to accept invitation')
+          }
+
+          // Remove from local state
+          setPendingInvitations(prev => prev.filter(inv => inv.id !== invitationId))
+
+          // Reload organization data to reflect the change
+          await refreshOrganization()
         }
-
-        // Accept the invitation using the existing RPC function
-        const { data: result, error: acceptError } = await supabase.rpc('auto_accept_invitation', {
-          p_invitation_id: invitationId,
-          p_user_id: user.id,
-        })
-
-        if (acceptError) throw acceptError
-
-        const acceptResult = result?.[0]
-        if (!acceptResult?.success) {
-          throw new Error(acceptResult?.message || 'Failed to accept invitation')
-        }
-
-        // Remove from local state
-        setPendingInvitations(prev => prev.filter(inv => inv.id !== invitationId))
-
-        // Reload organization data to reflect the change
-        await loadOrganization()
+      } catch (error) {
+        console.error('Error handling invitation choice:', error)
+        throw error
       }
-    } catch (error) {
-      console.error('Error handling invitation choice:', error)
-      throw error
-    }
-  }
+    },
+    [user?.id, pendingInvitations, currentOrganization, refreshOrganization],
+  )
 
-  // Load data when user or organization changes
+  // Load data when user or organization changes - only on organization ID change
   useEffect(() => {
-    if (user?.email && organization) {
+    if (user?.email && currentOrganization) {
       checkPendingInvitations()
       getUserRole()
     }
-  }, [user?.email, organization?.id])
+  }, [user?.email, currentOrganization?.id, checkPendingInvitations, getUserRole])
 
-  // 🚀 REDUCED: Check for new invitations every 5 minutes instead of 30 seconds
-  // This reduces unnecessary API calls while still checking for invitations regularly
+  // Check for new invitations every 30 seconds - but only if user exists
   useEffect(() => {
     if (!user?.email) return
 
@@ -179,12 +182,12 @@ export const usePendingInvitations = () => {
     }, 300000) // 5 minutes (300,000ms) instead of 30 seconds
 
     return () => clearInterval(interval)
-  }, [user?.email])
+  }, [user?.email, checkPendingInvitations])
 
   return {
     pendingInvitations,
     userRole,
-    currentOrganization: organization,
+    currentOrganization,
     loading,
     handleInvitationChoice,
     refreshInvitations: checkPendingInvitations,

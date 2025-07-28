@@ -76,7 +76,8 @@ function App() {
         <TooltipProvider delayDuration={300}>
           <AuthProvider>
             <ActivityProvider>
-              <PendingInvitationsHandler />
+              {/* Temporarily disabled to fix infinite loop - will re-enable after testing */}
+              {/* <PendingInvitationsHandler /> */}
               <Router>
               <div className="h-screen w-full font-proxima">
                 <PasswordRecoveryHandler />

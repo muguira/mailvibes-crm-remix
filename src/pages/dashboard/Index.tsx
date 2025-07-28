@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { TasksPanel } from "@/components/home/tasks-panel";
 import { FeedPanel } from "@/components/home/feed-panel";
@@ -7,13 +7,15 @@ import { WelcomeHeader } from "@/components/home/welcome-header";
 import { AddTeammatesCard } from "@/components/home/add-teammates-card";
 import { CreateOrganizationModal } from "@/components/organization/CreateOrganizationModal";
 import { useAuth } from "@/components/auth";
-import { useOrganizationActions, useOrganizationData } from '@/stores/organizationStore';
+import { useOrganizationActions, useOrganizationData, useOrganizationLoadingStates } from '@/stores/organizationStore';
 import { Navigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const Index = () => {
   const { user, loading } = useAuth();
-  const { needsOrganization } = useOrganizationData();
-  const { checkUserOrganization } = useOrganizationActions();
+  const { needsOrganization, error } = useOrganizationData();
+  const { checkingOrganization, creatingOrganization } = useOrganizationLoadingStates();
+  const { checkUserOrganization, createPersonalWorkspace, clearError } = useOrganizationActions();
 
   // Check for password recovery redirect from Supabase
   useEffect(() => {
@@ -32,15 +34,59 @@ const Index = () => {
     handlePasswordRecovery();
   }, []);
 
-  // Initialize organization data when user is authenticated
+  // Initialize organization data when user is authenticated - only run once per user
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
+      console.log('🔄 User authenticated, checking organization status');
       checkUserOrganization();
     }
-  }, [user, checkUserOrganization]);
+  }, [user?.id]); // Only depend on user ID, not the function
 
-  // Show loading indicator while checking authentication
-  if (loading) {
+  // Clear any errors when component mounts
+  useEffect(() => {
+    if (error) {
+      clearError();
+    }
+  }, []); // Only run once on mount
+
+  // Handle modal close/skip with simplified workflow
+  const handleModalClose = useCallback(async () => {
+    if (user?.id && !creatingOrganization) {
+      try {
+        console.log('🏢 User skipped organization creation, creating personal workspace...');
+        
+        await createPersonalWorkspace();
+        
+        console.log('✅ Personal workspace created successfully');
+        
+      } catch (error) {
+        console.error('❌ Error creating personal workspace:', error);
+        
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create workspace';
+        
+        // Provide user-friendly error messages
+        if (errorMessage.includes('Database permission error')) {
+          toast.error('Database Permission Issue', {
+            description: 'Please refresh the page and try again. If this persists, contact support.',
+            duration: 8000,
+          });
+        } else if (errorMessage.includes('already exists') || errorMessage.includes('already taken')) {
+          toast.error('Domain Conflict', {
+            description: 'A workspace with this domain already exists. Please try again.',
+            duration: 5000,
+          });
+        } else {
+          toast.error('Failed to create workspace', {
+            description: errorMessage,
+            duration: 5000,
+          });
+        }
+      }
+    }
+  }, [user?.id, createPersonalWorkspace, creatingOrganization]);
+
+  // Show loading indicator while checking authentication or organization
+  if (loading || checkingOrganization) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -89,11 +135,26 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Create Organization Modal */}
+      {/* Organization Creation Modal - Clean and Simple */}
       <CreateOrganizationModal 
-        isOpen={needsOrganization}
-        onClose={() => {}} // Don't allow closing until organization is created
+        isOpen={needsOrganization && !creatingOrganization}
+        onClose={handleModalClose}
       />
+
+      {/* Loading state while creating personal workspace */}
+      {creatingOrganization && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <div className="flex items-center space-x-3">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#32BAB0]"></div>
+              <div>
+                <h3 className="font-medium">Creating your workspace...</h3>
+                <p className="text-sm text-gray-500">This will only take a moment</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

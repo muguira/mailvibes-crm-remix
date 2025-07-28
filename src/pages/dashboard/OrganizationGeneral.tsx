@@ -36,12 +36,13 @@ const OrganizationGeneral: React.FC = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [userRole, setUserRole] = useState<string>('member');
 
-  // Load organization data on mount
+  // Load organization data on mount - only if needed
   useEffect(() => {
     if (!organization && !loadingStates.loadingOrganization) {
+      console.log('🔄 Settings: Loading organization data');
       loadOrganization();
     }
-  }, [organization, loadingStates.loadingOrganization, loadOrganization]);
+  }, [organization?.id]); // Removed loadingStates dependency to prevent infinite loop
 
   // Set initial name when organization loads
   useEffect(() => {

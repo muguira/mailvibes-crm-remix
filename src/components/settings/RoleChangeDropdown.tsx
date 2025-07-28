@@ -153,16 +153,15 @@ export const RoleChangeDropdown: React.FC<RoleChangeDropdownProps> = ({
               <AlertTriangle className="w-5 h-5 text-amber-500" />
               Change User Role
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <div>
-                Are you sure you want to change{' '}
-                <span className="font-medium">
-                  {member.user.first_name} {member.user.last_name}
-                </span>{' '}
-                from <span className="font-medium">{currentRoleInfo.label}</span> to{' '}
-                <span className="font-medium">{pendingRoleInfo?.label}</span>?
-              </div>
-              
+            <AlertDialogDescription>
+              Are you sure you want to change{' '}
+              <span className="font-medium">
+                {member.user.first_name} {member.user.last_name}
+              </span>{' '}
+              from <span className="font-medium">{currentRoleInfo.label}</span> to{' '}
+              <span className="font-medium">{pendingRoleInfo?.label}</span>?
+            </AlertDialogDescription>
+            <div className="space-y-3 mt-4">
               {pendingRole && (
                 <div className="p-3 bg-gray-50 rounded-md">
                   <div className="flex items-center gap-2 text-sm">
@@ -183,7 +182,7 @@ export const RoleChangeDropdown: React.FC<RoleChangeDropdownProps> = ({
                   </div>
                 </div>
               )}
-            </AlertDialogDescription>
+            </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setIsConfirmOpen(false)}>

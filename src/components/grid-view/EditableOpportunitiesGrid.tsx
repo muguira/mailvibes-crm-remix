@@ -64,13 +64,10 @@ export function EditableOpportunitiesGrid({
     opportunitiesColumns,
     opportunitiesHiddenColumns,
     opportunitiesForceRenderKey,
-    opportunitiesDeletedColumnIds,
-    opportunitiesDeleteColumnDialog,
-    opportunitiesIsContactDeletionLoading,
+
     editableOpportunitiesGridSetCurrentPage,
     editableOpportunitiesGridSetPageSize,
-    editableOpportunitiesGridForceRerender,
-    editableOpportunitiesGridSetIsLoading,
+
     editableOpportunitiesGridAddDynamicColumns,
     editableOpportunitiesGridPersistColumns,
     editableOpportunitiesGridSetColumns,
@@ -80,16 +77,12 @@ export function EditableOpportunitiesGrid({
     editableOpportunitiesGridInsertColumn,
     editableOpportunitiesGridHideColumn,
     editableOpportunitiesGridUnhideColumn,
-    editableOpportunitiesGridHandleCellEdit,
     editableOpportunitiesGridDeleteOpportunities,
     editableOpportunitiesGridGetColumnFilters,
     editableOpportunitiesGridSetSearchTerm,
-    // 🚀 NEW: Advanced store infrastructure
-    opportunitiesCache,
-    opportunitiesOrderedIds,
+
     opportunitiesLoading,
     opportunitiesPagination,
-    opportunitiesErrors,
     opportunitiesAddOpportunity,
     opportunitiesRemoveOpportunities,
     opportunitiesEnsureMinimumLoaded,
@@ -510,8 +503,9 @@ export function EditableOpportunitiesGrid({
 
           // 🚀 OPTIMISTIC: Add to store immediately for instant UI feedback
           // Generate a temporary ID until database ID is available
+          const tempId = `temp-${Date.now()}`
           const newOpportunity = {
-            id: `temp-${Date.now()}`, // Temporary ID
+            id: tempId, // Temporary ID
             opportunity: conversionData.accountName,
             company: conversionData.accountName,
             status: conversionData.stage,
@@ -526,7 +520,32 @@ export function EditableOpportunitiesGrid({
             updatedAt: new Date().toISOString(),
           }
 
+          // Add to store with temp ID for immediate UI feedback
           opportunitiesAddOpportunity(newOpportunity)
+
+          // 🔄 REAL DATABASE: Save to database and get real ID
+          try {
+            const result = await bulkConvertContactsToOpportunities(contacts, conversionData)
+
+            if (result.success && result.data.id) {
+              const realOpportunity = result.data // Get the real opportunity from database
+
+              // 🔄 SYNC: Replace temp opportunity with real one using database ID
+
+              // Remove temp opportunity and add real one
+              opportunitiesRemoveOpportunities([tempId])
+              opportunitiesAddOpportunity({
+                ...newOpportunity,
+                id: realOpportunity.id, // Use real database ID
+                ...realOpportunity, // Include any other fields from database
+              })
+
+              console.log('✅ Successfully synced opportunity with real database ID')
+            }
+          } catch (dbError) {
+            console.error('❌ Database sync failed, keeping temp opportunity:', dbError)
+            // Keep the temp opportunity in store for user visibility
+          }
 
           toast({
             title: 'Opportunity created',
@@ -543,7 +562,7 @@ export function EditableOpportunitiesGrid({
         throw error
       }
     },
-    [bulkConvertContactsToOpportunities, opportunitiesAddOpportunity, user],
+    [bulkConvertContactsToOpportunities, opportunitiesAddOpportunity, opportunitiesRemoveOpportunities, user],
   )
 
   // Compute display columns
