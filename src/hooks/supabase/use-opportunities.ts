@@ -284,69 +284,88 @@ export function useOpportunities() {
     [user, getCurrentOrganizationId],
   )
 
-  // 🚀 OPTIMIZED: Update opportunity with optimistic UI updates
+  // Update opportunity
   const updateOpportunity = useCallback(
     async (opportunityId: string, updates: Partial<any>) => {
       if (!user) {
         throw new Error('User not authenticated')
       }
 
-      const organizationId = getCurrentOrganizationId()
-
       try {
-        console.log('🔄 Updating opportunity:', { opportunityId, updates, organizationId })
+        // Transform updates to match database schema - map camelCase to snake_case
+        const dbUpdates: any = {}
 
-        // Ensure organization_id is included in updates if creating
-        const updatesWithOrg = {
-          ...updates,
-          organization_id: organizationId,
-          updated_at: new Date().toISOString(),
+        // Field mapping from camelCase (grid) to snake_case (database)
+        const fieldMapping: { [key: string]: string } = {
+          closeDate: 'close_date',
+          companyName: 'company_name',
+          company: 'company_name', // Grid uses 'company', DB uses 'company_name'
+          companyLinkedin: 'company_linkedin',
+          lastContacted: 'last_contacted',
+          nextMeeting: 'next_meeting',
+          leadSource: 'lead_source',
+          createdAt: 'created_at',
+          updatedAt: 'updated_at',
+          // Add reverse mapping for data that comes from DB in snake_case
+          close_date: 'close_date',
+          company_name: 'company_name',
+          company_linkedin: 'company_linkedin',
+          last_contacted: 'last_contacted',
+          next_meeting: 'next_meeting',
+          lead_source: 'lead_source',
+          created_at: 'created_at',
+          updated_at: 'updated_at',
         }
+
+        // Apply field mappings and copy values
+        for (const [key, value] of Object.entries(updates)) {
+          const dbFieldName = fieldMapping[key] || key // Use mapped name or original if no mapping
+
+          // Skip readonly fields that shouldn't be updated
+          if (['created_at', 'updated_at', 'id'].includes(dbFieldName)) {
+            continue
+          }
+
+          dbUpdates[dbFieldName] = value
+        }
+
+        // Handle revenue formatting
+        if (dbUpdates.revenue && typeof dbUpdates.revenue === 'number') {
+          dbUpdates.revenue_display = `$${dbUpdates.revenue.toLocaleString()}`
+        }
+
+        // Handle date formatting for all date fields
+        const dateFields = ['close_date', 'last_contacted', 'next_meeting']
+        dateFields.forEach(field => {
+          const dateValue = dbUpdates[field]
+          if (dateValue) {
+            let formattedDate: string
+
+            if (dateValue instanceof Date) {
+              formattedDate = dateValue.toISOString().split('T')[0]
+            } else if (typeof dateValue === 'string') {
+              // Handle ISO string dates from grid editing
+              const date = new Date(dateValue)
+              if (!isNaN(date.getTime())) {
+                formattedDate = date.toISOString().split('T')[0]
+              } else {
+                throw new Error(`Invalid date format for ${field}: ${dateValue}`)
+              }
+            } else {
+              throw new Error(`Unsupported date type for ${field}: ${typeof dateValue}`)
+            }
+
+            dbUpdates[field] = formattedDate
+          }
+        })
 
         const { data, error } = await supabase
           .from('opportunities')
-          .update(updatesWithOrg)
+          .update(dbUpdates)
           .eq('id', opportunityId)
-          .eq('organization_id', organizationId) // Ensure user can only update opportunities in their organization
+          .eq('user_id', user.id)
           .select()
           .single()
-
-        if (error) {
-          console.error('❌ Error updating opportunity:', error)
-          throw error
-        }
-
-        console.log('✅ Successfully updated opportunity:', data)
-        return transformOpportunity(data)
-      } catch (error) {
-        console.error('❌ Error updating opportunity:', error)
-        throw error
-      }
-    },
-    [user, getCurrentOrganizationId],
-  )
-
-  // 🚀 OPTIMIZED: Create opportunity with validation
-  const createOpportunity = useCallback(
-    async (opportunityData: any) => {
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
-      const organizationId = getCurrentOrganizationId()
-
-      try {
-        console.log('🔄 Creating opportunity:', { opportunityData, organizationId })
-
-        const newOpportunity = {
-          ...opportunityData,
-          user_id: user.id,
-          organization_id: organizationId, // Add organization_id
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-
-        const { data, error } = await supabase.from('opportunities').insert([newOpportunity]).select().single()
 
         if (error) {
           console.error('❌ Error creating opportunity:', error)
@@ -400,7 +419,6 @@ export function useOpportunities() {
     getOpportunities,
     getOpportunitiesCount,
     updateOpportunity,
-    createOpportunity,
     deleteOpportunity,
     bulkConvertContactsToOpportunities,
   }

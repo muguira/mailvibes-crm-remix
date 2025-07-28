@@ -29,7 +29,7 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
     if (!organization && !loadingStates.loadingOrganization) {
       loadOrganization();
     }
-  }, [organization, loadingStates.loadingOrganization, loadOrganization]);
+  }, [organization]); // Removed loadingStates and loadOrganization dependencies to prevent infinite loop
 
   const isActive = (path: string) => location.pathname === path;
 

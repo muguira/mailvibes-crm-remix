@@ -1,11 +1,11 @@
 import { Column } from '@/components/grid-view/types'
 import { opportunityColumns } from '@/data/opportunities-data'
-import { StateCreator } from 'zustand'
 
 // Type definitions for opportunities grid
-export interface OpportunityGridColumn extends Column {
+export interface OpportunityGridColumn extends Omit<Column, 'type'> {
   hidden?: boolean
   originalIndex?: number
+  type: 'number' | 'status' | 'text' | 'currency' | 'date' | 'url' | 'custom' | 'select'
 }
 
 interface EditableOpportunitiesGridState {
@@ -48,16 +48,9 @@ interface EditableOpportunitiesGridState {
   // Force render key
   opportunitiesForceRenderKey: number
 
-  // Cache for opportunities data
+  // Cache and errors
   opportunitiesCache: Record<string, any>
-
-  // Error handling
-  opportunitiesErrors: {
-    persistence?: string
-    deletion?: string
-  }
-
-  // Last deletion tracking
+  opportunitiesErrors: Record<string, any>
   opportunitiesLastDeletion?: {
     opportunityIds: string[]
     timestamp: number
@@ -91,36 +84,26 @@ interface EditableOpportunitiesGridActions {
   editableOpportunitiesGridUnhideColumn: (columnId: string) => Promise<void>
   editableOpportunitiesGridReorderColumns: (columnIds: string[]) => void
   editableOpportunitiesGridPersistColumns: (columns: OpportunityGridColumn[], user: any) => Promise<void>
-  editableOpportunitiesGridApplyRenderFunctions: (renderOpportunityLink: any) => void
-  editableOpportunitiesGridLoadStoredColumns: (
-    user: any,
-    renderOpportunityLink?: any,
-  ) => Promise<OpportunityGridColumn[]>
-  editableOpportunitiesGridSaveHiddenColumns: (hiddenCols: OpportunityGridColumn[], user: any) => Promise<void>
-  editableOpportunitiesGridLoadHiddenColumns: (user: any) => Promise<OpportunityGridColumn[]>
+
+  // Advanced column operations
+  editableOpportunitiesGridApplyRenderFunctions: (renderOpportunityLink?: any) => void
+  editableOpportunitiesGridLoadStoredColumns: (user?: any, renderOpportunityLink?: any) => Promise<any[]>
+  editableOpportunitiesGridSaveHiddenColumns: (hiddenCols: any[], user?: any) => Promise<void>
+  editableOpportunitiesGridLoadHiddenColumns: (user?: any) => Promise<any[]>
   editableOpportunitiesGridExtractDynamicFields: (rows: any[]) => Set<string>
-  editableOpportunitiesGridGetDynamicColumnsToAdd: (rows: any[]) => OpportunityGridColumn[]
+  editableOpportunitiesGridGetDynamicColumnsToAdd: (rows: any[]) => any[]
 
   // Cell edit actions
   editableOpportunitiesGridHandleCellEdit: (rowId: string, columnId: string, value: any) => Promise<void>
 
+  // Bulk operations
+  editableOpportunitiesGridBulkUpdateStatus: (opportunityIds: string[], newStatus: string) => Promise<any>
+  editableOpportunitiesGridBulkUpdatePriority: (opportunityIds: string[], newPriority: string) => Promise<any>
+  editableOpportunitiesGridBulkUpdateOwner: (opportunityIds: string[], newOwner: string) => Promise<any>
+  editableOpportunitiesGridBulkDeleteColumnData: (columnId: string) => Promise<any>
+
   // Opportunity actions
   editableOpportunitiesGridDeleteOpportunities: (opportunityIds: string[]) => Promise<void>
-  editableOpportunitiesGridBulkUpdateStatus: (
-    opportunityIds: string[],
-    newStatus: string,
-  ) => Promise<{ success: boolean; affectedRows?: number; error?: string }>
-  editableOpportunitiesGridBulkUpdatePriority: (
-    opportunityIds: string[],
-    newPriority: string,
-  ) => Promise<{ success: boolean; affectedRows?: number; error?: string }>
-  editableOpportunitiesGridBulkUpdateOwner: (
-    opportunityIds: string[],
-    newOwner: string,
-  ) => Promise<{ success: boolean; affectedRows?: number; error?: string }>
-  editableOpportunitiesGridBulkDeleteColumnData: (
-    columnId: string,
-  ) => Promise<{ success: boolean; affectedRows?: number; error?: string }>
 
   // Utility actions
   editableOpportunitiesGridForceRerender: () => void
@@ -146,12 +129,7 @@ const getDefaultOpportunityColumns = (): OpportunityGridColumn[] => {
   }))
 }
 
-export const createEditableOpportunitiesGridSlice: StateCreator<
-  EditableOpportunitiesGridSlice,
-  [],
-  [],
-  EditableOpportunitiesGridSlice
-> = (set, get) => ({
+export const createEditableOpportunitiesGridSlice = (set: any, get: any) => ({
   // Initial state
   opportunitiesSearchTerm: '',
   opportunitiesActiveFilters: { columns: [], values: {} },
@@ -473,8 +451,8 @@ export const createEditableOpportunitiesGridSlice: StateCreator<
     })
 
     // Update the slice state
-    set({
-      opportunitiesColumns: columnsWithRenderFunctions,
+    set(state => {
+      state.opportunitiesColumns = columnsWithRenderFunctions
     })
 
     // Verify that the opportunity column has renderCell function
@@ -500,8 +478,8 @@ export const createEditableOpportunitiesGridSlice: StateCreator<
   editableOpportunitiesGridPersistColumns: async (newColumns, user) => {
     try {
       // Update slice state first
-      set({
-        opportunitiesColumns: newColumns,
+      set(state => {
+        state.opportunitiesColumns = newColumns
       })
 
       // Note: localStorage persistence is now handled automatically by Zustand persist middleware
@@ -515,11 +493,8 @@ export const createEditableOpportunitiesGridSlice: StateCreator<
       console.error('Error persisting opportunities columns:', error)
 
       // Set error state
-      set({
-        opportunitiesErrors: {
-          ...get().opportunitiesErrors,
-          persistence: error instanceof Error ? error.message : 'Failed to persist columns',
-        },
+      set(state => {
+        state.opportunitiesErrors.persistence = error instanceof Error ? error.message : 'Failed to persist columns'
       })
 
       throw error // Re-throw for caller to handle
@@ -611,8 +586,8 @@ export const createEditableOpportunitiesGridSlice: StateCreator<
       })
 
       // Update the slice state
-      set({
-        opportunitiesColumns: columnsWithRenderFunctions,
+      set(state => {
+        state.opportunitiesColumns = columnsWithRenderFunctions
       })
 
       console.log('✅ Opportunities columns loaded successfully:', columnsWithRenderFunctions.length)
@@ -716,6 +691,33 @@ export const createEditableOpportunitiesGridSlice: StateCreator<
   },
 
   /**
+   * Add dynamic columns based on opportunity row data
+   * @param rows - Array of opportunity data to analyze for dynamic fields
+   */
+  editableOpportunitiesGridAddDynamicColumns: rows => {
+    const state = get()
+
+    // Get dynamic columns that should be added
+    const dynamicColumnsToAdd = state.editableOpportunitiesGridGetDynamicColumnsToAdd(rows)
+
+    if (dynamicColumnsToAdd.length > 0) {
+      // Filter out columns that might already exist (extra safety check)
+      const newColumns = dynamicColumnsToAdd.filter(
+        newColumn => !state.opportunitiesColumns.some(col => col.id === newColumn.id),
+      )
+
+      if (newColumns.length > 0) {
+        // Dynamic columns added successfully
+
+        // Add the new columns to the existing columns
+        set(state => {
+          state.opportunitiesColumns = [...state.opportunitiesColumns, ...newColumns]
+        })
+      }
+    }
+  },
+
+  /**
    * Extract dynamic fields from opportunity row data
    * @param rows - Array of opportunity data to analyze
    * @returns Set of dynamic field names found in the data
@@ -784,7 +786,7 @@ export const createEditableOpportunitiesGridSlice: StateCreator<
    * @param rows - Array of opportunity data to analyze
    * @returns Array of Column objects for dynamic fields that should be added
    */
-  editableOpportunitiesGridGetDynamicColumnsToAdd: (rows): OpportunityGridColumn[] => {
+  editableOpportunitiesGridGetDynamicColumnsToAdd: (rows): any[] => {
     const state = get()
 
     // Extract dynamic fields from rows
@@ -797,7 +799,7 @@ export const createEditableOpportunitiesGridSlice: StateCreator<
     )
 
     // Convert fields to Column objects
-    return fieldsToAdd.map(field => ({
+    return fieldsToAdd.map((field: string) => ({
       id: field,
       title: field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1'),
       type: 'text' as const,
@@ -805,33 +807,6 @@ export const createEditableOpportunitiesGridSlice: StateCreator<
       editable: true,
       frozen: false,
     }))
-  },
-
-  /**
-   * Add dynamic columns based on opportunity row data
-   * @param rows - Array of opportunity data to analyze for dynamic fields
-   */
-  editableOpportunitiesGridAddDynamicColumns: rows => {
-    const state = get()
-
-    // Get dynamic columns that should be added
-    const dynamicColumnsToAdd = state.editableOpportunitiesGridGetDynamicColumnsToAdd(rows)
-
-    if (dynamicColumnsToAdd.length > 0) {
-      // Filter out columns that might already exist (extra safety check)
-      const newColumns = dynamicColumnsToAdd.filter(
-        newColumn => !state.opportunitiesColumns.some(col => col.id === newColumn.id),
-      )
-
-      if (newColumns.length > 0) {
-        // Dynamic columns added successfully
-
-        // Add the new columns to the existing columns
-        set({
-          opportunitiesColumns: [...state.opportunitiesColumns, ...newColumns],
-        })
-      }
-    }
   },
 
   // Cell edit actions
@@ -918,8 +893,8 @@ export const createEditableOpportunitiesGridSlice: StateCreator<
         }
       })
 
-      set({
-        opportunitiesCache: updatedCache,
+      set(state => {
+        state.opportunitiesCache = updatedCache
       })
 
       console.log(`✅ Bulk status update completed for ${opportunityIds.length} opportunities`)
@@ -951,8 +926,8 @@ export const createEditableOpportunitiesGridSlice: StateCreator<
         }
       })
 
-      set({
-        opportunitiesCache: updatedCache,
+      set(state => {
+        state.opportunitiesCache = updatedCache
       })
 
       console.log(`✅ Bulk priority update completed for ${opportunityIds.length} opportunities`)
@@ -984,8 +959,8 @@ export const createEditableOpportunitiesGridSlice: StateCreator<
         }
       })
 
-      set({
-        opportunitiesCache: updatedCache,
+      set(state => {
+        state.opportunitiesCache = updatedCache
       })
 
       console.log(`✅ Bulk owner update completed for ${opportunityIds.length} opportunities`)
@@ -1016,8 +991,8 @@ export const createEditableOpportunitiesGridSlice: StateCreator<
         }
       })
 
-      set({
-        opportunitiesCache: updatedCache,
+      set(state => {
+        state.opportunitiesCache = updatedCache
       })
 
       console.log(`✅ Bulk column deletion completed for ${affectedCount} opportunities`)

@@ -354,26 +354,11 @@ export const useOpportunitiesSlice: StateCreator<
         }
       } catch (error) {
         logger.error('[Initialize] Error during opportunities initialization:', error)
-        console.error('🚨 OPPORTUNITIES INIT ERROR:', error)
-        console.error('🚨 ERROR DETAILS:', {
-          message: error instanceof Error ? error.message : 'Unknown error',
-          userId,
-          timestamp: new Date().toISOString(),
-          stackTrace: error instanceof Error ? error.stack : undefined,
-        })
         set(state => {
           state.opportunitiesErrors.initialize =
             error instanceof Error ? error.message : OPPORTUNITIES_ERROR_MESSAGES.INITIALIZE_FAILED
-          // 🚀 CRITICAL: Clear all loading states to prevent infinite loops
-          state.opportunitiesLoading.initializing = false
-          state.opportunitiesLoading.fetching = false
-          // 🚀 IMPORTANT: Reset initialization flags to allow retry
-          state.opportunitiesPagination.isInitialized = false
-          state.opportunitiesPagination.firstBatchLoaded = false
         })
-        // Don't throw the error to prevent crashing the UI - let the component handle error state
-        console.log('🛡️ [SAFETY] Error handled gracefully, UI remains functional')
-        return
+        throw error
       } finally {
         // 🚀 SAFETY: Only clear loading if not already cleared in success case
         set(state => {
